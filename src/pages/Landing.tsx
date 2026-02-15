@@ -105,16 +105,6 @@ const Landing = () => {
               </div>
             </div>
 
-            {/* Dot indicators */}
-            <div className="flex items-center justify-center gap-1.5 mt-5">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="w-[6px] h-[6px] rounded-full"
-                  style={{ background: i === 0 ? "hsl(var(--primary))" : "rgba(45,45,45,0.12)" }}
-                />
-              ))}
-            </div>
           </div>
         </motion.div>
 
