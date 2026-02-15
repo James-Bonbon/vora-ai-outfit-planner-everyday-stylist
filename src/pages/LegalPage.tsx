@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 const termsItems = [
   {
@@ -129,7 +129,7 @@ const LegalPage = () => {
             variant="ghost"
             size="icon"
             className="rounded-xl min-w-[44px] min-h-[44px]"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate("/")}
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
