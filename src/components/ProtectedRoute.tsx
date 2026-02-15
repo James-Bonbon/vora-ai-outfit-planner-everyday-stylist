@@ -17,7 +17,7 @@ const ProtectedRoute = ({ children, skipOnboarding = false }: { children: React.
       .from("profiles")
       .select("onboarding_complete")
       .eq("user_id", user.id)
-      .single()
+      .maybeSingle()
       .then(({ data }) => {
         setOnboardingComplete(data?.onboarding_complete ?? false);
         setOnboardingChecked(true);

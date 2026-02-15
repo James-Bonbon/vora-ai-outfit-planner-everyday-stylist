@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import GlassCard from "@/components/GlassCard";
 import { User, Settings, Crown, LogOut, Pencil, X, Check, Ruler, Weight, Calendar, Users, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -42,7 +42,7 @@ const ProfilePage = () => {
     return sessionStorage.getItem(CACHE_KEY_SELFIE_URL) || null;
   });
   const [editing, setEditing] = useState(false);
-  const hasFetched = useRef(false);
+  
 
   // Edit state
   const [editName, setEditName] = useState("");
@@ -83,8 +83,6 @@ const ProfilePage = () => {
   }, [user]);
 
   useEffect(() => {
-    if (hasFetched.current) return;
-    hasFetched.current = true;
     fetchProfile();
   }, [fetchProfile]);
 
@@ -154,7 +152,6 @@ const ProfilePage = () => {
       setEditing(false);
       setEditSelfieFile(null);
       setEditSelfiePreview(null);
-      hasFetched.current = false;
       fetchProfile();
     } catch {
       toast.error("Failed to update profile.");
