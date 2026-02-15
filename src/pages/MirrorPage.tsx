@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import GlassCard from "@/components/GlassCard";
-import { Scan, Sparkles, Check, Image, Loader2, AlertTriangle, Save, Trash2, GalleryHorizontalEnd } from "lucide-react";
+import { Sparkles, Check, Image, Loader2, AlertTriangle, Save, Trash2, GalleryHorizontalEnd } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -215,12 +215,12 @@ const MirrorPage = () => {
   if (!hasItems && tab === "tryon") {
     return (
       <div className="pt-6 space-y-5">
-        <h1 className="text-2xl font-bold text-foreground font-outfit">AI Mirror</h1>
+        <h1 className="text-2xl font-bold text-foreground font-outfit">AI Stylist</h1>
         <GlassCard className="flex flex-col items-center justify-center py-20 text-center">
           <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center mb-5">
-            <Scan className="w-10 h-10 text-primary" />
+            <Sparkles className="w-10 h-10 text-primary" />
           </div>
-          <h3 className="text-lg font-bold text-foreground font-outfit">Virtual Try-On</h3>
+          <h3 className="text-lg font-bold text-foreground font-outfit">AI Stylist</h3>
           <p className="text-sm text-muted-foreground mt-2 max-w-[260px] leading-relaxed">
             Add garments to your wardrobe first, then come back to try them on virtually
           </p>
