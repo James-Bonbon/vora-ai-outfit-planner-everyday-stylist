@@ -1,10 +1,25 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
+
+/** Fetch an image URL and return a base64 data URL (always as image/png for compatibility) */
+async function toDataUrl(url: string): Promise<string> {
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`Failed to fetch image: ${resp.status}`);
+  const buf = await resp.arrayBuffer();
+  const b64 = base64Encode(new Uint8Array(buf));
+  // Use image/png as a safe fallback mime type that Gemini supports
+  const contentType = resp.headers.get("content-type");
+  const mime = contentType && /^image\/(png|jpeg|webp|gif)/.test(contentType)
+    ? contentType.split(";")[0]
+    : "image/png";
+  return `data:${mime};base64,${b64}`;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -23,6 +38,12 @@ serve(async (req) => {
 
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
+
+    // Convert all image URLs to base64 data URLs to avoid format issues (e.g. AVIF)
+    const [selfieDataUrl, ...garmentDataUrls] = await Promise.all([
+      toDataUrl(selfieUrl),
+      ...garmentUrls.map((u: string) => toDataUrl(u)),
+    ]);
 
     // Build content array with selfie + garments
     const content: any[] = [
@@ -43,14 +64,14 @@ Make it look like a real fashion photo, not a collage.`,
       },
       {
         type: "image_url",
-        image_url: { url: selfieUrl },
+        image_url: { url: selfieDataUrl },
       },
     ];
 
-    for (const url of garmentUrls) {
+    for (const dataUrl of garmentDataUrls) {
       content.push({
         type: "image_url",
-        image_url: { url },
+        image_url: { url: dataUrl },
       });
     }
 
