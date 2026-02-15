@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 const termsItems = [
   {
@@ -119,6 +119,8 @@ const privacyItems = [
 
 const LegalPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const defaultTab = searchParams.get("tab") === "privacy" ? "privacy" : "terms";
 
   const handlePrint = () => {
     window.print();
@@ -151,7 +153,7 @@ const LegalPage = () => {
           </Button>
         </div>
 
-        <Tabs defaultValue="terms" className="w-full">
+        <Tabs defaultValue={defaultTab} className="w-full">
           <TabsList className="w-full bg-secondary rounded-xl h-11">
             <TabsTrigger
               value="terms"
