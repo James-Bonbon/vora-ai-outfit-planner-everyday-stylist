@@ -17,17 +17,17 @@ const FASHION_QUOTES = [
 ];
 
 const TRENDING_FEMALE = [
-  { name: "Pleated Midi Skirt", brand: "& Other Stories", price: 89.00, image: "https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?w=300&h=400&fit=crop", link: "#" },
-  { name: "Leather Loafers", brand: "COS", price: 135.00, image: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=300&h=400&fit=crop", link: "#" },
-  { name: "Cashmere Knit", brand: "& Other Stories", price: 119.00, image: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=300&h=400&fit=crop", link: "#" },
-  { name: "Wide Leg Trousers", brand: "Arket", price: 79.00, image: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=300&h=400&fit=crop", link: "#" },
+  { name: "Pleated Midi Skirt", brand: "& Other Stories", price: "£69", image: "https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?w=300&h=400&fit=crop", link: "#" },
+  { name: "Leather Loafers", brand: "COS", price: "£109", image: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=300&h=400&fit=crop", link: "#" },
+  { name: "Cashmere Knit", brand: "Reiss", price: "£148", image: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=300&h=400&fit=crop", link: "#" },
+  { name: "Wide Leg Trousers", brand: "Arket", price: "£59", image: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=300&h=400&fit=crop", link: "#" },
 ];
 
 const TRENDING_MALE = [
-  { name: "Oversized Blazer", brand: "Zara", price: 89.90, image: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=300&h=400&fit=crop", link: "#" },
-  { name: "Chelsea Boots", brand: "COS", price: 175.00, image: "https://images.unsplash.com/photo-1638247025967-b4e38f787b76?w=300&h=400&fit=crop", link: "#" },
-  { name: "Merino Polo", brand: "Arket", price: 69.00, image: "https://images.unsplash.com/photo-1586790170083-2f9ceadc732d?w=300&h=400&fit=crop", link: "#" },
-  { name: "Slim Chinos", brand: "Uniqlo", price: 49.90, image: "https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=300&h=400&fit=crop", link: "#" },
+  { name: "Oversized Blazer", brand: "Reiss", price: "£228", image: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=300&h=400&fit=crop", link: "#" },
+  { name: "Chelsea Boots", brand: "COS", price: "£150", image: "https://images.unsplash.com/photo-1638247025967-b4e38f787b76?w=300&h=400&fit=crop", link: "#" },
+  { name: "Merino Polo", brand: "Arket", price: "£55", image: "https://images.unsplash.com/photo-1586790170083-2f9ceadc732d?w=300&h=400&fit=crop", link: "#" },
+  { name: "Slim Chinos", brand: "Ted Baker", price: "£89", image: "https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=300&h=400&fit=crop", link: "#" },
 ];
 
 const HomePage = () => {
@@ -54,7 +54,7 @@ const HomePage = () => {
         .from("profiles")
         .select("sex")
         .eq("user_id", user.id)
-        .single(),
+        .maybeSingle(),
     ]);
     if (count !== null) setClosetCount(count);
     if (profileData?.sex) setUserSex(profileData.sex);
@@ -174,7 +174,7 @@ const HomePage = () => {
                 <div className="p-2.5">
                   <p className="text-[10px] text-primary font-medium uppercase tracking-wide">{item.brand}</p>
                   <p className="text-xs font-medium text-foreground truncate mt-0.5">{item.name}</p>
-                  <p className="text-sm font-bold text-foreground mt-1">${item.price.toFixed(2)}</p>
+                  <p className="text-sm font-bold text-foreground mt-1">{item.price}</p>
                 </div>
               </GlassCard>
             </a>
