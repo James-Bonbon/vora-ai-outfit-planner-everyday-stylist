@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Trash2, Droplets, SprayCan, Loader2, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 
 interface GarmentItem {
@@ -14,6 +14,7 @@ interface GarmentItem {
   color: string | null;
   material: string | null;
   brand: string | null;
+  notes: string | null;
   created_at: string;
 }
 
@@ -33,6 +34,11 @@ interface StainStep {
 interface StainResult {
   steps: StainStep[];
   warning: string | null;
+}
+
+interface StoredCare {
+  care?: { wash?: string; dry?: string; iron?: string; special?: string };
+  stain_guide?: Array<{ stain: string; steps: string; warning: string | null }>;
 }
 
 const CARE_GUIDES: Record<string, { wash: string; dry: string; iron: string }> = {
@@ -66,6 +72,16 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
   const [stainType, setStainType] = useState("");
   const [stainLoading, setStainLoading] = useState(false);
   const [stainResult, setStainResult] = useState<StainResult | null>(null);
+
+  // Parse stored care data from notes
+  const storedCare = useMemo<StoredCare | null>(() => {
+    if (!item?.notes) return null;
+    try {
+      return JSON.parse(item.notes) as StoredCare;
+    } catch {
+      return null;
+    }
+  }, [item?.notes]);
 
   useEffect(() => {
     if (!item) return;
@@ -118,7 +134,15 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
 
   if (!item) return null;
 
-  const care = CARE_GUIDES[item.material || ""] || DEFAULT_CARE;
+  // Use stored AI care data if available, otherwise fall back to static guides
+  const care = storedCare?.care
+    ? {
+        wash: storedCare.care.wash || DEFAULT_CARE.wash,
+        dry: storedCare.care.dry || DEFAULT_CARE.dry,
+        iron: storedCare.care.iron || DEFAULT_CARE.iron,
+        special: storedCare.care.special || null,
+      }
+    : { ...(CARE_GUIDES[item.material || ""] || DEFAULT_CARE), special: null as string | null };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -162,12 +186,15 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
             </Button>
           </div>
 
-          {/* Wash It - Care Guide */}
+          {/* Wash It - Care Guide (AI-powered or static fallback) */}
           {showCare && (
             <div className="bg-card rounded-2xl p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <Droplets className="w-4 h-4 text-primary" />
                 Care Guide {item.material ? `for ${item.material}` : ""}
+                {storedCare?.care && (
+                  <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-semibold">AI</span>
+                )}
               </h3>
               <div className="space-y-2.5">
                 <div>
@@ -182,17 +209,49 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
                   <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Ironing</span>
                   <p className="text-xs text-foreground mt-0.5">{care.iron}</p>
                 </div>
+                {care.special && (
+                  <div>
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Special Notes</span>
+                    <p className="text-xs text-foreground mt-0.5">{care.special}</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          {/* Help Me Clean - Stain Removal */}
+          {/* Help Me Clean - Pre-loaded stain guides + AI lookup */}
           {showStain && (
             <div className="bg-card rounded-2xl p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <SprayCan className="w-4 h-4 text-primary" />
-                AI Stain Removal
+                Stain Removal
               </h3>
+
+              {/* Pre-loaded stain guides from product lookup */}
+              {storedCare?.stain_guide && storedCare.stain_guide.length > 0 && (
+                <div className="space-y-2.5 pb-2 border-b border-border">
+                  <p className="text-[10px] uppercase tracking-wider text-primary font-semibold">Common stains for this item</p>
+                  {storedCare.stain_guide.map((sg, i) => (
+                    <div key={i} className="flex gap-3">
+                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                        <span className="text-[10px] font-bold text-primary">{sg.stain.charAt(0)}</span>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-foreground">{sg.stain}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{sg.steps}</p>
+                        {sg.warning && (
+                          <p className="text-[10px] text-destructive mt-0.5 flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3" /> {sg.warning}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Custom stain AI lookup */}
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Ask AI about a specific stain</p>
               <div className="flex gap-2">
                 <Input
                   value={stainType}

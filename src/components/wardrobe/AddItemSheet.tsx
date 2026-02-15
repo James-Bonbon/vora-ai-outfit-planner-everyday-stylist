@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Camera, Loader2, Sparkles } from "lucide-react";
+import { Camera, Loader2, Sparkles, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -20,23 +20,30 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded }: AddItemSheetProps) =>
   const { user } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [tagging, setTagging] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [lookingUp, setLookingUp] = useState(false);
 
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
   const [color, setColor] = useState("");
   const [material, setMaterial] = useState("");
   const [brand, setBrand] = useState("");
+  const [careData, setCareData] = useState<any>(null);
+
+  const brandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const resetForm = () => {
     setFile(null);
     setPreview(null);
+    setImageBase64(null);
     setName("");
     setCategory("");
     setColor("");
     setMaterial("");
     setBrand("");
+    setCareData(null);
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,18 +54,20 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded }: AddItemSheetProps) =>
     reader.onload = (ev) => setPreview(ev.target?.result as string);
     reader.readAsDataURL(f);
 
+    // Store base64 for later product lookup
+    const base64 = await new Promise<string>((resolve) => {
+      const b64Reader = new FileReader();
+      b64Reader.onload = (ev) => {
+        const result = ev.target?.result as string;
+        resolve(result.split(",")[1]);
+      };
+      b64Reader.readAsDataURL(f);
+    });
+    setImageBase64(base64);
+
     // Auto-tag with AI
     setTagging(true);
     try {
-      const base64Reader = new FileReader();
-      const base64 = await new Promise<string>((resolve) => {
-        base64Reader.onload = (ev) => {
-          const result = ev.target?.result as string;
-          resolve(result.split(",")[1]);
-        };
-        base64Reader.readAsDataURL(f);
-      });
-
       const { data, error } = await supabase.functions.invoke("tag-garment", {
         body: { imageBase64: base64 },
       });
@@ -71,6 +80,11 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded }: AddItemSheetProps) =>
       if (data?.material) setMaterial(data.material);
       if (data?.brand) setBrand(data.brand || "");
       toast.success("AI tagged your item! ✨");
+
+      // If brand was detected, auto-lookup product
+      if (data?.brand) {
+        triggerProductLookup(base64, data.brand, data.name, data.category, data.color, data.material);
+      }
     } catch (err) {
       console.error("AI tagging error:", err);
       toast.error("AI tagging failed. Fill in details manually.");
@@ -78,6 +92,60 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded }: AddItemSheetProps) =>
       setTagging(false);
     }
   };
+
+  const triggerProductLookup = async (
+    base64: string | null,
+    brandVal: string,
+    nameVal?: string,
+    categoryVal?: string,
+    colorVal?: string,
+    materialVal?: string
+  ) => {
+    if (!brandVal.trim() || !base64) return;
+    setLookingUp(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("product-lookup", {
+        body: {
+          imageBase64: base64,
+          brand: brandVal,
+          name: nameVal || name,
+          category: categoryVal || category,
+          color: colorVal || color,
+          material: materialVal || material,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.name) setName(data.name);
+      if (data?.material) setMaterial(data.material);
+      if (data?.care || data?.stain_guide) {
+        setCareData({ care: data.care, stain_guide: data.stain_guide });
+        toast.success("Product identified! Care info loaded 🧺");
+      }
+    } catch (err) {
+      console.error("Product lookup error:", err);
+    } finally {
+      setLookingUp(false);
+    }
+  };
+
+  // Debounced brand lookup
+  const handleBrandChange = (val: string) => {
+    setBrand(val);
+    if (brandTimerRef.current) clearTimeout(brandTimerRef.current);
+    if (val.trim().length >= 2 && imageBase64) {
+      brandTimerRef.current = setTimeout(() => {
+        triggerProductLookup(imageBase64, val);
+      }, 1200);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (brandTimerRef.current) clearTimeout(brandTimerRef.current);
+    };
+  }, []);
 
   const handleSave = async () => {
     if (!user || !file) return;
@@ -100,6 +168,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded }: AddItemSheetProps) =>
         color: color || null,
         material: material || null,
         brand: brand || null,
+        notes: careData ? JSON.stringify(careData) : null,
       });
 
       if (dbError) throw dbError;
@@ -184,8 +253,35 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded }: AddItemSheetProps) =>
 
             <div>
               <Label className="text-xs text-muted-foreground">Brand</Label>
-              <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g. Ralph Lauren" className="mt-1 rounded-xl bg-card" />
+              <div className="relative">
+                <Input
+                  value={brand}
+                  onChange={(e) => handleBrandChange(e.target.value)}
+                  placeholder="e.g. Ralph Lauren"
+                  className="mt-1 rounded-xl bg-card pr-10"
+                />
+                {lookingUp && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 mt-0.5">
+                    <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                  </div>
+                )}
+              </div>
+              {lookingUp && (
+                <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
+                  <Search className="w-3 h-3" /> Searching product info...
+                </p>
+              )}
             </div>
+
+            {/* Care data preview */}
+            {careData?.care && (
+              <div className="bg-card rounded-2xl p-3 space-y-1.5 border border-primary/20">
+                <p className="text-[10px] uppercase tracking-wider text-primary font-semibold flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" /> Care info loaded
+                </p>
+                <p className="text-xs text-muted-foreground">{careData.care.wash}</p>
+              </div>
+            )}
           </div>
 
           <Button onClick={handleSave} disabled={!file || saving} className="w-full rounded-xl">
