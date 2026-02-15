@@ -15,6 +15,7 @@ interface ClosetItem {
   color: string | null;
   material: string | null;
   brand: string | null;
+  notes: string | null;
   created_at: string;
 }
 
