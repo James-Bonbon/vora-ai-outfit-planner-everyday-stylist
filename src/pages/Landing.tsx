@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import VoraLogo from "@/components/VoraLogo";
@@ -14,11 +14,14 @@ const Landing = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
 
-  // Redirect if already logged in
-  if (!loading && user) {
-    navigate("/home", { replace: true });
-    return null;
-  }
+  // Redirect if already logged in (must be in useEffect, not during render)
+  useEffect(() => {
+    if (!loading && user) {
+      navigate("/home", { replace: true });
+    }
+  }, [loading, user, navigate]);
+
+  if (!loading && user) return null;
 
   const handleGoogleSignIn = async () => {
     if (!agreed) return;
