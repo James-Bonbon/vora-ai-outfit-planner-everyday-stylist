@@ -1,7 +1,12 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Link } from "react-router-dom";
 
 const Landing = () => {
+  const [agreed, setAgreed] = useState(false);
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background px-6 relative overflow-hidden">
       {/* Background glow */}
@@ -28,6 +33,33 @@ const Landing = () => {
           Your hyper-realistic virtual closet, stylist, and garment care expert — powered by AI.
         </p>
 
+        {/* Consent Checkbox */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.5 }}
+          className="w-full max-w-[320px]"
+        >
+          <label className="flex items-start gap-3 cursor-pointer group">
+            <Checkbox
+              checked={agreed}
+              onCheckedChange={(checked) => setAgreed(checked === true)}
+              className="mt-0.5 border-muted-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary min-w-[20px] min-h-[20px]"
+            />
+            <span className="text-xs text-muted-foreground leading-relaxed">
+              I agree to the{" "}
+              <Link to="/legal" className="text-primary underline underline-offset-2 hover:text-primary/80">
+                Terms of Service
+              </Link>{" "}
+              and consent to the processing of my biometric data as described in the{" "}
+              <Link to="/legal" className="text-primary underline underline-offset-2 hover:text-primary/80">
+                Privacy Policy
+              </Link>
+              .
+            </span>
+          </label>
+        </motion.div>
+
         {/* CTA */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -36,8 +68,9 @@ const Landing = () => {
           className="w-full max-w-[300px]"
         >
           <Button
-            className="w-full h-14 text-base font-bold rounded-2xl glow-lime"
+            className="w-full h-14 text-base font-bold rounded-2xl glow-lime disabled:opacity-40 disabled:shadow-none"
             size="lg"
+            disabled={!agreed}
           >
             Join VORA with Google
           </Button>
