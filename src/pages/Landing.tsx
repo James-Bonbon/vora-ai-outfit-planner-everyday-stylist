@@ -75,29 +75,29 @@ const Landing = () => {
             {/* Outfit content */}
             <div className="flex items-start gap-4">
               {/* Outfit collage cluster - left aligned */}
-              <div className="relative flex-shrink-0" style={{ width: 165, height: 195 }}>
-                {/* Tee - top right, behind jacket */}
+              <div className="relative flex-shrink-0 bg-card rounded-xl overflow-hidden" style={{ width: 170, height: 200 }}>
+                {/* Tee - behind jacket, top right */}
                 <img
                   src={outfitTee}
                   alt="White t-shirt"
                   className="absolute object-contain"
-                  style={{ width: 82, height: 82, top: 0, left: 72, zIndex: 1, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.05))" }}
+                  style={{ width: '30%', height: 'auto', top: 8, left: 80, zIndex: 1, filter: "drop-shadow(0 10px 30px rgba(0,0,0,0.08))" }}
                   loading="lazy"
                 />
-                {/* Jacket - top left, largest, overlaps tee */}
+                {/* Jacket - front left, largest */}
                 <img
                   src={outfitJacket}
                   alt="Beige jacket"
                   className="absolute object-contain"
-                  style={{ width: 120, height: 130, top: 0, left: 0, zIndex: 3, filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.07))" }}
+                  style={{ width: '40%', height: 'auto', top: 8, left: 8, zIndex: 3, filter: "drop-shadow(0 10px 30px rgba(0,0,0,0.08))" }}
                   loading="lazy"
                 />
-                {/* Jeans - right, behind jacket, offset down */}
+                {/* Jeans - behind/right, offset down */}
                 <img
                   src={outfitJeans}
                   alt="Light blue jeans"
                   className="absolute object-contain"
-                  style={{ width: 78, height: 115, top: 55, right: 0, zIndex: 2, filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.05))" }}
+                  style={{ width: '33%', height: 'auto', top: 50, right: 8, zIndex: 2, filter: "drop-shadow(0 10px 30px rgba(0,0,0,0.08))" }}
                   loading="lazy"
                 />
                 {/* Sneakers - foreground bottom-left */}
@@ -105,7 +105,7 @@ const Landing = () => {
                   src={outfitSneakers}
                   alt="White sneakers"
                   className="absolute object-contain"
-                  style={{ width: 78, height: 65, bottom: 0, left: 5, zIndex: 4, filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.06))" }}
+                  style={{ width: '30%', height: 'auto', bottom: 8, left: 12, zIndex: 4, filter: "drop-shadow(0 10px 30px rgba(0,0,0,0.08))" }}
                   loading="lazy"
                 />
               </div>
