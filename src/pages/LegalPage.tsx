@@ -26,7 +26,7 @@ const termsItems = [
     id: "subscription",
     title: "3. VORA Pro Subscription",
     content:
-      "VORA Pro is a paid subscription at $9.99/month, billed through Stripe. You may cancel at any time from your Profile settings. Cancellation takes effect at the end of the current billing cycle. Refunds are not provided for partial billing periods.",
+      "VORA Pro is a paid subscription at £12/month, billed through Stripe. You may cancel at any time from your Profile settings. Cancellation takes effect at the end of the current billing cycle. Refunds are not provided for partial billing periods.",
   },
   {
     id: "ai-features",
