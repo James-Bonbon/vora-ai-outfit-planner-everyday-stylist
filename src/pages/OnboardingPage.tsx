@@ -37,22 +37,20 @@ const OnboardingPage = () => {
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
 
-  // Selfie state
   const [selfieFile, setSelfieFile] = useState<File | null>(null);
   const [selfiePreview, setSelfiePreview] = useState<string | null>(null);
 
-  // Personal info state
   const [displayName, setDisplayName] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [sex, setSex] = useState("");
   const [heightCm, setHeightCm] = useState("");
   const [weightKg, setWeightKg] = useState("");
 
-  // Body shape state
   const [bodyShape, setBodyShape] = useState("");
 
   const age = getAge(dateOfBirth);
   const isUnderage = age !== null && age < MIN_AGE;
+  const nameEmpty = displayName.trim().length === 0;
 
   const handleSelfieChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -72,10 +70,14 @@ const OnboardingPage = () => {
       toast.error(`You must be at least ${MIN_AGE} years old to use VORA.`);
       return;
     }
+    if (nameEmpty) {
+      toast.error("Please enter your name to continue.");
+      return;
+    }
     setSaving(true);
 
     try {
-      let selfieUrl: string | null = null;
+      let selfiePath: string | null = null;
 
       if (selfieFile) {
         const fileExt = selfieFile.name.split(".").pop();
@@ -85,23 +87,19 @@ const OnboardingPage = () => {
           .upload(filePath, selfieFile, { upsert: true });
 
         if (uploadError) throw uploadError;
-
-        const { data: urlData } = supabase.storage
-          .from("selfies")
-          .getPublicUrl(filePath);
-        selfieUrl = urlData.publicUrl;
+        selfiePath = filePath;
       }
 
       const { error } = await supabase
         .from("profiles")
         .update({
-          display_name: displayName || null,
+          display_name: displayName.trim(),
           date_of_birth: dateOfBirth || null,
           sex: sex || null,
           height_cm: heightCm ? Number(heightCm) : null,
           weight_kg: weightKg ? Number(weightKg) : null,
           body_shape: bodyShape || null,
-          selfie_url: selfieUrl,
+          selfie_url: selfiePath,
           onboarding_complete: true,
         })
         .eq("user_id", user.id);
@@ -117,6 +115,8 @@ const OnboardingPage = () => {
       setSaving(false);
     }
   };
+
+  const canContinueStep1 = !nameEmpty && !isUnderage;
 
   const steps = [
     // Step 0: Selfie
@@ -147,7 +147,7 @@ const OnboardingPage = () => {
       </GlassCard>
     </motion.div>,
 
-    // Step 1: Personal Info - "Fit Profile"
+    // Step 1: Fit Profile
     <motion.div key="info" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} className="space-y-5">
       <div className="text-center">
         <h2 className="text-xl font-bold text-foreground font-outfit">Fit Profile</h2>
@@ -156,8 +156,11 @@ const OnboardingPage = () => {
 
       <div className="space-y-4">
         <div>
-          <Label htmlFor="name" className="text-xs text-muted-foreground">Display Name</Label>
+          <Label htmlFor="name" className="text-xs text-muted-foreground">Display Name <span className="text-destructive">*</span></Label>
           <Input id="name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Your name" className="mt-1 rounded-xl bg-card" />
+          {nameEmpty && displayName !== "" && (
+            <p className="text-xs text-destructive mt-1">Name is required</p>
+          )}
         </div>
         <div>
           <Label htmlFor="dob" className="text-xs text-muted-foreground">Date of Birth</Label>
@@ -215,9 +218,7 @@ const OnboardingPage = () => {
               key={shape.id}
               onClick={() => setBodyShape(shape.id)}
               className={`relative flex flex-col items-center gap-2 p-5 rounded-2xl cursor-pointer transition-all bg-card ${
-                selected
-                  ? "border-2 border-primary shadow-sm"
-                  : "border border-border"
+                selected ? "border-2 border-primary shadow-sm" : "border border-border"
               }`}
             >
               {selected && (
@@ -236,7 +237,6 @@ const OnboardingPage = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col px-6 py-8">
-      {/* Progress */}
       <div className="flex gap-2 mb-8">
         {[0, 1, 2].map((i) => (
           <div
@@ -248,12 +248,10 @@ const OnboardingPage = () => {
         ))}
       </div>
 
-      {/* Steps */}
       <div className="flex-1">
         <AnimatePresence mode="wait">{steps[step]}</AnimatePresence>
       </div>
 
-      {/* Navigation */}
       <div className="flex gap-3 mt-8">
         {step > 0 && (
           <Button variant="outline" onClick={() => setStep(step - 1)} className="rounded-xl">
@@ -261,7 +259,11 @@ const OnboardingPage = () => {
           </Button>
         )}
         {step < 2 ? (
-          <Button onClick={() => setStep(step + 1)} disabled={step === 1 && isUnderage} className="flex-1 rounded-xl">
+          <Button
+            onClick={() => setStep(step + 1)}
+            disabled={step === 1 && !canContinueStep1}
+            className="flex-1 rounded-xl"
+          >
             Continue <ChevronRight className="w-4 h-4" />
           </Button>
         ) : (
@@ -271,7 +273,6 @@ const OnboardingPage = () => {
         )}
       </div>
 
-      {/* Skip */}
       <button
         onClick={handleComplete}
         className="text-xs text-muted-foreground mt-4 text-center"
