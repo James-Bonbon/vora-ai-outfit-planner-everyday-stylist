@@ -73,39 +73,39 @@ const Landing = () => {
             <div className="mt-4 mb-[18px]" style={{ height: 1, background: "rgba(45,45,45,0.10)" }} />
 
             {/* Outfit content */}
-            <div className="flex items-center gap-5">
-              {/* Outfit flat-lay image */}
-              <div className="w-[55%] flex-shrink-0 relative" style={{ height: 200 }}>
-                {/* Tee - behind jacket, top center-right */}
+            <div className="flex items-start gap-4">
+              {/* Outfit collage cluster - left aligned */}
+              <div className="relative flex-shrink-0" style={{ width: 165, height: 195 }}>
+                {/* Tee - top right, behind jacket */}
                 <img
                   src={outfitTee}
                   alt="White t-shirt"
-                  className="absolute rounded-lg object-contain"
-                  style={{ width: 90, height: 90, top: 0, left: 55, zIndex: 1, filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.06))" }}
+                  className="absolute object-contain"
+                  style={{ width: 82, height: 82, top: 0, left: 72, zIndex: 1, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.05))" }}
                   loading="lazy"
                 />
-                {/* Jacket - top left, overlapping tee */}
+                {/* Jacket - top left, largest, overlaps tee */}
                 <img
                   src={outfitJacket}
                   alt="Beige jacket"
-                  className="absolute rounded-lg object-contain"
-                  style={{ width: 115, height: 125, top: 0, left: 0, zIndex: 3, filter: "drop-shadow(0 6px 12px rgba(0,0,0,0.08))" }}
+                  className="absolute object-contain"
+                  style={{ width: 120, height: 130, top: 0, left: 0, zIndex: 3, filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.07))" }}
                   loading="lazy"
                 />
-                {/* Jeans - right side, behind jacket */}
+                {/* Jeans - right, behind jacket, offset down */}
                 <img
                   src={outfitJeans}
                   alt="Light blue jeans"
-                  className="absolute rounded-lg object-contain"
-                  style={{ width: 85, height: 110, top: 50, right: -5, zIndex: 2, filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.06))" }}
+                  className="absolute object-contain"
+                  style={{ width: 78, height: 115, top: 55, right: 0, zIndex: 2, filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.05))" }}
                   loading="lazy"
                 />
-                {/* Sneakers - front bottom-left, overlapping jacket */}
+                {/* Sneakers - foreground bottom-left */}
                 <img
                   src={outfitSneakers}
                   alt="White sneakers"
-                  className="absolute rounded-lg object-contain"
-                  style={{ width: 80, height: 70, bottom: 0, left: 15, zIndex: 4, filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.07))" }}
+                  className="absolute object-contain"
+                  style={{ width: 78, height: 65, bottom: 0, left: 5, zIndex: 4, filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.06))" }}
                   loading="lazy"
                 />
               </div>
