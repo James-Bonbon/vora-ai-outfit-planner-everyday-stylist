@@ -17,10 +17,10 @@ const FASHION_QUOTES = [
 ];
 
 const TRENDING_FEMALE = [
-  { name: "Pleated Midi Skirt", brand: "& Other Stories", price: "£69", image: "https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?w=300&h=400&fit=crop", link: "#" },
-  { name: "Leather Loafers", brand: "COS", price: "£109", image: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=300&h=400&fit=crop", link: "#" },
-  { name: "Cashmere Knit", brand: "Reiss", price: "£148", image: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=300&h=400&fit=crop", link: "#" },
-  { name: "Wide Leg Trousers", brand: "Arket", price: "£59", image: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=300&h=400&fit=crop", link: "#" },
+  { name: "Pleated Midi Skirt", brand: "& Other Stories", price: "£69", image: "https://images.unsplash.com/photo-1577900232427-18219b9166a0?w=300&h=400&fit=crop", link: "#" },
+  { name: "Leather Loafers", brand: "COS", price: "£109", image: "https://images.unsplash.com/photo-1610398752800-146f269dfcc8?w=300&h=400&fit=crop", link: "#" },
+  { name: "Cashmere Knit", brand: "Reiss", price: "£148", image: "https://images.unsplash.com/photo-1631541909061-71e349d1f203?w=300&h=400&fit=crop", link: "#" },
+  { name: "Wide Leg Trousers", brand: "Arket", price: "£59", image: "https://images.unsplash.com/photo-1509631179647-0177331693ae?w=300&h=400&fit=crop", link: "#" },
 ];
 
 const TRENDING_MALE = [
