@@ -6,8 +6,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
-import { useNavigate, Link } from "react-router-dom";
+import { ArrowLeft, Printer } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const termsItems = [
   {
@@ -20,7 +20,7 @@ const termsItems = [
     id: "account",
     title: "2. Account & Eligibility",
     content:
-      "You must be at least 16 years old to use VORA. You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account. You agree to provide accurate information during registration.",
+      "You must be at least 13 years old to use VORA. You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account. You agree to provide accurate information during registration.",
   },
   {
     id: "subscription",
@@ -50,7 +50,7 @@ const termsItems = [
     id: "liability",
     title: "7. Limitation of Liability",
     content:
-      "VORA is provided \"as is\" without warranty of any kind. We are not liable for any damages arising from your use of the service, including but not limited to garment damage from following AI care suggestions. Always verify care instructions with the garment manufacturer.",
+      'VORA is provided "as is" without warranty of any kind. We are not liable for any damages arising from your use of the service, including but not limited to garment damage from following AI care suggestions. Always verify care instructions with the garment manufacturer.',
   },
   {
     id: "termination",
@@ -83,25 +83,25 @@ const privacyItems = [
     id: "data-storage",
     title: "4. Data Storage & Security",
     content:
-      "All data is stored securely using industry-standard encryption. Photos are stored in encrypted cloud storage and are never stored in our database directly. We use Supabase for secure authentication and data management with Row Level Security (RLS) policies ensuring you can only access your own data.",
+      "All data is stored securely using industry-standard encryption. Photos are stored in encrypted cloud storage and are never stored in our database directly. We use secure authentication and data management with Row Level Security (RLS) policies ensuring you can only access your own data.",
   },
   {
     id: "ai-processing",
     title: "5. AI Processing",
     content:
-      "Your photos and garment data are sent to AI models (Google Gemini) for processing features like auto-tagging, virtual try-on, and care guidance. These AI interactions are stateless — the AI does not retain your images after processing. Generated images are stored only in your personal account.",
+      "Your photos and garment data are sent to AI models for processing features like auto-tagging, virtual try-on, and care guidance. These AI interactions are stateless — the AI does not retain your images after processing. Generated images are stored only in your personal account.",
   },
   {
     id: "third-party",
     title: "6. Third-Party Services",
     content:
-      "VORA uses the following third-party services: Google OAuth (authentication), Stripe (payment processing), Google Gemini AI (image and text processing), and Supabase (database and storage). Each service has its own privacy policy. We share only the minimum data necessary for each service to function.",
+      "VORA uses the following third-party services: Google OAuth (authentication), Stripe (payment processing), Google Gemini AI (image and text processing), Fal.ai (Virtual Try-On processing), Kling AI (Video Catwalk generation), and Supabase (database and storage). Each service has its own privacy policy. We share only the minimum data necessary for each service to function.",
   },
   {
     id: "your-rights",
     title: "7. Your Rights (GDPR & CCPA)",
     content:
-      "You have the right to: access all data we store about you, correct inaccurate data, delete all your data (\"Right to be Forgotten\"), export your data in a portable format, and withdraw consent for image processing at any time. Use the \"Delete My Data\" button in Profile settings to exercise your deletion rights.",
+      'You have the right to: access all data we store about you, correct inaccurate data, delete all your data ("Right to be Forgotten"), export your data in a portable format, and withdraw consent for image processing at any time. Use the "Delete My Data" button in Profile settings to exercise your deletion rights.',
   },
   {
     id: "retention",
@@ -113,27 +113,42 @@ const privacyItems = [
     id: "contact",
     title: "9. Contact & Updates",
     content:
-      "For privacy-related inquiries, contact us at privacy@vora.app. We will notify you of material changes to this policy via email or in-app notification. This policy was last updated on February 15, 2026.",
+      "For privacy-related inquiries, contact us at support@vora.app. We will notify you of material changes to this policy via email or in-app notification. This policy was last updated on February 15, 2026.",
   },
 ];
 
 const LegalPage = () => {
   const navigate = useNavigate();
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <div className="min-h-screen bg-background px-4 pt-safe pb-10">
       <div className="max-w-lg mx-auto pt-4">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-xl min-w-[44px] min-h-[44px]"
+              onClick={() => navigate("/")}
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <h1 className="text-xl font-bold text-foreground font-outfit">Legal</h1>
+          </div>
           <Button
             variant="ghost"
             size="icon"
             className="rounded-xl min-w-[44px] min-h-[44px]"
-            onClick={() => navigate("/")}
+            onClick={handlePrint}
+            title="Print / Export"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <Printer className="w-5 h-5" />
           </Button>
-          <h1 className="text-xl font-bold text-foreground">Legal</h1>
         </div>
 
         <Tabs defaultValue="terms" className="w-full">
@@ -163,7 +178,7 @@ const LegalPage = () => {
                   value={item.id}
                   className="glass-card rounded-xl border-0 px-4"
                 >
-                  <AccordionTrigger className="text-sm font-medium text-foreground hover:no-underline py-4">
+                  <AccordionTrigger className="text-sm font-medium text-foreground hover:no-underline py-4 font-outfit">
                     {item.title}
                   </AccordionTrigger>
                   <AccordionContent className="text-xs text-muted-foreground leading-relaxed pb-4">
@@ -185,7 +200,7 @@ const LegalPage = () => {
                   value={item.id}
                   className="glass-card rounded-xl border-0 px-4"
                 >
-                  <AccordionTrigger className="text-sm font-medium text-foreground hover:no-underline py-4">
+                  <AccordionTrigger className="text-sm font-medium text-foreground hover:no-underline py-4 font-outfit">
                     {item.title}
                   </AccordionTrigger>
                   <AccordionContent className="text-xs text-muted-foreground leading-relaxed pb-4">
