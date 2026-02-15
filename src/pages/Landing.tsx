@@ -19,7 +19,7 @@ const Landing = () => {
       <div className="absolute right-[-60px] top-1/2 -translate-y-1/2 w-[200px] h-[300px] rounded-xl bg-primary/5 blur-[60px] pointer-events-none" />
 
       {/* Main content */}
-      <div className="flex flex-col items-center w-full relative z-10 px-[6%] pt-12 pb-8 pb-safe">
+      <div className="flex flex-col items-center w-full relative z-10 px-[6%] pt-6 pb-6 pb-safe">
 
         {/* Logo + Wordmark */}
         <motion.div
@@ -44,7 +44,7 @@ const Landing = () => {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.15, duration: 0.5 }}
           className="font-inter text-center"
-          style={{ fontWeight: 500, fontSize: 18, lineHeight: "26px", color: "rgba(45,45,45,0.70)", marginTop: 14, marginBottom: 28 }}
+          style={{ fontWeight: 500, fontSize: 18, lineHeight: "26px", color: "rgba(45,45,45,0.70)", marginTop: 10, marginBottom: 20 }}
         >
           AI Outfit Planner &amp; Everyday Stylist
         </motion.p>
@@ -114,7 +114,7 @@ const Landing = () => {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.35, duration: 0.5 }}
           className="font-inter text-center"
-          style={{ fontWeight: 500, fontSize: 16, color: "rgba(45,45,45,0.75)", marginTop: 28, marginBottom: 22 }}
+          style={{ fontWeight: 500, fontSize: 16, color: "rgba(45,45,45,0.75)", marginTop: 18, marginBottom: 14 }}
         >
           Get outfit ideas from your wardrobe.
         </motion.p>
