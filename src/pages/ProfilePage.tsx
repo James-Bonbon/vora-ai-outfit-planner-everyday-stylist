@@ -25,7 +25,7 @@ const ProfilePage = () => {
           <h3 className="font-bold text-primary text-sm">Upgrade to VORA Pro</h3>
         </div>
         <p className="text-xs text-muted-foreground">
-          Unlock AI try-ons, garment care guides, and unlimited storage — $9.99/mo
+          Unlock AI try-ons, garment care guides, and unlimited storage — £12/mo
         </p>
         <Button className="mt-4 w-full rounded-xl" size="sm">
           Go Pro
