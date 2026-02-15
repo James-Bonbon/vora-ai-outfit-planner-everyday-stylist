@@ -58,7 +58,11 @@ const OnboardingPage = () => {
     const file = e.target.files?.[0];
     if (file) {
       setSelfieFile(file);
-      setSelfiePreview(URL.createObjectURL(file));
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setSelfiePreview(ev.target?.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
