@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import GlassCard from "@/components/GlassCard";
 import { Sparkles, Check, Image, Loader2, AlertTriangle, Save, Trash2, GalleryHorizontalEnd } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,12 +23,26 @@ interface SavedLook {
 
 const OCCASIONS = ["Casual", "Date Night", "Work", "Party", "Streetwear"];
 
+const MIRROR_ITEMS_CACHE = "vora_mirror_items";
+const MIRROR_URLS_CACHE = "vora_mirror_urls";
+const MIRROR_SELFIE_CACHE = "vora_mirror_selfie";
+const MIRROR_LOOKS_CACHE = "vora_mirror_looks";
+const MIRROR_LOOK_URLS_CACHE = "vora_mirror_look_urls";
+
 const MirrorPage = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [items, setItems] = useState<ClosetItem[]>([]);
-  const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
-  const [selfieUrl, setSelfieUrl] = useState<string | null>(null);
+  const [items, setItems] = useState<ClosetItem[]>(() => {
+    const cached = sessionStorage.getItem(MIRROR_ITEMS_CACHE);
+    return cached ? JSON.parse(cached) : [];
+  });
+  const [imageUrls, setImageUrls] = useState<Record<string, string>>(() => {
+    const cached = sessionStorage.getItem(MIRROR_URLS_CACHE);
+    return cached ? JSON.parse(cached) : {};
+  });
+  const [selfieUrl, setSelfieUrl] = useState<string | null>(() => {
+    return sessionStorage.getItem(MIRROR_SELFIE_CACHE) || null;
+  });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [occasion, setOccasion] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
@@ -38,10 +52,17 @@ const MirrorPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState<"tryon" | "gallery">("tryon");
-  const [looks, setLooks] = useState<SavedLook[]>([]);
-  const [lookUrls, setLookUrls] = useState<Record<string, string>>({});
+  const [looks, setLooks] = useState<SavedLook[]>(() => {
+    const cached = sessionStorage.getItem(MIRROR_LOOKS_CACHE);
+    return cached ? JSON.parse(cached) : [];
+  });
+  const [lookUrls, setLookUrls] = useState<Record<string, string>>(() => {
+    const cached = sessionStorage.getItem(MIRROR_LOOK_URLS_CACHE);
+    return cached ? JSON.parse(cached) : {};
+  });
   const [selectedLook, setSelectedLook] = useState<SavedLook | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const hasFetched = useRef(false);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -53,10 +74,21 @@ const MirrorPage = () => {
       .maybeSingle();
 
     if (profile?.selfie_url) {
-      const { data: urlData } = await supabase.storage
-        .from("selfies")
-        .createSignedUrl(profile.selfie_url, 3600);
-      if (urlData?.signedUrl) setSelfieUrl(urlData.signedUrl);
+      const cacheKey = `vora_selfie_signed_${profile.selfie_url}`;
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        setSelfieUrl(cached);
+        sessionStorage.setItem(MIRROR_SELFIE_CACHE, cached);
+      } else {
+        const { data: urlData } = await supabase.storage
+          .from("selfies")
+          .createSignedUrl(profile.selfie_url, 3600);
+        if (urlData?.signedUrl) {
+          setSelfieUrl(urlData.signedUrl);
+          sessionStorage.setItem(cacheKey, urlData.signedUrl);
+          sessionStorage.setItem(MIRROR_SELFIE_CACHE, urlData.signedUrl);
+        }
+      }
     }
 
     const { data: closetData } = await supabase
@@ -67,6 +99,7 @@ const MirrorPage = () => {
 
     if (closetData) {
       setItems(closetData as ClosetItem[]);
+      sessionStorage.setItem(MIRROR_ITEMS_CACHE, JSON.stringify(closetData));
       const urls: Record<string, string> = {};
       await Promise.all(
         closetData.map(async (item: ClosetItem) => {
@@ -77,6 +110,7 @@ const MirrorPage = () => {
         })
       );
       setImageUrls(urls);
+      sessionStorage.setItem(MIRROR_URLS_CACHE, JSON.stringify(urls));
     }
   }, [user]);
 
@@ -90,6 +124,7 @@ const MirrorPage = () => {
 
     if (data) {
       setLooks(data as SavedLook[]);
+      sessionStorage.setItem(MIRROR_LOOKS_CACHE, JSON.stringify(data));
       const urls: Record<string, string> = {};
       await Promise.all(
         data.map(async (look: SavedLook) => {
@@ -100,6 +135,7 @@ const MirrorPage = () => {
         })
       );
       setLookUrls(urls);
+      sessionStorage.setItem(MIRROR_LOOK_URLS_CACHE, JSON.stringify(urls));
     }
   }, [user]);
 
@@ -109,6 +145,8 @@ const MirrorPage = () => {
   }, [resultImage]);
 
   useEffect(() => {
+    if (hasFetched.current) return;
+    hasFetched.current = true;
     fetchData();
     fetchLooks();
   }, [fetchData, fetchLooks]);

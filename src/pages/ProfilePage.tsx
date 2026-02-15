@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import GlassCard from "@/components/GlassCard";
 import { User, Settings, Crown, LogOut, Pencil, X, Check, Ruler, Weight, Calendar, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,12 +28,21 @@ const BODY_SHAPE_LABELS: Record<string, string> = {
   curvy: "Curvy",
 };
 
+const CACHE_KEY_PROFILE = "vora_profile_cache";
+const CACHE_KEY_SELFIE_URL = "vora_selfie_url_cache";
+
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [selfieSignedUrl, setSelfieSignedUrl] = useState<string | null>(null);
+  const [profile, setProfile] = useState<ProfileData | null>(() => {
+    const cached = sessionStorage.getItem(CACHE_KEY_PROFILE);
+    return cached ? JSON.parse(cached) : null;
+  });
+  const [selfieSignedUrl, setSelfieSignedUrl] = useState<string | null>(() => {
+    return sessionStorage.getItem(CACHE_KEY_SELFIE_URL) || null;
+  });
   const [editing, setEditing] = useState(false);
+  const hasFetched = useRef(false);
 
   // Edit state
   const [editName, setEditName] = useState("");
@@ -52,12 +61,13 @@ const ProfilePage = () => {
       .single();
     if (data) {
       setProfile(data);
-      // Get signed URL for selfie (private bucket) — cache it in sessionStorage
+      sessionStorage.setItem(CACHE_KEY_PROFILE, JSON.stringify(data));
       if (data.selfie_url) {
         const cacheKey = `vora_selfie_signed_${data.selfie_url}`;
         const cached = sessionStorage.getItem(cacheKey);
         if (cached) {
           setSelfieSignedUrl(cached);
+          sessionStorage.setItem(CACHE_KEY_SELFIE_URL, cached);
         } else {
           const { data: signedData } = await supabase.storage
             .from("selfies")
@@ -65,6 +75,7 @@ const ProfilePage = () => {
           if (signedData?.signedUrl) {
             setSelfieSignedUrl(signedData.signedUrl);
             sessionStorage.setItem(cacheKey, signedData.signedUrl);
+            sessionStorage.setItem(CACHE_KEY_SELFIE_URL, signedData.signedUrl);
           }
         }
       }
@@ -72,6 +83,8 @@ const ProfilePage = () => {
   }, [user]);
 
   useEffect(() => {
+    if (hasFetched.current) return;
+    hasFetched.current = true;
     fetchProfile();
   }, [fetchProfile]);
 
@@ -109,6 +122,7 @@ const ProfilePage = () => {
       if (error) throw error;
       toast.success("Profile updated!");
       setEditing(false);
+      hasFetched.current = false;
       fetchProfile();
     } catch {
       toast.error("Failed to update profile.");
