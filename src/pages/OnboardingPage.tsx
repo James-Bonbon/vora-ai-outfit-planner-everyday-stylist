@@ -106,6 +106,11 @@ const OnboardingPage = () => {
 
       if (error) throw error;
 
+      // Clear all session caches so Profile/Stylist fetch fresh data
+      Object.keys(sessionStorage).forEach((key) => {
+        if (key.startsWith("vora_")) sessionStorage.removeItem(key);
+      });
+
       toast.success("Welcome to VORA! 🎉");
       navigate("/home", { replace: true });
     } catch (err) {

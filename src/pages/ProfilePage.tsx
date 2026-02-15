@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import GlassCard from "@/components/GlassCard";
-import { User, Settings, Crown, LogOut, Pencil, X, Check, Ruler, Weight, Calendar, Users } from "lucide-react";
+import { User, Settings, Crown, LogOut, Pencil, X, Check, Ruler, Weight, Calendar, Users, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -102,6 +102,19 @@ const ProfilePage = () => {
     setEditing(true);
   };
 
+  const [editSelfieFile, setEditSelfieFile] = useState<File | null>(null);
+  const [editSelfiePreview, setEditSelfiePreview] = useState<string | null>(null);
+
+  const handleSelfieChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setEditSelfieFile(file);
+      const reader = new FileReader();
+      reader.onload = (ev) => setEditSelfiePreview(ev.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSave = async () => {
     if (!user || !editName.trim()) {
       toast.error("Name is required.");
@@ -109,6 +122,22 @@ const ProfilePage = () => {
     }
     setSaving(true);
     try {
+      let selfiePath = profile?.selfie_url ?? null;
+
+      if (editSelfieFile) {
+        const fileExt = editSelfieFile.name.split(".").pop();
+        const filePath = `${user.id}/selfie.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from("selfies")
+          .upload(filePath, editSelfieFile, { upsert: true });
+        if (uploadError) throw uploadError;
+        selfiePath = filePath;
+        // Clear cached selfie signed URLs
+        Object.keys(sessionStorage).forEach((key) => {
+          if (key.startsWith("vora_selfie")) sessionStorage.removeItem(key);
+        });
+      }
+
       const { error } = await supabase
         .from("profiles")
         .update({
@@ -117,11 +146,14 @@ const ProfilePage = () => {
           sex: editSex || null,
           height_cm: editHeight ? Number(editHeight) : null,
           weight_kg: editWeight ? Number(editWeight) : null,
+          selfie_url: selfiePath,
         })
         .eq("user_id", user.id);
       if (error) throw error;
       toast.success("Profile updated!");
       setEditing(false);
+      setEditSelfieFile(null);
+      setEditSelfiePreview(null);
       hasFetched.current = false;
       fetchProfile();
     } catch {
@@ -161,13 +193,23 @@ const ProfilePage = () => {
 
       {/* Avatar + Name */}
       <GlassCard className="flex items-center gap-4 p-5">
-        {avatarUrl ? (
-          <img src={avatarUrl} alt="Avatar" className="w-16 h-16 rounded-full object-cover border-2 border-primary/20" />
-        ) : (
-          <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
-            <User className="w-8 h-8 text-muted-foreground" />
-          </div>
-        )}
+        <div className="relative">
+          {(editing && editSelfiePreview) ? (
+            <img src={editSelfiePreview} alt="New selfie" className="w-16 h-16 rounded-full object-cover border-2 border-primary/20" />
+          ) : avatarUrl ? (
+            <img src={avatarUrl} alt="Avatar" className="w-16 h-16 rounded-full object-cover border-2 border-primary/20" />
+          ) : (
+            <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
+              <User className="w-8 h-8 text-muted-foreground" />
+            </div>
+          )}
+          {editing && (
+            <label className="absolute -bottom-1 -right-1 w-7 h-7 bg-primary rounded-full flex items-center justify-center cursor-pointer shadow-lg">
+              <Camera className="w-3.5 h-3.5 text-primary-foreground" />
+              <input type="file" accept="image/*" className="hidden" onChange={handleSelfieChange} />
+            </label>
+          )}
+        </div>
         <div className="flex-1">
           {editing ? (
             <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Your name" className="rounded-xl bg-card" />

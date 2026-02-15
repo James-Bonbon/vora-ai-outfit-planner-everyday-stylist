@@ -16,11 +16,18 @@ const FASHION_QUOTES = [
   { quote: "What you wear is how you present yourself to the world.", author: "Miuccia Prada" },
 ];
 
-const TRENDING_ITEMS = [
-  { name: "Oversized Blazer", brand: "Zara", price: 89.90, image: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=300&h=400&fit=crop", link: "#" },
+const TRENDING_FEMALE = [
+  { name: "Pleated Midi Skirt", brand: "& Other Stories", price: 89.00, image: "https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?w=300&h=400&fit=crop", link: "#" },
   { name: "Leather Loafers", brand: "COS", price: 135.00, image: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=300&h=400&fit=crop", link: "#" },
   { name: "Cashmere Knit", brand: "& Other Stories", price: 119.00, image: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=300&h=400&fit=crop", link: "#" },
   { name: "Wide Leg Trousers", brand: "Arket", price: 79.00, image: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=300&h=400&fit=crop", link: "#" },
+];
+
+const TRENDING_MALE = [
+  { name: "Oversized Blazer", brand: "Zara", price: 89.90, image: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=300&h=400&fit=crop", link: "#" },
+  { name: "Chelsea Boots", brand: "COS", price: 175.00, image: "https://images.unsplash.com/photo-1638247025967-b4e38f787b76?w=300&h=400&fit=crop", link: "#" },
+  { name: "Merino Polo", brand: "Arket", price: 69.00, image: "https://images.unsplash.com/photo-1586790170083-2f9ceadc732d?w=300&h=400&fit=crop", link: "#" },
+  { name: "Slim Chinos", brand: "Uniqlo", price: 49.90, image: "https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=300&h=400&fit=crop", link: "#" },
 ];
 
 const HomePage = () => {
@@ -28,6 +35,7 @@ const HomePage = () => {
   const { user } = useAuth();
   const [closetCount, setClosetCount] = useState(0);
   const [dailyQuote, setDailyQuote] = useState(FASHION_QUOTES[0]);
+  const [userSex, setUserSex] = useState<string | null>(null);
 
   useEffect(() => {
     // Pick quote based on day of year for consistency
@@ -37,11 +45,19 @@ const HomePage = () => {
 
   const fetchCounts = useCallback(async () => {
     if (!user) return;
-    const { count } = await supabase
-      .from("closet_items")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id);
+    const [{ count }, { data: profileData }] = await Promise.all([
+      supabase
+        .from("closet_items")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id),
+      supabase
+        .from("profiles")
+        .select("sex")
+        .eq("user_id", user.id)
+        .single(),
+    ]);
     if (count !== null) setClosetCount(count);
+    if (profileData?.sex) setUserSex(profileData.sex);
   }, [user]);
 
   useEffect(() => {
@@ -135,7 +151,7 @@ const HomePage = () => {
           <span className="text-xs text-muted-foreground">Based on your style</span>
         </div>
         <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
-          {TRENDING_ITEMS.map((item, i) => (
+          {(userSex === "male" ? TRENDING_MALE : TRENDING_FEMALE).map((item, i) => (
             <a
               key={i}
               href={item.link}
