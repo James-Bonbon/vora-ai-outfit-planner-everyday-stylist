@@ -11,6 +11,7 @@ import WardrobePage from "./pages/WardrobePage";
 import MirrorPage from "./pages/MirrorPage";
 import BeautyPage from "./pages/BeautyPage";
 import ProfilePage from "./pages/ProfilePage";
+import OnboardingPage from "./pages/OnboardingPage";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -25,6 +26,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/legal" element={<LegalPage />} />
+          <Route path="/onboarding" element={<ProtectedRoute skipOnboarding><OnboardingPage /></ProtectedRoute>} />
           <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
             <Route path="/home" element={<HomePage />} />
             <Route path="/wardrobe" element={<WardrobePage />} />
