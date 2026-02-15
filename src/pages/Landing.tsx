@@ -4,7 +4,10 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import VoraLogo from "@/components/VoraLogo";
 import { ChevronRight } from "lucide-react";
-import outfitFlatlay from "@/assets/outfit-flatlay.png";
+import outfitJacket from "@/assets/outfit-jacket.png";
+import outfitTee from "@/assets/outfit-tee.png";
+import outfitJeans from "@/assets/outfit-jeans.png";
+import outfitSneakers from "@/assets/outfit-sneakers.png";
 
 const Landing = () => {
   const [agreed, setAgreed] = useState(false);
@@ -72,11 +75,37 @@ const Landing = () => {
             {/* Outfit content */}
             <div className="flex items-center gap-5">
               {/* Outfit flat-lay image */}
-              <div className="w-[55%] flex-shrink-0">
+              <div className="w-[55%] flex-shrink-0 relative" style={{ height: 180 }}>
+                {/* Jacket - top left, largest */}
                 <img
-                  src={outfitFlatlay}
-                  alt="Casual outfit: beige jacket, white tee, light blue jeans, white sneakers"
-                  className="w-full h-auto rounded-xl object-cover"
+                  src={outfitJacket}
+                  alt="Beige jacket"
+                  className="absolute rounded-lg object-cover"
+                  style={{ width: 100, height: 110, top: 0, left: 0, zIndex: 2 }}
+                  loading="lazy"
+                />
+                {/* Tee - top right */}
+                <img
+                  src={outfitTee}
+                  alt="White t-shirt"
+                  className="absolute rounded-lg object-cover"
+                  style={{ width: 80, height: 85, top: 0, right: 0, zIndex: 1 }}
+                  loading="lazy"
+                />
+                {/* Sneakers - bottom left */}
+                <img
+                  src={outfitSneakers}
+                  alt="White sneakers"
+                  className="absolute rounded-lg object-cover"
+                  style={{ width: 75, height: 75, bottom: 0, left: 10, zIndex: 3 }}
+                  loading="lazy"
+                />
+                {/* Jeans - bottom right */}
+                <img
+                  src={outfitJeans}
+                  alt="Light blue jeans"
+                  className="absolute rounded-lg object-cover"
+                  style={{ width: 80, height: 100, bottom: 0, right: 0, zIndex: 1 }}
                   loading="lazy"
                 />
               </div>
