@@ -1,14 +1,43 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import VoraLogo from "@/components/VoraLogo";
 import { ChevronRight } from "lucide-react";
 import outfitCollage from "@/assets/outfit-collage.png";
+import { lovable } from "@/integrations/lovable";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 const Landing = () => {
   const [agreed, setAgreed] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
   const navigate = useNavigate();
+  const { user, loading } = useAuth();
+
+  // Redirect if already logged in
+  if (!loading && user) {
+    navigate("/home", { replace: true });
+    return null;
+  }
+
+  const handleGoogleSignIn = async () => {
+    if (!agreed) return;
+    setSigningIn(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin + "/home",
+      });
+      if (result.error) {
+        toast.error("Sign in failed. Please try again.");
+        console.error("Auth error:", result.error);
+      }
+    } catch (err) {
+      toast.error("Something went wrong. Please try again.");
+      console.error("Auth error:", err);
+    } finally {
+      setSigningIn(false);
+    }
+  };
 
   return (
     <div className="flex flex-col items-center min-h-screen bg-background relative overflow-hidden">
@@ -29,7 +58,6 @@ const Landing = () => {
           className="flex flex-col items-center"
         >
           <VoraLogo className="w-[72px] h-[72px]" />
-
           <h1
             className="font-outfit text-foreground text-center mt-2"
             style={{ fontWeight: 800, fontSize: 72, letterSpacing: "-0.01em", lineHeight: 1 }}
@@ -60,7 +88,6 @@ const Landing = () => {
             className="bg-card rounded-[44px] p-7"
             style={{ boxShadow: "0px 18px 60px rgba(0,0,0,0.08)" }}
           >
-            {/* Card header */}
             <h3
               className="font-inter text-left"
               style={{ fontWeight: 600, fontSize: 18, color: "rgba(45,45,45,0.75)" }}
@@ -69,9 +96,7 @@ const Landing = () => {
             </h3>
             <div className="mt-4 mb-[18px]" style={{ height: 1, background: "rgba(45,45,45,0.10)" }} />
 
-            {/* Outfit content */}
             <div className="flex items-center gap-4">
-              {/* Single collage image */}
               <div className="w-[55%] flex-shrink-0">
                 <img
                   src={outfitCollage}
@@ -80,8 +105,6 @@ const Landing = () => {
                   loading="lazy"
                 />
               </div>
-
-              {/* Label + CTA */}
               <div className="flex flex-col gap-3 items-start">
                 <span
                   className="font-inter"
@@ -104,7 +127,6 @@ const Landing = () => {
                 </button>
               </div>
             </div>
-
           </div>
         </motion.div>
 
@@ -127,7 +149,6 @@ const Landing = () => {
           className="w-[88%] max-w-[420px]"
         >
           <label className="flex items-start gap-[18px] cursor-pointer">
-            {/* Custom circle checkbox */}
             <button
               type="button"
               onClick={() => setAgreed(!agreed)}
@@ -167,8 +188,9 @@ const Landing = () => {
           transition={{ delay: 0.35, duration: 0.6 }}
           className="w-[88%] max-w-[420px] flex flex-col gap-3 mt-6"
         >
-          {/* Primary CTA */}
+          {/* Primary CTA - Sign up with Google */}
           <button
+            onClick={handleGoogleSignIn}
             className="w-full font-inter text-primary-foreground rounded-full transition-all"
             style={{
               fontWeight: 700,
@@ -179,13 +201,14 @@ const Landing = () => {
               opacity: agreed ? 1 : 0.55,
               borderRadius: 999,
             }}
-            disabled={!agreed}
+            disabled={!agreed || signingIn}
           >
-            Create My First Outfit
+            {signingIn ? "Signing in..." : "Create My First Outfit"}
           </button>
 
-          {/* Secondary CTA */}
+          {/* Secondary CTA - Sign in with Google */}
           <button
+            onClick={handleGoogleSignIn}
             className="w-full font-inter rounded-full transition-all"
             style={{
               fontWeight: 700,
@@ -193,10 +216,10 @@ const Landing = () => {
               height: 60,
               background: "rgba(255,255,255,0.35)",
               border: "2px solid rgba(45,45,45,0.08)",
-              color: "rgba(45,45,45,0.40)",
+              color: agreed ? "rgba(45,45,45,0.60)" : "rgba(45,45,45,0.40)",
               borderRadius: 999,
             }}
-            disabled={!agreed}
+            disabled={!agreed || signingIn}
           >
             Sign In
           </button>
