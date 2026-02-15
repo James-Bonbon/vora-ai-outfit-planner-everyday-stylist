@@ -52,12 +52,21 @@ const ProfilePage = () => {
       .single();
     if (data) {
       setProfile(data);
-      // Get signed URL for selfie (private bucket)
+      // Get signed URL for selfie (private bucket) — cache it in sessionStorage
       if (data.selfie_url) {
-        const { data: signedData } = await supabase.storage
-          .from("selfies")
-          .createSignedUrl(data.selfie_url, 3600);
-        setSelfieSignedUrl(signedData?.signedUrl || null);
+        const cacheKey = `vora_selfie_signed_${data.selfie_url}`;
+        const cached = sessionStorage.getItem(cacheKey);
+        if (cached) {
+          setSelfieSignedUrl(cached);
+        } else {
+          const { data: signedData } = await supabase.storage
+            .from("selfies")
+            .createSignedUrl(data.selfie_url, 3600);
+          if (signedData?.signedUrl) {
+            setSelfieSignedUrl(signedData.signedUrl);
+            sessionStorage.setItem(cacheKey, signedData.signedUrl);
+          }
+        }
       }
     }
   }, [user]);
