@@ -4,10 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import VoraLogo from "@/components/VoraLogo";
 import { ChevronRight } from "lucide-react";
-import outfitJacket from "@/assets/outfit-jacket.png";
-import outfitTee from "@/assets/outfit-tee.png";
-import outfitJeans from "@/assets/outfit-jeans.png";
-import outfitSneakers from "@/assets/outfit-sneakers.png";
+import outfitCollage from "@/assets/outfit-collage.png";
 
 const Landing = () => {
   const [agreed, setAgreed] = useState(false);
@@ -73,45 +70,19 @@ const Landing = () => {
             <div className="mt-4 mb-[18px]" style={{ height: 1, background: "rgba(45,45,45,0.10)" }} />
 
             {/* Outfit content */}
-            <div className="relative w-full" style={{ minHeight: 220 }}>
-              {/* Outfit collage cluster */}
-              <div className="relative" style={{ width: '80%', maxWidth: 280, height: 210, background: '#FFFFFF', borderRadius: 12 }}>
-                {/* Tee - behind jacket, top right */}
+            <div className="flex items-center gap-4">
+              {/* Single collage image */}
+              <div className="w-[55%] flex-shrink-0">
                 <img
-                  src={outfitTee}
-                  alt="White t-shirt"
-                  className="absolute object-contain"
-                  style={{ width: '44%', top: 0, left: '47%', zIndex: 1, filter: "drop-shadow(0 10px 30px rgba(0,0,0,0.08))" }}
-                  loading="lazy"
-                />
-                {/* Jacket - front left, largest */}
-                <img
-                  src={outfitJacket}
-                  alt="Beige jacket"
-                  className="absolute object-contain"
-                  style={{ width: '53%', top: 10, left: 0, zIndex: 3, filter: "drop-shadow(0 10px 30px rgba(0,0,0,0.08))" }}
-                  loading="lazy"
-                />
-                {/* Jeans - right, offset down */}
-                <img
-                  src={outfitJeans}
-                  alt="Light blue jeans"
-                  className="absolute object-contain"
-                  style={{ width: '38%', top: '33%', right: 0, zIndex: 2, filter: "drop-shadow(0 10px 30px rgba(0,0,0,0.08))" }}
-                  loading="lazy"
-                />
-                {/* Sneakers - foreground bottom-left */}
-                <img
-                  src={outfitSneakers}
-                  alt="White sneakers"
-                  className="absolute object-contain"
-                  style={{ width: '44%', bottom: 0, left: '3%', zIndex: 4, filter: "drop-shadow(0 10px 30px rgba(0,0,0,0.08))" }}
+                  src={outfitCollage}
+                  alt="Casual outfit: beige jacket, white tee, light blue jeans, white sneakers"
+                  className="w-full h-auto rounded-xl object-cover"
                   loading="lazy"
                 />
               </div>
 
-              {/* Label + CTA - positioned right side, vertically centered */}
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 flex flex-col gap-3 items-start">
+              {/* Label + CTA */}
+              <div className="flex flex-col gap-3 items-start">
                 <span
                   className="font-inter"
                   style={{ fontWeight: 500, fontSize: 16, color: "rgba(45,45,45,0.70)" }}
