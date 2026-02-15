@@ -32,7 +32,9 @@ const MirrorPage = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [occasion, setOccasion] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
-  const [resultImage, setResultImage] = useState<string | null>(null);
+  const [resultImage, setResultImage] = useState<string | null>(() => {
+    return sessionStorage.getItem("vora_tryon_result") || null;
+  });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState<"tryon" | "gallery">("tryon");
@@ -100,6 +102,11 @@ const MirrorPage = () => {
       setLookUrls(urls);
     }
   }, [user]);
+
+  useEffect(() => {
+    if (resultImage) sessionStorage.setItem("vora_tryon_result", resultImage);
+    else sessionStorage.removeItem("vora_tryon_result");
+  }, [resultImage]);
 
   useEffect(() => {
     fetchData();
@@ -240,7 +247,7 @@ const MirrorPage = () => {
           Try On
         </button>
         <button
-          onClick={() => { setTab("gallery"); setResultImage(null); }}
+          onClick={() => { setTab("gallery"); }}
           className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors min-h-[44px] ${
             tab === "gallery"
               ? "bg-primary text-primary-foreground"
