@@ -1,5 +1,5 @@
 import GlassCard from "@/components/GlassCard";
-import { Sparkles, ShoppingBag, Scan, Heart } from "lucide-react";
+import { Sparkles, DoorOpen, Scan, Heart } from "lucide-react";
 
 const HomePage = () => {
   return (
@@ -24,7 +24,7 @@ const HomePage = () => {
 
         <GlassCard className="flex flex-col gap-3 p-4" glowOnHover>
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <ShoppingBag className="w-5 h-5 text-primary" />
+            <DoorOpen className="w-5 h-5 text-primary" />
           </div>
           <div>
             <h3 className="font-semibold text-foreground text-sm">Wardrobe</h3>

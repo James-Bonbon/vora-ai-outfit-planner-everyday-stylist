@@ -3,7 +3,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Camera, Loader2, Sparkles } from "lucide-react";
+import { Camera, ImagePlus, Loader2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -138,11 +138,18 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded }: AddItemSheetProps) =>
               )}
             </div>
           ) : (
-            <label className="flex flex-col items-center justify-center gap-3 w-full aspect-[4/3] rounded-2xl border-2 border-dashed border-border bg-card cursor-pointer">
-              <Camera className="w-10 h-10 text-muted-foreground" />
-              <span className="text-sm font-medium text-primary">Upload garment photo</span>
-              <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-            </label>
+            <div className="flex gap-3 w-full">
+              <label className="flex-1 flex flex-col items-center justify-center gap-3 aspect-square rounded-2xl border-2 border-dashed border-border bg-card cursor-pointer">
+                <Camera className="w-8 h-8 text-muted-foreground" />
+                <span className="text-xs font-medium text-primary">Take Photo</span>
+                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+              </label>
+              <label className="flex-1 flex flex-col items-center justify-center gap-3 aspect-square rounded-2xl border-2 border-dashed border-border bg-card cursor-pointer">
+                <ImagePlus className="w-8 h-8 text-muted-foreground" />
+                <span className="text-xs font-medium text-primary">Upload Photo</span>
+                <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+              </label>
+            </div>
           )}
 
           {/* Form Fields */}
