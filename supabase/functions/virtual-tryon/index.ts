@@ -55,12 +55,13 @@ Given:
 - A selfie/reference photo of a person
 - One or more garment photos
 
-Generate a single photorealistic image of the person wearing the garment(s). 
-Maintain the person's face, body shape, skin tone, and hair exactly.
+Generate a single photorealistic image of the person wearing the garment(s).
+CRITICAL: Maintain the person's face, body shape, skin tone, hair, and all facial features EXACTLY as they appear in the selfie. The person must be clearly recognizable — preserve their identity perfectly.
 The clothing should look naturally worn — proper fit, draping, shadows, and wrinkles.
 ${occasion ? `The styling should suit a "${occasion}" occasion.` : ""}
 Keep the background simple and clean.
-Make it look like a real fashion photo, not a collage.`,
+Make it look like a real fashion photo, not a collage.
+Do NOT add any watermark, logo, text overlay, or branding to the image.`,
       },
       {
         type: "image_url",
@@ -84,7 +85,7 @@ Make it look like a real fashion photo, not a collage.`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash-image",
+          model: "google/gemini-3-pro-image-preview",
           messages: [{ role: "user", content }],
           modalities: ["image", "text"],
         }),
