@@ -1,22 +1,35 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, ChevronRight, ChevronLeft, Check } from "lucide-react";
+import { Camera, ChevronRight, ChevronLeft, Check, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import GlassCard from "@/components/GlassCard";
+import BodyShapeIcon from "@/components/onboarding/BodyShapeIcon";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 const BODY_SHAPES = [
-  { id: "hourglass", label: "Hourglass", emoji: "⏳" },
-  { id: "pear", label: "Pear", emoji: "🍐" },
-  { id: "athletic", label: "Athletic", emoji: "💪" },
-  { id: "rectangle", label: "Rectangle", emoji: "▬" },
-  { id: "round", label: "Round", emoji: "⭕" },
+  { id: "balanced", label: "Balanced" },
+  { id: "shoulders_wider", label: "Shoulders Wider" },
+  { id: "hips_wider", label: "Hips Wider" },
+  { id: "midsection_fuller", label: "Midsection Fuller" },
+  { id: "curvy", label: "Curvy" },
 ];
+
+const MIN_AGE = 13;
+
+const getAge = (dob: string): number | null => {
+  if (!dob) return null;
+  const birth = new Date(dob);
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age;
+};
 
 const OnboardingPage = () => {
   const { user } = useAuth();
@@ -38,6 +51,9 @@ const OnboardingPage = () => {
   // Body shape state
   const [bodyShape, setBodyShape] = useState("");
 
+  const age = getAge(dateOfBirth);
+  const isUnderage = age !== null && age < MIN_AGE;
+
   const handleSelfieChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -48,12 +64,15 @@ const OnboardingPage = () => {
 
   const handleComplete = async () => {
     if (!user) return;
+    if (isUnderage) {
+      toast.error(`You must be at least ${MIN_AGE} years old to use VORA.`);
+      return;
+    }
     setSaving(true);
 
     try {
       let selfieUrl: string | null = null;
 
-      // Upload selfie if provided
       if (selfieFile) {
         const fileExt = selfieFile.name.split(".").pop();
         const filePath = `${user.id}/selfie.${fileExt}`;
@@ -69,7 +88,6 @@ const OnboardingPage = () => {
         selfieUrl = urlData.publicUrl;
       }
 
-      // Update profile
       const { error } = await supabase
         .from("profiles")
         .update({
@@ -110,7 +128,7 @@ const OnboardingPage = () => {
             <img src={selfiePreview} alt="Selfie preview" className="w-40 h-40 rounded-full object-cover border-4 border-primary/20" />
             <label className="absolute bottom-0 right-0 w-10 h-10 bg-primary rounded-full flex items-center justify-center cursor-pointer shadow-lg">
               <Camera className="w-5 h-5 text-primary-foreground" />
-              <input type="file" accept="image/*" capture="user" className="hidden" onChange={handleSelfieChange} />
+              <input type="file" accept="image/*" className="hidden" onChange={handleSelfieChange} />
             </label>
           </div>
         ) : (
@@ -119,16 +137,16 @@ const OnboardingPage = () => {
               <Camera className="w-10 h-10 text-muted-foreground" />
             </div>
             <span className="text-sm font-medium text-primary">Tap to upload</span>
-            <input type="file" accept="image/*" capture="user" className="hidden" onChange={handleSelfieChange} />
+            <input type="file" accept="image/*" className="hidden" onChange={handleSelfieChange} />
           </label>
         )}
       </GlassCard>
     </motion.div>,
 
-    // Step 1: Personal Info
+    // Step 1: Personal Info - "Fit Profile"
     <motion.div key="info" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} className="space-y-5">
       <div className="text-center">
-        <h2 className="text-xl font-bold text-foreground font-outfit">About You</h2>
+        <h2 className="text-xl font-bold text-foreground font-outfit">Fit Profile</h2>
         <p className="text-sm text-muted-foreground mt-1">Help us personalise your experience</p>
       </div>
 
@@ -140,6 +158,12 @@ const OnboardingPage = () => {
         <div>
           <Label htmlFor="dob" className="text-xs text-muted-foreground">Date of Birth</Label>
           <Input id="dob" type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} className="mt-1 rounded-xl bg-card" />
+          {isUnderage && (
+            <div className="flex items-center gap-2 mt-2 p-2.5 rounded-xl bg-destructive/10 text-destructive text-xs font-medium">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>You must be at least {MIN_AGE} years old to use VORA.</span>
+            </div>
+          )}
         </div>
         <div>
           <Label className="text-xs text-muted-foreground">Sex</Label>
@@ -175,28 +199,33 @@ const OnboardingPage = () => {
     // Step 2: Body Shape
     <motion.div key="shape" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} className="space-y-6">
       <div className="text-center">
-        <h2 className="text-xl font-bold text-foreground font-outfit">Body Shape</h2>
-        <p className="text-sm text-muted-foreground mt-1">Select the closest match</p>
+        <h2 className="text-xl font-bold text-foreground font-outfit">Fit Profile</h2>
+        <p className="text-sm text-muted-foreground mt-1">Select the closest body shape</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {BODY_SHAPES.map((shape) => (
-          <GlassCard
-            key={shape.id}
-            className={`flex flex-col items-center gap-2 p-5 cursor-pointer transition-all ${
-              bodyShape === shape.id
-                ? "ring-2 ring-primary bg-primary/5"
-                : ""
-            }`}
-            onClick={() => setBodyShape(shape.id)}
-          >
-            <span className="text-3xl">{shape.emoji}</span>
-            <span className="text-sm font-medium text-foreground">{shape.label}</span>
-            {bodyShape === shape.id && (
-              <Check className="w-4 h-4 text-primary" />
-            )}
-          </GlassCard>
-        ))}
+        {BODY_SHAPES.map((shape) => {
+          const selected = bodyShape === shape.id;
+          return (
+            <div
+              key={shape.id}
+              onClick={() => setBodyShape(shape.id)}
+              className={`relative flex flex-col items-center gap-2 p-5 rounded-2xl cursor-pointer transition-all bg-card ${
+                selected
+                  ? "border-2 border-primary shadow-sm"
+                  : "border border-border"
+              }`}
+            >
+              {selected && (
+                <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                  <Check className="w-3 h-3 text-primary-foreground" />
+                </div>
+              )}
+              <BodyShapeIcon shape={shape.id} className="w-12 h-12" />
+              <span className="text-sm font-medium text-foreground">{shape.label}</span>
+            </div>
+          );
+        })}
       </div>
     </motion.div>,
   ];
@@ -228,7 +257,7 @@ const OnboardingPage = () => {
           </Button>
         )}
         {step < 2 ? (
-          <Button onClick={() => setStep(step + 1)} className="flex-1 rounded-xl">
+          <Button onClick={() => setStep(step + 1)} disabled={step === 1 && isUnderage} className="flex-1 rounded-xl">
             Continue <ChevronRight className="w-4 h-4" />
           </Button>
         ) : (
