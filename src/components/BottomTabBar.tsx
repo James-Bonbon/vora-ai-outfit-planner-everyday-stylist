@@ -1,4 +1,4 @@
-import { Home, DoorOpen, Scan, Sparkles, User } from "lucide-react";
+import { Home, DoorOpen, Sparkles, HeartPulse, User } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -6,8 +6,8 @@ import { motion } from "framer-motion";
 const tabs = [
   { path: "/home", label: "Home", icon: Home },
   { path: "/wardrobe", label: "Wardrobe", icon: DoorOpen },
-  { path: "/mirror", label: "Mirror", icon: Scan },
-  { path: "/beauty", label: "Beauty", icon: Sparkles },
+  { path: "/mirror", label: "Stylist", icon: Sparkles },
+  { path: "/beauty", label: "Beauty", icon: HeartPulse },
   { path: "/profile", label: "Profile", icon: User },
 ];
 

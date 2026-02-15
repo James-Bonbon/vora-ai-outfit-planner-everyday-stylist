@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import GlassCard from "@/components/GlassCard";
-import { Sparkles, DoorOpen, Heart, ArrowRight, ExternalLink } from "lucide-react";
+import { Sparkles, DoorOpen, Heart, ArrowRight, ExternalLink, HeartPulse } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import heroImage from "@/assets/hero-stylist.jpg";
@@ -98,7 +98,7 @@ const HomePage = () => {
             <DoorOpen className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h3 className="font-semibold text-foreground text-sm font-outfit">Closet</h3>
+            <h3 className="font-semibold text-foreground text-sm font-outfit">Wardrobe</h3>
             <p className="text-xs text-muted-foreground">{closetCount} Items</p>
           </div>
         </GlassCard>
@@ -109,11 +109,11 @@ const HomePage = () => {
           onClick={() => navigate("/beauty")}
         >
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-primary" />
+            <HeartPulse className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h3 className="font-semibold text-foreground text-sm font-outfit">Glow</h3>
-            <p className="text-xs text-muted-foreground">Beauty & Care</p>
+            <h3 className="font-semibold text-foreground text-sm font-outfit">Beauty</h3>
+            <p className="text-xs text-muted-foreground">{closetCount} Items</p>
           </div>
         </GlassCard>
       </div>
