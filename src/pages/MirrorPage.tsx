@@ -231,7 +231,7 @@ const MirrorPage = () => {
 
   return (
     <div className="pt-6 space-y-5 pb-4">
-      <h1 className="text-2xl font-bold text-foreground font-outfit">AI Mirror</h1>
+      <h1 className="text-2xl font-bold text-foreground font-outfit">AI Stylist</h1>
 
       {/* Tabs */}
       <div className="flex gap-2">
