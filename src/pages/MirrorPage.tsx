@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import GlassCard from "@/components/GlassCard";
 import { Sparkles, Check, Image, Loader2, AlertTriangle, Save, Trash2, GalleryHorizontalEnd } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -62,7 +62,7 @@ const MirrorPage = () => {
   });
   const [selectedLook, setSelectedLook] = useState<SavedLook | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const hasFetched = useRef(false);
+  
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -145,8 +145,6 @@ const MirrorPage = () => {
   }, [resultImage]);
 
   useEffect(() => {
-    if (hasFetched.current) return;
-    hasFetched.current = true;
     fetchData();
     fetchLooks();
   }, [fetchData, fetchLooks]);
