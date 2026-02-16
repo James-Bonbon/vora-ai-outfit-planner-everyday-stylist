@@ -18,7 +18,17 @@ interface SavedLook {
   id: string;
   image_path: string;
   occasion: string | null;
+  garment_ids: string[] | null;
   created_at: string;
+}
+
+interface GarmentInfo {
+  id: string;
+  name: string | null;
+  category: string | null;
+  color: string | null;
+  material: string | null;
+  brand: string | null;
 }
 
 const OCCASIONS = ["Casual", "Date Night", "Work", "Party", "Streetwear"];
@@ -61,6 +71,7 @@ const MirrorPage = () => {
     return cached ? JSON.parse(cached) : {};
   });
   const [selectedLook, setSelectedLook] = useState<SavedLook | null>(null);
+  const [lookGarments, setLookGarments] = useState<GarmentInfo[]>([]);
   const [deleting, setDeleting] = useState(false);
   
 
@@ -118,12 +129,12 @@ const MirrorPage = () => {
     if (!user) return;
     const { data } = await supabase
       .from("looks")
-      .select("id, image_path, occasion, created_at")
+      .select("id, image_path, occasion, garment_ids, created_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
     if (data) {
-      setLooks(data as SavedLook[]);
+      setLooks(data);
       sessionStorage.setItem(MIRROR_LOOKS_CACHE, JSON.stringify(data));
       const urls: Record<string, string> = {};
       await Promise.all(
@@ -148,6 +159,15 @@ const MirrorPage = () => {
     fetchData();
     fetchLooks();
   }, [fetchData, fetchLooks]);
+
+  const fetchLookGarments = useCallback(async (garmentIds: string[]) => {
+    if (!garmentIds.length) { setLookGarments([]); return; }
+    const { data } = await supabase
+      .from("closet_items")
+      .select("id, name, category, color, material, brand")
+      .in("id", garmentIds);
+    setLookGarments((data || []) as GarmentInfo[]);
+  }, []);
 
   const toggleItem = (id: string) => {
     setSelectedIds((prev) => {
@@ -311,7 +331,7 @@ const MirrorPage = () => {
               </GlassCard>
               <div className="flex items-center justify-between mt-3">
                 <div>
-                  {selectedLook.occasion && (
+               {selectedLook.occasion && (
                     <span className="text-xs font-medium text-primary bg-primary/10 px-2.5 py-1 rounded-full">
                       {selectedLook.occasion}
                     </span>
@@ -331,7 +351,28 @@ const MirrorPage = () => {
                   Delete
                 </Button>
               </div>
-              <Button variant="outline" className="w-full mt-3 rounded-xl" onClick={() => setSelectedLook(null)}>
+
+              {/* Garment Details */}
+              {lookGarments.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Garments in this look</p>
+                  {lookGarments.map((g) => (
+                    <div key={g.id} className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{g.name || "Unnamed"}</p>
+                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                          {g.category && <span className="text-[10px] text-muted-foreground">{g.category}</span>}
+                          {g.brand && <span className="text-[10px] text-muted-foreground">{g.brand}</span>}
+                          {g.color && <span className="text-[10px] text-muted-foreground">{g.color}</span>}
+                          {g.material && <span className="text-[10px] text-muted-foreground">{g.material}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <Button variant="outline" className="w-full mt-3 rounded-xl" onClick={() => { setSelectedLook(null); setLookGarments([]); }}>
                 Back to gallery
               </Button>
             </motion.div>
@@ -351,7 +392,7 @@ const MirrorPage = () => {
                 <GlassCard
                   key={look.id}
                   className="p-0 overflow-hidden cursor-pointer"
-                  onClick={() => setSelectedLook(look)}
+                  onClick={() => { setSelectedLook(look); fetchLookGarments(look.garment_ids || []); }}
                 >
                   <div className="aspect-[3/4] bg-card">
                     {lookUrls[look.id] ? (

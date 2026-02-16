@@ -11,6 +11,7 @@ import {
   Moon,
   AlertTriangle,
   ChevronRight,
+  ShoppingBag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,6 +23,9 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { toast } from "sonner";
+import ProductLibrary from "@/components/beauty/ProductLibrary";
+
+
 
 interface BeautyProduct {
   id: string;
@@ -72,6 +76,8 @@ const BeautyPage = () => {
   const [routineOpen, setRoutineOpen] = useState(false);
   const [routineData, setRoutineData] = useState<RoutineData | null>(null);
   const [buildingRoutine, setBuildingRoutine] = useState(false);
+  const [tab, setTab] = useState<"shelf" | "browse">("shelf");
+  const [addingBrowseProduct, setAddingBrowseProduct] = useState<string | null>(null);
 
   const fetchProducts = useCallback(async () => {
     if (!user) return;
@@ -203,14 +209,81 @@ const BeautyPage = () => {
     }
   };
 
+  const handleAddFromBrowse = async (product: { name: string; brand: string; product_type: string; key_ingredients: string[]; routine_step: string }) => {
+    if (!user) return;
+    setAddingBrowseProduct(product.name);
+    try {
+      // Use a placeholder image path since browsed products don't have photos
+      const placeholderPath = `${user.id}/browse_${crypto.randomUUID()}.txt`;
+      // Upload a tiny placeholder
+      const blob = new Blob(["placeholder"], { type: "text/plain" });
+      await supabase.storage.from("beauty-products").upload(placeholderPath, blob);
+
+      const { error } = await supabase.from("beauty_products").insert({
+        user_id: user.id,
+        image_url: placeholderPath,
+        name: product.name,
+        brand: product.brand,
+        product_type: product.product_type,
+        ingredients: product.key_ingredients,
+        routine_step: product.routine_step,
+      });
+      if (error) throw error;
+      toast.success(`${product.name} added to your shelf!`);
+      fetchProducts();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to add product");
+    } finally {
+      setAddingBrowseProduct(null);
+    }
+  };
+
   return (
     <div className="pt-6 space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground font-outfit">Beauty</h1>
-        <Button size="icon" className="rounded-xl h-10 w-10" onClick={() => setAddOpen(true)}>
-          <Plus className="w-5 h-5" />
-        </Button>
+        {tab === "shelf" && (
+          <Button size="icon" className="rounded-xl h-10 w-10" onClick={() => setAddOpen(true)}>
+            <Plus className="w-5 h-5" />
+          </Button>
+        )}
       </div>
+
+      {/* Tabs */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setTab("shelf")}
+          className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors min-h-[44px] ${
+            tab === "shelf"
+              ? "bg-primary text-primary-foreground"
+              : "border border-border text-muted-foreground"
+          }`}
+        >
+          <HeartPulse className="w-4 h-4 inline mr-1.5 -mt-0.5" />
+          My Shelf
+        </button>
+        <button
+          onClick={() => setTab("browse")}
+          className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors min-h-[44px] ${
+            tab === "browse"
+              ? "bg-primary text-primary-foreground"
+              : "border border-border text-muted-foreground"
+          }`}
+        >
+          <ShoppingBag className="w-4 h-4 inline mr-1.5 -mt-0.5" />
+          Browse
+        </button>
+      </div>
+
+      {/* Browse Tab */}
+      {tab === "browse" && (
+        <ProductLibrary onAddToShelf={handleAddFromBrowse} addingProduct={addingBrowseProduct} />
+      )}
+
+      {/* Shelf Tab */}
+      {tab === "shelf" && (
+        <>
+
 
       {/* AI Routine Builder CTA */}
       {products.length >= 2 && (
@@ -472,6 +545,8 @@ const BeautyPage = () => {
           </div>
         </SheetContent>
       </Sheet>
+      </>
+      )}
     </div>
   );
 };
