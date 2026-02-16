@@ -11,10 +11,14 @@ serve(async (req) => {
   }
 
   try {
-    const { category, skinType } = await req.json();
+    const { category, search } = await req.json();
 
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
+
+    const searchClause = search
+      ? `matching the search query "${search}"`
+      : "";
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -23,29 +27,31 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-flash-lite",
         messages: [
           {
             role: "system",
-            content: `You are a UK-based skincare and beauty expert. Return a JSON array of 8 product recommendations. Each product object must have:
+            content: `You are a UK skincare product database. Return a JSON array of 6 real products. Each object MUST have:
 - "name": full product name
-- "brand": brand name  
-- "product_type": category (e.g. "Cleanser", "Moisturiser", "SPF", "Serum", "Toner", "Exfoliant", "Eye Cream", "Mask", "Oil", "Lip Care")
-- "price": price in GBP as a string (e.g. "£12.99")
-- "rating": a rating out of 5 as a number (e.g. 4.5)
-- "key_ingredients": array of 2-3 key ingredients
-- "description": a concise one-sentence benefit description
-- "routine_step": one of "1-Cleanse", "2-Tone", "3-Treat", "4-Moisturise", "5-Protect"
+- "brand": brand name
+- "product_type": e.g. "Cleanser", "Moisturiser", "SPF", "Serum", "Toner", "Exfoliant", "Eye Cream", "Mask"
+- "rating": number out of 5 (e.g. 4.5)
+- "key_ingredients": array of 3-4 key active ingredients
+- "description": one concise sentence about benefits
+- "how_to_use": one sentence on application method
+- "volume": product size (e.g. "50ml", "200ml")
+- "skin_type": array of suitable skin types (e.g. ["Oily","Combination"])
+- "routine_step": one of "1-Cleanse","2-Tone","3-Treat","4-Moisturise","5-Protect"
+- "image_url": a working direct URL to the official product image on the brand's website, Boots, or Superdrug
 
-Only recommend real products available in the UK (Boots, Superdrug, Cult Beauty, SpaceNK, etc).
-Return ONLY valid JSON array, no markdown.`,
+Only real products available in the UK. Return ONLY valid JSON array, no markdown.`,
           },
           {
             role: "user",
-            content: `Recommend 8 popular ${category || "skincare"} products${skinType ? ` suitable for ${skinType} skin` : ""} available in the UK.`,
+            content: `List 6 popular ${category || "skincare"} products ${searchClause} available in the UK.`,
           },
         ],
-        max_tokens: 1500,
+        max_tokens: 1200,
       }),
     });
 
