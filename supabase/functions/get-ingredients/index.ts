@@ -5,6 +5,20 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function extractJsonArray(raw: string): string[] {
+  const cleaned = raw.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+  const start = cleaned.indexOf("[");
+  const end = cleaned.lastIndexOf("]");
+  if (start === -1 || end === -1) return [];
+  try {
+    const parsed = JSON.parse(cleaned.substring(start, end + 1));
+    if (Array.isArray(parsed)) return parsed.map(String);
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -24,15 +38,15 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
+        model: "google/gemini-3-flash-preview",
         messages: [
           {
             role: "system",
-            content: `You are a cosmetics and skincare ingredient expert. Given a product name, return its key active ingredients as a JSON array of strings. Only return well-known, factual ingredients. If unsure, return common ingredients for that product type. Return ONLY a valid JSON array, no markdown.`,
+            content: `You are a cosmetics ingredient database. You MUST always respond with a JSON array of strings. Never apologize or refuse. If you are unsure about exact ingredients, return the most commonly known ingredients for that type of product. Example response: ["Ceramides","Hyaluronic Acid","Niacinamide"]`,
           },
           {
             role: "user",
-            content: `What are the key ingredients in "${productName}"? Return a JSON array of 4-8 ingredient names.`,
+            content: `Return the key active ingredients for: "${productName}". Respond ONLY with a JSON array of 4-8 strings.`,
           },
         ],
         max_tokens: 200,
@@ -41,13 +55,15 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`AI error: ${response.status} ${errText}`);
+      console.error("AI gateway error:", response.status, errText);
+      return new Response(JSON.stringify({ ingredients: [] }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "[]";
-    const clean = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    const ingredients = JSON.parse(clean);
+    const content = data.choices?.[0]?.message?.content || "";
+    const ingredients = extractJsonArray(content);
 
     return new Response(JSON.stringify({ ingredients }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -55,7 +71,7 @@ serve(async (req) => {
   } catch (error) {
     console.error("get-ingredients error:", error);
     return new Response(JSON.stringify({ error: error.message, ingredients: [] }), {
-      status: 500,
+      status: 200, // Return 200 with empty ingredients so UI handles gracefully
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
