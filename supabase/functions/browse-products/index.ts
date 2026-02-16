@@ -51,7 +51,7 @@ Only real products available in the UK. Return ONLY valid JSON array, no markdow
             content: `List 6 popular ${category || "skincare"} products ${searchClause} available in the UK.`,
           },
         ],
-        max_tokens: 1200,
+        max_tokens: 4000,
       }),
     });
 
@@ -72,7 +72,17 @@ Only real products available in the UK. Return ONLY valid JSON array, no markdow
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || "[]";
-    const clean = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    let clean = content.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+    
+    // Find JSON array boundaries
+    const start = clean.indexOf("[");
+    const end = clean.lastIndexOf("]");
+    if (start === -1 || end === -1) throw new Error("No JSON array in response");
+    clean = clean.substring(start, end + 1);
+    
+    // Fix common LLM JSON issues
+    clean = clean.replace(/,\s*]/g, "]").replace(/,\s*}/g, "}").replace(/[\x00-\x1F\x7F]/g, "");
+    
     const products = JSON.parse(clean);
 
     return new Response(JSON.stringify({ products }), {
