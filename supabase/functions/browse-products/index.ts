@@ -16,7 +16,9 @@ serve(async (req) => {
 
     const { category, search } = await req.json();
 
-    const query = search || category || "beauty products";
+    // Always append "beauty skincare" to improve relevance
+    const baseQuery = search || category || "beauty products";
+    const query = `${baseQuery} beauty skincare`;
 
     const params = new URLSearchParams({
       engine: "google_shopping",
@@ -25,7 +27,7 @@ serve(async (req) => {
       hl: "en",
       currency: "GBP",
       api_key: SERPAPI_KEY,
-      num: "30",
+      num: "40",
     });
 
     const url = `https://serpapi.com/search.json?${params.toString()}`;
@@ -40,7 +42,14 @@ serve(async (req) => {
     const data = await response.json();
     const results = data.shopping_results || [];
 
-    const products = results.map((item: any, idx: number) => ({
+    // Filter out non-beauty results
+    const EXCLUDED_KEYWORDS = ["boots", "shoes", "heels", "leather", "trainers", "sneakers", "sandals", "loafers"];
+    const filtered = results.filter((item: any) => {
+      const title = (item.title || "").toLowerCase();
+      return !EXCLUDED_KEYWORDS.some((kw) => title.includes(kw));
+    });
+
+    const products = filtered.slice(0, 30).map((item: any, idx: number) => ({
       id: idx,
       name: item.title || "Unknown Product",
       brand: item.source || "",
@@ -48,7 +57,7 @@ serve(async (req) => {
       rating: item.rating ? parseFloat(item.rating) : null,
       reviews: item.reviews || 0,
       description: item.snippet || "",
-      image_url: item.thumbnail || "",
+      image_url: item.high_res_image || item.thumbnail || "",
       price: item.extracted_price ? `£${item.extracted_price.toFixed(2)}` : item.price || "",
       store: item.source || "",
       product_link: item.link || "",
