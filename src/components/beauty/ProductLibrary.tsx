@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import GlassCard from "@/components/GlassCard";
-import { Search, Loader2, Star, Plus, ArrowLeft, Droplets } from "lucide-react";
+import { Search, Loader2, Star, Plus, ArrowLeft, Droplets, ExternalLink, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,11 +12,14 @@ interface BrowseProduct {
   brand: string;
   product_type: string;
   rating: number | null;
+  reviews: number;
   description: string;
   image_url: string;
+  price: string;
+  store: string;
+  product_link: string;
   tag_list: string[];
   product_colors: { name: string; hex: string }[];
-  product_link: string;
 }
 
 const BROWSE_CATEGORIES = [
@@ -29,7 +32,8 @@ const BROWSE_CATEGORIES = [
   "Bronzer",
   "Eyeliner",
   "Nail Polish",
-  "Lip Liner",
+  "Skincare",
+  "Perfume",
 ];
 
 interface ProductLibraryProps {
@@ -51,11 +55,14 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
     setSelectedProduct(null);
     setImgErrors(new Set());
     try {
+      const searchTerm = search
+        ? search
+        : cat === "All"
+          ? "beauty products"
+          : `${cat} makeup`;
+
       const { data, error } = await supabase.functions.invoke("browse-products", {
-        body: {
-          category: cat === "All" ? "" : cat,
-          search: search || undefined,
-        },
+        body: { category: cat === "All" ? "" : cat, search: searchTerm },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -69,19 +76,18 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
     }
   }, []);
 
-  // Auto-load on mount
   useEffect(() => {
     if (!hasLoaded) fetchProducts("All");
   }, []);
 
   const handleCategoryChange = (cat: string) => {
     setCategory(cat);
-    fetchProducts(cat, searchQuery);
+    fetchProducts(cat);
   };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchProducts(category, searchQuery);
+    if (searchQuery.trim()) fetchProducts(category, searchQuery.trim());
   };
 
   const handleImgError = (key: string) => {
@@ -91,15 +97,12 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
   const handleAddToShelf = (product: BrowseProduct) => {
     onAddToShelf({
       name: product.name,
-      brand: product.brand,
+      brand: product.store,
       product_type: product.product_type,
-      key_ingredients: product.tag_list.slice(0, 4),
+      key_ingredients: [],
       routine_step: "",
     });
   };
-
-  // Strip HTML tags from description
-  const stripHtml = (html: string) => html.replace(/<[^>]*>/g, "").trim();
 
   return (
     <div className="space-y-4">
@@ -108,7 +111,7 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search by brand (e.g. maybelline)…"
+            placeholder="Search products (e.g. YSL Beauty)…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 rounded-xl h-10 bg-card border-border"
@@ -139,7 +142,7 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
       {loading ? (
         <div className="flex flex-col items-center py-16 gap-3">
           <Loader2 className="w-8 h-8 text-primary animate-spin" />
-          <p className="text-sm text-muted-foreground">Loading products…</p>
+          <p className="text-sm text-muted-foreground">Searching UK stores…</p>
         </div>
       ) : selectedProduct ? (
         /* Product Detail View */
@@ -161,8 +164,14 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">{selectedProduct.brand}</p>
-                <p className="text-lg font-semibold text-foreground font-outfit mt-0.5">{selectedProduct.name}</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <Store className="w-3.5 h-3.5 text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground">{selectedProduct.store}</p>
+                </div>
+                <p className="text-lg font-semibold text-foreground font-outfit">{selectedProduct.name}</p>
+                {selectedProduct.price && (
+                  <p className="text-xl font-bold text-primary mt-1">{selectedProduct.price}</p>
+                )}
               </div>
 
               <div className="flex items-center gap-3 flex-wrap">
@@ -170,49 +179,15 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
                   <div className="flex items-center gap-1">
                     <Star className="w-4 h-4 text-primary fill-primary" />
                     <span className="text-sm font-medium text-foreground">{selectedProduct.rating.toFixed(1)}</span>
-                    <span className="text-xs text-muted-foreground">/ 5</span>
+                    {selectedProduct.reviews > 0 && (
+                      <span className="text-xs text-muted-foreground">({selectedProduct.reviews})</span>
+                    )}
                   </div>
                 )}
-                <span className="text-xs text-muted-foreground border border-border rounded-full px-2.5 py-0.5 capitalize">
-                  {selectedProduct.product_type}
-                </span>
               </div>
 
               {selectedProduct.description && (
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {stripHtml(selectedProduct.description).slice(0, 300)}
-                  {stripHtml(selectedProduct.description).length > 300 && "…"}
-                </p>
-              )}
-
-              {selectedProduct.tag_list.length > 0 && (
-                <div>
-                  <p className="text-xs font-medium text-foreground mb-1.5">Tags</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedProduct.tag_list.map((tag, i) => (
-                      <span key={i} className="px-2.5 py-1 rounded-full text-[10px] font-medium bg-primary/10 text-primary capitalize">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {selectedProduct.product_colors.length > 0 && (
-                <div>
-                  <p className="text-xs font-medium text-foreground mb-1.5">Available Shades</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedProduct.product_colors.map((c, i) => (
-                      <div key={i} className="flex items-center gap-1.5 px-2 py-1 rounded-full border border-border text-[10px]">
-                        <span
-                          className="w-3 h-3 rounded-full border border-border shrink-0"
-                          style={{ backgroundColor: c.hex }}
-                        />
-                        <span className="text-muted-foreground truncate max-w-[80px]">{c.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed">{selectedProduct.description}</p>
               )}
 
               <div className="flex gap-2 pt-2">
@@ -228,9 +203,18 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
                   )}
                   Add to My Shelf
                 </Button>
-                <Button variant="outline" className="rounded-xl gap-2" onClick={() => setSelectedProduct(null)}>
+                {selectedProduct.product_link && (
+                  <Button
+                    variant="outline"
+                    className="rounded-xl gap-2"
+                    onClick={() => window.open(selectedProduct.product_link, "_blank")}
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Buy
+                  </Button>
+                )}
+                <Button variant="outline" className="rounded-xl" onClick={() => setSelectedProduct(null)}>
                   <ArrowLeft className="w-4 h-4" />
-                  Back
                 </Button>
               </div>
             </div>
@@ -239,11 +223,11 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
       ) : products.length === 0 && hasLoaded ? (
         <GlassCard className="flex flex-col items-center justify-center py-14 text-center">
           <Droplets className="w-10 h-10 text-primary/20 mb-3" />
-          <p className="text-sm text-muted-foreground">No products found. Try a different brand or category.</p>
+          <p className="text-sm text-muted-foreground">No products found. Try a different search.</p>
         </GlassCard>
       ) : (
         /* Product Grid */
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           {products.map((product) => (
             <GlassCard
               key={product.id}
@@ -266,18 +250,18 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
                 )}
               </div>
               <div className="p-3 space-y-1">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide truncate">{product.brand}</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide truncate">{product.store}</p>
                 <p className="text-xs font-medium text-foreground line-clamp-2 leading-tight">{product.name}</p>
-                <div className="flex items-center gap-1 pt-0.5">
+                <div className="flex items-center justify-between pt-0.5">
+                  {product.price && (
+                    <span className="text-sm font-bold text-primary">{product.price}</span>
+                  )}
                   {product.rating && (
-                    <>
+                    <div className="flex items-center gap-0.5">
                       <Star className="w-3 h-3 text-primary fill-primary" />
                       <span className="text-[10px] text-muted-foreground">{product.rating.toFixed(1)}</span>
-                    </>
+                    </div>
                   )}
-                  <span className="text-[10px] text-muted-foreground ml-auto capitalize truncate max-w-[60px]">
-                    {product.product_type}
-                  </span>
                 </div>
               </div>
             </GlassCard>
