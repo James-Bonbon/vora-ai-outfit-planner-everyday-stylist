@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import GlassCard from "@/components/GlassCard";
-import { Search, Loader2, Star, Plus, ArrowLeft, Droplets, ExternalLink, Store } from "lucide-react";
+import { Search, Loader2, Star, Plus, ArrowLeft, Droplets, ExternalLink, Store, FlaskConical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -49,6 +49,8 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
   const [selectedProduct, setSelectedProduct] = useState<BrowseProduct | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [imgErrors, setImgErrors] = useState<Set<string>>(new Set());
+  const [ingredients, setIngredients] = useState<string[]>([]);
+  const [loadingIngredients, setLoadingIngredients] = useState(false);
 
   const fetchProducts = useCallback(async (cat: string, search?: string) => {
     setLoading(true);
@@ -92,6 +94,27 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
 
   const handleImgError = (key: string) => {
     setImgErrors((prev) => new Set(prev).add(key));
+  };
+
+  const fetchIngredients = useCallback(async (productName: string) => {
+    setLoadingIngredients(true);
+    setIngredients([]);
+    try {
+      const { data, error } = await supabase.functions.invoke("get-ingredients", {
+        body: { productName },
+      });
+      if (error) throw error;
+      setIngredients(data?.ingredients || []);
+    } catch (err: any) {
+      console.error("Ingredients fetch error:", err);
+    } finally {
+      setLoadingIngredients(false);
+    }
+  }, []);
+
+  const handleSelectProduct = (product: BrowseProduct) => {
+    setSelectedProduct(product);
+    fetchIngredients(product.name);
   };
 
   const handleAddToShelf = (product: BrowseProduct) => {
@@ -190,6 +213,30 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
                 <p className="text-sm text-muted-foreground leading-relaxed">{selectedProduct.description}</p>
               )}
 
+              {/* Key Ingredients */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <FlaskConical className="w-4 h-4 text-primary" />
+                  <p className="text-sm font-semibold text-foreground">Key Ingredients</p>
+                </div>
+                {loadingIngredients ? (
+                  <div className="flex items-center gap-2 py-2">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Analysing ingredients…</span>
+                  </div>
+                ) : ingredients.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {ingredients.map((ing, i) => (
+                      <span key={i} className="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                        {ing}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No ingredient data available.</p>
+                )}
+              </div>
+
               <div className="flex gap-2 pt-2">
                 <Button
                   className="flex-1 rounded-xl gap-2"
@@ -232,7 +279,7 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
             <GlassCard
               key={product.id}
               className="p-0 overflow-hidden cursor-pointer hover:border-primary/30 transition-colors"
-              onClick={() => setSelectedProduct(product)}
+              onClick={() => handleSelectProduct(product)}
             >
               <div className="aspect-square bg-card relative">
                 {!imgErrors.has(String(product.id)) && product.image_url ? (
