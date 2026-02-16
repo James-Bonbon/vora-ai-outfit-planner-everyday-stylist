@@ -1,44 +1,44 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import GlassCard from "@/components/GlassCard";
-import { Search, Loader2, Star, Plus, ShoppingBag, ArrowLeft, Droplets } from "lucide-react";
+import { Search, Loader2, Star, Plus, ArrowLeft, Droplets } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface BrowseProduct {
+  id: number;
   name: string;
   brand: string;
   product_type: string;
-  rating: number;
-  key_ingredients: string[];
+  rating: number | null;
   description: string;
-  how_to_use: string;
-  volume: string;
-  skin_type: string[];
-  routine_step: string;
   image_url: string;
+  tag_list: string[];
+  product_colors: { name: string; hex: string }[];
+  product_link: string;
 }
 
 const BROWSE_CATEGORIES = [
-  "All Skincare",
-  "Cleanser",
-  "Moisturiser",
-  "SPF",
-  "Serum",
-  "Toner",
-  "Exfoliant",
-  "Eye Cream",
-  "Mask",
+  "All",
+  "Foundation",
+  "Lipstick",
+  "Mascara",
+  "Eyeshadow",
+  "Blush",
+  "Bronzer",
+  "Eyeliner",
+  "Nail Polish",
+  "Lip Liner",
 ];
 
 interface ProductLibraryProps {
-  onAddToShelf: (product: BrowseProduct) => void;
+  onAddToShelf: (product: { name: string; brand: string; product_type: string; key_ingredients: string[]; routine_step: string }) => void;
   addingProduct: string | null;
 }
 
 const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) => {
-  const [category, setCategory] = useState("All Skincare");
+  const [category, setCategory] = useState("All");
   const [products, setProducts] = useState<BrowseProduct[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -53,7 +53,7 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
     try {
       const { data, error } = await supabase.functions.invoke("browse-products", {
         body: {
-          category: cat === "All Skincare" ? "skincare" : cat,
+          category: cat === "All" ? "" : cat,
           search: search || undefined,
         },
       });
@@ -69,6 +69,11 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
     }
   }, []);
 
+  // Auto-load on mount
+  useEffect(() => {
+    if (!hasLoaded) fetchProducts("All");
+  }, []);
+
   const handleCategoryChange = (cat: string) => {
     setCategory(cat);
     fetchProducts(cat, searchQuery);
@@ -79,29 +84,22 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
     fetchProducts(category, searchQuery);
   };
 
-  const handleImgError = (name: string) => {
-    setImgErrors((prev) => new Set(prev).add(name));
+  const handleImgError = (key: string) => {
+    setImgErrors((prev) => new Set(prev).add(key));
   };
 
-  if (!hasLoaded && !loading) {
-    return (
-      <div className="space-y-4">
-        <GlassCard className="flex flex-col items-center justify-center py-14 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-            <ShoppingBag className="w-8 h-8 text-primary" />
-          </div>
-          <h3 className="font-semibold text-foreground">Discover Products</h3>
-          <p className="text-xs text-muted-foreground mt-1 max-w-[240px]">
-            Browse curated skincare products available in the UK. Find what works for your routine.
-          </p>
-          <Button className="mt-4 rounded-xl gap-2" onClick={() => fetchProducts(category)}>
-            <Search className="w-4 h-4" />
-            Browse Products
-          </Button>
-        </GlassCard>
-      </div>
-    );
-  }
+  const handleAddToShelf = (product: BrowseProduct) => {
+    onAddToShelf({
+      name: product.name,
+      brand: product.brand,
+      product_type: product.product_type,
+      key_ingredients: product.tag_list.slice(0, 4),
+      routine_step: "",
+    });
+  };
+
+  // Strip HTML tags from description
+  const stripHtml = (html: string) => html.replace(/<[^>]*>/g, "").trim();
 
   return (
     <div className="space-y-4">
@@ -110,7 +108,7 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search products…"
+            placeholder="Search by brand (e.g. maybelline)…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 rounded-xl h-10 bg-card border-border"
@@ -141,20 +139,19 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
       {loading ? (
         <div className="flex flex-col items-center py-16 gap-3">
           <Loader2 className="w-8 h-8 text-primary animate-spin" />
-          <p className="text-sm text-muted-foreground">Finding products…</p>
+          <p className="text-sm text-muted-foreground">Loading products…</p>
         </div>
       ) : selectedProduct ? (
         /* Product Detail View */
         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-200">
           <GlassCard className="p-0 overflow-hidden">
-            {/* Product image */}
             <div className="aspect-square bg-card relative">
-              {!imgErrors.has(selectedProduct.name) && selectedProduct.image_url ? (
+              {!imgErrors.has(String(selectedProduct.id)) && selectedProduct.image_url ? (
                 <img
                   src={selectedProduct.image_url}
                   alt={selectedProduct.name}
                   className="w-full h-full object-contain p-4"
-                  onError={() => handleImgError(selectedProduct.name)}
+                  onError={() => handleImgError(String(selectedProduct.id))}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
@@ -168,56 +165,60 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
                 <p className="text-lg font-semibold text-foreground font-outfit mt-0.5">{selectedProduct.name}</p>
               </div>
 
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1">
-                  <Star className="w-4 h-4 text-primary fill-primary" />
-                  <span className="text-sm font-medium text-foreground">{selectedProduct.rating}</span>
-                  <span className="text-xs text-muted-foreground">/ 5</span>
-                </div>
-                {selectedProduct.volume && (
-                  <span className="text-xs text-muted-foreground border border-border rounded-full px-2 py-0.5">
-                    {selectedProduct.volume}
-                  </span>
+              <div className="flex items-center gap-3 flex-wrap">
+                {selectedProduct.rating && (
+                  <div className="flex items-center gap-1">
+                    <Star className="w-4 h-4 text-primary fill-primary" />
+                    <span className="text-sm font-medium text-foreground">{selectedProduct.rating.toFixed(1)}</span>
+                    <span className="text-xs text-muted-foreground">/ 5</span>
+                  </div>
                 )}
+                <span className="text-xs text-muted-foreground border border-border rounded-full px-2.5 py-0.5 capitalize">
+                  {selectedProduct.product_type}
+                </span>
               </div>
 
-              <p className="text-sm text-muted-foreground">{selectedProduct.description}</p>
-
-              {selectedProduct.how_to_use && (
-                <div>
-                  <p className="text-xs font-medium text-foreground mb-1">How to Use</p>
-                  <p className="text-xs text-muted-foreground">{selectedProduct.how_to_use}</p>
-                </div>
+              {selectedProduct.description && (
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {stripHtml(selectedProduct.description).slice(0, 300)}
+                  {stripHtml(selectedProduct.description).length > 300 && "…"}
+                </p>
               )}
 
-              {selectedProduct.skin_type && selectedProduct.skin_type.length > 0 && (
+              {selectedProduct.tag_list.length > 0 && (
                 <div>
-                  <p className="text-xs font-medium text-foreground mb-1.5">Suitable For</p>
+                  <p className="text-xs font-medium text-foreground mb-1.5">Tags</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {selectedProduct.skin_type.map((st, i) => (
-                      <span key={i} className="px-2.5 py-1 rounded-full text-[10px] font-medium bg-secondary text-secondary-foreground">
-                        {st}
+                    {selectedProduct.tag_list.map((tag, i) => (
+                      <span key={i} className="px-2.5 py-1 rounded-full text-[10px] font-medium bg-primary/10 text-primary capitalize">
+                        {tag}
                       </span>
                     ))}
                   </div>
                 </div>
               )}
 
-              <div>
-                <p className="text-xs font-medium text-foreground mb-1.5">Key Ingredients</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {selectedProduct.key_ingredients.map((ing, i) => (
-                    <span key={i} className="px-2.5 py-1 rounded-full text-[10px] font-medium bg-primary/10 text-primary">
-                      {ing}
-                    </span>
-                  ))}
+              {selectedProduct.product_colors.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-foreground mb-1.5">Available Shades</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedProduct.product_colors.map((c, i) => (
+                      <div key={i} className="flex items-center gap-1.5 px-2 py-1 rounded-full border border-border text-[10px]">
+                        <span
+                          className="w-3 h-3 rounded-full border border-border shrink-0"
+                          style={{ backgroundColor: c.hex }}
+                        />
+                        <span className="text-muted-foreground truncate max-w-[80px]">{c.name}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="flex gap-2 pt-2">
                 <Button
                   className="flex-1 rounded-xl gap-2"
-                  onClick={() => onAddToShelf(selectedProduct)}
+                  onClick={() => handleAddToShelf(selectedProduct)}
                   disabled={addingProduct === selectedProduct.name}
                 >
                   {addingProduct === selectedProduct.name ? (
@@ -235,24 +236,28 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
             </div>
           </GlassCard>
         </div>
+      ) : products.length === 0 && hasLoaded ? (
+        <GlassCard className="flex flex-col items-center justify-center py-14 text-center">
+          <Droplets className="w-10 h-10 text-primary/20 mb-3" />
+          <p className="text-sm text-muted-foreground">No products found. Try a different brand or category.</p>
+        </GlassCard>
       ) : (
-        /* Product Grid - responsive: 2 cols mobile, 3 cols tablet, 4 cols desktop */
+        /* Product Grid */
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {products.map((product, i) => (
+          {products.map((product) => (
             <GlassCard
-              key={i}
+              key={product.id}
               className="p-0 overflow-hidden cursor-pointer hover:border-primary/30 transition-colors"
               onClick={() => setSelectedProduct(product)}
             >
-              {/* Product image thumbnail */}
               <div className="aspect-square bg-card relative">
-                {!imgErrors.has(product.name) && product.image_url ? (
+                {!imgErrors.has(String(product.id)) && product.image_url ? (
                   <img
                     src={product.image_url}
                     alt={product.name}
                     className="w-full h-full object-contain p-2"
                     loading="lazy"
-                    onError={() => handleImgError(product.name)}
+                    onError={() => handleImgError(String(product.id))}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
@@ -264,11 +269,15 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wide truncate">{product.brand}</p>
                 <p className="text-xs font-medium text-foreground line-clamp-2 leading-tight">{product.name}</p>
                 <div className="flex items-center gap-1 pt-0.5">
-                  <Star className="w-3 h-3 text-primary fill-primary" />
-                  <span className="text-[10px] text-muted-foreground">{product.rating}</span>
-                  {product.volume && (
-                    <span className="text-[10px] text-muted-foreground ml-auto">{product.volume}</span>
+                  {product.rating && (
+                    <>
+                      <Star className="w-3 h-3 text-primary fill-primary" />
+                      <span className="text-[10px] text-muted-foreground">{product.rating.toFixed(1)}</span>
+                    </>
                   )}
+                  <span className="text-[10px] text-muted-foreground ml-auto capitalize truncate max-w-[60px]">
+                    {product.product_type}
+                  </span>
                 </div>
               </div>
             </GlassCard>
