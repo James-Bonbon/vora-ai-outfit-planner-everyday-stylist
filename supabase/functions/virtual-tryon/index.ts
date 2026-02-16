@@ -49,19 +49,31 @@ serve(async (req) => {
     const content: any[] = [
       {
         type: "text",
-        text: `You are a fashion AI that creates photorealistic virtual try-on images.
+        text: `You are a fashion photographer creating a photorealistic editorial try-on image.
 
 Given:
 - A selfie/reference photo of a person
 - One or more garment photos
 
-Generate a single photorealistic image of the person wearing the garment(s).
-CRITICAL: Maintain the person's face, body shape, skin tone, hair, and all facial features EXACTLY as they appear in the selfie. The person must be clearly recognizable — preserve their identity perfectly.
-The clothing should look naturally worn — proper fit, draping, shadows, and wrinkles.
-${occasion ? `The styling should suit a "${occasion}" occasion.` : ""}
-Keep the background simple and clean.
-Make it look like a real fashion photo, not a collage.
-Do NOT add any watermark, logo, text overlay, or branding to the image.`,
+Generate a SINGLE photorealistic full-body or three-quarter shot of the person wearing ALL the provided garment(s).
+
+CHARACTER CONSISTENCY (CRITICAL):
+- Preserve the person's IDENTITY: same face structure, jawline, nose shape, eye shape, skin tone, hair color, hair texture, hair length, body proportions, and build.
+- The person MUST be immediately recognizable as the same individual.
+- You MAY freely vary their facial expression (smiling, neutral, confident, etc.), head angle, gaze direction, and pose to create a natural, candid feel.
+- Do NOT produce a "face swap" or "pasted head" look. The person should look like they were naturally photographed in these clothes.
+
+CLOTHING ACCURACY (CRITICAL):
+- Reproduce EVERY garment detail with pixel-level fidelity: exact colors, patterns, prints, textures, stitching, buttons, zippers, pocket placement, pocket shape, labels, logos, collar style, cuff style, and hemline.
+- Do NOT simplify, omit, recolor, distort, or alter any garment detail. If a jacket has 4 pockets, show exactly 4 pockets in the correct positions.
+- The clothing must look naturally worn on the person's body with realistic fit, draping, creasing, and shadow interaction based on their body shape.
+
+SCENE & QUALITY:
+- Clean, minimal background (soft studio or neutral setting).
+- Professional fashion photography lighting with natural shadows.
+- High resolution, sharp focus on person and clothing.
+${occasion ? `- Style the overall mood to suit a "${occasion}" occasion.` : ""}
+- Do NOT add any watermark, logo, text overlay, or branding.`,
       },
       {
         type: "image_url",
