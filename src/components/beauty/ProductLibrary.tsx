@@ -171,18 +171,16 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
         /* Product Detail View */
         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-200">
           <GlassCard className="p-0 overflow-hidden">
-            <div className="aspect-square bg-card relative">
+            <div className="h-56 bg-card relative flex items-center justify-center">
               {!imgErrors.has(String(selectedProduct.id)) && selectedProduct.image_url ? (
                 <img
                   src={selectedProduct.image_url}
                   alt={selectedProduct.name}
-                  className="w-full h-full object-contain p-4"
+                  className="max-h-full max-w-full object-contain p-4"
                   onError={() => handleImgError(String(selectedProduct.id))}
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <Droplets className="w-16 h-16 text-primary/20" />
-                </div>
+                <Droplets className="w-16 h-16 text-primary/20" />
               )}
             </div>
             <div className="p-5 space-y-4">
