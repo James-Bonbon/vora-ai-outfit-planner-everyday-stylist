@@ -1,33 +1,34 @@
 import { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import GlassCard from "@/components/GlassCard";
-import { Plus } from "lucide-react";
+import { Plus, Library } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import AddItemSheet from "@/components/wardrobe/AddItemSheet";
 import GarmentDetailSheet from "@/components/wardrobe/GarmentDetailSheet";
-
-interface ClosetItem {
-  id: string;
-  image_url: string;
-  name: string | null;
-  category: string | null;
-  color: string | null;
-  material: string | null;
-  brand: string | null;
-  notes: string | null;
-  created_at: string;
-}
+import type { ClosetItem, DreamItem, GarmentDisplay } from "@/types/wardrobe";
 
 const CATEGORIES = ["All", "Tops", "Bottoms", "Shoes", "Accessories", "Outerwear"];
 
+type TabValue = "closet" | "dream";
+
 const WardrobePage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<TabValue>("closet");
+
+  // Closet state
   const [items, setItems] = useState<ClosetItem[]>([]);
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const [activeCategory, setActiveCategory] = useState("All");
   const [addOpen, setAddOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<ClosetItem | null>(null);
+
+  // Dream state
+  const [dreamItems, setDreamItems] = useState<DreamItem[]>([]);
+
+  // Shared detail sheet
+  const [selectedItem, setSelectedItem] = useState<GarmentDisplay | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
   const fetchItems = useCallback(async () => {
@@ -40,7 +41,6 @@ const WardrobePage = () => {
 
     if (data) {
       setItems(data as ClosetItem[]);
-      // Fetch signed URLs for all images
       const urls: Record<string, string> = {};
       await Promise.all(
         data.map(async (item: ClosetItem) => {
@@ -54,87 +54,184 @@ const WardrobePage = () => {
     }
   }, [user]);
 
+  const fetchDreamItems = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("dream_items")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (data) setDreamItems(data as DreamItem[]);
+  }, [user]);
+
   useEffect(() => {
     fetchItems();
-  }, [fetchItems]);
+    fetchDreamItems();
+  }, [fetchItems, fetchDreamItems]);
 
   const filtered = activeCategory === "All" ? items : items.filter((i) => i.category === activeCategory);
 
+  const handleRefresh = () => {
+    if (activeTab === "closet") fetchItems();
+    else fetchDreamItems();
+  };
+
   return (
     <div className="pt-6 space-y-5">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground font-outfit">Wardrobe</h1>
-        <Button size="icon" className="rounded-xl h-10 w-10" onClick={() => setAddOpen(true)}>
-          <Plus className="w-5 h-5" />
-        </Button>
+        {activeTab === "closet" ? (
+          <Button size="icon" className="rounded-xl h-10 w-10" onClick={() => setAddOpen(true)}>
+            <Plus className="w-5 h-5" />
+          </Button>
+        ) : (
+          <Button className="rounded-xl gap-2 h-10" onClick={() => navigate("/library")}>
+            <Library className="w-4 h-4" />
+            Browse Library
+          </Button>
+        )}
       </div>
 
-      {/* Category Filters */}
-      <div className="flex gap-2 overflow-x-auto no-scrollbar">
-        {CATEGORIES.map((cat) => (
+      {/* Tab Toggle */}
+      <div className="flex gap-2">
+        {(["closet", "dream"] as const).map((tab) => (
           <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
-            className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-colors min-h-[36px] ${
-              activeCategory === cat
-                ? "bg-primary text-primary-foreground border border-primary"
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+              activeTab === tab
+                ? "bg-primary text-primary-foreground"
                 : "border border-border text-muted-foreground"
             }`}
           >
-            {cat}
+            {tab === "closet" ? "My Closet" : "Dream List"}
           </button>
         ))}
       </div>
 
-      {/* Grid or Empty State */}
-      {filtered.length === 0 ? (
-        <GlassCard className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-            <Plus className="w-8 h-8 text-primary" />
+      {/* My Closet Tab */}
+      {activeTab === "closet" && (
+        <>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-colors min-h-[36px] ${
+                  activeCategory === cat
+                    ? "bg-primary text-primary-foreground border border-primary"
+                    : "border border-border text-muted-foreground"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
           </div>
-          <h3 className="font-semibold text-foreground">Your closet is empty</h3>
-          <p className="text-xs text-muted-foreground mt-1 max-w-[200px]">
-            Add your first item by tapping the + button above
-          </p>
-        </GlassCard>
-      ) : (
-        <div className="grid grid-cols-2 gap-3">
-          {filtered.map((item) => (
-            <GlassCard
-              key={item.id}
-              className="p-0 overflow-hidden cursor-pointer"
-              onClick={() => {
-                setSelectedItem(item);
-                setDetailOpen(true);
-              }}
-            >
-              <div className="aspect-square bg-card">
-                {imageUrls[item.id] ? (
-                  <img
-                    src={imageUrls[item.id]}
-                    alt={item.name || "Garment"}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                  </div>
-                )}
+
+          {filtered.length === 0 ? (
+            <GlassCard className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+                <Plus className="w-8 h-8 text-primary" />
               </div>
-              <div className="p-3">
-                <p className="text-sm font-medium text-foreground truncate">{item.name || "Unnamed"}</p>
-                {item.category && (
-                  <span className="text-[10px] text-muted-foreground">{item.category}</span>
-                )}
-              </div>
+              <h3 className="font-semibold text-foreground">Your closet is empty</h3>
+              <p className="text-xs text-muted-foreground mt-1 max-w-[200px]">
+                Add your first item by tapping the + button above
+              </p>
             </GlassCard>
-          ))}
-        </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {filtered.map((item) => (
+                <GlassCard
+                  key={item.id}
+                  className="p-0 overflow-hidden cursor-pointer"
+                  onClick={() => {
+                    setSelectedItem({ ...item, source: "closet" });
+                    setDetailOpen(true);
+                  }}
+                >
+                  <div className="aspect-square bg-card">
+                    {imageUrls[item.id] ? (
+                      <img
+                        src={imageUrls[item.id]}
+                        alt={item.name || "Garment"}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-3">
+                    <p className="text-sm font-medium text-foreground truncate">{item.name || "Unnamed"}</p>
+                    {item.category && (
+                      <span className="text-[10px] text-muted-foreground">{item.category}</span>
+                    )}
+                  </div>
+                </GlassCard>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Dream List Tab */}
+      {activeTab === "dream" && (
+        <>
+          {dreamItems.length === 0 ? (
+            <GlassCard className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+                <Library className="w-8 h-8 text-primary" />
+              </div>
+              <h3 className="font-semibold text-foreground">Build your Dream Wardrobe</h3>
+              <p className="text-xs text-muted-foreground mt-1 max-w-[220px]">
+                Browse thousands of items from our library and try them on.
+              </p>
+              <Button className="mt-4 rounded-xl gap-2" onClick={() => navigate("/library")}>
+                <Library className="w-4 h-4" />
+                Browse Library
+              </Button>
+            </GlassCard>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {dreamItems.map((item) => (
+                <GlassCard
+                  key={item.id}
+                  className="p-0 overflow-hidden cursor-pointer"
+                  onClick={() => {
+                    setSelectedItem({ ...item, source: "dream" });
+                    setDetailOpen(true);
+                  }}
+                >
+                  <div className="aspect-square bg-card">
+                    <img
+                      src={item.image_url}
+                      alt={item.name || "Dream item"}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                  <div className="p-3">
+                    <p className="text-sm font-medium text-foreground truncate">{item.name || "Unnamed"}</p>
+                    <div className="flex items-center justify-between">
+                      {item.brand && <span className="text-[10px] text-muted-foreground">{item.brand}</span>}
+                      {item.price != null && (
+                        <span className="text-[10px] font-semibold text-primary">${item.price}</span>
+                      )}
+                    </div>
+                  </div>
+                </GlassCard>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       <AddItemSheet open={addOpen} onOpenChange={setAddOpen} onItemAdded={fetchItems} />
-      <GarmentDetailSheet item={selectedItem} open={detailOpen} onOpenChange={setDetailOpen} onDeleted={fetchItems} />
+      <GarmentDetailSheet item={selectedItem} open={detailOpen} onOpenChange={setDetailOpen} onDeleted={handleRefresh} />
     </div>
   );
 };
