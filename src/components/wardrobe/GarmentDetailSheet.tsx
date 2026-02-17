@@ -5,21 +5,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useEffect, useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
-
-interface GarmentItem {
-  id: string;
-  image_url: string;
-  name: string | null;
-  category: string | null;
-  color: string | null;
-  material: string | null;
-  brand: string | null;
-  notes: string | null;
-  created_at: string;
-}
+import type { GarmentDisplay } from "@/types/wardrobe";
 
 interface GarmentDetailSheetProps {
-  item: GarmentItem | null;
+  item: GarmentDisplay | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDeleted: () => void;
@@ -54,7 +43,7 @@ const CARE_GUIDES: Record<string, { wash: string; dry: string; iron: string }> =
 
 const DEFAULT_CARE = { wash: "Check garment label. When in doubt, wash cold on gentle cycle.", dry: "Air dry or tumble dry low.", iron: "Iron on low heat with a press cloth." };
 
-const DetailRow = ({ label, value }: { label: string; value: string | null }) => {
+const DetailRow = ({ label, value }: { label: string; value: string | null | undefined }) => {
   if (!value) return null;
   return (
     <div className="flex justify-between items-center py-2.5 border-b border-border last:border-0">
@@ -73,15 +62,19 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
   const [stainLoading, setStainLoading] = useState(false);
   const [stainResult, setStainResult] = useState<StainResult | null>(null);
 
-  // Parse stored care data from notes
+  const isDream = item?.source === "dream";
+
+  // Parse stored care data from notes (closet items only)
   const storedCare = useMemo<StoredCare | null>(() => {
-    if (!item?.notes) return null;
+    if (!item || isDream) return null;
+    const notes = (item as GarmentDisplay & { source: "closet" }).notes;
+    if (!notes) return null;
     try {
-      return JSON.parse(item.notes) as StoredCare;
+      return JSON.parse(notes) as StoredCare;
     } catch {
       return null;
     }
-  }, [item?.notes]);
+  }, [item, isDream]);
 
   useEffect(() => {
     if (!item) return;
@@ -89,19 +82,30 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
     setShowStain(false);
     setStainResult(null);
     setStainType("");
-    supabase.storage
-      .from("garments")
-      .createSignedUrl(item.image_url, 3600)
-      .then(({ data }) => setImageUrl(data?.signedUrl || null));
-  }, [item]);
+
+    if (isDream) {
+      // Dream items use direct external URLs
+      setImageUrl(item.image_url);
+    } else {
+      supabase.storage
+        .from("garments")
+        .createSignedUrl(item.image_url, 3600)
+        .then(({ data }) => setImageUrl(data?.signedUrl || null));
+    }
+  }, [item, isDream]);
 
   const handleDelete = async () => {
     if (!item) return;
     setDeleting(true);
     try {
-      await supabase.storage.from("garments").remove([item.image_url]);
-      const { error } = await supabase.from("closet_items").delete().eq("id", item.id);
-      if (error) throw error;
+      if (isDream) {
+        const { error } = await supabase.from("dream_items").delete().eq("id", item.id);
+        if (error) throw error;
+      } else {
+        await supabase.storage.from("garments").remove([item.image_url]);
+        const { error } = await supabase.from("closet_items").delete().eq("id", item.id);
+        if (error) throw error;
+      }
       toast.success("Item removed");
       onOpenChange(false);
       onDeleted();
@@ -114,12 +118,13 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
   };
 
   const handleStainHelp = async () => {
-    if (!stainType.trim() || !item) return;
+    if (!stainType.trim() || !item || isDream) return;
+    const closetItem = item as GarmentDisplay & { source: "closet" };
     setStainLoading(true);
     setStainResult(null);
     try {
       const { data, error } = await supabase.functions.invoke("stain-help", {
-        body: { material: item.material, color: item.color, stainType: stainType.trim() },
+        body: { material: closetItem.material, color: closetItem.color, stainType: stainType.trim() },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -134,15 +139,18 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
 
   if (!item) return null;
 
-  // Use stored AI care data if available, otherwise fall back to static guides
-  const care = storedCare?.care
-    ? {
-        wash: storedCare.care.wash || DEFAULT_CARE.wash,
-        dry: storedCare.care.dry || DEFAULT_CARE.dry,
-        iron: storedCare.care.iron || DEFAULT_CARE.iron,
-        special: storedCare.care.special || null,
-      }
-    : { ...(CARE_GUIDES[item.material || ""] || DEFAULT_CARE), special: null as string | null };
+  // Care guide only for closet items
+  const closetItem = !isDream ? (item as GarmentDisplay & { source: "closet" }) : null;
+  const care = closetItem
+    ? storedCare?.care
+      ? {
+          wash: storedCare.care.wash || DEFAULT_CARE.wash,
+          dry: storedCare.care.dry || DEFAULT_CARE.dry,
+          iron: storedCare.care.iron || DEFAULT_CARE.iron,
+          special: storedCare.care.special || null,
+        }
+      : { ...(CARE_GUIDES[closetItem.material || ""] || DEFAULT_CARE), special: null as string | null }
+    : null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -159,39 +167,51 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
           )}
 
           <div className="bg-card rounded-2xl px-4">
-            <DetailRow label="Category" value={item.category} />
-            <DetailRow label="Color" value={item.color} />
-            <DetailRow label="Material" value={item.material} />
-            <DetailRow label="Brand" value={item.brand} />
-            <DetailRow label="Added" value={new Date(item.created_at).toLocaleDateString()} />
+            {isDream ? (
+              <>
+                <DetailRow label="Brand" value={item.brand} />
+                <DetailRow label="Price" value={item.price != null ? `$${item.price}` : null} />
+                <DetailRow label="Added" value={new Date(item.created_at).toLocaleDateString()} />
+              </>
+            ) : (
+              <>
+                <DetailRow label="Category" value={closetItem!.category} />
+                <DetailRow label="Color" value={closetItem!.color} />
+                <DetailRow label="Material" value={closetItem!.material} />
+                <DetailRow label="Brand" value={closetItem!.brand} />
+                <DetailRow label="Added" value={new Date(item.created_at).toLocaleDateString()} />
+              </>
+            )}
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-3">
-            <Button
-              variant="outline"
-              className="flex-1 rounded-xl gap-2"
-              onClick={() => { setShowCare(!showCare); setShowStain(false); }}
-            >
-              <Droplets className="w-4 h-4 text-primary" />
-              Wash It
-            </Button>
-            <Button
-              variant="outline"
-              className="flex-1 rounded-xl gap-2"
-              onClick={() => { setShowStain(!showStain); setShowCare(false); }}
-            >
-              <SprayCan className="w-4 h-4 text-primary" />
-              Help Me Clean
-            </Button>
-          </div>
+          {/* Action Buttons — closet items only */}
+          {!isDream && (
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl gap-2"
+                onClick={() => { setShowCare(!showCare); setShowStain(false); }}
+              >
+                <Droplets className="w-4 h-4 text-primary" />
+                Wash It
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl gap-2"
+                onClick={() => { setShowStain(!showStain); setShowCare(false); }}
+              >
+                <SprayCan className="w-4 h-4 text-primary" />
+                Help Me Clean
+              </Button>
+            </div>
+          )}
 
-          {/* Wash It - Care Guide (AI-powered or static fallback) */}
-          {showCare && (
+          {/* Wash It - Care Guide */}
+          {!isDream && showCare && care && (
             <div className="bg-card rounded-2xl p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <Droplets className="w-4 h-4 text-primary" />
-                Care Guide {item.material ? `for ${item.material}` : ""}
+                Care Guide {closetItem!.material ? `for ${closetItem!.material}` : ""}
                 {storedCare?.care && (
                   <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-semibold">AI</span>
                 )}
@@ -219,15 +239,14 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
             </div>
           )}
 
-          {/* Help Me Clean - Pre-loaded stain guides + AI lookup */}
-          {showStain && (
+          {/* Help Me Clean - Stain section */}
+          {!isDream && showStain && (
             <div className="bg-card rounded-2xl p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <SprayCan className="w-4 h-4 text-primary" />
                 Stain Removal
               </h3>
 
-              {/* Pre-loaded stain guides from product lookup */}
               {storedCare?.stain_guide && storedCare.stain_guide.length > 0 && (
                 <div className="space-y-2.5 pb-2 border-b border-border">
                   <p className="text-[10px] uppercase tracking-wider text-primary font-semibold">Common stains for this item</p>
@@ -250,7 +269,6 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
                 </div>
               )}
 
-              {/* Custom stain AI lookup */}
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Ask AI about a specific stain</p>
               <div className="flex gap-2">
                 <Input
@@ -308,7 +326,7 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
             className="w-full rounded-xl"
           >
             <Trash2 className="w-4 h-4 mr-2" />
-            {deleting ? "Removing..." : "Remove from Wardrobe"}
+            {deleting ? "Removing..." : isDream ? "Remove from Dream List" : "Remove from Wardrobe"}
           </Button>
         </div>
       </SheetContent>

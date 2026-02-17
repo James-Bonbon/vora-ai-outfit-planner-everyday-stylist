@@ -12,6 +12,7 @@ import MirrorPage from "./pages/MirrorPage";
 import BeautyPage from "./pages/BeautyPage";
 import ProfilePage from "./pages/ProfilePage";
 import OnboardingPage from "./pages/OnboardingPage";
+import LibraryPage from "./pages/LibraryPage";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -33,6 +34,7 @@ const App = () => (
             <Route path="/mirror" element={<MirrorPage />} />
             <Route path="/beauty" element={<BeautyPage />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/library" element={<LibraryPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

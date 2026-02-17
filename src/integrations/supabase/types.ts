@@ -98,6 +98,39 @@ export type Database = {
         }
         Relationships: []
       }
+      dream_items: {
+        Row: {
+          brand: string | null
+          catalog_item_id: string | null
+          created_at: string
+          id: string
+          image_url: string
+          name: string | null
+          price: number | null
+          user_id: string
+        }
+        Insert: {
+          brand?: string | null
+          catalog_item_id?: string | null
+          created_at?: string
+          id?: string
+          image_url: string
+          name?: string | null
+          price?: number | null
+          user_id: string
+        }
+        Update: {
+          brand?: string | null
+          catalog_item_id?: string | null
+          created_at?: string
+          id?: string
+          image_url?: string
+          name?: string | null
+          price?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       generated_looks_cache: {
         Row: {
           created_at: string
