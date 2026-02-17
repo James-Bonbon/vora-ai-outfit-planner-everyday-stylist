@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import GlassCard from "@/components/GlassCard";
 import { Sparkles, Check, Image, Loader2, AlertTriangle, Save, Trash2, GalleryHorizontalEnd } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,10 @@ const MIRROR_URLS_CACHE = "vora_mirror_urls";
 const MIRROR_SELFIE_CACHE = "vora_mirror_selfie";
 const MIRROR_LOOKS_CACHE = "vora_mirror_looks";
 const MIRROR_LOOK_URLS_CACHE = "vora_mirror_look_urls";
+const TRYON_GENERATING_KEY = "vora_tryon_generating";
+
+// Module-level promise so generation survives component unmount
+let activeGenerationPromise: Promise<{ image?: string; error?: string }> | null = null;
 
 const MirrorPage = () => {
   const { user } = useAuth();
@@ -55,10 +59,13 @@ const MirrorPage = () => {
   });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [occasion, setOccasion] = useState<string | null>(null);
-  const [generating, setGenerating] = useState(false);
+  const [generating, setGenerating] = useState(() => {
+    return sessionStorage.getItem(TRYON_GENERATING_KEY) === "true";
+  });
   const [resultImage, setResultImage] = useState<string | null>(() => {
     return sessionStorage.getItem("vora_tryon_result") || null;
   });
+  const mountedRef = useRef(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState<"tryon" | "gallery">("tryon");
@@ -73,7 +80,8 @@ const MirrorPage = () => {
   const [selectedLook, setSelectedLook] = useState<SavedLook | null>(null);
   const [lookGarments, setLookGarments] = useState<GarmentInfo[]>([]);
   const [deleting, setDeleting] = useState(false);
-  
+
+
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -151,14 +159,36 @@ const MirrorPage = () => {
   }, [user]);
 
   useEffect(() => {
+    fetchData();
+    fetchLooks();
+  }, [fetchData, fetchLooks]);
+
+  useEffect(() => {
     if (resultImage) sessionStorage.setItem("vora_tryon_result", resultImage);
     else sessionStorage.removeItem("vora_tryon_result");
   }, [resultImage]);
 
   useEffect(() => {
-    fetchData();
-    fetchLooks();
-  }, [fetchData, fetchLooks]);
+    if (generating) sessionStorage.setItem(TRYON_GENERATING_KEY, "true");
+    else sessionStorage.removeItem(TRYON_GENERATING_KEY);
+  }, [generating]);
+
+  // On mount, rejoin any in-flight generation promise
+  useEffect(() => {
+    mountedRef.current = true;
+    if (activeGenerationPromise && generating) {
+      activeGenerationPromise.then((result) => {
+        if (!mountedRef.current) return;
+        if (result.error) {
+          setError(result.error);
+        } else if (result.image) {
+          setResultImage(result.image);
+        }
+        setGenerating(false);
+      });
+    }
+    return () => { mountedRef.current = false; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchLookGarments = useCallback(async (garmentIds: string[]) => {
     if (!garmentIds.length) { setLookGarments([]); return; }
@@ -192,22 +222,40 @@ const MirrorPage = () => {
     setError(null);
     setResultImage(null);
 
-    try {
-      const garmentUrls = Array.from(selectedIds).map((id) => imageUrls[id]).filter(Boolean);
-      const { data, error: fnError } = await supabase.functions.invoke("virtual-tryon", {
-        body: { selfieUrl, garmentUrls, occasion },
-      });
-      if (fnError) throw fnError;
-      if (data?.error) {
-        setError(data.error);
-      } else if (data?.image) {
-        setResultImage(data.image);
+    const garmentUrls = Array.from(selectedIds).map((id) => imageUrls[id]).filter(Boolean);
+
+    // Store promise at module level so it survives unmount
+    activeGenerationPromise = (async () => {
+      try {
+        const { data, error: fnError } = await supabase.functions.invoke("virtual-tryon", {
+          body: { selfieUrl, garmentUrls, occasion },
+        });
+        if (fnError) throw fnError;
+        if (data?.error) return { error: data.error };
+        if (data?.image) return { image: data.image };
+        return { error: "No image returned" };
+      } catch (e: any) {
+        console.error("Try-on error:", e);
+        return { error: e.message || "Something went wrong. Please try again." };
       }
-    } catch (e: any) {
-      console.error("Try-on error:", e);
-      setError(e.message || "Something went wrong. Please try again.");
-    } finally {
+    })();
+
+    const result = await activeGenerationPromise;
+    activeGenerationPromise = null;
+
+    if (mountedRef.current) {
+      if (result.error) {
+        setError(result.error);
+      } else if (result.image) {
+        setResultImage(result.image);
+      }
       setGenerating(false);
+    } else {
+      // Component unmounted — persist result to sessionStorage for next mount
+      if (result.image) {
+        sessionStorage.setItem("vora_tryon_result", result.image);
+      }
+      sessionStorage.removeItem(TRYON_GENERATING_KEY);
     }
   };
 
