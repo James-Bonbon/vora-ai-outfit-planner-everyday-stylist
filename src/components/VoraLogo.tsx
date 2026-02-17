@@ -11,7 +11,7 @@ const VoraLogo = ({ className }: VoraLogoProps) => {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={cn("text-primary", className)}
-      style={{ filter: "drop-shadow(0 2px 8px hsl(16 62% 60% / 0.25))" }}
+      shapeRendering="geometricPrecision"
     >
       {/* Hanger hook */}
       <path
