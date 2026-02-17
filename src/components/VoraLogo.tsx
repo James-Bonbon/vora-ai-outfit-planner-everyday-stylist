@@ -6,20 +6,27 @@ interface VoraLogoProps {
 
 const VoraLogo = ({ className }: VoraLogoProps) => {
   return (
-    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={cn("text-primary", className)}>
-      {/* Hanger hook */}
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      // This forces the browser to calculate curves precisely, reducing blur
+      shapeRendering="geometricPrecision"
+      className={cn("text-primary", className)}
+    >
+      {/* Hanger hook - Refined curve for 24px grid */}
       <path
-        d="M12 2C12 2 14 2 14 5C14 6 13 7 12 7"
+        d="M12 3C12 3 14.5 3 14.5 5.5C14.5 7.5 13 8 12 8"
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="1.5"
         strokeLinecap="round"
         fill="none"
       />
-      {/* V shape (hanger body) */}
+      {/* V shape - Clean coordinates */}
       <path
-        d="M4 9 L12 20 L20 9"
+        d="M4.5 10 L12 21 L19.5 10"
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
         fill="none"
