@@ -7,25 +7,24 @@ interface VoraLogoProps {
 const VoraLogo = ({ className }: VoraLogoProps) => {
   return (
     <svg
-      viewBox="0 0 64 64"
+      viewBox="0 0 256 256"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={cn("text-primary", className)}
-      shapeRendering="geometricPrecision"
     >
-      {/* Hanger hook */}
+      {/* Hanger hook – smooth cubic Bézier */}
       <path
-        d="M32 6 C32 6, 38 6, 38 12 C38 16, 34 18, 32 18"
+        d="M128 24 C128 24, 152 24, 152 48 C152 64, 140 72, 128 72"
         stroke="currentColor"
-        strokeWidth="3.5"
+        strokeWidth="12"
         strokeLinecap="round"
         fill="none"
       />
-      {/* V shape (hanger body) */}
+      {/* V shape (hanger body) – clean lines */}
       <path
-        d="M12 22 L32 52 L52 22"
+        d="M48 88 L128 208 L208 88"
         stroke="currentColor"
-        strokeWidth="4"
+        strokeWidth="14"
         strokeLinecap="round"
         strokeLinejoin="round"
         fill="none"
