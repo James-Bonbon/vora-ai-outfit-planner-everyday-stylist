@@ -2,3 +2,6 @@ project_id = "xyzfyqmbjugzyvaimfpe"
 
 [functions.get-ingredients]
 verify_jwt = false
+
+[functions.virtual-tryon]
+verify_jwt = false

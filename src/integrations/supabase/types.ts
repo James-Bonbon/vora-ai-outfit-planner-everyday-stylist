@@ -98,6 +98,27 @@ export type Database = {
         }
         Relationships: []
       }
+      generated_looks_cache: {
+        Row: {
+          created_at: string
+          id: string
+          image_path: string
+          input_hash: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_path: string
+          input_hash: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_path?: string
+          input_hash?: string
+        }
+        Relationships: []
+      }
       looks: {
         Row: {
           created_at: string

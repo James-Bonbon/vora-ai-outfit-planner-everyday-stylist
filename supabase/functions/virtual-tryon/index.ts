@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,18 +8,28 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-/** Fetch an image URL and return a base64 data URL (always as image/png for compatibility) */
+/** Fetch an image URL and return a base64 data URL */
 async function toDataUrl(url: string): Promise<string> {
   const resp = await fetch(url);
   if (!resp.ok) throw new Error(`Failed to fetch image: ${resp.status}`);
   const buf = await resp.arrayBuffer();
   const b64 = base64Encode(new Uint8Array(buf));
-  // Use image/png as a safe fallback mime type that Gemini supports
   const contentType = resp.headers.get("content-type");
   const mime = contentType && /^image\/(png|jpeg|webp|gif)/.test(contentType)
     ? contentType.split(";")[0]
     : "image/png";
   return `data:${mime};base64,${b64}`;
+}
+
+/** Generate a deterministic SHA-256 hash from userId + sorted garmentIds */
+async function computeInputHash(userId: string, garmentIds: string[]): Promise<string> {
+  const sorted = [...garmentIds].sort();
+  const input = `${userId}:${sorted.join(",")}`;
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 serve(async (req) => {
@@ -27,25 +38,76 @@ serve(async (req) => {
   }
 
   try {
-    const { selfieUrl, garmentUrls, occasion } = await req.json();
-
-    if (!selfieUrl || !garmentUrls?.length) {
+    // Authenticate the user
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
       return new Response(
-        JSON.stringify({ error: "selfieUrl and at least one garmentUrl are required" }),
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // User-scoped client for auth verification
+    const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabaseUser.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const userId = claimsData.claims.sub as string;
+
+    const { selfieUrl, garmentUrls, garmentIds, occasion } = await req.json();
+
+    if (!selfieUrl || !garmentUrls?.length || !garmentIds?.length) {
+      return new Response(
+        JSON.stringify({ error: "selfieUrl, garmentUrls, and garmentIds are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    // Service-role client for cache and storage operations
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
+    // Step 1: Compute input hash and check cache
+    const inputHash = await computeInputHash(userId, garmentIds);
+
+    const { data: cached } = await supabaseAdmin
+      .from("generated_looks_cache")
+      .select("image_path")
+      .eq("input_hash", inputHash)
+      .maybeSingle();
+
+    if (cached?.image_path) {
+      // Cache hit — return signed URL
+      const { data: urlData } = await supabaseAdmin.storage
+        .from("looks")
+        .createSignedUrl(cached.image_path, 3600);
+
+      return new Response(
+        JSON.stringify({ image: urlData?.signedUrl, cached: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Step 2: Cache miss — run AI generation
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
 
-    // Convert all image URLs to base64 data URLs to avoid format issues (e.g. AVIF)
     const [selfieDataUrl, ...garmentDataUrls] = await Promise.all([
       toDataUrl(selfieUrl),
       ...garmentUrls.map((u: string) => toDataUrl(u)),
     ]);
 
-    // Build content array with selfie + garments
     const content: any[] = [
       {
         type: "text",
@@ -124,18 +186,45 @@ ${occasion ? `- Style the overall mood to suit a "${occasion}" occasion.` : ""}
 
     const data = await response.json();
     const message = data.choices?.[0]?.message;
-    const imageData = message?.images?.[0]?.image_url?.url;
-    const textContent = message?.content || "";
+    const imageBase64 = message?.images?.[0]?.image_url?.url;
 
-    if (!imageData) {
+    if (!imageBase64) {
       return new Response(
-        JSON.stringify({ error: "AI could not generate the try-on image. Try different garments.", text: textContent }),
+        JSON.stringify({ error: "AI could not generate the try-on image. Try different garments." }),
         { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    // Step 3: Upload generated image to storage
+    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+    const binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+    const filePath = `${userId}/${crypto.randomUUID()}.png`;
+
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from("looks")
+      .upload(filePath, binaryData, { contentType: "image/png" });
+
+    if (uploadError) {
+      console.error("Storage upload error:", uploadError);
+      throw new Error("Failed to save generated image");
+    }
+
+    // Step 4: Insert into cache
+    await supabaseAdmin
+      .from("generated_looks_cache")
+      .insert({ input_hash: inputHash, image_path: filePath });
+
+    // Return signed URL
+    const { data: signedUrlData } = await supabaseAdmin.storage
+      .from("looks")
+      .createSignedUrl(filePath, 3600);
+
     return new Response(
-      JSON.stringify({ image: imageData, text: textContent }),
+      JSON.stringify({
+        image: signedUrlData?.signedUrl,
+        image_path: filePath,
+        cached: false,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
