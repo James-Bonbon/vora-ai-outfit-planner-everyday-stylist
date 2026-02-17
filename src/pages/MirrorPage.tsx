@@ -1,203 +1,46 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState } from "react";
 import GlassCard from "@/components/GlassCard";
 import { Sparkles, Check, Image, Loader2, AlertTriangle, Save, Trash2, GalleryHorizontalEnd } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
-import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-
-interface ClosetItem {
-  id: string;
-  image_url: string;
-  name: string | null;
-  category: string | null;
-}
-
-interface SavedLook {
-  id: string;
-  image_path: string;
-  occasion: string | null;
-  garment_ids: string[] | null;
-  created_at: string;
-}
-
-interface GarmentInfo {
-  id: string;
-  name: string | null;
-  category: string | null;
-  color: string | null;
-  material: string | null;
-  brand: string | null;
-}
+import { toast } from "sonner";
+import {
+  useClosetItems,
+  useSelfieUrl,
+  useSavedLooks,
+  useLookGarments,
+  useTryOnMutation,
+  useSaveLookMutation,
+  useDeleteLookMutation,
+  type SavedLook,
+} from "@/hooks/useMirrorData";
 
 const OCCASIONS = ["Casual", "Date Night", "Work", "Party", "Streetwear"];
 
-const MIRROR_ITEMS_CACHE = "vora_mirror_items";
-const MIRROR_URLS_CACHE = "vora_mirror_urls";
-const MIRROR_SELFIE_CACHE = "vora_mirror_selfie";
-const MIRROR_LOOKS_CACHE = "vora_mirror_looks";
-const MIRROR_LOOK_URLS_CACHE = "vora_mirror_look_urls";
-const TRYON_GENERATING_KEY = "vora_tryon_generating";
-
-// Module-level promise so generation survives component unmount
-let activeGenerationPromise: Promise<{ image?: string; error?: string }> | null = null;
-
 const MirrorPage = () => {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const [items, setItems] = useState<ClosetItem[]>(() => {
-    const cached = sessionStorage.getItem(MIRROR_ITEMS_CACHE);
-    return cached ? JSON.parse(cached) : [];
-  });
-  const [imageUrls, setImageUrls] = useState<Record<string, string>>(() => {
-    const cached = sessionStorage.getItem(MIRROR_URLS_CACHE);
-    return cached ? JSON.parse(cached) : {};
-  });
-  const [selfieUrl, setSelfieUrl] = useState<string | null>(() => {
-    return sessionStorage.getItem(MIRROR_SELFIE_CACHE) || null;
-  });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [occasion, setOccasion] = useState<string | null>(null);
-  const [generating, setGenerating] = useState(() => {
-    return sessionStorage.getItem(TRYON_GENERATING_KEY) === "true";
-  });
-  const [resultImage, setResultImage] = useState<string | null>(() => {
-    return sessionStorage.getItem("vora_tryon_result") || null;
-  });
-  const mountedRef = useRef(true);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState<"tryon" | "gallery">("tryon");
-  const [looks, setLooks] = useState<SavedLook[]>(() => {
-    const cached = sessionStorage.getItem(MIRROR_LOOKS_CACHE);
-    return cached ? JSON.parse(cached) : [];
-  });
-  const [lookUrls, setLookUrls] = useState<Record<string, string>>(() => {
-    const cached = sessionStorage.getItem(MIRROR_LOOK_URLS_CACHE);
-    return cached ? JSON.parse(cached) : {};
-  });
   const [selectedLook, setSelectedLook] = useState<SavedLook | null>(null);
-  const [lookGarments, setLookGarments] = useState<GarmentInfo[]>([]);
-  const [deleting, setDeleting] = useState(false);
 
+  // Data queries
+  const { data: selfieUrl } = useSelfieUrl();
+  const { data: closetData } = useClosetItems();
+  const { data: looksData } = useSavedLooks();
+  const { data: lookGarments = [] } = useLookGarments(selectedLook?.garment_ids ?? null);
 
+  // Mutations
+  const tryOnMutation = useTryOnMutation();
+  const saveMutation = useSaveLookMutation();
+  const deleteMutation = useDeleteLookMutation();
 
-  const fetchData = useCallback(async () => {
-    if (!user) return;
+  const items = closetData?.items ?? [];
+  const imageUrls = closetData?.urls ?? {};
+  const looks = looksData?.looks ?? [];
+  const lookUrls = looksData?.urls ?? {};
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("selfie_url")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (profile?.selfie_url) {
-      const cacheKey = `vora_selfie_signed_${profile.selfie_url}`;
-      const cached = sessionStorage.getItem(cacheKey);
-      if (cached) {
-        setSelfieUrl(cached);
-        sessionStorage.setItem(MIRROR_SELFIE_CACHE, cached);
-      } else {
-        const { data: urlData } = await supabase.storage
-          .from("selfies")
-          .createSignedUrl(profile.selfie_url, 3600);
-        if (urlData?.signedUrl) {
-          setSelfieUrl(urlData.signedUrl);
-          sessionStorage.setItem(cacheKey, urlData.signedUrl);
-          sessionStorage.setItem(MIRROR_SELFIE_CACHE, urlData.signedUrl);
-        }
-      }
-    }
-
-    const { data: closetData } = await supabase
-      .from("closet_items")
-      .select("id, image_url, name, category")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
-
-    if (closetData) {
-      setItems(closetData as ClosetItem[]);
-      sessionStorage.setItem(MIRROR_ITEMS_CACHE, JSON.stringify(closetData));
-      const urls: Record<string, string> = {};
-      await Promise.all(
-        closetData.map(async (item: ClosetItem) => {
-          const { data: urlData } = await supabase.storage
-            .from("garments")
-            .createSignedUrl(item.image_url, 3600);
-          if (urlData?.signedUrl) urls[item.id] = urlData.signedUrl;
-        })
-      );
-      setImageUrls(urls);
-      sessionStorage.setItem(MIRROR_URLS_CACHE, JSON.stringify(urls));
-    }
-  }, [user]);
-
-  const fetchLooks = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("looks")
-      .select("id, image_path, occasion, garment_ids, created_at")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
-
-    if (data) {
-      setLooks(data);
-      sessionStorage.setItem(MIRROR_LOOKS_CACHE, JSON.stringify(data));
-      const urls: Record<string, string> = {};
-      await Promise.all(
-        data.map(async (look: SavedLook) => {
-          const { data: urlData } = await supabase.storage
-            .from("looks")
-            .createSignedUrl(look.image_path, 3600);
-          if (urlData?.signedUrl) urls[look.id] = urlData.signedUrl;
-        })
-      );
-      setLookUrls(urls);
-      sessionStorage.setItem(MIRROR_LOOK_URLS_CACHE, JSON.stringify(urls));
-    }
-  }, [user]);
-
-  useEffect(() => {
-    fetchData();
-    fetchLooks();
-  }, [fetchData, fetchLooks]);
-
-  useEffect(() => {
-    if (resultImage) sessionStorage.setItem("vora_tryon_result", resultImage);
-    else sessionStorage.removeItem("vora_tryon_result");
-  }, [resultImage]);
-
-  useEffect(() => {
-    if (generating) sessionStorage.setItem(TRYON_GENERATING_KEY, "true");
-    else sessionStorage.removeItem(TRYON_GENERATING_KEY);
-  }, [generating]);
-
-  // On mount, rejoin any in-flight generation promise
-  useEffect(() => {
-    mountedRef.current = true;
-    if (activeGenerationPromise && generating) {
-      activeGenerationPromise.then((result) => {
-        if (!mountedRef.current) return;
-        if (result.error) {
-          setError(result.error);
-        } else if (result.image) {
-          setResultImage(result.image);
-        }
-        setGenerating(false);
-      });
-    }
-    return () => { mountedRef.current = false; };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const fetchLookGarments = useCallback(async (garmentIds: string[]) => {
-    if (!garmentIds.length) { setLookGarments([]); return; }
-    const { data } = await supabase
-      .from("closet_items")
-      .select("id, name, category, color, material, brand")
-      .in("id", garmentIds);
-    setLookGarments((data || []) as GarmentInfo[]);
-  }, []);
+  const hasSelfie = !!selfieUrl;
+  const hasItems = items.length > 0;
 
   const toggleItem = (id: string) => {
     setSelectedIds((prev) => {
@@ -208,112 +51,56 @@ const MirrorPage = () => {
     });
   };
 
-  const handleTryOn = async () => {
+  const handleTryOn = () => {
     if (!selfieUrl) {
-      toast({ title: "No selfie found", description: "Upload a selfie in your profile first.", variant: "destructive" });
+      toast.error("No selfie found", { description: "Upload a selfie in your profile first." });
       return;
     }
     if (selectedIds.size === 0) {
-      toast({ title: "Select garments", description: "Pick at least one item to try on.", variant: "destructive" });
+      toast.error("Select garments", { description: "Pick at least one item to try on." });
       return;
     }
 
-    setGenerating(true);
-    setError(null);
-    setResultImage(null);
-
     const garmentUrls = Array.from(selectedIds).map((id) => imageUrls[id]).filter(Boolean);
+    const garmentIds = Array.from(selectedIds);
 
-    // Store promise at module level so it survives unmount
-    activeGenerationPromise = (async () => {
-      try {
-        const { data, error: fnError } = await supabase.functions.invoke("virtual-tryon", {
-          body: { selfieUrl, garmentUrls, occasion },
-        });
-        if (fnError) throw fnError;
-        if (data?.error) return { error: data.error };
-        if (data?.image) return { image: data.image };
-        return { error: "No image returned" };
-      } catch (e: any) {
-        console.error("Try-on error:", e);
-        return { error: e.message || "Something went wrong. Please try again." };
+    tryOnMutation.mutate(
+      { selfieUrl, garmentUrls, garmentIds, occasion },
+      {
+        onSuccess: (data) => {
+          if (data.cached) {
+            toast.info("Loaded from cache — instant result!");
+          }
+        },
       }
-    })();
-
-    const result = await activeGenerationPromise;
-    activeGenerationPromise = null;
-
-    if (mountedRef.current) {
-      if (result.error) {
-        setError(result.error);
-      } else if (result.image) {
-        setResultImage(result.image);
-      }
-      setGenerating(false);
-    } else {
-      // Component unmounted — persist result to sessionStorage for next mount
-      if (result.image) {
-        sessionStorage.setItem("vora_tryon_result", result.image);
-      }
-      sessionStorage.removeItem(TRYON_GENERATING_KEY);
-    }
+    );
   };
 
-  const handleSaveLook = async () => {
-    if (!resultImage || !user) return;
-    setSaving(true);
-
-    try {
-      // Convert base64 data URL to blob
-      const res = await fetch(resultImage);
-      const blob = await res.blob();
-      const fileName = `${user.id}/${crypto.randomUUID()}.png`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("looks")
-        .upload(fileName, blob, { contentType: "image/png" });
-
-      if (uploadError) throw uploadError;
-
-      const { error: insertError } = await supabase
-        .from("looks")
-        .insert({
-          user_id: user.id,
-          image_path: fileName,
-          occasion: occasion,
-          garment_ids: Array.from(selectedIds),
-        });
-
-      if (insertError) throw insertError;
-
-      toast({ title: "Look saved!", description: "View it in your gallery." });
-      fetchLooks();
-    } catch (e: any) {
-      console.error("Save error:", e);
-      toast({ title: "Save failed", description: e.message, variant: "destructive" });
-    } finally {
-      setSaving(false);
+  const handleSaveLook = () => {
+    const imagePath = tryOnMutation.data?.image_path;
+    if (!imagePath) {
+      // Fallback: upload from signed URL shouldn't happen with new flow,
+      // but handle gracefully
+      toast.error("Cannot save — no image path available.");
+      return;
     }
+
+    saveMutation.mutate({
+      imagePath,
+      occasion,
+      garmentIds: Array.from(selectedIds),
+    });
   };
 
-  const handleDeleteLook = async (look: SavedLook) => {
-    if (!user) return;
-    setDeleting(true);
-    try {
-      await supabase.storage.from("looks").remove([look.image_path]);
-      await supabase.from("looks").delete().eq("id", look.id);
-      setSelectedLook(null);
-      toast({ title: "Look deleted" });
-      fetchLooks();
-    } catch (e: any) {
-      toast({ title: "Delete failed", description: e.message, variant: "destructive" });
-    } finally {
-      setDeleting(false);
-    }
+  const handleDeleteLook = (look: SavedLook) => {
+    deleteMutation.mutate(look, {
+      onSuccess: () => setSelectedLook(null),
+    });
   };
 
-  const hasSelfie = !!selfieUrl;
-  const hasItems = items.length > 0;
+  const handleTryAnother = () => {
+    tryOnMutation.reset();
+  };
 
   // Empty state
   if (!hasItems && tab === "tryon") {
@@ -351,7 +138,7 @@ const MirrorPage = () => {
           Try On
         </button>
         <button
-          onClick={() => { setTab("gallery"); }}
+          onClick={() => setTab("gallery")}
           className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors min-h-[44px] ${
             tab === "gallery"
               ? "bg-primary text-primary-foreground"
@@ -379,7 +166,7 @@ const MirrorPage = () => {
               </GlassCard>
               <div className="flex items-center justify-between mt-3">
                 <div>
-               {selectedLook.occasion && (
+                  {selectedLook.occasion && (
                     <span className="text-xs font-medium text-primary bg-primary/10 px-2.5 py-1 rounded-full">
                       {selectedLook.occasion}
                     </span>
@@ -392,10 +179,10 @@ const MirrorPage = () => {
                   variant="destructive"
                   size="sm"
                   className="rounded-xl gap-1.5"
-                  disabled={deleting}
+                  disabled={deleteMutation.isPending}
                   onClick={() => handleDeleteLook(selectedLook)}
                 >
-                  {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  {deleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                   Delete
                 </Button>
               </div>
@@ -420,7 +207,7 @@ const MirrorPage = () => {
                 </div>
               )}
 
-              <Button variant="outline" className="w-full mt-3 rounded-xl" onClick={() => { setSelectedLook(null); setLookGarments([]); }}>
+              <Button variant="outline" className="w-full mt-3 rounded-xl" onClick={() => setSelectedLook(null)}>
                 Back to gallery
               </Button>
             </motion.div>
@@ -440,7 +227,7 @@ const MirrorPage = () => {
                 <GlassCard
                   key={look.id}
                   className="p-0 overflow-hidden cursor-pointer"
-                  onClick={() => { setSelectedLook(look); fetchLookGarments(look.garment_ids || []); }}
+                  onClick={() => setSelectedLook(look)}
                 >
                   <div className="aspect-[3/4] bg-card">
                     {lookUrls[look.id] ? (
@@ -481,7 +268,7 @@ const MirrorPage = () => {
 
           {/* Result display */}
           <AnimatePresence mode="wait">
-            {generating ? (
+            {tryOnMutation.isPending ? (
               <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 <GlassCard className="flex flex-col items-center justify-center py-20 text-center">
                   <Loader2 className="w-10 h-10 text-primary animate-spin mb-4" />
@@ -489,36 +276,36 @@ const MirrorPage = () => {
                   <p className="text-xs text-muted-foreground/60 mt-1">This may take 15–30 seconds</p>
                 </GlassCard>
               </motion.div>
-            ) : resultImage ? (
+            ) : tryOnMutation.data?.image ? (
               <motion.div key="result" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
                 <GlassCard className="p-0 overflow-hidden">
-                  <img src={resultImage} alt="Virtual try-on result" className="w-full rounded-2xl" />
+                  <img src={tryOnMutation.data.image} alt="Virtual try-on result" className="w-full rounded-2xl" />
                 </GlassCard>
                 <div className="flex gap-2 mt-3">
                   <Button
                     className="flex-1 rounded-xl gap-2"
-                    disabled={saving}
+                    disabled={saveMutation.isPending}
                     onClick={handleSaveLook}
                   >
-                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     Save Look
                   </Button>
                   <Button
                     variant="outline"
                     className="flex-1 rounded-xl"
-                    onClick={() => setResultImage(null)}
+                    onClick={handleTryAnother}
                   >
                     Try another
                   </Button>
                 </div>
               </motion.div>
-            ) : error ? (
+            ) : tryOnMutation.isError ? (
               <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 <GlassCard className="flex flex-col items-center py-10 text-center">
                   <AlertTriangle className="w-8 h-8 text-destructive mb-3" />
                   <p className="text-sm text-foreground font-medium">Generation failed</p>
-                  <p className="text-xs text-muted-foreground mt-1 max-w-[240px]">{error}</p>
-                  <Button variant="outline" size="sm" className="mt-4 rounded-xl" onClick={() => setError(null)}>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-[240px]">{tryOnMutation.error.message}</p>
+                  <Button variant="outline" size="sm" className="mt-4 rounded-xl" onClick={() => tryOnMutation.reset()}>
                     Dismiss
                   </Button>
                 </GlassCard>
@@ -538,7 +325,7 @@ const MirrorPage = () => {
           </AnimatePresence>
 
           {/* Occasion selector */}
-          {!resultImage && (
+          {!tryOnMutation.data && (
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Occasion (optional)</p>
               <div className="flex gap-2 overflow-x-auto no-scrollbar">
@@ -560,7 +347,7 @@ const MirrorPage = () => {
           )}
 
           {/* Garment selector */}
-          {!resultImage && (
+          {!tryOnMutation.data && (
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">
                 Select garments ({selectedIds.size}/4)
@@ -599,11 +386,11 @@ const MirrorPage = () => {
           )}
 
           {/* Try On button */}
-          {!resultImage && (
+          {!tryOnMutation.data && (
             <Button
               className="w-full rounded-xl gap-2 h-12 text-base"
               size="lg"
-              disabled={!hasSelfie || selectedIds.size === 0 || generating}
+              disabled={!hasSelfie || selectedIds.size === 0 || tryOnMutation.isPending}
               onClick={handleTryOn}
             >
               <Sparkles className="w-5 h-5" />
