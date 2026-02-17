@@ -115,18 +115,20 @@ const Landing = () => {
                 >
                   Casual &amp; Chic
                 </span>
-                <button
-                  className="flex items-center gap-1 text-primary-foreground font-inter rounded-full"
+                 <button
+                  className="flex items-center gap-1 text-primary-foreground font-inter rounded-full transition-all"
                   style={{
-                    fontWeight: 600,
-                    fontSize: 13,
+                    fontWeight: 700,
+                    fontSize: 15,
                     background: "hsl(var(--primary))",
-                    padding: "10px 18px",
-                    boxShadow: "0px 10px 30px rgba(217,119,87,0.25)",
+                    padding: "12px 22px",
+                    boxShadow: agreed ? "0px 18px 50px rgba(217,119,87,0.25)" : "none",
+                    opacity: agreed ? 1 : 0.55,
+                    borderRadius: 999,
                   }}
                   disabled={!agreed}
                 >
-                  See Outfit Details <ChevronRight className="w-3.5 h-3.5" />
+                  Plan My Outfit <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
             </div>
