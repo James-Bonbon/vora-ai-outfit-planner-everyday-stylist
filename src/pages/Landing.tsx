@@ -116,6 +116,7 @@ const Landing = () => {
                   Casual &amp; Chic
                 </span>
                  <button
+                  onClick={handleGoogleSignIn}
                   className="flex items-center gap-1 text-primary-foreground font-inter rounded-full transition-all"
                   style={{
                     fontWeight: 700,
