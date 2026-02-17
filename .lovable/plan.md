@@ -1,110 +1,130 @@
 
+# Dream List Feature -- Revised Implementation Plan
 
-# VORA — Complete Implementation Plan
-
-## Phase 1: Design System & UI Shell
-Build the visual foundation — no backend, zero risk of errors.
-
-- **Theme**: OLED Black (`#000000`) background, Cyber Lime (`#CCFF00`) accents across all CSS variables
-- **Glassmorphism Components**: Reusable bento-grid cards with semi-transparent blur, lime borders, and subtle glow effects
-- **Bottom Tab Bar**: Native-style fixed navigation with 5 tabs — **Home, Wardrobe, AI Mirror, Beauty, Profile** — with active state highlighting in Cyber Lime
-- **Safe Area Handling**: Padding for iPhone Dynamic Island, notch, home indicator, and Android punch-hole cameras
-- **Page Shells**: All 5 tab pages created with placeholder content and smooth transitions
-- **Landing Page**: Bold VORA branding on pure black with a "Join VORA with Google" CTA button
-- **Touch Targets**: All interactive elements minimum 44×44px
-- **App Assets**: Placeholder app icon (1024×1024) and splash screen layout
+## Overview
+Add a "Dream List" tab to the Wardrobe page with a new database table, union type system for garment display, and a "Browse Library" entry point.
 
 ---
 
-## Phase 2: Authentication & Legal Compliance
-Connect Supabase with Google OAuth and implement required consent flows.
+## Step 1: Database Migration
 
-- **Google OAuth**: "Join VORA with Google" button on landing page
-- **Protected Routes**: Redirect unauthenticated users to landing
-- **Biometric Consent Modal**: Mandatory toggle before any image processing features — *"Your images are used solely for AI styling and are not stored as biometric data."*
-- **Settings Page**: "Delete My Data" button for GDPR compliance, account management
-- **Profiles Table**: Supabase table linked to auth users for storing all user data
+Create the `dream_items` table with `user_id` as a **foreign key referencing `auth.users`** (per your request).
 
----
+```text
+Table: dream_items
++------------------+-------------------------------+
+| Column           | Type                          |
++------------------+-------------------------------+
+| id               | uuid (PK, default random)     |
+| user_id          | uuid (NOT NULL, FK auth.users) |
+| catalog_item_id  | uuid (nullable)               |
+| image_url        | text (NOT NULL)               |
+| name             | text (nullable)               |
+| price            | numeric (nullable)            |
+| brand            | text (nullable)               |
+| created_at       | timestamptz (default now)     |
++------------------+-------------------------------+
+```
 
-## Phase 3: Onboarding & Profile Setup
-Guided 3-step flow after first login.
+SQL:
+```text
+CREATE TABLE public.dream_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  catalog_item_id UUID,
+  image_url TEXT NOT NULL,
+  name TEXT,
+  price NUMERIC,
+  brand TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
-- **Step 1 — Selfie Upload**: Capture or upload a reference photo (stored in Supabase Storage, never in DB)
-- **Step 2 — Personal Info**: Name, DOB, Sex, Height, Weight
-- **Step 3 — Body Shape Selector**: Visual icon cards — Hourglass, Pear, Athletic, Rectangle, Round
-- **Profile saved** to `profiles` table, editable from Profile tab
+ALTER TABLE public.dream_items ENABLE ROW LEVEL SECURITY;
 
----
+CREATE POLICY "Users can view own dream items"
+  ON public.dream_items FOR SELECT
+  TO authenticated USING (auth.uid() = user_id);
 
-## Phase 4: Smart Closet (Wardrobe Tab)
-The core garment management system.
+CREATE POLICY "Users can insert own dream items"
+  ON public.dream_items FOR INSERT
+  TO authenticated WITH CHECK (auth.uid() = user_id);
 
-- **Closet Grid**: Bento-style card layout displaying all saved clothing items
-- **Add Item via Photo**: Upload clothing photo → Gemini Vision AI auto-tags **category, color, material, and brand**
-- **Manual Edit**: Form fallback to correct or add item details
-- **Category Filters**: Tops, Bottoms, Shoes, Accessories, Outerwear
-- **Garment Detail Page**: Full-screen view of each item with material, brand, color info
-- **Storage**: Item images in Supabase Storage, metadata in `closet_items` table
-
-### 4a: "Wash It" — Laundry Care Modal *(Pro Feature)*
-- **Laundry Care Modal** opens from garment detail page
-- **Visual Laundry Symbols**: Digital icons for water temp, ironing, bleaching, drying
-- **"VORA Warning: What NOT to Do"**: Red-highlighted danger section (e.g., "NEVER tumble dry")
-- **"Scan Tag" Button**: If care data is missing, user photographs the garment's care label → Gemini Vision reads symbols and saves them
-
-### 4b: "Help Me Clean" — AI Stain Removal *(Pro Feature)*
-- **Stain/Dirt Menu**: User selects stain type — Red Wine, Coffee, Sweat, Grease, Makeup, Ink, Mud, Blood
-- **AI-Powered Guide**: Based on the garment's stored **material** (Silk, Cotton, Polyester, etc.) + selected stain, Gemini generates a step-by-step safe removal guide
-- **Example Output**: *"For this Silk blouse with a Red Wine stain: 1) Blot immediately with a clean cloth. 2) Apply cold water — do NOT rub. 3) Use a drop of mild detergent. 4) Air dry only."*
-
----
-
-## Phase 5: AI Virtual Try-On (AI Mirror Tab)
-Photorealistic 2D outfit visualization using Gemini image generation.
-
-- **Try-On Flow**: User selects garment(s) from closet → combined with their reference selfie → Gemini generates a realistic composite image of the user wearing the outfit
-- **"Style Me" Prompt**: User picks an occasion (Casual, Date Night, Work, Party) → AI selects items from their closet and generates the look
-- **Look Gallery**: Save, browse, and compare generated outfit images
-- **Saved Looks**: `looks` table in Supabase, generated images in Storage
-
-> **Note on AI Video "Catwalk"**: Since we're using Lovable AI (Gemini) without external video APIs, the Catwalk motion feature will be deferred to a future phase when external API integration is added. The Mirror tab will focus on high-quality still try-on images.
+CREATE POLICY "Users can delete own dream items"
+  ON public.dream_items FOR DELETE
+  TO authenticated USING (auth.uid() = user_id);
+```
 
 ---
 
-## Phase 6: Beauty & Skincare Concierge (Beauty Tab)
-AI-powered skincare and makeup management.
+## Step 2: Shared Type System
 
-- **Product Scan**: Upload product photo → Gemini identifies product name, brand, type, and key active ingredients
-- **Product Inventory**: Grid view of all scanned beauty products
-- **AI Routine Builder**: Visual step-by-step timeline — Cleanser → Toner → Serum → Moisturizer → SPF
-- **"Why This Works"**: Educational snippet for each step explaining ingredient benefits
-- **Gap Analysis**: AI detects missing critical steps (e.g., no SPF, no serum) and recommends products in the user's price bracket
+Create a new file `src/types/wardrobe.ts` with a union type approach:
 
----
+```text
+ClosetItem {
+  id, image_url, name, category, color, material, brand, notes, created_at
+}
 
-## Phase 7: Monetization — VORA Pro (Stripe)
-Subscription management and feature gating.
+DreamItem {
+  id, image_url, name, price, brand, catalog_item_id, created_at
+}
 
-- **VORA Pro**: $9.99/month via Stripe
-- **Free Tier**: Browse closet (limited items), view basic garment info, onboarding
-- **Pro-Gated Features**:
-  - "Wash It" laundry care guide
-  - "Help Me Clean" AI stain removal
-  - AI Virtual Try-On (Mirror tab)
-  - Unlimited wardrobe items
-  - Full beauty routine analysis & gap detection
-- **Upgrade Prompts**: Sleek Cyber Lime upgrade cards when free users tap locked features
-- **Subscription Management**: Cancel/manage in Profile settings
+GarmentDisplay = (ClosetItem & { source: "closet" }) | (DreamItem & { source: "dream" })
+```
+
+This tagged union lets `GarmentDetailSheet` use `item.source` to branch logic cleanly without type errors. Fields like `material`, `color`, `notes` only exist on closet items; `price` only on dream items.
 
 ---
 
-## Architecture Summary
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React + TypeScript + Tailwind CSS (PWA) |
-| Backend | Supabase (Auth, Database, Storage, Edge Functions) |
-| AI | Lovable AI Gateway → Gemini (Vision, Text, Image Gen) |
-| Payments | Stripe (subscriptions) |
-| Storage | Supabase Storage (all user photos, garment images, generated images) |
+## Step 3: GarmentDetailSheet Refactor
 
+**Props change:** Accept `GarmentDisplay | null` instead of `GarmentItem | null`.
+
+**Branching by `item.source`:**
+
+| Feature | source: "closet" | source: "dream" |
+|---|---|---|
+| Image loading | Signed URL from `garments` bucket | Direct URL (external) |
+| Detail rows | Category, Color, Material, Brand, Added | Brand, Price, Added |
+| "Wash It" button | Shown | Hidden |
+| "Help Me Clean" button | Shown | Hidden |
+| Delete action | Deletes from `closet_items` + removes storage file | Deletes from `dream_items` only |
+| Delete label | "Remove from Wardrobe" | "Remove from Dream List" |
+
+---
+
+## Step 4: WardrobePage UI Refactor
+
+**Tab toggle** at the top using two styled buttons (matching existing design language):
+- "My Closet" (default active)
+- "Dream List"
+
+**Header actions change by tab:**
+- My Closet tab: "+" button opens `AddItemSheet` (existing)
+- Dream List tab: "Browse Library" button navigates to `/library`
+
+**Dream List content:**
+- Empty state: `GlassCard` with "Build your Dream Wardrobe" title, description, and "Browse Library" button
+- Populated state: Same 2-column grid as closet. Dream items use direct `image_url` (no signed URL generation needed). Shows name, price, and brand below image.
+
+**State:** New `activeTab` state (`"closet" | "dream"`), new `dreamItems` array fetched similarly to closet items.
+
+---
+
+## Step 5: Route Setup
+
+- Create `src/pages/LibraryPage.tsx` as a placeholder page with title and back navigation
+- Add `/library` route inside the protected `AppLayout` routes in `App.tsx`
+
+---
+
+## Files Changed
+
+| File | Action |
+|---|---|
+| `supabase/migrations/..._create_dream_items.sql` | Create |
+| `src/types/wardrobe.ts` | Create (shared types) |
+| `src/pages/LibraryPage.tsx` | Create (placeholder) |
+| `src/pages/WardrobePage.tsx` | Modify (tabs, dream list fetch, grid) |
+| `src/components/wardrobe/GarmentDetailSheet.tsx` | Modify (accept union type, branch by source) |
+| `src/App.tsx` | Modify (add `/library` route) |
