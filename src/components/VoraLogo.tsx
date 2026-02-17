@@ -11,6 +11,7 @@ const VoraLogo = ({ className }: VoraLogoProps) => {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={cn("text-primary", className)}
+      shapeRendering="geometricPrecision"
     >
       {/* Hanger hook – smooth cubic Bézier */}
       <path
@@ -24,7 +25,7 @@ const VoraLogo = ({ className }: VoraLogoProps) => {
       <path
         d="M48 88 L128 208 L208 88"
         stroke="currentColor"
-        strokeWidth="14"
+        strokeWidth="18"
         strokeLinecap="round"
         strokeLinejoin="round"
         fill="none"
