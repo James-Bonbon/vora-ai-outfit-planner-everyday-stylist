@@ -19,7 +19,7 @@ const VoraLogo = ({ className }: VoraLogoProps) => {
       <path
         d="M4 9 L12 20 L20 9"
         stroke="currentColor"
-        strokeWidth="1"
+        strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
         fill="none"
