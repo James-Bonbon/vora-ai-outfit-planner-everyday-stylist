@@ -96,12 +96,30 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
   }, []);
 
   // Client-side filtered list using standardized_category — instant, no API call
-  const filteredProducts = useMemo(
-    () =>
-      category === "All"
-        ? allProducts
-        : allProducts.filter((p) => p.standardized_category === category),
-    [allProducts, category]
+  const filteredProducts = useMemo(() => {
+    if (category === "All") return allProducts;
+
+    const searchTerm = category.toLowerCase();
+
+    return allProducts.filter((p) => {
+      const catMatch = p.standardized_category?.toLowerCase().includes(searchTerm) || false;
+      const nameMatch = p.name?.toLowerCase().includes(searchTerm) || false;
+      const descMatch = p.description?.toLowerCase().includes(searchTerm) || false;
+
+      let aliasMatch = false;
+      const productName = p.name?.toLowerCase() || "";
+
+      if (searchTerm === "perfume") {
+        aliasMatch = productName.includes("fragrance") || productName.includes("parfum") || productName.includes("eau de") || productName.includes("cologne");
+      } else if (searchTerm === "skincare") {
+        aliasMatch = productName.includes("cream") || productName.includes("serum") || productName.includes("cleanser") || productName.includes("lotion") || productName.includes("moisturizer") || productName.includes("spf");
+      } else if (searchTerm === "foundation") {
+        aliasMatch = productName.includes("concealer") || productName.includes("tinted moisturizer");
+      }
+
+      return catMatch || nameMatch || descMatch || aliasMatch;
+    });
+  }, [allProducts, category]
   );
 
   // Close expanded card when clicking outside
