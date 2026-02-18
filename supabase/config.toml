@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.browse-products]
 verify_jwt = false
+
+[functions.seed-beauty-library]
+verify_jwt = false
