@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import GlassCard from "@/components/GlassCard";
-import { User, Settings, Crown, LogOut, Pencil, X, Check, Ruler, Weight, Calendar, Users, Camera } from "lucide-react";
+import { User, Settings, Crown, LogOut, Pencil, X, Check, Ruler, Weight, Calendar, Users, Camera, Database, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,7 +51,7 @@ const ProfilePage = () => {
   const [editHeight, setEditHeight] = useState("");
   const [editWeight, setEditWeight] = useState("");
   const [saving, setSaving] = useState(false);
-
+  const [seeding, setSeeding] = useState(false);
   const fetchProfile = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase
@@ -308,6 +308,36 @@ const ProfilePage = () => {
         <p className="text-xs text-muted-foreground">
           AI try-ons, garment care guides, and unlimited storage are unlocked.
         </p>
+      </GlassCard>
+
+      {/* Admin Tools */}
+      <GlassCard className="p-5 space-y-3 border-dashed border-primary/30">
+        <h3 className="text-sm font-semibold text-muted-foreground font-outfit flex items-center gap-2">
+          <Database className="w-4 h-4" /> Admin Tools
+        </h3>
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full rounded-xl"
+          disabled={seeding}
+          onClick={async () => {
+            setSeeding(true);
+            toast.info("Fetching 500+ products… this may take a minute");
+            try {
+              const { data, error } = await supabase.functions.invoke("seed-beauty-library");
+              if (error) throw error;
+              if (data?.error) throw new Error(data.error);
+              toast.success(`Seeded ${data.totalInserted} products!${data.errors?.length ? ` (${data.errors.length} warnings)` : ""}`);
+            } catch (err: any) {
+              toast.error(err.message || "Seeding failed");
+            } finally {
+              setSeeding(false);
+            }
+          }}
+        >
+          {seeding ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Database className="w-4 h-4 mr-2" />}
+          Stock Beauty Library
+        </Button>
       </GlassCard>
 
       {/* Menu */}
