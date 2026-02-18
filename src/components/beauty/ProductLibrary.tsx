@@ -1,25 +1,23 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import GlassCard from "@/components/GlassCard";
-import { Search, Loader2, Star, Plus, Droplets, ExternalLink, Store, FlaskConical } from "lucide-react";
+import { Search, Loader2, Star, Plus, Droplets, ExternalLink, FlaskConical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-interface BrowseProduct {
-  id: number;
+interface CatalogProduct {
+  id: string;
   name: string;
-  brand: string;
-  product_type: string;
+  brand: string | null;
+  description: string | null;
+  image_url: string | null;
+  price: string | null;
   rating: number | null;
   reviews: number;
-  description: string;
-  image_url: string;
-  price: string;
-  store: string;
-  product_link: string;
-  tag_list: string[];
-  product_colors: { name: string; hex: string }[];
+  store: string | null;
+  product_link: string | null;
+  standardized_category: string;
 }
 
 const BROWSE_CATEGORIES = [
@@ -36,46 +34,24 @@ const BROWSE_CATEGORIES = [
   "Perfume",
 ];
 
-// Keywords used to match products to categories client-side
-const CATEGORY_KEYWORDS: Record<string, string[]> = {
-  Foundation: ["foundation", "concealer", "bb cream", "cc cream", "tinted moistur"],
-  Lipstick: ["lipstick", "lip gloss", "lip liner", "lip colour", "lip color", "lip balm", "lip tint"],
-  Mascara: ["mascara", "lash"],
-  Eyeshadow: ["eyeshadow", "eye shadow", "eye palette", "eye kit"],
-  Blush: ["blush", "cheek tint", "cheek colour"],
-  Bronzer: ["bronzer", "bronzing", "contour"],
-  Eyeliner: ["eyeliner", "eye liner", "kohl", "kajal"],
-  "Nail Polish": ["nail polish", "nail lacquer", "nail varnish", "nail colour", "nail color"],
-  Skincare: ["skincare", "skin care", "serum", "moisturis", "cleanser", "toner", "spf", "sunscreen", "hyaluronic", "retinol", "niacinamide", "collagen"],
-  Perfume: ["perfume", "parfum", "eau de", "fragrance", "cologne", "body mist", "scent"],
-};
-
 interface ProductLibraryProps {
   onAddToShelf: (product: { name: string; brand: string; product_type: string; key_ingredients: string[]; routine_step: string; image_url?: string }) => void;
   addingProduct: string | null;
 }
 
-const matchesCategory = (product: BrowseProduct, cat: string): boolean => {
-  if (cat === "All") return true;
-  const keywords = CATEGORY_KEYWORDS[cat];
-  if (!keywords) return false;
-  const haystack = `${product.name} ${product.description} ${product.product_type}`.toLowerCase();
-  return keywords.some((kw) => haystack.includes(kw));
-};
-
 const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) => {
   const [category, setCategory] = useState("All");
-  const [allProducts, setAllProducts] = useState<BrowseProduct[]>([]);
+  const [allProducts, setAllProducts] = useState<CatalogProduct[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [imgErrors, setImgErrors] = useState<Set<string>>(new Set());
   const [ingredients, setIngredients] = useState<string[]>([]);
   const [loadingIngredients, setLoadingIngredients] = useState(false);
   const expandedRef = useRef<HTMLDivElement>(null);
 
-  // Fetch once on mount — broad query to get a large mixed batch
+  // Fetch once on mount — triggers edge function which checks cache first
   const fetchAllProducts = useCallback(async () => {
     setLoading(true);
     try {
@@ -94,7 +70,7 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
     }
   }, []);
 
-  // Search triggers a NEW fetch, replaces the cached set
+  // Search triggers a NEW fetch via edge function (cache-first)
   const handleSearchFetch = useCallback(async (query: string) => {
     setLoading(true);
     setExpandedId(null);
@@ -119,9 +95,12 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
     if (!hasLoaded) fetchAllProducts();
   }, []);
 
-  // Client-side filtered list — instant, no API call
+  // Client-side filtered list using standardized_category — instant, no API call
   const filteredProducts = useMemo(
-    () => allProducts.filter((p) => matchesCategory(p, category)),
+    () =>
+      category === "All"
+        ? allProducts
+        : allProducts.filter((p) => p.standardized_category === category),
     [allProducts, category]
   );
 
@@ -167,7 +146,7 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
     }
   }, []);
 
-  const handleToggleProduct = (product: BrowseProduct) => {
+  const handleToggleProduct = (product: CatalogProduct) => {
     if (expandedId === product.id) {
       setExpandedId(null);
     } else {
@@ -176,19 +155,19 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
     }
   };
 
-  const handleAddToShelf = (e: React.MouseEvent, product: BrowseProduct) => {
+  const handleAddToShelf = (e: React.MouseEvent, product: CatalogProduct) => {
     e.stopPropagation();
     onAddToShelf({
       name: product.name,
-      brand: product.store,
-      product_type: product.product_type,
+      brand: product.store || "",
+      product_type: product.standardized_category,
       key_ingredients: [],
       routine_step: "",
       image_url: product.image_url || undefined,
     });
   };
 
-  const isExpanded = (id: number) => expandedId === id;
+  const isExpanded = (id: string) => expandedId === id;
 
   return (
     <div className="space-y-4">
@@ -256,20 +235,20 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
               >
                 {/* Image */}
                 <div className={`bg-card relative flex items-center justify-center ${isExpanded(product.id) ? "h-40" : "aspect-square"}`}>
-                  {!imgErrors.has(String(product.id)) && product.image_url ? (
+                  {!imgErrors.has(product.id) && product.image_url ? (
                     <img
                       src={product.image_url}
                       alt={product.name}
                       className="max-h-full max-w-full object-contain p-2"
                       loading="lazy"
-                      onError={() => handleImgError(String(product.id))}
+                      onError={() => handleImgError(product.id)}
                     />
                   ) : (
                     <Droplets className="w-8 h-8 text-primary/15" />
                   )}
                 </div>
 
-                {/* Basic info (always visible) */}
+                {/* Basic info */}
                 <div className="p-3 space-y-1">
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wide truncate">{product.store}</p>
                   <p className={`text-xs font-medium text-foreground leading-tight ${isExpanded(product.id) ? "" : "line-clamp-2"}`}>
@@ -282,7 +261,7 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
                     {product.rating && (
                       <div className="flex items-center gap-0.5">
                         <Star className="w-3 h-3 text-primary fill-primary" />
-                        <span className="text-[10px] text-muted-foreground">{product.rating.toFixed(1)}</span>
+                        <span className="text-[10px] text-muted-foreground">{product.rating}</span>
                         {isExpanded(product.id) && product.reviews > 0 && (
                           <span className="text-[10px] text-muted-foreground">({product.reviews})</span>
                         )}
@@ -344,7 +323,7 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
                           className="rounded-xl gap-1.5 h-8 text-xs"
                           onClick={(e) => {
                             e.stopPropagation();
-                            window.open(product.product_link, "_blank");
+                            window.open(product.product_link!, "_blank");
                           }}
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
