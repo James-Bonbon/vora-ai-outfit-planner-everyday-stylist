@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import GlassCard from "@/components/GlassCard";
 import { Search, Loader2, Star, Plus, Droplets, ExternalLink, Store, FlaskConical } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -36,14 +36,36 @@ const BROWSE_CATEGORIES = [
   "Perfume",
 ];
 
+// Keywords used to match products to categories client-side
+const CATEGORY_KEYWORDS: Record<string, string[]> = {
+  Foundation: ["foundation", "concealer", "bb cream", "cc cream", "tinted moistur"],
+  Lipstick: ["lipstick", "lip gloss", "lip liner", "lip colour", "lip color", "lip balm", "lip tint"],
+  Mascara: ["mascara", "lash"],
+  Eyeshadow: ["eyeshadow", "eye shadow", "eye palette", "eye kit"],
+  Blush: ["blush", "cheek tint", "cheek colour"],
+  Bronzer: ["bronzer", "bronzing", "contour"],
+  Eyeliner: ["eyeliner", "eye liner", "kohl", "kajal"],
+  "Nail Polish": ["nail polish", "nail lacquer", "nail varnish", "nail colour", "nail color"],
+  Skincare: ["skincare", "skin care", "serum", "moisturis", "cleanser", "toner", "spf", "sunscreen", "hyaluronic", "retinol", "niacinamide", "collagen"],
+  Perfume: ["perfume", "parfum", "eau de", "fragrance", "cologne", "body mist", "scent"],
+};
+
 interface ProductLibraryProps {
   onAddToShelf: (product: { name: string; brand: string; product_type: string; key_ingredients: string[]; routine_step: string; image_url?: string }) => void;
   addingProduct: string | null;
 }
 
+const matchesCategory = (product: BrowseProduct, cat: string): boolean => {
+  if (cat === "All") return true;
+  const keywords = CATEGORY_KEYWORDS[cat];
+  if (!keywords) return false;
+  const haystack = `${product.name} ${product.description} ${product.product_type}`.toLowerCase();
+  return keywords.some((kw) => haystack.includes(kw));
+};
+
 const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) => {
   const [category, setCategory] = useState("All");
-  const [products, setProducts] = useState<BrowseProduct[]>([]);
+  const [allProducts, setAllProducts] = useState<BrowseProduct[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -53,23 +75,16 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
   const [loadingIngredients, setLoadingIngredients] = useState(false);
   const expandedRef = useRef<HTMLDivElement>(null);
 
-  const fetchProducts = useCallback(async (cat: string, search?: string) => {
+  // Fetch once on mount — broad query to get a large mixed batch
+  const fetchAllProducts = useCallback(async () => {
     setLoading(true);
-    setExpandedId(null);
-    setImgErrors(new Set());
     try {
-      const searchTerm = search
-        ? search
-        : cat === "All"
-          ? "beauty products"
-          : `${cat} makeup`;
-
       const { data, error } = await supabase.functions.invoke("browse-products", {
-        body: { category: cat === "All" ? "" : cat, search: searchTerm },
+        body: { category: "", search: "beauty makeup skincare perfume" },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      setProducts(data.products || []);
+      setAllProducts(data.products || []);
       setHasLoaded(true);
     } catch (err: any) {
       console.error(err);
@@ -79,9 +94,36 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
     }
   }, []);
 
-  useEffect(() => {
-    if (!hasLoaded) fetchProducts("All");
+  // Search triggers a NEW fetch, replaces the cached set
+  const handleSearchFetch = useCallback(async (query: string) => {
+    setLoading(true);
+    setExpandedId(null);
+    setImgErrors(new Set());
+    try {
+      const { data, error } = await supabase.functions.invoke("browse-products", {
+        body: { category: "", search: query },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setAllProducts(data.products || []);
+      setCategory("All");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Failed to search products");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    if (!hasLoaded) fetchAllProducts();
+  }, []);
+
+  // Client-side filtered list — instant, no API call
+  const filteredProducts = useMemo(
+    () => allProducts.filter((p) => matchesCategory(p, category)),
+    [allProducts, category]
+  );
 
   // Close expanded card when clicking outside
   useEffect(() => {
@@ -97,12 +139,12 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
 
   const handleCategoryChange = (cat: string) => {
     setCategory(cat);
-    fetchProducts(cat);
+    setExpandedId(null);
   };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) fetchProducts(category, searchQuery.trim());
+    if (searchQuery.trim()) handleSearchFetch(searchQuery.trim());
   };
 
   const handleImgError = (key: string) => {
@@ -188,15 +230,19 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
           <Loader2 className="w-8 h-8 text-primary animate-spin" />
           <p className="text-sm text-muted-foreground">Searching UK stores…</p>
         </div>
-      ) : products.length === 0 && hasLoaded ? (
+      ) : filteredProducts.length === 0 && hasLoaded ? (
         <GlassCard className="flex flex-col items-center justify-center py-14 text-center">
           <Droplets className="w-10 h-10 text-primary/20 mb-3" />
-          <p className="text-sm text-muted-foreground">No products found. Try a different search.</p>
+          <p className="text-sm text-muted-foreground">
+            {category === "All"
+              ? "No products found. Try a different search."
+              : `No ${category.toLowerCase()} products found in trending right now. Try the search bar instead.`}
+          </p>
         </GlassCard>
       ) : (
         /* Product Grid */
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-          {products.map((product) => (
+          {filteredProducts.map((product) => (
             <div
               key={product.id}
               ref={isExpanded(product.id) ? expandedRef : undefined}
