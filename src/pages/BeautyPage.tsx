@@ -92,10 +92,15 @@ const BeautyPage = () => {
       const urls: Record<string, string> = {};
       await Promise.all(
         data.map(async (item: BeautyProduct) => {
-          const { data: urlData } = await supabase.storage
-            .from("beauty-products")
-            .createSignedUrl(item.image_url, 3600);
-          if (urlData?.signedUrl) urls[item.id] = urlData.signedUrl;
+          // External URLs (from browse) don't need signed URLs
+          if (item.image_url.startsWith("http")) {
+            urls[item.id] = item.image_url;
+          } else {
+            const { data: urlData } = await supabase.storage
+              .from("beauty-products")
+              .createSignedUrl(item.image_url, 3600);
+            if (urlData?.signedUrl) urls[item.id] = urlData.signedUrl;
+          }
         })
       );
       setImageUrls(urls);
@@ -161,7 +166,10 @@ const BeautyPage = () => {
     if (!user) return;
     setDeleting(true);
     try {
-      await supabase.storage.from("beauty-products").remove([product.image_url]);
+      // Only remove from storage if it's not an external URL
+      if (!product.image_url.startsWith("http")) {
+        await supabase.storage.from("beauty-products").remove([product.image_url]);
+      }
       await supabase.from("beauty_products").delete().eq("id", product.id);
       toast.success("Product removed");
       setDetailOpen(false);
@@ -213,39 +221,29 @@ const BeautyPage = () => {
     if (!user) return;
     setAddingBrowseProduct(product.name);
     try {
-      let storagePath = "";
+      // Store external URL directly — no need to re-upload
+      const imageUrl = product.image_url || "";
 
-      if (product.image_url) {
-        // Download the external image and upload to storage
-        try {
-          const response = await fetch(product.image_url);
-          const blob = await response.blob();
-          const ext = blob.type.split("/")[1]?.split("+")[0] || "jpg";
-          storagePath = `${user.id}/browse_${crypto.randomUUID()}.${ext}`;
-          await supabase.storage.from("beauty-products").upload(storagePath, blob, { contentType: blob.type });
-        } catch {
-          // If fetch fails (CORS etc), store the external URL directly
-          storagePath = product.image_url;
-        }
-      } else {
-        // No image available — upload a tiny transparent PNG placeholder
-        const transparentPng = Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="), c => c.charCodeAt(0));
-        storagePath = `${user.id}/browse_${crypto.randomUUID()}.png`;
-        await supabase.storage.from("beauty-products").upload(storagePath, transparentPng, { contentType: "image/png" });
-      }
-
-      const { error } = await supabase.from("beauty_products").insert({
+      const { data: inserted, error } = await supabase.from("beauty_products").insert({
         user_id: user.id,
-        image_url: storagePath,
+        image_url: imageUrl,
         name: product.name,
         brand: product.brand,
         product_type: product.product_type,
         ingredients: product.key_ingredients,
         routine_step: product.routine_step,
-      });
+      }).select().single();
       if (error) throw error;
+
+      // Optimistically add to local state so image shows instantly
+      if (inserted) {
+        setProducts(prev => [inserted as BeautyProduct, ...prev]);
+        if (imageUrl) {
+          setImageUrls(prev => ({ ...prev, [inserted.id]: imageUrl }));
+        }
+      }
+
       toast.success(`${product.name} added to your shelf!`);
-      fetchProducts();
     } catch (err: any) {
       toast.error(err.message || "Failed to add product");
     } finally {
