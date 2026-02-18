@@ -37,7 +37,7 @@ const BROWSE_CATEGORIES = [
 ];
 
 interface ProductLibraryProps {
-  onAddToShelf: (product: { name: string; brand: string; product_type: string; key_ingredients: string[]; routine_step: string }) => void;
+  onAddToShelf: (product: { name: string; brand: string; product_type: string; key_ingredients: string[]; routine_step: string; image_url?: string }) => void;
   addingProduct: string | null;
 }
 
@@ -142,6 +142,7 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
       product_type: product.product_type,
       key_ingredients: [],
       routine_step: "",
+      image_url: product.image_url || undefined,
     });
   };
 

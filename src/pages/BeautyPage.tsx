@@ -209,19 +209,34 @@ const BeautyPage = () => {
     }
   };
 
-  const handleAddFromBrowse = async (product: { name: string; brand: string; product_type: string; key_ingredients: string[]; routine_step: string }) => {
+  const handleAddFromBrowse = async (product: { name: string; brand: string; product_type: string; key_ingredients: string[]; routine_step: string; image_url?: string }) => {
     if (!user) return;
     setAddingBrowseProduct(product.name);
     try {
-      // Use a placeholder image path since browsed products don't have photos
-      const placeholderPath = `${user.id}/browse_${crypto.randomUUID()}.txt`;
-      // Upload a tiny placeholder
-      const blob = new Blob(["placeholder"], { type: "text/plain" });
-      await supabase.storage.from("beauty-products").upload(placeholderPath, blob);
+      let storagePath = "";
+
+      if (product.image_url) {
+        // Download the external image and upload to storage
+        try {
+          const response = await fetch(product.image_url);
+          const blob = await response.blob();
+          const ext = blob.type.split("/")[1]?.split("+")[0] || "jpg";
+          storagePath = `${user.id}/browse_${crypto.randomUUID()}.${ext}`;
+          await supabase.storage.from("beauty-products").upload(storagePath, blob, { contentType: blob.type });
+        } catch {
+          // If fetch fails (CORS etc), store the external URL directly
+          storagePath = product.image_url;
+        }
+      } else {
+        // No image available — upload a tiny transparent PNG placeholder
+        const transparentPng = Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="), c => c.charCodeAt(0));
+        storagePath = `${user.id}/browse_${crypto.randomUUID()}.png`;
+        await supabase.storage.from("beauty-products").upload(storagePath, transparentPng, { contentType: "image/png" });
+      }
 
       const { error } = await supabase.from("beauty_products").insert({
         user_id: user.id,
-        image_url: placeholderPath,
+        image_url: storagePath,
         name: product.name,
         brand: product.brand,
         product_type: product.product_type,
