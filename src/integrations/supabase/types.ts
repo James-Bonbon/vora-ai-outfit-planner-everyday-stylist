@@ -56,6 +56,54 @@ export type Database = {
         }
         Relationships: []
       }
+      beauty_products_catalog: {
+        Row: {
+          brand: string | null
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          name: string
+          price: string | null
+          product_link: string | null
+          rating: number | null
+          reviews: number | null
+          search_query: string | null
+          standardized_category: string
+          store: string | null
+        }
+        Insert: {
+          brand?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          price?: string | null
+          product_link?: string | null
+          rating?: number | null
+          reviews?: number | null
+          search_query?: string | null
+          standardized_category?: string
+          store?: string | null
+        }
+        Update: {
+          brand?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          price?: string | null
+          product_link?: string | null
+          rating?: number | null
+          reviews?: number | null
+          search_query?: string | null
+          standardized_category?: string
+          store?: string | null
+        }
+        Relationships: []
+      }
       closet_items: {
         Row: {
           brand: string | null
