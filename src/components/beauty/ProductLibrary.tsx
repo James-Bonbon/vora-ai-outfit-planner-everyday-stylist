@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import GlassCard from "@/components/GlassCard";
 import { Search, Loader2, Star, Plus, Droplets, ExternalLink, FlaskConical } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -41,36 +41,56 @@ interface ProductLibraryProps {
 
 const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) => {
   const [category, setCategory] = useState("All");
-  const [allProducts, setAllProducts] = useState<CatalogProduct[]>([]);
+  const [productCache, setProductCache] = useState<Record<string, CatalogProduct[]>>({});
+  const [searchResults, setSearchResults] = useState<CatalogProduct[] | null>(null);
   const [loading, setLoading] = useState(false);
-  const [hasLoaded, setHasLoaded] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [imgErrors, setImgErrors] = useState<Set<string>>(new Set());
   const [ingredients, setIngredients] = useState<string[]>([]);
   const [loadingIngredients, setLoadingIngredients] = useState(false);
   const expandedRef = useRef<HTMLDivElement>(null);
+  const fetchingRef = useRef<Set<string>>(new Set());
 
-  // Fetch once on mount — triggers edge function which checks cache first
-  const fetchAllProducts = useCallback(async () => {
+  const fetchCategory = useCallback(async (cat: string) => {
+    const cacheKey = cat;
+    // Prevent duplicate in-flight requests
+    if (fetchingRef.current.has(cacheKey)) return;
+    fetchingRef.current.add(cacheKey);
     setLoading(true);
     try {
+      const searchTerm = cat === "All" ? "trending beauty products" : `${cat} best rated`;
       const { data, error } = await supabase.functions.invoke("browse-products", {
-        body: { category: "", search: "beauty makeup skincare perfume" },
+        body: { category: "", search: searchTerm },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      setAllProducts(data.products || []);
-      setHasLoaded(true);
+      setProductCache((prev) => ({ ...prev, [cacheKey]: data.products || [] }));
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Failed to load products");
     } finally {
       setLoading(false);
+      fetchingRef.current.delete(cacheKey);
     }
   }, []);
 
-  // Search triggers a NEW fetch via edge function (cache-first)
+  // Fetch "All" on mount
+  useEffect(() => {
+    if (!productCache["All"]) fetchCategory("All");
+  }, []);
+
+  // Fetch on category change if not cached
+  const handleCategoryChange = (cat: string) => {
+    setCategory(cat);
+    setSearchResults(null);
+    setExpandedId(null);
+    if (!productCache[cat] || productCache[cat].length === 0) {
+      fetchCategory(cat);
+    }
+  };
+
+  // Search — temporary override, doesn't pollute cache
   const handleSearchFetch = useCallback(async (query: string) => {
     setLoading(true);
     setExpandedId(null);
@@ -81,8 +101,7 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      setAllProducts(data.products || []);
-      setCategory("All");
+      setSearchResults(data.products || []);
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Failed to search products");
@@ -91,36 +110,20 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
     }
   }, []);
 
-  useEffect(() => {
-    if (!hasLoaded) fetchAllProducts();
-  }, []);
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) handleSearchFetch(searchQuery.trim());
+  };
 
-  // Client-side filtered list using standardized_category — instant, no API call
-  const filteredProducts = useMemo(() => {
-    if (category === "All") return allProducts;
+  const clearSearch = () => {
+    setSearchQuery("");
+    setSearchResults(null);
+  };
 
-    const searchTerm = category.toLowerCase();
-
-    return allProducts.filter((p) => {
-      const catMatch = p.standardized_category?.toLowerCase().includes(searchTerm) || false;
-      const nameMatch = p.name?.toLowerCase().includes(searchTerm) || false;
-      const descMatch = p.description?.toLowerCase().includes(searchTerm) || false;
-
-      let aliasMatch = false;
-      const productName = p.name?.toLowerCase() || "";
-
-      if (searchTerm === "perfume") {
-        aliasMatch = productName.includes("fragrance") || productName.includes("parfum") || productName.includes("eau de") || productName.includes("cologne");
-      } else if (searchTerm === "skincare") {
-        aliasMatch = productName.includes("cream") || productName.includes("serum") || productName.includes("cleanser") || productName.includes("lotion") || productName.includes("moisturizer") || productName.includes("spf");
-      } else if (searchTerm === "foundation") {
-        aliasMatch = productName.includes("concealer") || productName.includes("tinted moisturizer");
-      }
-
-      return catMatch || nameMatch || descMatch || aliasMatch;
-    });
-  }, [allProducts, category]
-  );
+  // Determine what to render
+  const displayProducts = searchResults !== null ? searchResults : (productCache[category] || []);
+  const hasData = displayProducts.length > 0;
+  const hasAttempted = searchResults !== null || productCache[category] !== undefined;
 
   // Close expanded card when clicking outside
   useEffect(() => {
@@ -133,16 +136,6 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [expandedId]);
-
-  const handleCategoryChange = (cat: string) => {
-    setCategory(cat);
-    setExpandedId(null);
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) handleSearchFetch(searchQuery.trim());
-  };
 
   const handleImgError = (key: string) => {
     setImgErrors((prev) => new Set(prev).add(key));
@@ -196,7 +189,10 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
           <Input
             placeholder="Search products (e.g. YSL Beauty)…"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              if (e.target.value === "") clearSearch();
+            }}
             className="pl-9 rounded-xl h-10 bg-card border-border"
           />
         </div>
@@ -212,7 +208,7 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
             key={cat}
             onClick={() => handleCategoryChange(cat)}
             className={`px-3.5 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-colors min-h-[36px] ${
-              category === cat
+              category === cat && searchResults === null
                 ? "bg-primary text-primary-foreground border border-primary"
                 : "border border-border text-muted-foreground"
             }`}
@@ -222,24 +218,36 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
         ))}
       </div>
 
+      {/* Search mode indicator */}
+      {searchResults !== null && (
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            Showing results for "<span className="text-foreground font-medium">{searchQuery}</span>"
+          </p>
+          <button onClick={clearSearch} className="text-xs text-primary font-medium">
+            Clear
+          </button>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex flex-col items-center py-16 gap-3">
           <Loader2 className="w-8 h-8 text-primary animate-spin" />
           <p className="text-sm text-muted-foreground">Searching UK stores…</p>
         </div>
-      ) : filteredProducts.length === 0 && hasLoaded ? (
+      ) : !hasData && hasAttempted ? (
         <GlassCard className="flex flex-col items-center justify-center py-14 text-center">
           <Droplets className="w-10 h-10 text-primary/20 mb-3" />
           <p className="text-sm text-muted-foreground">
-            {category === "All"
+            {searchResults !== null
               ? "No products found. Try a different search."
-              : `No ${category.toLowerCase()} products found in trending right now. Try the search bar instead.`}
+              : `No ${category.toLowerCase()} products found. Try the search bar instead.`}
           </p>
         </GlassCard>
       ) : (
         /* Product Grid */
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-          {filteredProducts.map((product) => (
+          {displayProducts.map((product) => (
             <div
               key={product.id}
               ref={isExpanded(product.id) ? expandedRef : undefined}
