@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import GlassCard from "@/components/GlassCard";
 import { Search, Loader2, Star, Plus, Droplets, ExternalLink, FlaskConical } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -41,58 +41,72 @@ interface ProductLibraryProps {
 
 const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) => {
   const [category, setCategory] = useState("All");
-  const [productCache, setProductCache] = useState<Record<string, CatalogProduct[]>>({});
+  const [localLibrary, setLocalLibrary] = useState<CatalogProduct[]>([]);
+  const [libraryLoaded, setLibraryLoaded] = useState(false);
   const [searchResults, setSearchResults] = useState<CatalogProduct[] | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [imgErrors, setImgErrors] = useState<Set<string>>(new Set());
   const [ingredients, setIngredients] = useState<string[]>([]);
   const [loadingIngredients, setLoadingIngredients] = useState(false);
   const expandedRef = useRef<HTMLDivElement>(null);
-  const fetchingRef = useRef<Set<string>>(new Set());
 
-  const fetchCategory = useCallback(async (cat: string) => {
-    const cacheKey = cat;
-    // Prevent duplicate in-flight requests
-    if (fetchingRef.current.has(cacheKey)) return;
-    fetchingRef.current.add(cacheKey);
-    setLoading(true);
-    try {
-      const searchTerm = cat === "All" ? "trending beauty products" : `${cat} best rated`;
-      const { data, error } = await supabase.functions.invoke("browse-products", {
-        body: { category: "", search: searchTerm },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      setProductCache((prev) => ({ ...prev, [cacheKey]: data.products || [] }));
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err.message || "Failed to load products");
-    } finally {
-      setLoading(false);
-      fetchingRef.current.delete(cacheKey);
-    }
-  }, []);
-
-  // Fetch "All" on mount
+  // 1. Supabase-first: fetch entire catalog on mount (0 API cost)
   useEffect(() => {
-    if (!productCache["All"]) fetchCategory("All");
+    const load = async () => {
+      const { data, error } = await supabase
+        .from("beauty_products_catalog")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (error) {
+        console.error("Library fetch error:", error);
+      } else {
+        setLocalLibrary((data as CatalogProduct[]) || []);
+      }
+      setLibraryLoaded(true);
+    };
+    load();
   }, []);
 
-  // Fetch on category change if not cached
-  const handleCategoryChange = (cat: string) => {
-    setCategory(cat);
-    setSearchResults(null);
-    setExpandedId(null);
-    if (!productCache[cat] || productCache[cat].length === 0) {
-      fetchCategory(cat);
-    }
-  };
+  // 2. Smart client-side filtering with fuzzy match + aliases
+  const filteredProducts = useMemo(() => {
+    if (category === "All") return localLibrary;
+    const searchTerm = category.toLowerCase();
+    return localLibrary.filter((p) => {
+      const catMatch = p.standardized_category?.toLowerCase().includes(searchTerm) || false;
+      const nameMatch = p.name?.toLowerCase().includes(searchTerm) || false;
+      const descMatch = p.description?.toLowerCase().includes(searchTerm) || false;
 
-  // Search — temporary override, doesn't pollute cache
+      let aliasMatch = false;
+      const productName = p.name?.toLowerCase() || "";
+      const desc = p.description?.toLowerCase() || "";
+      const combined = productName + " " + desc;
+
+      if (searchTerm === "perfume") {
+        aliasMatch = /fragrance|parfum|eau de|cologne/.test(combined);
+      } else if (searchTerm === "skincare") {
+        aliasMatch = /cream|serum|cleanser|lotion|moisturiz|spf|retinol/.test(combined);
+      } else if (searchTerm === "foundation") {
+        aliasMatch = /concealer|tinted moisturiz|bb cream|cc cream/.test(combined);
+      } else if (searchTerm === "lipstick") {
+        aliasMatch = /lip gloss|lip tint|lip liner|lip colour/.test(combined);
+      } else if (searchTerm === "mascara") {
+        aliasMatch = /lash|lashes/.test(combined);
+      } else if (searchTerm === "eyeliner") {
+        aliasMatch = /kohl|kajal|eye pencil/.test(combined);
+      } else if (searchTerm === "nail polish") {
+        aliasMatch = /nail lacquer|nail varnish|gel polish/.test(combined);
+      }
+
+      return catMatch || nameMatch || descMatch || aliasMatch;
+    });
+  }, [localLibrary, category]);
+
+  // 3. Search triggers the edge function (costs money, only on explicit submit)
   const handleSearchFetch = useCallback(async (query: string) => {
-    setLoading(true);
+    setSearchLoading(true);
     setExpandedId(null);
     setImgErrors(new Set());
     try {
@@ -101,12 +115,22 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      setSearchResults(data.products || []);
+      const products = (data.products || []) as CatalogProduct[];
+      setSearchResults(products);
+
+      // Merge search results into local library so they're available for future filtering
+      if (products.length > 0) {
+        setLocalLibrary((prev) => {
+          const existingNames = new Set(prev.map((p) => p.name));
+          const newProducts = products.filter((p) => !existingNames.has(p.name));
+          return newProducts.length > 0 ? [...newProducts, ...prev] : prev;
+        });
+      }
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Failed to search products");
     } finally {
-      setLoading(false);
+      setSearchLoading(false);
     }
   }, []);
 
@@ -120,10 +144,16 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
     setSearchResults(null);
   };
 
-  // Determine what to render
-  const displayProducts = searchResults !== null ? searchResults : (productCache[category] || []);
+  const handleCategoryChange = (cat: string) => {
+    setCategory(cat);
+    setSearchResults(null);
+    setExpandedId(null);
+  };
+
+  // What to render
+  const displayProducts = searchResults !== null ? searchResults : filteredProducts;
   const hasData = displayProducts.length > 0;
-  const hasAttempted = searchResults !== null || productCache[category] !== undefined;
+  const loading = searchLoading;
 
   // Close expanded card when clicking outside
   useEffect(() => {
@@ -235,13 +265,20 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
           <Loader2 className="w-8 h-8 text-primary animate-spin" />
           <p className="text-sm text-muted-foreground">Searching UK stores…</p>
         </div>
-      ) : !hasData && hasAttempted ? (
+      ) : !libraryLoaded ? (
+        <div className="flex flex-col items-center py-16 gap-3">
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          <p className="text-sm text-muted-foreground">Loading library…</p>
+        </div>
+      ) : !hasData ? (
         <GlassCard className="flex flex-col items-center justify-center py-14 text-center">
           <Droplets className="w-10 h-10 text-primary/20 mb-3" />
           <p className="text-sm text-muted-foreground">
             {searchResults !== null
               ? "No products found. Try a different search."
-              : `No ${category.toLowerCase()} products found. Try the search bar instead.`}
+              : localLibrary.length === 0
+                ? "Library is building. Use the search bar to find and add products."
+                : `No ${category.toLowerCase()} found in your library yet. Search for one to add it!`}
           </p>
         </GlassCard>
       ) : (
