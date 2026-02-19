@@ -8,15 +8,26 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
+export interface PrefillData {
+  imageFile: File;
+  preview: string;
+  name: string;
+  category: string;
+  color: string;
+  material: string;
+  brand: string;
+}
+
 interface AddItemSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onItemAdded: () => void;
+  prefill?: PrefillData | null;
 }
 
 const CATEGORIES = ["Tops", "Bottoms", "Shoes", "Accessories", "Outerwear"];
 
-const AddItemSheet = ({ open, onOpenChange, onItemAdded }: AddItemSheetProps) => {
+const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheetProps) => {
   const { user } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -146,6 +157,19 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded }: AddItemSheetProps) =>
       if (brandTimerRef.current) clearTimeout(brandTimerRef.current);
     };
   }, []);
+
+  // Apply prefill data from SmartCamera
+  useEffect(() => {
+    if (prefill && open) {
+      setFile(prefill.imageFile);
+      setPreview(prefill.preview);
+      setName(prefill.name);
+      setCategory(prefill.category);
+      setColor(prefill.color);
+      setMaterial(prefill.material);
+      setBrand(prefill.brand);
+    }
+  }, [prefill, open]);
 
   const handleSave = async () => {
     if (!user || !file) return;
