@@ -25,8 +25,14 @@ serve(async (req) => {
     // Fetch image as base64 for model compatibility
     const imgResp = await fetch(imageUrl);
     if (!imgResp.ok) throw new Error(`Failed to fetch image: ${imgResp.status}`);
-    const imgBuf = await imgResp.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(imgBuf)));
+    const imgBuf = new Uint8Array(await imgResp.arrayBuffer());
+    // Chunk-safe base64 encoding (spread operator crashes on large arrays)
+    let binary = "";
+    const chunkSize = 8192;
+    for (let i = 0; i < imgBuf.length; i += chunkSize) {
+      binary += String.fromCharCode(...imgBuf.subarray(i, i + chunkSize));
+    }
+    const base64 = btoa(binary);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
