@@ -1,12 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import GlassCard from "@/components/GlassCard";
-import { Plus, Library } from "lucide-react";
+import { Plus, Library, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import AddItemSheet from "@/components/wardrobe/AddItemSheet";
+import type { PrefillData } from "@/components/wardrobe/AddItemSheet";
 import GarmentDetailSheet from "@/components/wardrobe/GarmentDetailSheet";
+import SmartCamera from "@/components/wardrobe/SmartCamera";
 import type { ClosetItem, DreamItem, GarmentDisplay } from "@/types/wardrobe";
 
 const CATEGORIES = ["All", "Tops", "Bottoms", "Shoes", "Accessories", "Outerwear"];
@@ -23,6 +25,8 @@ const WardrobePage = () => {
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const [activeCategory, setActiveCategory] = useState("All");
   const [addOpen, setAddOpen] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [prefill, setPrefill] = useState<PrefillData | null>(null);
 
   // Dream state
   const [dreamItems, setDreamItems] = useState<DreamItem[]>([]);
@@ -83,9 +87,14 @@ const WardrobePage = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground font-outfit">Wardrobe</h1>
         {activeTab === "closet" ? (
-          <Button size="icon" className="rounded-xl h-10 w-10" onClick={() => setAddOpen(true)}>
-            <Plus className="w-5 h-5" />
-          </Button>
+          <div className="flex gap-2">
+            <Button size="icon" variant="outline" className="rounded-xl h-10 w-10" onClick={() => setCameraOpen(true)}>
+              <Camera className="w-5 h-5" />
+            </Button>
+            <Button size="icon" className="rounded-xl h-10 w-10" onClick={() => { setPrefill(null); setAddOpen(true); }}>
+              <Plus className="w-5 h-5" />
+            </Button>
+          </div>
         ) : (
           <Button className="rounded-xl gap-2 h-10" onClick={() => navigate("/library")}>
             <Library className="w-4 h-4" />
@@ -230,8 +239,16 @@ const WardrobePage = () => {
         </>
       )}
 
-      <AddItemSheet open={addOpen} onOpenChange={setAddOpen} onItemAdded={fetchItems} />
+      <AddItemSheet open={addOpen} onOpenChange={setAddOpen} onItemAdded={fetchItems} prefill={prefill} />
       <GarmentDetailSheet item={selectedItem} open={detailOpen} onOpenChange={setDetailOpen} onDeleted={handleRefresh} />
+      <SmartCamera
+        open={cameraOpen}
+        onOpenChange={setCameraOpen}
+        onAnalyzed={(data) => {
+          setPrefill(data);
+          setAddOpen(true);
+        }}
+      />
     </div>
   );
 };

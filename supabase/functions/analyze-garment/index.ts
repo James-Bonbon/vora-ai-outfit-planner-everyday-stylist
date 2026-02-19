@@ -1,0 +1,89 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { imageUrl } = await req.json();
+    if (!imageUrl) {
+      return new Response(JSON.stringify({ error: "imageUrl is required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const apiKey = Deno.env.get("LOVABLE_API_KEY");
+    if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
+
+    // Fetch image as base64 for model compatibility
+    const imgResp = await fetch(imageUrl);
+    if (!imgResp.ok) throw new Error(`Failed to fetch image: ${imgResp.status}`);
+    const imgBuf = await imgResp.arrayBuffer();
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(imgBuf)));
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          {
+            role: "system",
+            content: `You are a fashion expert. Analyze the clothing item in the image and return ONLY a valid JSON object with these fields:
+- "name": a short descriptive name (e.g. "Navy Polo Shirt")
+- "category": one of "Tops", "Bottoms", "Shoes", "Accessories", "Outerwear"
+- "color": the primary color (e.g. "Navy Blue")
+- "material": best guess material (e.g. "Cotton", "Polyester", "Leather", "Denim")
+- "brand": brand if visible, otherwise null
+Return ONLY valid JSON, no markdown.`,
+          },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Identify this clothing item." },
+              { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64}` } },
+            ],
+          },
+        ],
+        max_tokens: 200,
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error("AI gateway error:", response.status, errText);
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limited, try again shortly." }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      throw new Error(`AI gateway error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || "{}";
+    const clean = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    const tags = JSON.parse(clean);
+
+    return new Response(JSON.stringify(tags), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (error) {
+    console.error("analyze-garment error:", error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});

@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.seed-beauty-library]
 verify_jwt = false
+
+[functions.analyze-garment]
+verify_jwt = false
