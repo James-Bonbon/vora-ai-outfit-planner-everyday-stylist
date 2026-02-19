@@ -9,6 +9,7 @@ import AddItemSheet from "@/components/wardrobe/AddItemSheet";
 import type { PrefillData } from "@/components/wardrobe/AddItemSheet";
 import GarmentDetailSheet from "@/components/wardrobe/GarmentDetailSheet";
 import SmartCamera from "@/components/wardrobe/SmartCamera";
+import type { AnalyzedItem } from "@/components/wardrobe/SmartCamera";
 import type { ClosetItem, DreamItem, GarmentDisplay } from "@/types/wardrobe";
 
 const CATEGORIES = ["All", "Tops", "Bottoms", "Shoes", "Accessories", "Outerwear"];
@@ -27,6 +28,7 @@ const WardrobePage = () => {
   const [addOpen, setAddOpen] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [prefill, setPrefill] = useState<PrefillData | null>(null);
+  const [bulkQueue, setBulkQueue] = useState<AnalyzedItem[]>([]);
 
   // Dream state
   const [dreamItems, setDreamItems] = useState<DreamItem[]>([]);
@@ -239,14 +241,35 @@ const WardrobePage = () => {
         </>
       )}
 
-      <AddItemSheet open={addOpen} onOpenChange={setAddOpen} onItemAdded={fetchItems} prefill={prefill} />
+      <AddItemSheet
+        open={addOpen}
+        onOpenChange={(v) => {
+          setAddOpen(v);
+          if (!v && bulkQueue.length > 0) {
+            // Auto-open next item in queue
+            const [next, ...rest] = bulkQueue;
+            setPrefill(next);
+            setBulkQueue(rest);
+            setTimeout(() => setAddOpen(true), 300);
+          }
+        }}
+        onItemAdded={fetchItems}
+        prefill={prefill}
+      />
       <GarmentDetailSheet item={selectedItem} open={detailOpen} onOpenChange={setDetailOpen} onDeleted={handleRefresh} />
       <SmartCamera
         open={cameraOpen}
         onOpenChange={setCameraOpen}
-        onAnalyzed={(data) => {
-          setPrefill(data);
-          setAddOpen(true);
+        onAnalyzed={(items: AnalyzedItem[]) => {
+          if (items.length === 1) {
+            setPrefill(items[0]);
+            setAddOpen(true);
+          } else if (items.length > 1) {
+            // Open first item for review, queue rest
+            setPrefill(items[0]);
+            setBulkQueue(items.slice(1));
+            setAddOpen(true);
+          }
         }}
       />
     </div>
