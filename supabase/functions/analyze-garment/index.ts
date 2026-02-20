@@ -38,12 +38,10 @@ serve(async (req) => {
     const base64 = uint8ToBase64(imgBytes);
     const mime = imageUrl.includes(".png") ? "image/png" : "image/jpeg";
 
-    const prompt = `You are a fashion expert. Analyze the clothing item in this image and return ONLY a valid JSON object with these fields:
-- "name": a short descriptive name (e.g. "Navy Polo Shirt")
-- "category": one of "Tops", "Bottoms", "Shoes", "Accessories", "Outerwear"
-- "color": the primary color (e.g. "Navy Blue")
-- "material": best guess material (e.g. "Cotton", "Polyester", "Leather", "Denim")
-- "brand": brand if visible, otherwise null
+    const prompt = `Identify this clothing item. Return a JSON object with 'category' (one of "Tops", "Bottoms", "Shoes", "Accessories", "Outerwear"), 'color' (the primary color), 'material' (if visually obvious, else null), and 'name' (a brief description like "Navy Polo Shirt").
+
+CRUCIAL BRAND INSTRUCTION: Look closely for a brand logo, text, or neck tag in the image. If you are highly confident you recognize the brand, return it in the 'brand' field. If you cannot clearly see the brand or are unsure, you MUST return null for the 'brand' field. Do not guess or hallucinate brands.
+
 Return ONLY valid JSON, no markdown, no code fences.`;
 
     // Try models in order with appropriate params
