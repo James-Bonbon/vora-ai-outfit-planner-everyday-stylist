@@ -16,6 +16,7 @@ export interface PrefillData {
   color: string;
   material: string;
   brand: string;
+  processedImageUrl: string | null;
 }
 
 interface AddItemSheetProps {

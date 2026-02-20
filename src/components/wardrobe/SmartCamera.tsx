@@ -16,6 +16,8 @@ export interface AnalyzedItem {
   color: string;
   material: string;
   brand: string;
+  /** Public URL of the studio-processed image (background removed). Null if Photoroom was skipped. */
+  processedImageUrl: string | null;
 }
 
 interface SmartCameraProps {
@@ -94,15 +96,44 @@ const SmartCamera = ({ open, onOpenChange, onAnalyzed }: SmartCameraProps) => {
         });
         if (error) throw error;
 
-        const file = new File([blob], `capture-${i}.jpg`, { type: "image/jpeg" });
+        // If Photoroom returned a studio-processed image, use that as the final file/preview
+        let imageFile: File;
+        let finalPreview: string;
+
+        if (data?.processedImageUrl) {
+          try {
+            const processedResp = await fetch(data.processedImageUrl);
+            if (processedResp.ok) {
+              const processedBlob = await processedResp.blob();
+              imageFile = new File([processedBlob], `capture-${i}-studio.jpg`, { type: "image/jpeg" });
+              // Generate a local data-URL preview from the processed blob
+              finalPreview = await new Promise<string>((res) => {
+                const reader = new FileReader();
+                reader.onload = (e) => res(e.target?.result as string);
+                reader.readAsDataURL(processedBlob);
+              });
+            } else {
+              throw new Error("Processed image fetch failed");
+            }
+          } catch {
+            // Fallback: use the raw captured blob
+            imageFile = new File([blob], `capture-${i}.jpg`, { type: "image/jpeg" });
+            finalPreview = preview;
+          }
+        } else {
+          imageFile = new File([blob], `capture-${i}.jpg`, { type: "image/jpeg" });
+          finalPreview = preview;
+        }
+
         results.push({
-          imageFile: file,
-          preview,
+          imageFile,
+          preview: finalPreview,
           name: data?.name || "",
           category: data?.category || "",
           color: data?.color || "",
           material: data?.material || "",
           brand: data?.brand || "",
+          processedImageUrl: data?.processedImageUrl ?? null,
         });
       }
 
