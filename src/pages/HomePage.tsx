@@ -1,12 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import GlassCard from "@/components/GlassCard";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Sparkles, DoorOpen, Heart, ArrowRight, ExternalLink, HeartPulse, Sun, Cloud, Snowflake } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import heroDefault from "@/assets/hero-stylist.jpg";
-import heroWarm from "@/assets/hero-warm.jpg";
-import heroCool from "@/assets/hero-cool.jpg";
 
 const FASHION_QUOTES = [
   { quote: "Fashion is the armor to survive the reality of everyday life.", author: "Bill Cunningham" },
@@ -78,9 +76,9 @@ function getDailyItems<T>(items: T[], count: number): T[] {
 type Weather = "warm" | "cool" | "neutral";
 
 const HERO_IMAGES: Record<Weather, string> = {
-  warm: heroWarm,
-  cool: heroCool,
-  neutral: heroDefault,
+  warm: "https://images.unsplash.com/photo-1523359346063-d879354c0ea5?w=800&h=600&fit=crop&q=80",
+  cool: "https://images.unsplash.com/photo-1544022613-e87ca75a784a?w=800&h=600&fit=crop&q=80",
+  neutral: "https://images.unsplash.com/photo-1487222477894-8943e31ef7b2?w=800&h=600&fit=crop&q=80",
 };
 
 const WEATHER_LABELS: Record<Weather, { icon: typeof Sun; text: string }> = {
@@ -95,16 +93,24 @@ const HomePage = () => {
   const [closetCount, setClosetCount] = useState(0);
   const [dailyQuote, setDailyQuote] = useState(FASHION_QUOTES[0]);
   const [userSex, setUserSex] = useState<string | null>(null);
-  const [weather, setWeather] = useState<Weather>("neutral");
+
+  // Sync weather from sessionStorage to avoid flicker
+  const cachedWeather = sessionStorage.getItem("vora_weather") as Weather | null;
+  const [weather, setWeather] = useState<Weather>(cachedWeather || "neutral");
+  const [isLoadingWeather, setIsLoadingWeather] = useState(!cachedWeather);
 
   useEffect(() => {
     const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
     setDailyQuote(FASHION_QUOTES[dayOfYear % FASHION_QUOTES.length]);
   }, []);
 
-  // Weather detection
+  // Weather detection with sessionStorage caching
   useEffect(() => {
-    if (!navigator.geolocation) return;
+    if (cachedWeather) return; // Already have cached result
+    if (!navigator.geolocation) {
+      setIsLoadingWeather(false);
+      return;
+    }
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
@@ -115,16 +121,20 @@ const HomePage = () => {
           const data = await res.json();
           const temp = data?.current_weather?.temperature;
           if (typeof temp === "number") {
-            if (temp > 20) setWeather("warm");
-            else if (temp < 15) setWeather("cool");
-            else setWeather("neutral");
+            let w: Weather = "neutral";
+            if (temp > 20) w = "warm";
+            else if (temp < 15) w = "cool";
+            setWeather(w);
+            sessionStorage.setItem("vora_weather", w);
           }
         } catch {
           // fallback to neutral
+        } finally {
+          setIsLoadingWeather(false);
         }
       },
       () => {
-        // geolocation denied — stay neutral
+        setIsLoadingWeather(false);
       },
       { timeout: 5000 }
     );
@@ -161,41 +171,45 @@ const HomePage = () => {
   return (
     <div className="pt-6 space-y-5 pb-4">
       {/* ===== HERO: AI Stylist Card ===== */}
-      <GlassCard
-        className="relative p-0 overflow-hidden rounded-2xl"
-        glowOnHover
-        onClick={() => navigate("/mirror")}
-      >
-        <div className="relative h-[280px]">
-          <img
-            src={HERO_IMAGES[weather]}
-            alt="AI Stylist"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+      {isLoadingWeather ? (
+        <Skeleton className="h-[280px] rounded-2xl" />
+      ) : (
+        <GlassCard
+          className="relative p-0 overflow-hidden rounded-2xl"
+          glowOnHover
+          onClick={() => navigate("/mirror")}
+        >
+          <div className="relative h-[280px]">
+            <img
+              src={HERO_IMAGES[weather]}
+              alt="AI Stylist"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
 
-          {/* Badge */}
-          <span className="absolute top-4 left-4 px-3 py-1 rounded-full bg-primary text-primary-foreground text-xs font-semibold uppercase tracking-wide">
-            AI Stylist
-          </span>
+            {/* Badge */}
+            <span className="absolute top-4 left-4 px-3 py-1 rounded-full bg-primary text-primary-foreground text-xs font-semibold uppercase tracking-wide">
+              AI Stylist
+            </span>
 
-          {/* Weather pill */}
-          <div className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-md">
-            <WeatherIcon className="w-4 h-4 text-white" />
-            <span className="text-xs font-medium text-white">{WEATHER_LABELS[weather].text}</span>
+            {/* Weather pill */}
+            <div className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-md">
+              <WeatherIcon className="w-4 h-4 text-white" />
+              <span className="text-xs font-medium text-white">{WEATHER_LABELS[weather].text}</span>
+            </div>
+
+            {/* Text overlay */}
+            <div className="absolute bottom-0 left-0 right-0 p-5">
+              <h2 className="text-3xl font-extrabold text-white font-outfit leading-tight">
+                Plan My<br />Outfit
+              </h2>
+              <p className="text-sm text-white/80 mt-1.5 flex items-center gap-1">
+                Get a fit check instantly <ArrowRight className="w-4 h-4" />
+              </p>
+            </div>
           </div>
-
-          {/* Text overlay */}
-          <div className="absolute bottom-0 left-0 right-0 p-5">
-            <h2 className="text-3xl font-extrabold text-white font-outfit leading-tight">
-              Plan My<br />Outfit
-            </h2>
-            <p className="text-sm text-white/80 mt-1.5 flex items-center gap-1">
-              Get a fit check instantly <ArrowRight className="w-4 h-4" />
-            </p>
-          </div>
-        </div>
-      </GlassCard>
+        </GlassCard>
+      )}
 
       {/* ===== Quick Access Cards ===== */}
       <div className="grid grid-cols-2 gap-3">
