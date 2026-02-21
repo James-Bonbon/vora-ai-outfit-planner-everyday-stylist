@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import SafeImage from "@/components/ui/SafeImage";
 import GlassCard from "@/components/GlassCard";
 import { User, Settings, Crown, LogOut, Pencil, X, Check, Ruler, Weight, Calendar, Users, Camera, Database, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -192,9 +193,9 @@ const ProfilePage = () => {
       <GlassCard className="flex items-center gap-4 p-5">
         <div className="relative">
           {(editing && editSelfiePreview) ? (
-            <img src={editSelfiePreview} alt="New selfie" className="w-16 h-16 rounded-full object-cover border-2 border-primary/20" />
+            <SafeImage src={editSelfiePreview} alt="New selfie" aspectRatio="" wrapperClassName="w-16 h-16 rounded-full border-2 border-primary/20" skeletonClassName="rounded-full" />
           ) : avatarUrl ? (
-            <img src={avatarUrl} alt="Avatar" className="w-16 h-16 rounded-full object-cover border-2 border-primary/20" />
+            <SafeImage src={avatarUrl} alt="Avatar" aspectRatio="" wrapperClassName="w-16 h-16 rounded-full border-2 border-primary/20" skeletonClassName="rounded-full" />
           ) : (
             <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
               <User className="w-8 h-8 text-muted-foreground" />

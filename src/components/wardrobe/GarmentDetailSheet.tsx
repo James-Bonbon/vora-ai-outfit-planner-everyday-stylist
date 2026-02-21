@@ -1,5 +1,6 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import SafeImage from "@/components/ui/SafeImage";
 import { Trash2, Droplets, SprayCan, Loader2, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -161,9 +162,7 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
 
         <div className="space-y-4 mt-4 pb-6">
           {imageUrl && (
-            <div className="w-full aspect-square rounded-2xl overflow-hidden bg-card">
-              <img src={imageUrl} alt={item.name || "Garment"} className="w-full h-full object-cover" />
-            </div>
+            <SafeImage src={imageUrl} alt={item.name || "Garment"} wrapperClassName="w-full rounded-2xl bg-card" skeletonClassName="rounded-2xl" />
           )}
 
           <div className="bg-card rounded-2xl px-4">

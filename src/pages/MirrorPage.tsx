@@ -1,5 +1,6 @@
 import { useState } from "react";
 import GlassCard from "@/components/GlassCard";
+import SafeImage from "@/components/ui/SafeImage";
 import { Sparkles, Check, Image, Loader2, AlertTriangle, Save, Trash2, GalleryHorizontalEnd } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
@@ -156,13 +157,13 @@ const MirrorPage = () => {
           {selectedLook ? (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
               <GlassCard className="p-0 overflow-hidden">
-                {lookUrls[selectedLook.id] ? (
-                  <img src={lookUrls[selectedLook.id]} alt="Saved look" className="w-full rounded-2xl" />
-                ) : (
-                  <div className="aspect-square flex items-center justify-center">
-                    <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
-                  </div>
-                )}
+                <SafeImage
+                  src={lookUrls[selectedLook.id]}
+                  alt="Saved look"
+                  aspectRatio="aspect-auto"
+                  wrapperClassName="w-full rounded-2xl"
+                  skeletonClassName="rounded-2xl"
+                />
               </GlassCard>
               <div className="flex items-center justify-between mt-3">
                 <div>
@@ -230,13 +231,13 @@ const MirrorPage = () => {
                   onClick={() => setSelectedLook(look)}
                 >
                   <div className="aspect-[3/4] bg-card">
-                    {lookUrls[look.id] ? (
-                      <img src={lookUrls[look.id]} alt="Saved look" className="w-full h-full object-cover" loading="lazy" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />
-                      </div>
-                    )}
+                    <SafeImage
+                      src={lookUrls[look.id]}
+                      alt="Saved look"
+                      wrapperClassName="w-full h-full"
+                      aspectRatio=""
+                      loading="lazy"
+                    />
                   </div>
                   <div className="p-2.5">
                     {look.occasion && (
@@ -279,7 +280,7 @@ const MirrorPage = () => {
             ) : tryOnMutation.data?.image ? (
               <motion.div key="result" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
                 <GlassCard className="p-0 overflow-hidden">
-                  <img src={tryOnMutation.data.image} alt="Virtual try-on result" className="w-full rounded-2xl" />
+                  <SafeImage src={tryOnMutation.data.image} alt="Virtual try-on result" aspectRatio="aspect-auto" wrapperClassName="w-full rounded-2xl" skeletonClassName="rounded-2xl" />
                 </GlassCard>
                 <div className="flex gap-2 mt-3">
                   <Button
@@ -364,13 +365,13 @@ const MirrorPage = () => {
                       }`}
                     >
                       <div className="aspect-square bg-card">
-                        {imageUrls[item.id] ? (
-                          <img src={imageUrls[item.id]} alt={item.name || "Garment"} className="w-full h-full object-cover" loading="lazy" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-muted">
-                            <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
-                          </div>
-                        )}
+                        <SafeImage
+                          src={imageUrls[item.id]}
+                          alt={item.name || "Garment"}
+                          wrapperClassName="w-full h-full"
+                          aspectRatio=""
+                          loading="lazy"
+                        />
                       </div>
                       {isSelected && (
                         <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
