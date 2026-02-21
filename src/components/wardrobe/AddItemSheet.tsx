@@ -16,7 +16,7 @@ export interface PrefillData {
   color: string;
   material: string;
   brand: string;
-  processedImageUrl: string | null;
+  hasTransparentBg?: boolean;
 }
 
 interface AddItemSheetProps {
@@ -220,8 +220,13 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
         <div className="space-y-5 mt-4 pb-6">
           {/* Photo Upload */}
           {preview ? (
-            <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-card">
-              <img src={preview} alt="Item preview" className="w-full h-full object-cover" />
+            <div className={`relative w-full aspect-square rounded-2xl overflow-hidden ${prefill?.hasTransparentBg ? "bg-[#F4F4F4] p-[12%]" : "bg-card"}`}>
+              <img
+                src={preview}
+                alt="Item preview"
+                className={`w-full h-full ${prefill?.hasTransparentBg ? "object-contain" : "object-cover"}`}
+                style={prefill?.hasTransparentBg ? { filter: "drop-shadow(0px 10px 15px rgba(0,0,0,0.1))" } : undefined}
+              />
               {tagging && (
                 <div className="absolute inset-0 bg-background/60 flex flex-col items-center justify-center gap-2">
                   <Loader2 className="w-8 h-8 text-primary animate-spin" />

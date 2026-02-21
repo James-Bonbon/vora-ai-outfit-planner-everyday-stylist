@@ -163,12 +163,14 @@ const WardrobePage = () => {
                     setDetailOpen(true);
                   }}
                 >
-                  <div className="aspect-square bg-card">
+                  <div className="aspect-square bg-[#F4F4F4] p-[12%] flex items-center justify-center">
                     <SafeImage
                       src={imageUrls[item.id]}
                       alt={item.name || "Garment"}
                       wrapperClassName="w-full h-full"
                       aspectRatio=""
+                      fit="contain"
+                      className="drop-shadow-[0px_10px_15px_rgba(0,0,0,0.1)]"
                       loading="lazy"
                     />
                   </div>
