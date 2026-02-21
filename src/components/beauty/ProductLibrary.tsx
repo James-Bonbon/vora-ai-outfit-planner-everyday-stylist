@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import GlassCard from "@/components/GlassCard";
+import SafeImage from "@/components/ui/SafeImage";
 import { Search, Loader2, Star, Plus, Droplets, ExternalLink, FlaskConical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -299,10 +300,13 @@ const ProductLibrary = ({ onAddToShelf, addingProduct }: ProductLibraryProps) =>
                 {/* Image */}
                 <div className={`bg-card relative flex items-center justify-center ${isExpanded(product.id) ? "h-40" : "aspect-square"}`}>
                   {!imgErrors.has(product.id) && product.image_url ? (
-                    <img
+                    <SafeImage
                       src={product.image_url}
                       alt={product.name}
-                      className="max-h-full max-w-full object-contain p-2"
+                      fit="contain"
+                      aspectRatio=""
+                      wrapperClassName="w-full h-full"
+                      className="p-2"
                       loading="lazy"
                       onError={() => handleImgError(product.id)}
                     />

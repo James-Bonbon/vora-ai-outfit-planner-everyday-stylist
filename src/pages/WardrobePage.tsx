@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import GlassCard from "@/components/GlassCard";
+import SafeImage from "@/components/ui/SafeImage";
 import { Plus, Library, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -163,18 +164,13 @@ const WardrobePage = () => {
                   }}
                 >
                   <div className="aspect-square bg-card">
-                    {imageUrls[item.id] ? (
-                      <img
-                        src={imageUrls[item.id]}
-                        alt={item.name || "Garment"}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                      </div>
-                    )}
+                    <SafeImage
+                      src={imageUrls[item.id]}
+                      alt={item.name || "Garment"}
+                      wrapperClassName="w-full h-full"
+                      aspectRatio=""
+                      loading="lazy"
+                    />
                   </div>
                   <div className="p-3">
                     <p className="text-sm font-medium text-foreground truncate">{item.name || "Unnamed"}</p>
@@ -218,10 +214,11 @@ const WardrobePage = () => {
                   }}
                 >
                   <div className="aspect-square bg-card">
-                    <img
+                    <SafeImage
                       src={item.image_url}
                       alt={item.name || "Dream item"}
-                      className="w-full h-full object-cover"
+                      wrapperClassName="w-full h-full"
+                      aspectRatio=""
                       loading="lazy"
                     />
                   </div>

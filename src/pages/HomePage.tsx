@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import GlassCard from "@/components/GlassCard";
+import SafeImage from "@/components/ui/SafeImage";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sparkles, DoorOpen, Heart, ArrowRight, ExternalLink, HeartPulse, Sun, Cloud, Snowflake } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -180,10 +181,11 @@ const HomePage = () => {
           onClick={() => navigate("/mirror")}
         >
           <div className="relative h-[280px]">
-            <img
+            <SafeImage
               src={HERO_IMAGES[weather]}
               alt="AI Stylist"
-              className="w-full h-full object-cover"
+              aspectRatio=""
+              wrapperClassName="w-full h-full"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
 
@@ -269,10 +271,11 @@ const HomePage = () => {
             >
               <GlassCard className="p-0 overflow-hidden">
                 <div className="aspect-[3/4] bg-muted relative">
-                  <img
+                  <SafeImage
                     src={item.image}
                     alt={item.name}
-                    className="w-full h-full object-cover"
+                    aspectRatio=""
+                    wrapperClassName="w-full h-full"
                     loading="lazy"
                   />
                   <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">

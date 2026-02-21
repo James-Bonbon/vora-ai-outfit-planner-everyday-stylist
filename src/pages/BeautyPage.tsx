@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import SafeImage from "@/components/ui/SafeImage";
 import GlassCard from "@/components/GlassCard";
 import {
   HeartPulse,
@@ -338,18 +339,13 @@ const BeautyPage = () => {
               }}
             >
               <div className="aspect-square bg-card">
-                {imageUrls[product.id] ? (
-                  <img
-                    src={imageUrls[product.id]}
-                    alt={product.name || "Product"}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                  </div>
-                )}
+                <SafeImage
+                  src={imageUrls[product.id]}
+                  alt={product.name || "Product"}
+                  wrapperClassName="w-full h-full"
+                  aspectRatio=""
+                  loading="lazy"
+                />
               </div>
               <div className="p-3">
                 <p className="text-sm font-medium text-foreground truncate">{product.name || "Unknown"}</p>
