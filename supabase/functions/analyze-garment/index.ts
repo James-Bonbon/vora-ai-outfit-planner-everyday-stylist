@@ -14,52 +14,65 @@ function uint8ToBase64(bytes: Uint8Array): string {
 }
 
 /**
- * Calls Photoroom API to remove background and generate a studio flat-lay look.
- * Returns the processed image as a Uint8Array, or null if processing fails.
+ * Uses Gemini image generation to redraw a garment as a clean studio flat-lay.
+ * Returns the processed image as a Uint8Array, or null if generation fails.
  */
-async function applyStudioBackground(rawImageUrl: string): Promise<Uint8Array | null> {
-  const photoroomKey = Deno.env.get("PHOTOROOM_API_KEY");
-  if (!photoroomKey) {
-    console.log("PHOTOROOM_API_KEY not set — skipping background removal.");
-    return null;
-  }
-
+async function generateStudioFlatLay(rawImageUrl: string, apiKey: string): Promise<Uint8Array | null> {
   try {
-    // Fetch the raw image
+    // Fetch raw image and convert to base64
     const imgResp = await fetch(rawImageUrl, { signal: AbortSignal.timeout(15_000) });
     if (!imgResp.ok) throw new Error(`Failed to fetch raw image: ${imgResp.status}`);
-    const imgBlob = await imgResp.blob();
+    const imgBytes = new Uint8Array(await imgResp.arrayBuffer());
+    const base64 = uint8ToBase64(imgBytes);
+    const mime = rawImageUrl.includes(".png") ? "image/png" : "image/jpeg";
 
-    // Build multipart/form-data for Photoroom v2 Edit API
-    const form = new FormData();
-    form.append("imageFile", imgBlob, "garment.jpg");
-    // Background: solid off-white studio color
-    form.append("background.color", "#F4F4F4");
-    // Padding: 12% on all sides so garment doesn't touch the frame
-    form.append("padding", "0.12");
-    // Realistic soft drop-shadow for 3D depth
-    form.append("shadow.mode", "ai.soft");
-    // Square output for consistent wardrobe grid display
-    form.append("outputSize", "800x800");
-
-    const prResp = await fetch("https://image-api.photoroom.com/v2/edit", {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
-      headers: { "x-api-key": photoroomKey },
-      body: form,
-      signal: AbortSignal.timeout(25_000),
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-pro-image-preview",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "You are a professional e-commerce fashion retoucher. I am providing a photo of a clothing item (it may be crumpled or on a messy background). Redraw this exact item as a flawless, perfectly flat-lay studio packshot. Remove all wrinkles, folds, and messy backgrounds. Place the item perfectly centered on a solid light grey background (Hex #F4F4F4). Preserve the exact colors, brand logos, collar shape, and patterns of the original garment as accurately as possible. Output ONLY the image, no text, no watermarks.",
+              },
+              {
+                type: "image_url",
+                image_url: { url: `data:${mime};base64,${base64}` },
+              },
+            ],
+          },
+        ],
+        modalities: ["image", "text"],
+      }),
+      signal: AbortSignal.timeout(60_000),
     });
 
-    if (!prResp.ok) {
-      const errText = await prResp.text();
-      console.error(`Photoroom API error ${prResp.status}:`, errText);
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(`AI studio flat-lay error ${response.status}:`, errText);
       return null;
     }
 
-    const processedBytes = new Uint8Array(await prResp.arrayBuffer());
-    console.log(`Photoroom processed image: ${processedBytes.length} bytes`);
+    const data = await response.json();
+    const imageBase64 = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    if (!imageBase64) {
+      console.error("AI studio flat-lay returned no image");
+      return null;
+    }
+
+    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+    const processedBytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+    console.log(`AI studio flat-lay processed image: ${processedBytes.length} bytes`);
     return processedBytes;
   } catch (e) {
-    console.error("Photoroom processing failed (fallback to raw):", e);
+    console.error("AI studio flat-lay failed (fallback to raw):", e);
     return null;
   }
 }
@@ -114,17 +127,17 @@ serve(async (req) => {
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
 
-    // ── Step 1: Studio background removal via Photoroom ──────────────────────
-    let analysisImageUrl = imageUrl; // fallback to raw if Photoroom fails
+    // ── Step 1: AI Studio Flat-Lay via Gemini Image Generation ─────────────
+    let analysisImageUrl = imageUrl; // fallback to raw if AI flat-lay fails
     let processedImageUrl: string | null = null;
 
-    const processedBytes = await applyStudioBackground(imageUrl);
+    const processedBytes = await generateStudioFlatLay(imageUrl, apiKey);
     if (processedBytes) {
       const uploadedUrl = await uploadProcessedImage(processedBytes);
       if (uploadedUrl) {
         processedImageUrl = uploadedUrl;
         analysisImageUrl = uploadedUrl; // AI analyses the clean studio image
-        console.log("Using processed studio image for AI analysis.");
+        console.log("Using AI-generated studio flat-lay for analysis.");
       }
     }
 
