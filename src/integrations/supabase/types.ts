@@ -278,6 +278,39 @@ export type Database = {
         }
         Relationships: []
       }
+      trending_clothes: {
+        Row: {
+          brand: string | null
+          category: string | null
+          created_at: string
+          id: string
+          image_url: string | null
+          price: string | null
+          product_link: string | null
+          title: string
+        }
+        Insert: {
+          brand?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          price?: string | null
+          product_link?: string | null
+          title: string
+        }
+        Update: {
+          brand?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          price?: string | null
+          product_link?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

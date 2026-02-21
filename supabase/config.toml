@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.analyze-garment]
 verify_jwt = false
+
+[functions.update-trending-feed]
+verify_jwt = false
