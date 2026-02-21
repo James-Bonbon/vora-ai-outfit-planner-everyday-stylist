@@ -7,7 +7,9 @@ import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { removeBackground } from "@imgly/background-removal";
+// Lazy-loaded to avoid WASM pre-bundling timeout
+const loadRemoveBackground = () =>
+  import("@imgly/background-removal").then((m) => m.removeBackground);
 
 export interface AnalyzedItem {
   imageFile: File;
@@ -85,6 +87,7 @@ const SmartCamera = ({ open, onOpenChange, onAnalyzed }: SmartCameraProps) => {
         let processedBlob: Blob;
         let hasTransparentBg = false;
         try {
+          const removeBackground = await loadRemoveBackground();
           processedBlob = await removeBackground(blob);
           hasTransparentBg = true;
         } catch (e) {
