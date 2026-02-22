@@ -87,7 +87,7 @@ const WardrobePage = () => {
   return (
     <div className="pt-6 space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between h-10">
         <h1 className="text-2xl font-bold text-foreground font-outfit">Wardrobe</h1>
         {activeTab === "closet" ? (
           <div className="flex gap-2">

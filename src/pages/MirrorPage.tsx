@@ -107,7 +107,7 @@ const MirrorPage = () => {
   if (!hasItems && tab === "tryon") {
     return (
       <div className="pt-6 space-y-5">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between h-10">
           <h1 className="text-2xl font-bold text-foreground font-outfit">AI Stylist</h1>
         </div>
         <GlassCard className="flex flex-col items-center justify-center py-20 text-center">
@@ -125,7 +125,7 @@ const MirrorPage = () => {
 
   return (
     <div className="pt-6 space-y-5 pb-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between h-10">
         <h1 className="text-2xl font-bold text-foreground font-outfit">AI Stylist</h1>
       </div>
 

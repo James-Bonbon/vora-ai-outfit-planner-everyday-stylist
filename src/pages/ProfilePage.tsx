@@ -174,7 +174,7 @@ const ProfilePage = () => {
 
   return (
     <div className="pt-6 space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between h-10">
         <h1 className="text-2xl font-bold text-foreground font-outfit">Profile</h1>
         {!editing ? (
           <Button variant="ghost" size="sm" onClick={startEditing} className="text-primary">
