@@ -254,7 +254,7 @@ const BeautyPage = () => {
 
   return (
     <div className="pt-6 space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between h-10">
         <h1 className="text-2xl font-bold text-foreground font-outfit">Beauty</h1>
         {tab === "shelf" && (
           <Button size="icon" className="rounded-xl h-10 w-10" onClick={() => setAddOpen(true)}>
