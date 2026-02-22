@@ -67,6 +67,9 @@ const LibraryPage = () => {
   const filteredItems = useMemo(() => {
     let result = items;
 
+    // Filter out items with missing images
+    result = result.filter((item) => item.image_url && item.image_url.trim() !== "");
+
     if (activeCategory !== "All") {
       result = result.filter((item) => item.category === activeCategory);
     }

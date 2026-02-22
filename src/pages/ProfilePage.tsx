@@ -51,6 +51,7 @@ const ProfilePage = () => {
   const [editSex, setEditSex] = useState("");
   const [editHeight, setEditHeight] = useState("");
   const [editWeight, setEditWeight] = useState("");
+  const [editBodyShape, setEditBodyShape] = useState("");
   const [saving, setSaving] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const fetchProfile = useCallback(async () => {
@@ -98,6 +99,7 @@ const ProfilePage = () => {
     setEditSex(profile?.sex || "");
     setEditHeight(profile?.height_cm?.toString() || "");
     setEditWeight(profile?.weight_kg?.toString() || "");
+    setEditBodyShape(profile?.body_shape || "");
     setEditing(true);
   };
 
@@ -146,6 +148,7 @@ const ProfilePage = () => {
           height_cm: editHeight ? Number(editHeight) : null,
           weight_kg: editWeight ? Number(editWeight) : null,
           selfie_url: selfiePath,
+          body_shape: editBodyShape || null,
         })
         .eq("user_id", user.id);
       if (error) throw error;
@@ -233,7 +236,7 @@ const ProfilePage = () => {
             <div>
               <Label className="text-xs text-muted-foreground">Sex</Label>
               <div className="flex gap-2 mt-1">
-                {["Female", "Male", "Other"].map((s) => (
+                {["Female", "Male"].map((s) => (
                   <button
                     key={s}
                     onClick={() => setEditSex(s.toLowerCase())}
@@ -244,6 +247,24 @@ const ProfilePage = () => {
                     }`}
                   >
                     {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Body Shape</Label>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {Object.entries(BODY_SHAPE_LABELS).map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => setEditBodyShape(key)}
+                    className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
+                      editBodyShape === key
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-card text-foreground border border-border"
+                    }`}
+                  >
+                    {label}
                   </button>
                 ))}
               </div>
