@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
-import { ArrowLeft, Heart, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, Heart, Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { SafeImage } from "@/components/ui/SafeImage";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
 
 interface TrendingItem {
   id: string;
@@ -17,6 +19,8 @@ interface TrendingItem {
   category: string | null;
 }
 
+const CATEGORIES = ["All", "Tops", "Bottoms", "Outerwear", "Shoes"] as const;
+
 const LibraryPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -25,6 +29,8 @@ const LibraryPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [dreamIds, setDreamIds] = useState<Set<string>>(new Set());
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string>("All");
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const fetchItems = async () => {
@@ -58,6 +64,25 @@ const LibraryPage = () => {
     loadDreamItems();
   }, [user]);
 
+  const filteredItems = useMemo(() => {
+    let result = items;
+
+    if (activeCategory !== "All") {
+      result = result.filter((item) => item.category === activeCategory);
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (item) =>
+          item.title.toLowerCase().includes(q) ||
+          (item.brand && item.brand.toLowerCase().includes(q))
+      );
+    }
+
+    return result;
+  }, [items, activeCategory, searchQuery]);
+
   const toggleDream = async (item: TrendingItem) => {
     if (!user) return;
     const isDreamed = dreamIds.has(item.id);
@@ -90,7 +115,8 @@ const LibraryPage = () => {
   };
 
   return (
-    <div className="pt-6 space-y-5 pb-24">
+    <div className="pt-6 space-y-4 pb-24">
+      {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" className="rounded-xl" onClick={() => navigate(-1)}>
           <ArrowLeft className="w-5 h-5" />
@@ -98,6 +124,36 @@ const LibraryPage = () => {
         <h1 className="text-2xl font-bold text-foreground font-outfit">Trending Now</h1>
       </div>
 
+      {/* Search Bar */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Search by name or brand…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9 rounded-xl bg-card border-border/50"
+        />
+      </div>
+
+      {/* Category Tabs */}
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none -mx-1 px-1">
+        {CATEGORIES.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setActiveCategory(cat)}
+            className={cn(
+              "shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors",
+              activeCategory === cat
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+            )}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
       {isLoading && (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -110,15 +166,19 @@ const LibraryPage = () => {
         </div>
       )}
 
-      {!isLoading && !error && items.length === 0 && (
+      {!isLoading && !error && filteredItems.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <p className="text-muted-foreground text-sm">No trending items yet. Check back soon!</p>
+          <p className="text-muted-foreground text-sm">
+            {searchQuery || activeCategory !== "All"
+              ? "No items match your filters."
+              : "No trending items yet. Check back soon!"}
+          </p>
         </div>
       )}
 
-      {!isLoading && !error && items.length > 0 && (
+      {!isLoading && !error && filteredItems.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {items.map((item) => {
+          {filteredItems.map((item) => {
             const isDreamed = dreamIds.has(item.id);
             return (
               <div

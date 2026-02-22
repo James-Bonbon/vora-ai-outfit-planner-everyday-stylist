@@ -7,6 +7,48 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+interface QueryConfig {
+  q: string;
+  category: string;
+}
+
+const QUERIES: QueryConfig[] = [
+  { q: "trending UK tops", category: "Tops" },
+  { q: "trending UK trousers and skirts", category: "Bottoms" },
+  { q: "trending UK jackets and coats", category: "Outerwear" },
+  { q: "trending UK shoes", category: "Shoes" },
+];
+
+async function fetchCategory(apiKey: string, config: QueryConfig) {
+  const params = new URLSearchParams({
+    engine: "google_shopping",
+    q: config.q,
+    gl: "uk",
+    hl: "en",
+    currency: "GBP",
+    api_key: apiKey,
+    num: "50",
+  });
+
+  const response = await fetch(`https://serpapi.com/search.json?${params.toString()}`);
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`SerpApi error for "${config.q}": ${response.status} – ${text}`);
+  }
+
+  const data = await response.json();
+  const results = data.shopping_results || [];
+
+  return results.slice(0, 50).map((item: any) => ({
+    title: item.title || "Unknown",
+    brand: item.source || null,
+    price: item.extracted_price ? `£${item.extracted_price.toFixed(2)}` : item.price || "",
+    image_url: item.thumbnail || "",
+    product_link: item.link || "",
+    category: config.category,
+  }));
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -20,35 +62,14 @@ serve(async (req) => {
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Fetch from SerpApi Google Shopping
-    const params = new URLSearchParams({
-      engine: "google_shopping",
-      q: "trending clothing",
-      gl: "uk",
-      hl: "en",
-      currency: "GBP",
-      api_key: SERPAPI_KEY,
-      num: "48",
-    });
+    console.log("Fetching 4 categories in parallel from SerpApi...");
 
-    console.log("Fetching trending clothes from SerpApi...");
-    const response = await fetch(`https://serpapi.com/search.json?${params.toString()}`);
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`SerpApi error ${response.status}: ${text}`);
-    }
+    const allResults = await Promise.all(
+      QUERIES.map((config) => fetchCategory(SERPAPI_KEY, config))
+    );
 
-    const data = await response.json();
-    const results = data.shopping_results || [];
-
-    const items = results.slice(0, 48).map((item: any) => ({
-      title: item.title || "Unknown",
-      brand: item.source || null,
-      price: item.extracted_price ? `£${item.extracted_price.toFixed(2)}` : item.price || "",
-      image_url: item.thumbnail || "",
-      product_link: item.link || "",
-      category: "Trending",
-    }));
+    const items = allResults.flat();
+    console.log(`Fetched ${items.length} total items across ${QUERIES.length} categories`);
 
     // Clear old data and insert fresh
     await sb.from("trending_clothes").delete().neq("id", "00000000-0000-0000-0000-000000000000");
