@@ -118,7 +118,7 @@ const LibraryPage = () => {
   };
 
   return (
-    <div className="pt-6 space-y-4 pb-24">
+    <div className="pt-6 space-y-5 pb-24">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" className="rounded-xl" onClick={() => navigate(-1)}>
