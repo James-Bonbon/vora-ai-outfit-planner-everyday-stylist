@@ -322,13 +322,13 @@ const ProfilePage = () => {
       </GlassCard>
 
       {/* Pro Card */}
-      <GlassCard className="p-5" glowOnHover>
+      <GlassCard className="p-5 cursor-pointer" glowOnHover onClick={() => navigate("/subscription")}>
         <div className="flex items-center gap-3 mb-3">
           <Crown className="w-5 h-5 text-primary" />
-          <h3 className="font-bold text-primary text-sm">VORA Pro — Active</h3>
+          <h3 className="font-bold text-primary text-sm">VORA Pro</h3>
         </div>
         <p className="text-xs text-muted-foreground">
-          AI try-ons, garment care guides, and unlimited storage are unlocked.
+          Unlock unlimited AI try-ons, advanced styling, and more.
         </p>
       </GlassCard>
 
@@ -364,7 +364,7 @@ const ProfilePage = () => {
 
       {/* Menu */}
       <div className="space-y-2">
-        <GlassCard className="flex items-center gap-3 p-4 cursor-pointer">
+        <GlassCard className="flex items-center gap-3 p-4 cursor-pointer" onClick={() => navigate("/settings")}>
           <Settings className="w-5 h-5 text-muted-foreground" />
           <span className="text-sm font-medium text-foreground">Settings</span>
         </GlassCard>

@@ -74,8 +74,8 @@ const Landing = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.15, duration: 0.5 }}
-          className="font-inter text-center"
-          style={{ fontWeight: 500, fontSize: 18, lineHeight: "26px", color: "rgba(45,45,45,0.70)", marginTop: 10, marginBottom: 20 }}
+          className="font-inter text-center text-muted-foreground"
+          style={{ fontWeight: 500, fontSize: 18, lineHeight: "26px", marginTop: 10, marginBottom: 20 }}
         >
           AI Outfit Planner &amp; Everyday Stylist
         </motion.p>
@@ -92,12 +92,12 @@ const Landing = () => {
             style={{ boxShadow: "0px 18px 60px rgba(0,0,0,0.08)" }}
           >
             <h3
-              className="font-inter text-left"
-              style={{ fontWeight: 600, fontSize: 18, color: "rgba(45,45,45,0.75)" }}
+              className="font-inter text-left text-muted-foreground"
+              style={{ fontWeight: 600, fontSize: 18 }}
             >
               Today's Outfit
             </h3>
-            <div className="mt-4 mb-[18px]" style={{ height: 1, background: "rgba(45,45,45,0.10)" }} />
+            <div className="mt-4 mb-[18px]" style={{ height: 1, background: "hsl(var(--border))" }} />
 
             <div className="flex items-center gap-4">
               <div className="w-[55%] flex-shrink-0">
@@ -110,8 +110,8 @@ const Landing = () => {
               </div>
               <div className="flex flex-col gap-3 items-start">
                 <span
-                  className="font-inter"
-                  style={{ fontWeight: 500, fontSize: 16, color: "rgba(45,45,45,0.70)" }}
+                  className="font-inter text-muted-foreground"
+                  style={{ fontWeight: 500, fontSize: 16 }}
                 >
                   Casual &amp; Chic
                 </span>
@@ -141,8 +141,8 @@ const Landing = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.35, duration: 0.5 }}
-          className="font-inter text-center"
-          style={{ fontWeight: 500, fontSize: 16, color: "rgba(45,45,45,0.75)", marginTop: 18, marginBottom: 14 }}
+          className="font-inter text-center text-muted-foreground"
+          style={{ fontWeight: 500, fontSize: 16, marginTop: 18, marginBottom: 14 }}
         >
           Get outfit ideas from your wardrobe.
         </motion.p>
@@ -160,7 +160,7 @@ const Landing = () => {
               onClick={() => setAgreed(!agreed)}
               className="flex-shrink-0 w-[28px] h-[28px] rounded-full border-2 flex items-center justify-center mt-0.5 transition-colors"
               style={{
-                borderColor: agreed ? "hsl(var(--primary))" : "rgba(45,45,45,0.25)",
+                borderColor: agreed ? "hsl(var(--primary))" : "hsl(var(--border))",
                 background: agreed ? "hsl(var(--primary))" : "transparent",
               }}
             >
@@ -175,11 +175,11 @@ const Landing = () => {
               style={{ fontWeight: 400, fontSize: 13, lineHeight: "20px", color: "rgba(45,45,45,0.60)" }}
             >
               I agree to the{" "}
-              <a href="/legal" className="underline underline-offset-2" style={{ color: "rgba(45,45,45,0.80)" }}>
+              <a href="/legal" className="underline underline-offset-2 text-foreground/80">
                 Terms of Service
               </a>{" "}
               and consent to the processing of my biometric data as described in the{" "}
-              <a href="/legal?tab=privacy" className="underline underline-offset-2" style={{ color: "rgba(45,45,45,0.80)" }}>
+              <a href="/legal?tab=privacy" className="underline underline-offset-2 text-foreground/80">
                 Privacy Policy
               </a>
               .
@@ -220,9 +220,9 @@ const Landing = () => {
               fontWeight: 700,
               fontSize: 18,
               height: 60,
-              background: "rgba(255,255,255,0.35)",
-              border: "2px solid rgba(45,45,45,0.08)",
-              color: agreed ? "rgba(45,45,45,0.60)" : "rgba(45,45,45,0.40)",
+              background: "hsl(var(--secondary))",
+              border: "1px solid hsl(var(--border))",
+              color: agreed ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))",
               borderRadius: 999,
             }}
             disabled={!agreed || signingIn}

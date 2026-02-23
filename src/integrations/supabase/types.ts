@@ -238,11 +238,13 @@ export type Database = {
           created_at: string
           date_of_birth: string | null
           display_name: string | null
+          generations_used: number
           height_cm: number | null
           id: string
           onboarding_complete: boolean
           selfie_url: string | null
           sex: string | null
+          subscription_tier: string
           updated_at: string
           user_id: string
           weight_kg: number | null
@@ -254,11 +256,13 @@ export type Database = {
           created_at?: string
           date_of_birth?: string | null
           display_name?: string | null
+          generations_used?: number
           height_cm?: number | null
           id?: string
           onboarding_complete?: boolean
           selfie_url?: string | null
           sex?: string | null
+          subscription_tier?: string
           updated_at?: string
           user_id: string
           weight_kg?: number | null
@@ -270,11 +274,13 @@ export type Database = {
           created_at?: string
           date_of_birth?: string | null
           display_name?: string | null
+          generations_used?: number
           height_cm?: number | null
           id?: string
           onboarding_complete?: boolean
           selfie_url?: string | null
           sex?: string | null
+          subscription_tier?: string
           updated_at?: string
           user_id?: string
           weight_kg?: number | null
