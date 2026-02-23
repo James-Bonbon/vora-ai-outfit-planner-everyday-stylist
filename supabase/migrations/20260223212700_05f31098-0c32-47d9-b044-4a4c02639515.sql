@@ -1,0 +1,1 @@
+ALTER TABLE public.closet_items ADD COLUMN is_in_laundry boolean NOT NULL DEFAULT false;

@@ -3,25 +3,11 @@ import { useNavigate } from "react-router-dom";
 import GlassCard from "@/components/GlassCard";
 import SafeImage from "@/components/ui/SafeImage";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Sparkles, DoorOpen, Heart, ArrowRight, ExternalLink, HeartPulse, Sun, Cloud, Snowflake } from "lucide-react";
+import { Sparkles, DoorOpen, ArrowRight, ExternalLink, HeartPulse, Sun, Cloud, Snowflake } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import OutfitCalendar, { type OutfitPlan } from "@/components/home/OutfitCalendar";
 
-const FASHION_QUOTES = [
-  { quote: "Fashion is the armor to survive the reality of everyday life.", author: "Bill Cunningham" },
-  { quote: "Style is a way to say who you are without having to speak.", author: "Rachel Zoe" },
-  {
-    quote: "Dress shabbily and they remember the dress; dress impeccably and they remember the woman.",
-    author: "Coco Chanel",
-  },
-  {
-    quote: "Fashion is about dressing according to what's fashionable. Style is more about being yourself.",
-    author: "Oscar de la Renta",
-  },
-  { quote: "People will stare. Make it worth their while.", author: "Harry Winston" },
-  { quote: "Elegance is elimination.", author: "Cristóbal Balenciaga" },
-  { quote: "What you wear is how you present yourself to the world.", author: "Miuccia Prada" },
-];
 
 const TRENDING_FEMALE = [
   {
@@ -312,18 +298,12 @@ const HomePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [closetCount, setClosetCount] = useState(0);
-  const [dailyQuote, setDailyQuote] = useState(FASHION_QUOTES[0]);
   const [userSex, setUserSex] = useState<string | null>(null);
 
   // Sync weather from sessionStorage to avoid flicker
   const cachedWeather = sessionStorage.getItem("vora_weather") as Weather | null;
   const [weather, setWeather] = useState<Weather>(cachedWeather || "neutral");
   const [isLoadingWeather, setIsLoadingWeather] = useState(!cachedWeather);
-
-  useEffect(() => {
-    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
-    setDailyQuote(FASHION_QUOTES[dayOfYear % FASHION_QUOTES.length]);
-  }, []);
 
   // Weather detection with sessionStorage caching
   useEffect(() => {
@@ -439,16 +419,8 @@ const HomePage = () => {
         </GlassCard>
       </div>
 
-      {/* ===== Daily Inspo ===== */}
-      <div
-        className="relative rounded-2xl overflow-hidden p-5"
-        style={{ background: "linear-gradient(135deg, hsl(16 62% 45%), hsl(16 62% 60%))" }}
-      >
-        <Heart className="absolute top-4 right-4 w-5 h-5 text-white/40" />
-        <h3 className="text-lg font-bold text-white font-outfit">Daily Inspo</h3>
-        <p className="text-sm text-white/80 mt-3 leading-relaxed italic">"{dailyQuote.quote}"</p>
-        <p className="text-xs text-white/50 mt-2">— {dailyQuote.author}</p>
-      </div>
+      {/* ===== Outfit Calendar ===== */}
+      <OutfitCalendar onGenerate={(plan) => navigate("/mirror", { state: plan })} />
 
       {/* ===== Trending Items ===== */}
       <div>

@@ -6,6 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useEffect, useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import type { GarmentDisplay } from "@/types/wardrobe";
 
 interface GarmentDetailSheetProps {
@@ -62,6 +64,8 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
   const [stainType, setStainType] = useState("");
   const [stainLoading, setStainLoading] = useState(false);
   const [stainResult, setStainResult] = useState<StainResult | null>(null);
+  const [isInLaundry, setIsInLaundry] = useState(false);
+  const [laundryUpdating, setLaundryUpdating] = useState(false);
 
   const isDream = item?.source === "dream";
 
@@ -83,6 +87,7 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
     setShowStain(false);
     setStainResult(null);
     setStainType("");
+    setIsInLaundry(!isDream ? (item as any).is_in_laundry ?? false : false);
 
     if (isDream) {
       // Dream items use direct external URLs
@@ -94,6 +99,25 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
         .then(({ data }) => setImageUrl(data?.signedUrl || null));
     }
   }, [item, isDream]);
+
+  const handleToggleLaundry = async (checked: boolean) => {
+    if (!item || isDream) return;
+    setLaundryUpdating(true);
+    try {
+      const { error } = await supabase
+        .from("closet_items")
+        .update({ is_in_laundry: checked })
+        .eq("id", item.id);
+      if (error) throw error;
+      setIsInLaundry(checked);
+      toast.success(checked ? "Marked as in laundry" : "Back from laundry");
+      onDeleted(); // refresh list
+    } catch {
+      toast.error("Failed to update laundry status");
+    } finally {
+      setLaundryUpdating(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (!item) return;
@@ -182,6 +206,21 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
               </>
             )}
           </div>
+
+          {/* Laundry Toggle — closet items only */}
+          {!isDream && (
+            <div className="flex items-center justify-between bg-card rounded-2xl px-4 py-3">
+              <Label htmlFor="laundry-toggle" className="text-sm font-medium text-foreground cursor-pointer">
+                In Laundry
+              </Label>
+              <Switch
+                id="laundry-toggle"
+                checked={isInLaundry}
+                onCheckedChange={handleToggleLaundry}
+                disabled={laundryUpdating}
+              />
+            </div>
+          )}
 
           {/* Action Buttons — closet items only */}
           {!isDream && (

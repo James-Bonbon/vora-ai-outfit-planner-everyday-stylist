@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import GlassCard from "@/components/GlassCard";
 import SafeImage from "@/components/ui/SafeImage";
 import { Sparkles, Check, Image, Loader2, AlertTriangle, Save, Trash2, GalleryHorizontalEnd } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -19,10 +21,14 @@ import {
 const OCCASIONS = ["Casual", "Date Night", "Work", "Party", "Streetwear"];
 
 const MirrorPage = () => {
+  const location = useLocation();
+  const outfitPlan = location.state as { vibe?: string; weather?: string } | null;
+
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [occasion, setOccasion] = useState<string | null>(null);
+  const [occasion, setOccasion] = useState<string | null>(outfitPlan?.vibe ?? null);
   const [tab, setTab] = useState<"tryon" | "gallery">("tryon");
   const [selectedLook, setSelectedLook] = useState<SavedLook | null>(null);
+  const [desiredLook, setDesiredLook] = useState("");
 
   // Data queries
   const { data: selfieUrl } = useSelfieUrl();
@@ -66,7 +72,7 @@ const MirrorPage = () => {
     const garmentIds = Array.from(selectedIds);
 
     tryOnMutation.mutate(
-      { selfieUrl, garmentUrls, garmentIds, occasion },
+      { selfieUrl, garmentUrls, garmentIds, occasion, desiredLook: desiredLook.trim() || null, weather: outfitPlan?.weather ?? null },
       {
         onSuccess: (data) => {
           if (data.cached) {
@@ -348,6 +354,21 @@ const MirrorPage = () => {
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Style description */}
+          {!tryOnMutation.data && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">
+                How do you want to look? (Optional)
+              </p>
+              <Input
+                value={desiredLook}
+                onChange={(e) => setDesiredLook(e.target.value)}
+                placeholder="Make it look edgy, streetwear style..."
+                className="rounded-xl bg-card text-sm"
+              />
             </div>
           )}
 

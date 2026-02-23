@@ -112,6 +112,7 @@ export type Database = {
           created_at: string
           id: string
           image_url: string
+          is_in_laundry: boolean
           material: string | null
           name: string | null
           notes: string | null
@@ -125,6 +126,7 @@ export type Database = {
           created_at?: string
           id?: string
           image_url: string
+          is_in_laundry?: boolean
           material?: string | null
           name?: string | null
           notes?: string | null
@@ -138,6 +140,7 @@ export type Database = {
           created_at?: string
           id?: string
           image_url?: string
+          is_in_laundry?: boolean
           material?: string | null
           name?: string | null
           notes?: string | null
