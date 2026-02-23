@@ -10,6 +10,7 @@ export interface ClosetItem {
   image_url: string;
   name: string | null;
   category: string | null;
+  is_in_laundry: boolean;
 }
 
 export interface SavedLook {
@@ -79,22 +80,25 @@ export function useClosetItems() {
     queryFn: async () => {
       const { data } = await supabase
         .from("closet_items")
-        .select("id, image_url, name, category")
+        .select("id, image_url, name, category, is_in_laundry")
         .eq("user_id", user!.id)
         .order("created_at", { ascending: false });
 
       if (!data) return { items: [] as ClosetItem[], urls: {} as Record<string, string> };
 
+      // Filter out laundry items for display in try-on
+      const availableItems = data.filter((item) => !item.is_in_laundry);
+
       // Batch sign all URLs in parallel
       const urlEntries = await Promise.all(
-        data.map(async (item) => {
+        availableItems.map(async (item) => {
           const url = await getSignedUrl("garments", item.image_url);
           return [item.id, url || ""] as const;
         })
       );
 
       return {
-        items: data as ClosetItem[],
+        items: availableItems as ClosetItem[],
         urls: Object.fromEntries(urlEntries) as Record<string, string>,
       };
     },
@@ -158,11 +162,13 @@ export function useTryOnMutation() {
     garmentUrls: string[];
     garmentIds: string[];
     occasion: string | null;
+    desiredLook?: string | null;
+    weather?: string | null;
   }>({
     mutationKey: ["virtual-tryon"],
-    mutationFn: async ({ selfieUrl, garmentUrls, garmentIds, occasion }) => {
+    mutationFn: async ({ selfieUrl, garmentUrls, garmentIds, occasion, desiredLook, weather }) => {
       const { data, error } = await supabase.functions.invoke("virtual-tryon", {
-        body: { selfieUrl, garmentUrls, garmentIds, occasion },
+        body: { selfieUrl, garmentUrls, garmentIds, occasion, desiredLook, weather },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);

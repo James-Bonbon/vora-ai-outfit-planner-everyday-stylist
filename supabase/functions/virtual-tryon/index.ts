@@ -66,7 +66,7 @@ serve(async (req) => {
     }
     const userId = claimsData.claims.sub as string;
 
-    const { selfieUrl, garmentUrls, garmentIds, occasion } = await req.json();
+    const { selfieUrl, garmentUrls, garmentIds, occasion, desiredLook, weather } = await req.json();
 
     if (!selfieUrl || !garmentUrls?.length || !garmentIds?.length) {
       return new Response(
@@ -74,6 +74,14 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Fetch user's body_shape from profile
+    const { data: profileData } = await supabaseUser
+      .from("profiles")
+      .select("body_shape")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const bodyShape = profileData?.body_shape || null;
 
     // Service-role client for cache and storage operations
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
@@ -135,6 +143,9 @@ SCENE & QUALITY:
 - Professional fashion photography lighting with natural shadows.
 - High resolution, sharp focus on person and clothing.
 ${occasion ? `- Style the overall mood to suit a "${occasion}" occasion.` : ""}
+${weather ? `- The weather is ${weather}. Choose clothing layering and styling appropriate for this weather.` : ""}
+${bodyShape ? `- The user has a ${bodyShape} body type. Ensure the generated image accurately reflects this body shape with proper fit and proportions.` : ""}
+${desiredLook ? `- The user specifically requested this style: "${desiredLook}". Incorporate this aesthetic into the overall look.` : ""}
 - Do NOT add any watermark, logo, text overlay, or branding.`,
       },
       {
