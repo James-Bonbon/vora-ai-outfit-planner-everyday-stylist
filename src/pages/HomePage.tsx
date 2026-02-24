@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import GlassCard from "@/components/GlassCard";
 import SafeImage from "@/components/ui/SafeImage";
-import { DoorOpen, ExternalLink, HeartPulse } from "lucide-react";
+import { CalendarDays, DoorOpen, ExternalLink, HeartPulse } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import OutfitCalendar from "@/components/home/OutfitCalendar";
@@ -303,7 +303,13 @@ const HomePage = () => {
   return (
     <div className="pt-6 space-y-5 pb-4">
       {/* ===== Outfit Calendar (Top Widget) ===== */}
-      <OutfitCalendar />
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-bold text-foreground font-outfit">Outfit Calendar</h3>
+          <CalendarDays className="w-5 h-5 text-muted-foreground" />
+        </div>
+        <OutfitCalendar />
+      </div>
 
       {/* ===== Quick Access Cards ===== */}
       <div className="grid grid-cols-2 gap-3">
