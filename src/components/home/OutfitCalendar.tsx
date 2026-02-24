@@ -299,11 +299,11 @@ const OutfitCalendar = () => {
 
   return (
     <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
-      {/* Header - outside container for global alignment */}
-      <div className="flex items-center justify-between mb-3 px-1">
-        <h3 className="text-2xl font-bold text-foreground font-outfit tracking-tight">
+      {/* Header - matches global page header pattern */}
+      <div className="flex items-center justify-between h-10">
+        <h1 className="text-2xl font-bold text-foreground font-outfit">
           Outfit Calendar
-        </h3>
+        </h1>
         <CalendarDays className="w-5 h-5 text-muted-foreground" />
       </div>
 
