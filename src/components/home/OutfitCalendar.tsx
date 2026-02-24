@@ -73,7 +73,7 @@ const OutfitCalendar = () => {
   const [editingSlot, setEditingSlot] = useState<"top" | "bottom">("top");
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const useFallback = closetItems.length < 2;
+  const useFallback = closetItems.length < 10;
 
   /* ---- Fetch profile tier + closet items + trending fallback ---- */
   const fetchBootstrap = useCallback(async () => {
@@ -89,15 +89,29 @@ const OutfitCalendar = () => {
       setSubscriptionTier(profileRes.data.subscription_tier || "free");
     }
 
-    if (closetRes.data) {
-      setClosetItems(closetRes.data as GarmentSnapshot[]);
+    // Generate signed URLs for closet items
+    if (closetRes.data && closetRes.data.length > 0) {
+      const withUrls = await Promise.all(
+        closetRes.data.map(async (item) => {
+          const { data } = await supabase.storage.from("garments").createSignedUrl(item.image_url, 3600);
+          return { ...item, image_url: data?.signedUrl || item.image_url } as GarmentSnapshot;
+        })
+      );
+      setClosetItems(withUrls);
     }
 
-    // Build fallback from trending, mapping title→name
+    // Build fallback from trending, mapping title→name with gender filtering
     if (trendingRes.data) {
       const sex = profileRes.data?.sex || "female";
+      const FEMALE_EXCLUDE = /\b(mens)\b/i;
+      const MALE_EXCLUDE = /\b(dress|skirt|bra|heels|womens)\b/i;
       const mapped: GarmentSnapshot[] = (trendingRes.data as TrendingItem[])
-        .filter((t) => t.image_url)
+        .filter((t) => {
+          if (!t.image_url) return false;
+          if (sex === "male" && MALE_EXCLUDE.test(t.title)) return false;
+          if (sex === "female" && FEMALE_EXCLUDE.test(t.title)) return false;
+          return true;
+        })
         .map((t) => ({
           id: t.id,
           name: t.title,
@@ -125,7 +139,7 @@ const OutfitCalendar = () => {
     if (data) setEntries(data as CalendarEntry[]);
   }, [user]);
 
-  /* ---- Resolve garment images ---- */
+  /* ---- Resolve garment images (with signed URLs) ---- */
   useEffect(() => {
     const allIds = entries.flatMap((e) => e.garment_ids || []);
     const unique = [...new Set(allIds)].filter((id) => !garments[id]);
@@ -137,8 +151,14 @@ const OutfitCalendar = () => {
         .select("id, name, image_url, category")
         .in("id", unique);
       if (data) {
+        const withUrls = await Promise.all(
+          data.map(async (g) => {
+            const { data: urlData } = await supabase.storage.from("garments").createSignedUrl(g.image_url, 3600);
+            return { ...g, image_url: urlData?.signedUrl || g.image_url } as GarmentSnapshot;
+          })
+        );
         const map: Record<string, GarmentSnapshot> = { ...garments };
-        data.forEach((g) => (map[g.id] = g));
+        withUrls.forEach((g) => (map[g.id] = g));
         setGarments(map);
       }
     })();
@@ -279,15 +299,15 @@ const OutfitCalendar = () => {
 
   return (
     <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
-      <div className="rounded-2xl glass-card p-4">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-bold text-foreground font-outfit tracking-tight">
-            Outfit Calendar
-          </h3>
-          <CalendarDays className="w-5 h-5 text-muted-foreground" />
-        </div>
+      {/* Header - outside container for global alignment */}
+      <div className="flex items-center justify-between mb-3 px-1">
+        <h3 className="text-2xl font-bold text-foreground font-outfit tracking-tight">
+          Outfit Calendar
+        </h3>
+        <CalendarDays className="w-5 h-5 text-muted-foreground" />
+      </div>
 
+      <div className="rounded-2xl glass-card p-4">
         {/* ===== TODAY'S OUTFIT CARD ===== */}
         <div className="rounded-2xl bg-card border border-border p-4 mb-4">
           {/* Top badges row */}
@@ -323,17 +343,17 @@ const OutfitCalendar = () => {
               <div className="mt-3 space-y-1">
                 {todayGarments.length > 0 ? (
                   todayGarments.slice(0, 3).map((g) => (
-                    <p key={g.id} className="text-sm text-foreground font-medium truncate">
+                    <p key={g.id} className="text-xs text-foreground font-medium truncate max-w-[140px]">
                       {g.name || g.category || "Garment"}
                     </p>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">No outfit planned yet</p>
+                  <p className="text-xs text-muted-foreground italic">No outfit planned yet</p>
                 )}
               </div>
 
               {/* Action buttons – pinned at bottom */}
-              <div className="flex gap-2 mt-auto pt-4">
+              <div className="flex gap-2 mt-auto pt-6">
                 <Button
                   size="sm"
                   className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 text-xs h-8 px-4"
