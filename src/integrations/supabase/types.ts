@@ -230,6 +230,48 @@ export type Database = {
         }
         Relationships: []
       }
+      outfit_calendar: {
+        Row: {
+          created_at: string
+          date: string
+          garment_ids: string[] | null
+          id: string
+          notes: string | null
+          occasion: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          weather_label: string | null
+          weather_temp: number | null
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          garment_ids?: string[] | null
+          id?: string
+          notes?: string | null
+          occasion?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          weather_label?: string | null
+          weather_temp?: number | null
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          garment_ids?: string[] | null
+          id?: string
+          notes?: string | null
+          occasion?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          weather_label?: string | null
+          weather_temp?: number | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
