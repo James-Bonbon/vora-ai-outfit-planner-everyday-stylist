@@ -304,8 +304,8 @@ const HomePage = () => {
     <div className="pt-6 space-y-5 pb-4">
       {/* ===== Outfit Calendar (Top Widget) ===== */}
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-bold text-foreground font-outfit">Outfit Calendar</h3>
+        <div className="flex items-center justify-between h-10">
+          <h1 className="text-2xl font-bold text-foreground font-outfit">Outfit Calendar</h1>
           <CalendarDays className="w-5 h-5 text-muted-foreground" />
         </div>
         <OutfitCalendar />
