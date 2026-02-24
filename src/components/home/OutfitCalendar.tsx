@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { addDays, format, isToday, getDay } from "date-fns";
-import { CalendarDays, Snowflake, Sun, Cloud, CloudRain, RefreshCw, Pencil, Lock } from "lucide-react";
+import { Snowflake, Sun, Cloud, CloudRain, RefreshCw, Pencil, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SafeImage from "@/components/ui/SafeImage";
 import { supabase } from "@/integrations/supabase/client";
@@ -299,13 +299,7 @@ const OutfitCalendar = () => {
 
   return (
     <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
-      {/* Header - matches global page header pattern */}
-      <div className="flex items-center justify-between h-10">
-        <h1 className="text-2xl font-bold text-foreground font-outfit">
-          Outfit Calendar
-        </h1>
-        <CalendarDays className="w-5 h-5 text-muted-foreground" />
-      </div>
+      {/* Header is now rendered by HomePage.tsx for alignment */}
 
       <div className="rounded-2xl glass-card p-4">
         {/* ===== TODAY'S OUTFIT CARD ===== */}
