@@ -50,14 +50,14 @@
     --gold: 38 45% 58%;
     --gold-foreground: 220 15% 8%;
 
-    /* Outfit Calendar warm palette */
-    --calendar-bg: 40 18% 93%;
-    --calendar-card: 40 20% 90%;
-    --calendar-accent: 30 25% 69%;
-    --calendar-accent-foreground: 0 0% 100%;
-    --calendar-text: 25 15% 25%;
-    --calendar-text-muted: 25 10% 50%;
-    --calendar-border: 30 15% 82%;
+    /* Outfit Calendar – dark glass variant */
+    --calendar-bg: 220 12% 12%;
+    --calendar-card: 220 12% 14%;
+    --calendar-accent: 38 45% 58%;
+    --calendar-accent-foreground: 220 15% 8%;
+    --calendar-text: 40 20% 92%;
+    --calendar-text-muted: 220 8% 55%;
+    --calendar-border: 220 10% 20%;
   }
 }
 
