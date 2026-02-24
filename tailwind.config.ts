@@ -61,6 +61,15 @@ export default {
           DEFAULT: "hsl(var(--gold))",
           foreground: "hsl(var(--gold-foreground))",
         },
+        calendar: {
+          DEFAULT: "hsl(var(--calendar-bg))",
+          card: "hsl(var(--calendar-card))",
+          accent: "hsl(var(--calendar-accent))",
+          "accent-foreground": "hsl(var(--calendar-accent-foreground))",
+          text: "hsl(var(--calendar-text))",
+          "text-muted": "hsl(var(--calendar-text-muted))",
+          border: "hsl(var(--calendar-border))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
