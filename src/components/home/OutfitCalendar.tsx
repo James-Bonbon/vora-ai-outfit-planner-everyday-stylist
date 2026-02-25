@@ -172,6 +172,12 @@ const OutfitCalendar = () => {
   /* ---- Pool of items to pick from ---- */
   const pool = useFallback ? trendingFallback : closetItems;
 
+  const TOP_RE = /\b(top|shirt|blazer|sweater|knit|jacket|coat|polo|camisole|cardigan)\b/i;
+  const BOTTOM_RE = /\b(bottom|trouser|pant|jeans|skirt|short|chinos)\b/i;
+
+  const topsPool = useMemo(() => pool.filter((i) => TOP_RE.test(i.category || '') || TOP_RE.test(i.name || '')), [pool]);
+  const bottomsPool = useMemo(() => pool.filter((i) => BOTTOM_RE.test(i.category || '') || BOTTOM_RE.test(i.name || '')), [pool]);
+
   /* ---- Get contextual items for a date ---- */
   const getItemsForDate = useCallback(
     (date: Date, entry?: CalendarEntry): GarmentSnapshot[] => {
@@ -182,31 +188,29 @@ const OutfitCalendar = () => {
 
       if (pool.length === 0) return [];
 
-      // Deterministic pick based on date
       const seed = date.getTime();
-      const pick = (offset: number) => {
-        const idx = Math.abs((seed + offset * 2654435761) | 0) % pool.length;
-        return pool[idx];
+      const pickFrom = (arr: GarmentSnapshot[], offset: number) => {
+        if (arr.length === 0) return null;
+        const idx = Math.abs((seed + offset * 2654435761) | 0) % arr.length;
+        return arr[idx];
       };
 
-      return [pick(0), pick(1)].filter(Boolean);
+      const top = pickFrom(topsPool.length > 0 ? topsPool : pool, 0);
+      const bottom = pickFrom(bottomsPool.length > 0 ? bottomsPool : pool, 1);
+      return [top, bottom].filter(Boolean) as GarmentSnapshot[];
     },
-    [garments, pool]
+    [garments, pool, topsPool, bottomsPool]
   );
 
   /* ---- Swap handler ---- */
   const handleSwap = useCallback(
     (dateStr: string) => {
       if (pool.length < 2) return;
-      const randomTwo: GarmentSnapshot[] = [];
-      const indices = new Set<number>();
-      while (randomTwo.length < 2 && indices.size < pool.length) {
-        const idx = Math.floor(Math.random() * pool.length);
-        if (!indices.has(idx)) {
-          indices.add(idx);
-          randomTwo.push(pool[idx]);
-        }
-      }
+      const tSrc = topsPool.length > 0 ? topsPool : pool;
+      const bSrc = bottomsPool.length > 0 ? bottomsPool : pool;
+      const top = tSrc[Math.floor(Math.random() * tSrc.length)];
+      const bottom = bSrc[Math.floor(Math.random() * bSrc.length)];
+      const randomTwo = [top, bottom].filter(Boolean);
       // Update local garments map and entry
       const map = { ...garments };
       randomTwo.forEach((g) => (map[g.id] = g));
@@ -233,7 +237,7 @@ const OutfitCalendar = () => {
         ];
       });
     },
-    [pool, garments]
+    [pool, garments, topsPool, bottomsPool]
   );
 
   /* ---- Edit: assign specific item ---- */
@@ -345,30 +349,6 @@ const OutfitCalendar = () => {
                   <p className="text-xs text-muted-foreground italic">No outfit planned yet</p>
                 )}
               </div>
-
-              {/* Action buttons – pinned at bottom */}
-              <div className="flex gap-2 mt-auto pt-6">
-                <Button
-                  size="sm"
-                  className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 text-xs h-8 px-4"
-                  onClick={() => handleSwap(todaySlot.dateStr)}
-                >
-                  <RefreshCw className="w-3 h-3 mr-1" /> Swap
-                </Button>
-                <DrawerTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="rounded-xl border-primary text-primary hover:bg-primary/10 text-xs h-8 px-4"
-                    onClick={() => {
-                      setEditingDate(todaySlot.dateStr);
-                      setEditingSlot("top");
-                    }}
-                  >
-                    <Pencil className="w-3 h-3 mr-1" /> Edit
-                  </Button>
-                </DrawerTrigger>
-              </div>
             </div>
 
             {/* Right: garment images – fixed size */}
@@ -398,6 +378,30 @@ const OutfitCalendar = () => {
                 </>
               )}
             </div>
+          </div>
+
+          {/* Action buttons – centered below */}
+          <div className="flex justify-center gap-4 mt-5 pt-2 w-full">
+            <Button
+              size="sm"
+              className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 text-xs h-8 px-4"
+              onClick={() => handleSwap(todaySlot.dateStr)}
+            >
+              <RefreshCw className="w-3 h-3 mr-1" /> Swap
+            </Button>
+            <DrawerTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-xl border-primary text-primary hover:bg-primary/10 text-xs h-8 px-4"
+                onClick={() => {
+                  setEditingDate(todaySlot.dateStr);
+                  setEditingSlot("top");
+                }}
+              >
+                <Pencil className="w-3 h-3 mr-1" /> Edit
+              </Button>
+            </DrawerTrigger>
           </div>
 
           {/* Footer label */}
