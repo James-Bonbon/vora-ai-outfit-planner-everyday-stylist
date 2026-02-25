@@ -49,6 +49,7 @@
 
     --gold: 38 45% 58%;
     --gold-foreground: 220 15% 8%;
+    --product-bg: 0 0% 96%;
 
     /* Outfit Calendar – dark glass variant */
     --calendar-bg: 220 12% 12%;
@@ -58,6 +59,60 @@
     --calendar-text: 40 20% 92%;
     --calendar-text-muted: 220 8% 55%;
     --calendar-border: 220 10% 20%;
+  }
+
+  .theme-forest {
+    --background: 138 15% 20%;
+    --foreground: 60 10% 95%;
+
+    --card: 140 12% 25%;
+    --card-foreground: 60 10% 95%;
+
+    --popover: 140 12% 25%;
+    --popover-foreground: 60 10% 95%;
+
+    --primary: 30 25% 70%;
+    --primary-foreground: 138 15% 20%;
+
+    --secondary: 140 12% 25%;
+    --secondary-foreground: 60 10% 85%;
+
+    --muted: 140 12% 25%;
+    --muted-foreground: 145 8% 67%;
+
+    --accent: 30 25% 70%;
+    --accent-foreground: 138 15% 20%;
+
+    --destructive: 0 62% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 140 12% 25%;
+    --input: 140 12% 25%;
+    --ring: 30 25% 70%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 138 15% 18%;
+    --sidebar-foreground: 60 10% 95%;
+    --sidebar-primary: 30 25% 70%;
+    --sidebar-primary-foreground: 138 15% 20%;
+    --sidebar-accent: 140 12% 25%;
+    --sidebar-accent-foreground: 60 10% 95%;
+    --sidebar-border: 140 12% 25%;
+    --sidebar-ring: 30 25% 70%;
+
+    --gold: 30 25% 70%;
+    --gold-foreground: 138 15% 20%;
+
+    --calendar-bg: 140 12% 25%;
+    --calendar-card: 140 12% 27%;
+    --calendar-accent: 30 25% 70%;
+    --calendar-accent-foreground: 138 15% 20%;
+    --calendar-text: 60 10% 95%;
+    --calendar-text-muted: 145 8% 67%;
+    --calendar-border: 140 12% 30%;
+
+    --product-bg: 36 30% 88%;
   }
 }
 

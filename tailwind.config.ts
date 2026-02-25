@@ -70,6 +70,7 @@ export default {
           "text-muted": "hsl(var(--calendar-text-muted))",
           border: "hsl(var(--calendar-border))",
         },
+        "product-bg": "hsl(var(--product-bg))",
       },
       borderRadius: {
         lg: "var(--radius)",

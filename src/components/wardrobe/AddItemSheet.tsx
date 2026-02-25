@@ -220,7 +220,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
         <div className="space-y-5 mt-4 pb-6">
           {/* Photo Upload */}
           {preview ? (
-            <div className={`relative w-full aspect-square rounded-2xl overflow-hidden ${prefill?.hasTransparentBg ? "bg-[#F4F4F4] p-[12%]" : "bg-card"}`}>
+            <div className={`relative w-full aspect-square rounded-2xl overflow-hidden ${prefill?.hasTransparentBg ? "bg-product-bg p-[12%]" : "bg-card"}`}>
               <img
                 src={preview}
                 alt="Item preview"

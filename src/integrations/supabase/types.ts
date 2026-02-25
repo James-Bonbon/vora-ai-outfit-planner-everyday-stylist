@@ -274,6 +274,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          app_theme: string
           avatar_url: string | null
           biometric_consent: boolean
           body_shape: string | null
@@ -292,6 +293,7 @@ export type Database = {
           weight_kg: number | null
         }
         Insert: {
+          app_theme?: string
           avatar_url?: string | null
           biometric_consent?: boolean
           body_shape?: string | null
@@ -310,6 +312,7 @@ export type Database = {
           weight_kg?: number | null
         }
         Update: {
+          app_theme?: string
           avatar_url?: string | null
           biometric_consent?: boolean
           body_shape?: string | null

@@ -1,5 +1,6 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
+import ThemeProvider from "@/components/ThemeProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -26,22 +27,24 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/legal" element={<LegalPage />} />
-          <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-          <Route path="/subscription" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
-          <Route path="/onboarding" element={<ProtectedRoute skipOnboarding><OnboardingPage /></ProtectedRoute>} />
-          <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-            <Route path="/home" element={<HomePage />} />
-            <Route path="/wardrobe" element={<WardrobePage />} />
-            <Route path="/mirror" element={<MirrorPage />} />
-            <Route path="/beauty" element={<BeautyPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/library" element={<LibraryPage />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <ThemeProvider>
+          <Routes>
+            <Route path="/" element={<Landing />} />
+            <Route path="/legal" element={<LegalPage />} />
+            <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+            <Route path="/subscription" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
+            <Route path="/onboarding" element={<ProtectedRoute skipOnboarding><OnboardingPage /></ProtectedRoute>} />
+            <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+              <Route path="/home" element={<HomePage />} />
+              <Route path="/wardrobe" element={<WardrobePage />} />
+              <Route path="/mirror" element={<MirrorPage />} />
+              <Route path="/beauty" element={<BeautyPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/library" element={<LibraryPage />} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </ThemeProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

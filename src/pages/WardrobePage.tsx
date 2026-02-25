@@ -158,7 +158,7 @@ const WardrobePage = () => {
                     setDetailOpen(true);
                   }}
                 >
-                  <div className="aspect-square bg-[#F4F4F4] p-[12%] flex items-center justify-center">
+                  <div className="aspect-square bg-product-bg p-[12%] flex items-center justify-center">
                     <SafeImage
                       src={imageUrls[item.id]}
                       alt={item.name || "Garment"}
