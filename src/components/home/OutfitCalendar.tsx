@@ -357,7 +357,7 @@ const OutfitCalendar = () => {
                 todayGarments.slice(0, 2).map((g) => (
                   <div
                     key={g.id}
-                    className="w-20 h-24 rounded-xl overflow-hidden bg-[#F4F4F4] p-2 flex items-center justify-center mix-blend-multiply"
+                    className="w-20 h-24 rounded-xl overflow-hidden bg-product-bg p-2 flex items-center justify-center mix-blend-multiply"
                   >
                     <SafeImage
                       src={g.image_url}
@@ -438,7 +438,7 @@ const OutfitCalendar = () => {
                           slotGarments.slice(0, 2).map((g) => (
                             <div
                               key={g.id}
-                              className="w-[52px] h-[64px] rounded-lg overflow-hidden bg-[#F4F4F4] p-1 flex items-center justify-center mix-blend-multiply"
+                              className="w-[52px] h-[64px] rounded-lg overflow-hidden bg-product-bg p-1 flex items-center justify-center mix-blend-multiply"
                             >
                               <SafeImage
                                 src={g.image_url}

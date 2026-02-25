@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS app_theme text NOT NULL DEFAULT 'default';

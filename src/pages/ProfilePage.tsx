@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import SafeImage from "@/components/ui/SafeImage";
 import GlassCard from "@/components/GlassCard";
-import { User, Settings, Crown, LogOut, Pencil, X, Check, Ruler, Weight, Calendar, Users, Camera, Database, Loader2 } from "lucide-react";
+import { User, Settings, Crown, LogOut, Pencil, X, Check, Ruler, Weight, Calendar, Users, Camera, Database, Loader2, Lock, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { applyTheme } from "@/components/ThemeProvider";
 
 interface ProfileData {
   display_name: string | null;
@@ -19,6 +20,8 @@ interface ProfileData {
   height_cm: number | null;
   weight_kg: number | null;
   body_shape: string | null;
+  subscription_tier: string | null;
+  app_theme: string | null;
 }
 
 const BODY_SHAPE_LABELS: Record<string, string> = {
@@ -58,7 +61,7 @@ const ProfilePage = () => {
     if (!user) return;
     const { data } = await supabase
       .from("profiles")
-      .select("display_name, avatar_url, selfie_url, date_of_birth, sex, height_cm, weight_kg, body_shape")
+      .select("display_name, avatar_url, selfie_url, date_of_birth, sex, height_cm, weight_kg, body_shape, subscription_tier, app_theme")
       .eq("user_id", user.id)
       .single();
     if (data) {
@@ -319,6 +322,79 @@ const ProfilePage = () => {
             </div>
           </div>
         )}
+      </GlassCard>
+
+      {/* App Appearance */}
+      <GlassCard className="p-5 space-y-4">
+        <h3 className="text-sm font-semibold text-foreground font-outfit flex items-center gap-2">
+          <Palette className="w-4 h-4 text-primary" /> App Appearance
+        </h3>
+        <div className="grid grid-cols-2 gap-3">
+          {/* Default theme */}
+          <button
+            onClick={async () => {
+              if (!user) return;
+              await supabase.from("profiles").update({ app_theme: "default" }).eq("user_id", user.id);
+              localStorage.setItem("vora_app_theme", "default");
+              applyTheme("default");
+              setProfile((p) => p ? { ...p, app_theme: "default" } : p);
+              toast.success("Theme updated!");
+            }}
+            className={`relative rounded-xl border-2 p-3 text-left transition-all ${
+              (profile?.app_theme || "default") === "default"
+                ? "border-primary bg-primary/10"
+                : "border-border hover:border-primary/40"
+            }`}
+          >
+            <div className="flex gap-1.5 mb-2">
+              <div className="w-5 h-5 rounded-full" style={{ background: "hsl(220, 15%, 8%)" }} />
+              <div className="w-5 h-5 rounded-full" style={{ background: "hsl(38, 45%, 58%)" }} />
+              <div className="w-5 h-5 rounded-full" style={{ background: "hsl(40, 20%, 92%)" }} />
+            </div>
+            <p className="text-xs font-semibold text-foreground">Midnight</p>
+            <p className="text-[10px] text-muted-foreground">Default</p>
+          </button>
+
+          {/* Forest theme */}
+          <button
+            onClick={async () => {
+              if (!user) return;
+              const tier = profile?.subscription_tier || "free";
+              if (tier === "free") {
+                toast("Upgrade to Plus or Pro to unlock premium themes", {
+                  action: {
+                    label: "Upgrade",
+                    onClick: () => navigate("/subscription"),
+                  },
+                });
+                return;
+              }
+              await supabase.from("profiles").update({ app_theme: "forest" }).eq("user_id", user.id);
+              localStorage.setItem("vora_app_theme", "forest");
+              applyTheme("forest");
+              setProfile((p) => p ? { ...p, app_theme: "forest" } : p);
+              toast.success("Theme updated!");
+            }}
+            className={`relative rounded-xl border-2 p-3 text-left transition-all ${
+              profile?.app_theme === "forest"
+                ? "border-primary bg-primary/10"
+                : "border-border hover:border-primary/40"
+            }`}
+          >
+            <div className="flex gap-1.5 mb-2">
+              <div className="w-5 h-5 rounded-full" style={{ background: "#2C3A2E" }} />
+              <div className="w-5 h-5 rounded-full" style={{ background: "#C8B69B" }} />
+              <div className="w-5 h-5 rounded-full" style={{ background: "#F4F4F0" }} />
+            </div>
+            <div className="flex items-center gap-1">
+              <p className="text-xs font-semibold text-foreground">Forest & Sand</p>
+              {(profile?.subscription_tier || "free") === "free" && (
+                <Lock className="w-3 h-3 text-muted-foreground" />
+              )}
+            </div>
+            <p className="text-[10px] text-muted-foreground">Premium</p>
+          </button>
+        </div>
       </GlassCard>
 
       {/* Pro Card */}
