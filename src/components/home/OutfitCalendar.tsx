@@ -172,8 +172,8 @@ const OutfitCalendar = () => {
   /* ---- Pool of items to pick from ---- */
   const pool = useFallback ? trendingFallback : closetItems;
 
-  const TOP_RE = /\b(top|shirt|blazer|sweater|knit|jacket|coat|polo|camisole|cardigan)\b/i;
-  const BOTTOM_RE = /\b(bottom|trouser|pant|jeans|skirt|short|chinos)\b/i;
+  const TOP_RE = /\b(top|shirt|blazer|sweater|knit|jacket|coat|polo|camisole|cardigan|hoodie)\b/i;
+  const BOTTOM_RE = /\b(bottom|trouser|pant|jeans|skirt|short|chinos|sweatpants)\b/i;
 
   const topsPool = useMemo(() => pool.filter((i) => TOP_RE.test(i.category || '') || TOP_RE.test(i.name || '')), [pool]);
   const bottomsPool = useMemo(() => pool.filter((i) => BOTTOM_RE.test(i.category || '') || BOTTOM_RE.test(i.name || '')), [pool]);
@@ -357,12 +357,14 @@ const OutfitCalendar = () => {
                 todayGarments.slice(0, 2).map((g) => (
                   <div
                     key={g.id}
-                    className="w-20 h-24 rounded-xl overflow-hidden bg-muted"
+                    className="w-20 h-24 rounded-xl overflow-hidden bg-[#F4F4F4] p-2 flex items-center justify-center mix-blend-multiply"
                   >
                     <SafeImage
                       src={g.image_url}
                       alt={g.name || "Garment"}
                       aspectRatio=""
+                      fit="contain"
+                      className="drop-shadow-[0px_8px_10px_rgba(0,0,0,0.15)]"
                       wrapperClassName="w-full h-full"
                     />
                   </div>
@@ -436,12 +438,14 @@ const OutfitCalendar = () => {
                           slotGarments.slice(0, 2).map((g) => (
                             <div
                               key={g.id}
-                              className="w-[52px] h-[64px] rounded-lg overflow-hidden bg-muted"
+                              className="w-[52px] h-[64px] rounded-lg overflow-hidden bg-[#F4F4F4] p-1 flex items-center justify-center mix-blend-multiply"
                             >
                               <SafeImage
                                 src={g.image_url}
                                 alt={g.name || "Garment"}
                                 aspectRatio=""
+                                fit="contain"
+                                className="drop-shadow-sm"
                                 wrapperClassName="w-full h-full"
                               />
                             </div>
