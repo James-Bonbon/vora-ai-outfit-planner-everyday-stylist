@@ -114,6 +114,222 @@
 
     --product-bg: 36 30% 88%;
   }
+
+  .theme-navy {
+    --background: 213 28% 14%;
+    --foreground: 60 10% 95%;
+
+    --card: 212 28% 19%;
+    --card-foreground: 60 10% 95%;
+
+    --popover: 212 28% 19%;
+    --popover-foreground: 60 10% 95%;
+
+    --primary: 30 25% 70%;
+    --primary-foreground: 213 28% 14%;
+
+    --secondary: 212 28% 19%;
+    --secondary-foreground: 60 10% 85%;
+
+    --muted: 212 28% 19%;
+    --muted-foreground: 214 16% 61%;
+
+    --accent: 30 25% 70%;
+    --accent-foreground: 213 28% 14%;
+
+    --destructive: 0 62% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 212 28% 19%;
+    --input: 212 28% 19%;
+    --ring: 30 25% 70%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 213 28% 12%;
+    --sidebar-foreground: 60 10% 95%;
+    --sidebar-primary: 30 25% 70%;
+    --sidebar-primary-foreground: 213 28% 14%;
+    --sidebar-accent: 212 28% 19%;
+    --sidebar-accent-foreground: 60 10% 95%;
+    --sidebar-border: 212 28% 19%;
+    --sidebar-ring: 30 25% 70%;
+
+    --gold: 30 25% 70%;
+    --gold-foreground: 213 28% 14%;
+
+    --calendar-bg: 212 28% 19%;
+    --calendar-card: 212 28% 21%;
+    --calendar-accent: 30 25% 70%;
+    --calendar-accent-foreground: 213 28% 14%;
+    --calendar-text: 60 10% 95%;
+    --calendar-text-muted: 214 16% 61%;
+    --calendar-border: 212 28% 24%;
+
+    --product-bg: 36 30% 88%;
+  }
+
+  .theme-rose {
+    --background: 340 82% 95%;
+    --foreground: 340 18% 30%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 340 18% 30%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 340 18% 30%;
+
+    --primary: 348 52% 75%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 340 60% 97%;
+    --secondary-foreground: 340 18% 40%;
+
+    --muted: 340 60% 97%;
+    --muted-foreground: 340 10% 65%;
+
+    --accent: 348 52% 75%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 340 42% 90%;
+    --input: 340 42% 90%;
+    --ring: 348 52% 75%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 340 82% 93%;
+    --sidebar-foreground: 340 18% 30%;
+    --sidebar-primary: 348 52% 75%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 340 60% 97%;
+    --sidebar-accent-foreground: 340 18% 30%;
+    --sidebar-border: 340 42% 90%;
+    --sidebar-ring: 348 52% 75%;
+
+    --gold: 348 52% 75%;
+    --gold-foreground: 0 0% 100%;
+
+    --calendar-bg: 0 0% 100%;
+    --calendar-card: 340 60% 98%;
+    --calendar-accent: 348 52% 75%;
+    --calendar-accent-foreground: 0 0% 100%;
+    --calendar-text: 340 18% 30%;
+    --calendar-text-muted: 340 10% 65%;
+    --calendar-border: 340 42% 90%;
+
+    --product-bg: 340 100% 98%;
+  }
+
+  .theme-cream {
+    --background: 48 18% 95%;
+    --foreground: 30 6% 27%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 30 6% 27%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 30 6% 27%;
+
+    --primary: 30 12% 70%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 40 14% 93%;
+    --secondary-foreground: 30 6% 35%;
+
+    --muted: 40 14% 93%;
+    --muted-foreground: 30 6% 59%;
+
+    --accent: 30 12% 70%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 37 10% 87%;
+    --input: 37 10% 87%;
+    --ring: 30 12% 70%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 48 18% 93%;
+    --sidebar-foreground: 30 6% 27%;
+    --sidebar-primary: 30 12% 70%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 40 14% 93%;
+    --sidebar-accent-foreground: 30 6% 27%;
+    --sidebar-border: 37 10% 87%;
+    --sidebar-ring: 30 12% 70%;
+
+    --gold: 30 12% 70%;
+    --gold-foreground: 0 0% 100%;
+
+    --calendar-bg: 0 0% 100%;
+    --calendar-card: 40 14% 97%;
+    --calendar-accent: 30 12% 70%;
+    --calendar-accent-foreground: 0 0% 100%;
+    --calendar-text: 30 6% 27%;
+    --calendar-text-muted: 30 6% 59%;
+    --calendar-border: 37 10% 87%;
+
+    --product-bg: 0 0% 100%;
+  }
+
+  .theme-peach {
+    --background: 25 90% 95%;
+    --foreground: 20 22% 30%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 20 22% 30%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 22% 30%;
+
+    --primary: 22 66% 73%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 25 80% 97%;
+    --secondary-foreground: 20 22% 38%;
+
+    --muted: 25 80% 97%;
+    --muted-foreground: 20 14% 63%;
+
+    --accent: 22 66% 73%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 20 48% 89%;
+    --input: 20 48% 89%;
+    --ring: 22 66% 73%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 25 90% 93%;
+    --sidebar-foreground: 20 22% 30%;
+    --sidebar-primary: 22 66% 73%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 25 80% 97%;
+    --sidebar-accent-foreground: 20 22% 30%;
+    --sidebar-border: 20 48% 89%;
+    --sidebar-ring: 22 66% 73%;
+
+    --gold: 22 66% 73%;
+    --gold-foreground: 0 0% 100%;
+
+    --calendar-bg: 0 0% 100%;
+    --calendar-card: 25 80% 98%;
+    --calendar-accent: 22 66% 73%;
+    --calendar-accent-foreground: 0 0% 100%;
+    --calendar-text: 20 22% 30%;
+    --calendar-text-muted: 20 14% 63%;
+    --calendar-border: 20 48% 89%;
+
+    --product-bg: 0 0% 100%;
+  }
 }
 
 @layer base {

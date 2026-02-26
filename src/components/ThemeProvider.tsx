@@ -5,6 +5,10 @@ import { useAuth } from "@/hooks/useAuth";
 const THEME_CLASS_MAP: Record<string, string> = {
   default: "",
   forest: "theme-forest",
+  navy: "theme-navy",
+  rose: "theme-rose",
+  cream: "theme-cream",
+  peach: "theme-peach",
 };
 
 const CACHE_KEY = "vora_app_theme";
