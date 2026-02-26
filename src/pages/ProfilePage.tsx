@@ -329,71 +329,51 @@ const ProfilePage = () => {
         <h3 className="text-sm font-semibold text-foreground font-outfit flex items-center gap-2">
           <Palette className="w-4 h-4 text-primary" /> App Appearance
         </h3>
-        <div className="grid grid-cols-2 gap-3">
-          {/* Default theme */}
-          <button
-            onClick={async () => {
-              if (!user) return;
-              await supabase.from("profiles").update({ app_theme: "default" }).eq("user_id", user.id);
-              localStorage.setItem("vora_app_theme", "default");
-              applyTheme("default");
-              setProfile((p) => p ? { ...p, app_theme: "default" } : p);
-              toast.success("Theme updated!");
-            }}
-            className={`relative rounded-xl border-2 p-3 text-left transition-all ${
-              (profile?.app_theme || "default") === "default"
-                ? "border-primary bg-primary/10"
-                : "border-border hover:border-primary/40"
-            }`}
-          >
-            <div className="flex gap-1.5 mb-2">
-              <div className="w-5 h-5 rounded-full" style={{ background: "hsl(220, 15%, 8%)" }} />
-              <div className="w-5 h-5 rounded-full" style={{ background: "hsl(38, 45%, 58%)" }} />
-              <div className="w-5 h-5 rounded-full" style={{ background: "hsl(40, 20%, 92%)" }} />
-            </div>
-            <p className="text-xs font-semibold text-foreground">Midnight</p>
-            <p className="text-[10px] text-muted-foreground">Default</p>
-          </button>
-
-          {/* Forest theme */}
-          <button
-            onClick={async () => {
-              if (!user) return;
-              const tier = profile?.subscription_tier || "free";
-              if (tier === "free") {
-                toast("Upgrade to Plus or Pro to unlock premium themes", {
-                  action: {
-                    label: "Upgrade",
-                    onClick: () => navigate("/subscription"),
-                  },
-                });
-                return;
-              }
-              await supabase.from("profiles").update({ app_theme: "forest" }).eq("user_id", user.id);
-              localStorage.setItem("vora_app_theme", "forest");
-              applyTheme("forest");
-              setProfile((p) => p ? { ...p, app_theme: "forest" } : p);
-              toast.success("Theme updated!");
-            }}
-            className={`relative rounded-xl border-2 p-3 text-left transition-all ${
-              profile?.app_theme === "forest"
-                ? "border-primary bg-primary/10"
-                : "border-border hover:border-primary/40"
-            }`}
-          >
-            <div className="flex gap-1.5 mb-2">
-              <div className="w-5 h-5 rounded-full" style={{ background: "#2C3A2E" }} />
-              <div className="w-5 h-5 rounded-full" style={{ background: "#C8B69B" }} />
-              <div className="w-5 h-5 rounded-full" style={{ background: "#F4F4F0" }} />
-            </div>
-            <div className="flex items-center gap-1">
-              <p className="text-xs font-semibold text-foreground">Forest & Sand</p>
-              {(profile?.subscription_tier || "free") === "free" && (
-                <Lock className="w-3 h-3 text-muted-foreground" />
-              )}
-            </div>
-            <p className="text-[10px] text-muted-foreground">Premium</p>
-          </button>
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { key: "default", label: "Midnight", sub: "Default", bg: "#121417", accent: "#C4A55A", swatch3: "#EDE8DA", premium: false },
+            { key: "forest", label: "Forest & Sand", sub: "Premium", bg: "#2C3A2E", accent: "#C8B69B", swatch3: "#F4F4F0", premium: true },
+            { key: "navy", label: "Midnight Navy", sub: "Premium", bg: "#18222E", accent: "#C8B69B", swatch3: "#F4F4F0", premium: true },
+            { key: "rose", label: "Rose Water", sub: "Premium", bg: "#FDE8EE", accent: "#E098A6", swatch3: "#5C4048", premium: true },
+            { key: "cream", label: "Minimal Cream", sub: "Premium", bg: "#F7F6F2", accent: "#C0B5A6", swatch3: "#4A4642", premium: true },
+            { key: "peach", label: "Warm Peach", sub: "Premium", bg: "#FEF0E6", accent: "#E8AD8E", swatch3: "#5C463C", premium: true },
+          ].map((t) => {
+            const isActive = (profile?.app_theme || "default") === t.key;
+            const isLocked = t.premium && (profile?.subscription_tier || "free") === "free";
+            return (
+              <button
+                key={t.key}
+                onClick={async () => {
+                  if (!user) return;
+                  if (isLocked) {
+                    toast("Unlock premium themes with Vora Plus or Pro", {
+                      action: { label: "Upgrade", onClick: () => navigate("/subscription") },
+                    });
+                    return;
+                  }
+                  await supabase.from("profiles").update({ app_theme: t.key }).eq("user_id", user.id);
+                  localStorage.setItem("vora_app_theme", t.key);
+                  applyTheme(t.key);
+                  setProfile((p) => p ? { ...p, app_theme: t.key } : p);
+                  toast.success("Theme updated!");
+                }}
+                className={`relative rounded-xl border-2 p-3 text-left transition-all ${
+                  isActive ? "border-primary bg-primary/10" : "border-border hover:border-primary/40"
+                }`}
+              >
+                <div className="flex gap-1 mb-2">
+                  <div className="w-5 h-5 rounded-full border border-border/30" style={{ background: t.bg }} />
+                  <div className="w-5 h-5 rounded-full border border-border/30" style={{ background: t.accent }} />
+                  <div className="w-5 h-5 rounded-full border border-border/30" style={{ background: t.swatch3 }} />
+                </div>
+                <div className="flex items-center gap-1">
+                  <p className="text-[11px] font-semibold text-foreground leading-tight">{t.label}</p>
+                  {isLocked && <Lock className="w-3 h-3 text-muted-foreground flex-shrink-0" />}
+                </div>
+                <p className="text-[10px] text-muted-foreground">{t.sub}</p>
+              </button>
+            );
+          })}
         </div>
       </GlassCard>
 
