@@ -46,6 +46,7 @@ const ProfilePage = () => {
     return sessionStorage.getItem(CACHE_KEY_SELFIE_URL) || null;
   });
   const [editing, setEditing] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   
 
   // Edit state
@@ -59,16 +60,27 @@ const ProfilePage = () => {
   const [seeding, setSeeding] = useState(false);
   const fetchProfile = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("profiles")
-      .select("display_name, avatar_url, selfie_url, date_of_birth, sex, height_cm, weight_kg, body_shape, subscription_tier, app_theme")
-      .eq("user_id", user.id)
-      .single();
-    if (data) {
-      setProfile(data);
-      sessionStorage.setItem(CACHE_KEY_PROFILE, JSON.stringify(data));
-      if (data.selfie_url) {
-        const cacheKey = `vora_selfie_signed_${data.selfie_url}`;
+    const [profileRes, roleRes] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("display_name, avatar_url, selfie_url, date_of_birth, sex, height_cm, weight_kg, body_shape, subscription_tier, app_theme")
+        .eq("user_id", user.id)
+        .single(),
+      supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle(),
+    ]);
+
+    setIsAdmin(!!roleRes.data);
+
+    if (profileRes.data) {
+      setProfile(profileRes.data);
+      sessionStorage.setItem(CACHE_KEY_PROFILE, JSON.stringify(profileRes.data));
+      if (profileRes.data.selfie_url) {
+        const cacheKey = `vora_selfie_signed_${profileRes.data.selfie_url}`;
         const cached = sessionStorage.getItem(cacheKey);
         if (cached) {
           setSelfieSignedUrl(cached);
@@ -76,7 +88,7 @@ const ProfilePage = () => {
         } else {
           const { data: signedData } = await supabase.storage
             .from("selfies")
-            .createSignedUrl(data.selfie_url, 3600);
+            .createSignedUrl(profileRes.data.selfie_url, 3600);
           if (signedData?.signedUrl) {
             setSelfieSignedUrl(signedData.signedUrl);
             sessionStorage.setItem(cacheKey, signedData.signedUrl);
@@ -340,7 +352,7 @@ const ProfilePage = () => {
           ].map((t) => {
             const isActive = (profile?.app_theme || "default") === t.key;
             const tier = profile?.subscription_tier || "free";
-            const isLocked = t.premium && tier === "free";
+            const isLocked = t.premium && tier === "free" && !isAdmin;
             return (
               <button
                 key={t.key}
