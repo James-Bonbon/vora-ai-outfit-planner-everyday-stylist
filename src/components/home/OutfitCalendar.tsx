@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { addDays, format, isToday, getDay } from "date-fns";
-import { Snowflake, Sun, Cloud, CloudRain, RefreshCw, Pencil, Lock } from "lucide-react";
+import { Snowflake, Sun, Cloud, CloudRain, RefreshCw, Pencil, Lock, ShirtIcon, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SafeImage from "@/components/ui/SafeImage";
+import GlassCard from "@/components/GlassCard";
+import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -37,13 +39,7 @@ interface GarmentSnapshot {
   name: string | null;
   image_url: string;
   category: string | null;
-}
-
-interface TrendingItem {
-  id: string;
-  title: string;
-  image_url: string | null;
-  category: string | null;
+  source: "closet" | "dream";
 }
 
 const WEATHER_ICON: Record<string, typeof Sun> = {
@@ -52,6 +48,10 @@ const WEATHER_ICON: Record<string, typeof Sun> = {
   neutral: Cloud,
   rainy: CloudRain,
 };
+
+const TOP_RE = /\b(top|shirt|blazer|sweater|knit|jacket|coat|polo|camisole|cardigan|hoodie)\b/i;
+const BOTTOM_RE = /\b(bottom|trouser|pant|jeans|skirt|short|chinos|sweatpants)\b/i;
+const THRESHOLD = 10;
 
 function isWeekend(date: Date) {
   const d = getDay(date);
@@ -66,60 +66,60 @@ const OutfitCalendar = () => {
   const { user } = useAuth();
   const [entries, setEntries] = useState<CalendarEntry[]>([]);
   const [garments, setGarments] = useState<Record<string, GarmentSnapshot>>({});
-  const [closetItems, setClosetItems] = useState<GarmentSnapshot[]>([]);
-  const [trendingFallback, setTrendingFallback] = useState<GarmentSnapshot[]>([]);
+  const [garmentPool, setGarmentPool] = useState<GarmentSnapshot[]>([]);
   const [subscriptionTier, setSubscriptionTier] = useState("free");
   const [editingDate, setEditingDate] = useState<string | null>(null);
   const [editingSlot, setEditingSlot] = useState<"top" | "bottom">("top");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const useFallback = closetItems.length < 10;
-
-  /* ---- Fetch profile tier + closet items + trending fallback ---- */
+  /* ---- Fetch profile tier + closet items + dream items ---- */
   const fetchBootstrap = useCallback(async () => {
     if (!user) return;
+    setLoading(true);
 
-    const [profileRes, closetRes, trendingRes] = await Promise.all([
-      supabase.from("profiles").select("subscription_tier, sex").eq("user_id", user.id).maybeSingle(),
+    const [profileRes, closetRes, dreamRes] = await Promise.all([
+      supabase.from("profiles").select("subscription_tier").eq("user_id", user.id).maybeSingle(),
       supabase.from("closet_items").select("id, name, image_url, category").eq("user_id", user.id),
-      supabase.from("trending_clothes").select("id, title, image_url, category").limit(40),
+      supabase.from("dream_items").select("id, name, image_url").eq("user_id", user.id),
     ]);
 
     if (profileRes.data) {
       setSubscriptionTier(profileRes.data.subscription_tier || "free");
     }
 
-    // Generate signed URLs for closet items
+    const pool: GarmentSnapshot[] = [];
+
+    // Sign closet item URLs
     if (closetRes.data && closetRes.data.length > 0) {
       const withUrls = await Promise.all(
         closetRes.data.map(async (item) => {
           const { data } = await supabase.storage.from("garments").createSignedUrl(item.image_url, 3600);
-          return { ...item, image_url: data?.signedUrl || item.image_url } as GarmentSnapshot;
+          return { id: item.id, name: item.name, image_url: data?.signedUrl || item.image_url, category: item.category, source: "closet" as const };
         })
       );
-      setClosetItems(withUrls);
+      pool.push(...withUrls);
     }
 
-    // Build fallback from trending, mapping title→name with gender filtering
-    if (trendingRes.data) {
-      const sex = profileRes.data?.sex || "female";
-      const FEMALE_EXCLUDE = /\b(mens)\b/i;
-      const MALE_EXCLUDE = /\b(dress|skirt|bra|heels|womens)\b/i;
-      const mapped: GarmentSnapshot[] = (trendingRes.data as TrendingItem[])
-        .filter((t) => {
-          if (!t.image_url) return false;
-          if (sex === "male" && MALE_EXCLUDE.test(t.title)) return false;
-          if (sex === "female" && FEMALE_EXCLUDE.test(t.title)) return false;
-          return true;
+    // Sign dream item URLs (dream items use direct URLs, no signing needed unless stored in bucket)
+    if (dreamRes.data && dreamRes.data.length > 0) {
+      const withUrls = await Promise.all(
+        dreamRes.data.map(async (item) => {
+          // Dream items may use external URLs or garments bucket
+          const isPath = !item.image_url.startsWith("http");
+          let url = item.image_url;
+          if (isPath) {
+            const { data } = await supabase.storage.from("garments").createSignedUrl(item.image_url, 3600);
+            url = data?.signedUrl || item.image_url;
+          }
+          return { id: item.id, name: item.name, image_url: url, category: null, source: "dream" as const };
         })
-        .map((t) => ({
-          id: t.id,
-          name: t.title,
-          image_url: t.image_url!,
-          category: t.category,
-        }));
-      setTrendingFallback(mapped);
+      );
+      pool.push(...withUrls);
     }
+
+    setGarmentPool(pool);
+    setLoading(false);
   }, [user]);
 
   /* ---- Fetch calendar entries ---- */
@@ -154,7 +154,7 @@ const OutfitCalendar = () => {
         const withUrls = await Promise.all(
           data.map(async (g) => {
             const { data: urlData } = await supabase.storage.from("garments").createSignedUrl(g.image_url, 3600);
-            return { ...g, image_url: urlData?.signedUrl || g.image_url } as GarmentSnapshot;
+            return { ...g, image_url: urlData?.signedUrl || g.image_url, source: "closet" as const } as GarmentSnapshot;
           })
         );
         const map: Record<string, GarmentSnapshot> = { ...garments };
@@ -169,24 +169,19 @@ const OutfitCalendar = () => {
     fetchCalendar();
   }, [fetchBootstrap, fetchCalendar]);
 
-  /* ---- Pool of items to pick from ---- */
-  const pool = useFallback ? trendingFallback : closetItems;
+  /* ---- Filter pools ---- */
+  const topsPool = useMemo(() => garmentPool.filter((i) => TOP_RE.test(i.category || '') || TOP_RE.test(i.name || '')), [garmentPool]);
+  const bottomsPool = useMemo(() => garmentPool.filter((i) => BOTTOM_RE.test(i.category || '') || BOTTOM_RE.test(i.name || '')), [garmentPool]);
 
-  const TOP_RE = /\b(top|shirt|blazer|sweater|knit|jacket|coat|polo|camisole|cardigan|hoodie)\b/i;
-  const BOTTOM_RE = /\b(bottom|trouser|pant|jeans|skirt|short|chinos|sweatpants)\b/i;
-
-  const topsPool = useMemo(() => pool.filter((i) => TOP_RE.test(i.category || '') || TOP_RE.test(i.name || '')), [pool]);
-  const bottomsPool = useMemo(() => pool.filter((i) => BOTTOM_RE.test(i.category || '') || BOTTOM_RE.test(i.name || '')), [pool]);
+  const meetsThreshold = topsPool.length >= THRESHOLD && bottomsPool.length >= THRESHOLD;
 
   /* ---- Get contextual items for a date ---- */
   const getItemsForDate = useCallback(
     (date: Date, entry?: CalendarEntry): GarmentSnapshot[] => {
-      // If we have saved garment_ids, resolve them
       if (entry && entry.garment_ids && entry.garment_ids.length > 0) {
         return entry.garment_ids.map((id) => garments[id]).filter(Boolean);
       }
-
-      if (pool.length === 0) return [];
+      if (!meetsThreshold) return [];
 
       const seed = date.getTime();
       const pickFrom = (arr: GarmentSnapshot[], offset: number) => {
@@ -195,23 +190,20 @@ const OutfitCalendar = () => {
         return arr[idx];
       };
 
-      const top = pickFrom(topsPool.length > 0 ? topsPool : pool, 0);
-      const bottom = pickFrom(bottomsPool.length > 0 ? bottomsPool : pool, 1);
+      const top = pickFrom(topsPool, 0);
+      const bottom = pickFrom(bottomsPool, 1);
       return [top, bottom].filter(Boolean) as GarmentSnapshot[];
     },
-    [garments, pool, topsPool, bottomsPool]
+    [garments, topsPool, bottomsPool, meetsThreshold]
   );
 
   /* ---- Swap handler ---- */
   const handleSwap = useCallback(
     (dateStr: string) => {
-      if (pool.length < 2) return;
-      const tSrc = topsPool.length > 0 ? topsPool : pool;
-      const bSrc = bottomsPool.length > 0 ? bottomsPool : pool;
-      const top = tSrc[Math.floor(Math.random() * tSrc.length)];
-      const bottom = bSrc[Math.floor(Math.random() * bSrc.length)];
+      if (!meetsThreshold) return;
+      const top = topsPool[Math.floor(Math.random() * topsPool.length)];
+      const bottom = bottomsPool[Math.floor(Math.random() * bottomsPool.length)];
       const randomTwo = [top, bottom].filter(Boolean);
-      // Update local garments map and entry
       const map = { ...garments };
       randomTwo.forEach((g) => (map[g.id] = g));
       setGarments(map);
@@ -237,7 +229,7 @@ const OutfitCalendar = () => {
         ];
       });
     },
-    [pool, garments, topsPool, bottomsPool]
+    [garments, topsPool, bottomsPool, meetsThreshold]
   );
 
   /* ---- Edit: assign specific item ---- */
@@ -290,6 +282,49 @@ const OutfitCalendar = () => {
     });
   }, [entries]);
 
+  /* ---- LOCKED STATE: Not enough items ---- */
+  if (!loading && !meetsThreshold) {
+    return (
+      <GlassCard className="p-6 text-center space-y-4">
+        <div className="flex justify-center">
+          <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
+            <Lock className="w-7 h-7 text-primary" />
+          </div>
+        </div>
+        <div>
+          <h3 className="text-lg font-bold text-foreground font-outfit">Unlock Your Daily Stylist</h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Add at least 10 Tops and 10 Bottoms to your Wardrobe or Dream List to activate the Outfit Calendar.
+          </p>
+        </div>
+        <div className="space-y-3 max-w-[260px] mx-auto">
+          <div>
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+              <span className="flex items-center gap-1"><ShirtIcon className="w-3 h-3" /> Tops</span>
+              <span className="font-semibold text-foreground">{topsPool.length}/{THRESHOLD}</span>
+            </div>
+            <Progress value={(topsPool.length / THRESHOLD) * 100} className="h-2" />
+          </div>
+          <div>
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+              <span className="flex items-center gap-1"><Layers className="w-3 h-3" /> Bottoms</span>
+              <span className="font-semibold text-foreground">{bottomsPool.length}/{THRESHOLD}</span>
+            </div>
+            <Progress value={(bottomsPool.length / THRESHOLD) * 100} className="h-2" />
+          </div>
+        </div>
+      </GlassCard>
+    );
+  }
+
+  if (loading) {
+    return (
+      <GlassCard className="p-6 text-center">
+        <p className="text-sm text-muted-foreground">Loading calendar…</p>
+      </GlassCard>
+    );
+  }
+
   const todaySlot = days[0];
   const visibleUpcoming = days.slice(1, maxDays);
   const showLockedCard = subscriptionTier !== "pro";
@@ -303,12 +338,9 @@ const OutfitCalendar = () => {
 
   return (
     <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
-      {/* Header is now rendered by HomePage.tsx for alignment */}
-
       <div className="rounded-2xl glass-card p-4">
         {/* ===== TODAY'S OUTFIT CARD ===== */}
         <div className="rounded-2xl bg-card border border-border p-4 mb-4">
-          {/* Top badges row */}
           <div className="flex items-center gap-2 mb-3">
             <span className="px-3 py-1 rounded-full bg-primary text-primary-foreground text-[11px] font-semibold">
               Today
@@ -325,7 +357,6 @@ const OutfitCalendar = () => {
           </div>
 
           <div className="flex gap-4">
-            {/* Left: date + details */}
             <div className="flex-1 min-w-0 flex flex-col">
               <p className="text-2xl font-bold text-foreground font-outfit leading-none">
                 {format(new Date(), "EEE d")}
@@ -336,8 +367,6 @@ const OutfitCalendar = () => {
                   {tempDisplay && ` · ${tempDisplay}`}
                 </p>
               )}
-
-              {/* Garment names */}
               <div className="mt-3 space-y-1">
                 {todayGarments.length > 0 ? (
                   todayGarments.slice(0, 3).map((g) => (
@@ -351,7 +380,6 @@ const OutfitCalendar = () => {
               </div>
             </div>
 
-            {/* Right: garment images – fixed size */}
             <div className="flex gap-2 shrink-0">
               {todayGarments.length > 0 ? (
                 todayGarments.slice(0, 2).map((g) => (
@@ -382,7 +410,6 @@ const OutfitCalendar = () => {
             </div>
           </div>
 
-          {/* Action buttons – centered below */}
           <div className="flex justify-center gap-4 mt-5 pt-2 w-full">
             <Button
               size="sm"
@@ -406,10 +433,9 @@ const OutfitCalendar = () => {
             </DrawerTrigger>
           </div>
 
-          {/* Footer label */}
           <div className="mt-4 pt-3 border-t border-border text-center">
             <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
-              {todaySlot.entry ? "Planned Outfit" : useFallback ? "Suggested from Trending" : "No Outfit Planned"}
+              {todaySlot.entry ? "Planned Outfit" : "Suggested Outfit"}
             </span>
           </div>
         </div>
@@ -432,7 +458,6 @@ const OutfitCalendar = () => {
                         <span className="text-[9px] text-muted-foreground capitalize">{occasion}</span>
                       </div>
 
-                      {/* Small garment images */}
                       <div className="flex gap-1.5 mt-2">
                         {slotGarments.length > 0 ? (
                           slotGarments.slice(0, 2).map((g) => (
@@ -458,7 +483,6 @@ const OutfitCalendar = () => {
                         )}
                       </div>
 
-                      {/* Item names */}
                       <div className="mt-2 space-y-0.5">
                         {slotGarments.length > 0 ? (
                           slotGarments.slice(0, 2).map((g) => (
@@ -471,7 +495,6 @@ const OutfitCalendar = () => {
                         )}
                       </div>
 
-                      {/* Footer */}
                       <div className="mt-2 pt-2 border-t border-border text-center">
                         <span className="text-[9px] font-medium uppercase tracking-widest text-muted-foreground">
                           {slot.entry ? "Planned" : "Suggested"}
@@ -482,7 +505,6 @@ const OutfitCalendar = () => {
                 );
               })}
 
-              {/* Locked upgrade card */}
               {showLockedCard && (
                 <CarouselItem className="pl-2 basis-[55%] sm:basis-[42%]">
                   <div className="rounded-2xl bg-card border border-border p-3 flex flex-col items-center justify-center h-full min-h-[160px] opacity-70">
@@ -495,7 +517,6 @@ const OutfitCalendar = () => {
               )}
             </CarouselContent>
 
-            {/* Dots indicator */}
             <div className="flex justify-center gap-1.5 mt-3">
               {visibleUpcoming.map((_, i) => (
                 <div
@@ -517,7 +538,7 @@ const OutfitCalendar = () => {
           </DrawerTitle>
         </DrawerHeader>
         <div className="px-4 pb-6 grid grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto">
-          {(useFallback ? trendingFallback : closetItems).map((item) => (
+          {garmentPool.map((item) => (
             <button
               key={item.id}
               className="rounded-xl overflow-hidden bg-muted border border-border hover:border-primary transition-colors"
@@ -536,7 +557,7 @@ const OutfitCalendar = () => {
               </p>
             </button>
           ))}
-          {pool.length === 0 && (
+          {garmentPool.length === 0 && (
             <p className="col-span-3 text-center text-sm text-muted-foreground py-8">
               No items available. Add garments to your wardrobe first.
             </p>
