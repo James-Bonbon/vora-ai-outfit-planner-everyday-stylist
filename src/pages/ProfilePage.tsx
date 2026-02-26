@@ -339,7 +339,8 @@ const ProfilePage = () => {
             { key: "peach", label: "Warm Peach", sub: "Premium", bg: "#FEF0E6", accent: "#E8AD8E", swatch3: "#5C463C", premium: true },
           ].map((t) => {
             const isActive = (profile?.app_theme || "default") === t.key;
-            const isLocked = t.premium && (profile?.subscription_tier || "free") === "free";
+            const tier = profile?.subscription_tier || "free";
+            const isLocked = t.premium && tier === "free";
             return (
               <button
                 key={t.key}

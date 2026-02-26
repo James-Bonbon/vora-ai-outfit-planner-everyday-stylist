@@ -118,15 +118,14 @@ const Landing = () => {
                  <button
                   onClick={handleGoogleSignIn}
                   className="flex items-center gap-1 text-primary-foreground font-inter rounded-full transition-all"
-                  style={{
-                    fontWeight: 700,
-                    fontSize: 15,
-                    background: "hsl(var(--primary))",
-                    padding: "12px 22px",
-                    boxShadow: agreed ? "0px 18px 50px rgba(217,119,87,0.25)" : "none",
-                    opacity: agreed ? 1 : 0.55,
-                    borderRadius: 999,
-                  }}
+                   style={{
+                     fontWeight: 700,
+                     fontSize: 15,
+                     background: "hsl(var(--primary))",
+                     padding: "12px 22px",
+                     opacity: agreed ? 1 : 0.55,
+                     borderRadius: 999,
+                   }}
                   disabled={!agreed}
                 >
                   Plan My Outfit <ChevronRight className="w-4 h-4" />
@@ -198,12 +197,11 @@ const Landing = () => {
           <button
             onClick={handleGoogleSignIn}
             className="w-full font-inter text-primary-foreground rounded-full transition-all"
-            style={{
+             style={{
               fontWeight: 700,
               fontSize: 18,
               height: 60,
               background: "hsl(var(--primary))",
-              boxShadow: agreed ? "0px 18px 50px rgba(217,119,87,0.25)" : "none",
               opacity: agreed ? 1 : 0.55,
               borderRadius: 999,
             }}
