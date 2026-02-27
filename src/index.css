@@ -169,24 +169,25 @@
     --product-bg: 36 30% 88%;
   }
 
-  .theme-rose, .dark .theme-rose {
-    --background: 340 82% 95%;
-    --foreground: 340 18% 30%;
+  .theme-rose,
+  .dark .theme-rose {
+    --background: 346 89% 95%;
+    --foreground: 343 30% 13%;
 
     --card: 0 0% 100%;
-    --card-foreground: 340 18% 30%;
+    --card-foreground: 343 30% 13%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 340 18% 30%;
+    --popover-foreground: 343 30% 13%;
 
     --primary: 348 52% 75%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 340 60% 97%;
-    --secondary-foreground: 340 18% 40%;
+    --secondary: 342 59% 90%;
+    --secondary-foreground: 343 30% 13%;
 
-    --muted: 340 60% 97%;
-    --muted-foreground: 340 10% 65%;
+    --muted: 342 59% 90%;
+    --muted-foreground: 348 18% 40%;
 
     --accent: 348 52% 75%;
     --accent-foreground: 0 0% 100%;
@@ -194,89 +195,144 @@
     --destructive: 0 62% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 340 42% 90%;
-    --input: 340 42% 90%;
+    --border: 342 59% 90%;
+    --input: 342 59% 90%;
     --ring: 348 52% 75%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 340 82% 93%;
-    --sidebar-foreground: 340 18% 30%;
+    --sidebar-background: 346 89% 93%;
+    --sidebar-foreground: 343 30% 13%;
     --sidebar-primary: 348 52% 75%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 340 60% 97%;
-    --sidebar-accent-foreground: 340 18% 30%;
-    --sidebar-border: 340 42% 90%;
+    --sidebar-accent: 342 59% 90%;
+    --sidebar-accent-foreground: 343 30% 13%;
+    --sidebar-border: 342 59% 90%;
     --sidebar-ring: 348 52% 75%;
 
     --gold: 348 52% 75%;
     --gold-foreground: 0 0% 100%;
 
     --calendar-bg: 0 0% 100%;
-    --calendar-card: 340 60% 98%;
+    --calendar-card: 342 59% 97%;
     --calendar-accent: 348 52% 75%;
     --calendar-accent-foreground: 0 0% 100%;
-    --calendar-text: 340 18% 30%;
-    --calendar-text-muted: 340 10% 65%;
-    --calendar-border: 340 42% 90%;
+    --calendar-text: 343 30% 13%;
+    --calendar-text-muted: 348 18% 40%;
+    --calendar-border: 342 59% 90%;
 
-    --product-bg: 340 100% 98%;
+    --product-bg: 346 89% 97%;
   }
 
-  .theme-cream, .dark .theme-cream {
-    --background: 48 18% 95%;
-    --foreground: 30 6% 27%;
+  .theme-cream,
+  .dark .theme-cream {
+    --background: 48 18% 96%;
+    --foreground: 30 10% 9%;
 
     --card: 0 0% 100%;
-    --card-foreground: 30 6% 27%;
+    --card-foreground: 30 10% 9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 30 6% 27%;
+    --popover-foreground: 30 10% 9%;
 
-    --primary: 30 12% 70%;
+    --primary: 34 12% 61%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 40 14% 93%;
-    --secondary-foreground: 30 6% 35%;
+    --secondary: 40 14% 89%;
+    --secondary-foreground: 30 10% 9%;
 
-    --muted: 40 14% 93%;
-    --muted-foreground: 30 6% 59%;
+    --muted: 40 14% 89%;
+    --muted-foreground: 30 5% 37%;
 
-    --accent: 30 12% 70%;
+    --accent: 34 12% 61%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 62% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 37 10% 87%;
-    --input: 37 10% 87%;
-    --ring: 30 12% 70%;
+    --border: 40 14% 89%;
+    --input: 40 14% 89%;
+    --ring: 34 12% 61%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 48 18% 93%;
-    --sidebar-foreground: 30 6% 27%;
-    --sidebar-primary: 30 12% 70%;
+    --sidebar-background: 48 18% 94%;
+    --sidebar-foreground: 30 10% 9%;
+    --sidebar-primary: 34 12% 61%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 40 14% 93%;
-    --sidebar-accent-foreground: 30 6% 27%;
-    --sidebar-border: 37 10% 87%;
-    --sidebar-ring: 30 12% 70%;
+    --sidebar-accent: 40 14% 89%;
+    --sidebar-accent-foreground: 30 10% 9%;
+    --sidebar-border: 40 14% 89%;
+    --sidebar-ring: 34 12% 61%;
 
-    --gold: 30 12% 70%;
+    --gold: 34 12% 61%;
     --gold-foreground: 0 0% 100%;
 
     --calendar-bg: 0 0% 100%;
     --calendar-card: 40 14% 97%;
-    --calendar-accent: 30 12% 70%;
+    --calendar-accent: 34 12% 61%;
     --calendar-accent-foreground: 0 0% 100%;
-    --calendar-text: 30 6% 27%;
-    --calendar-text-muted: 30 6% 59%;
-    --calendar-border: 37 10% 87%;
+    --calendar-text: 30 10% 9%;
+    --calendar-text-muted: 30 5% 37%;
+    --calendar-border: 40 14% 89%;
 
     --product-bg: 0 0% 100%;
   }
 
+  .theme-peach,
+  .dark .theme-peach {
+    --background: 25 92% 95%;
+    --foreground: 19 30% 14%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 19 30% 14%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 19 30% 14%;
+
+    --primary: 20 64% 73%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 22 58% 89%;
+    --secondary-foreground: 19 30% 14%;
+
+    --muted: 22 58% 89%;
+    --muted-foreground: 19 26% 41%;
+
+    --accent: 20 64% 73%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 22 58% 89%;
+    --input: 22 58% 89%;
+    --ring: 20 64% 73%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 25 92% 93%;
+    --sidebar-foreground: 19 30% 14%;
+    --sidebar-primary: 20 64% 73%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 22 58% 89%;
+    --sidebar-accent-foreground: 19 30% 14%;
+    --sidebar-border: 22 58% 89%;
+    --sidebar-ring: 20 64% 73%;
+
+    --gold: 20 64% 73%;
+    --gold-foreground: 0 0% 100%;
+
+    --calendar-bg: 0 0% 100%;
+    --calendar-card: 22 58% 97%;
+    --calendar-accent: 20 64% 73%;
+    --calendar-accent-foreground: 0 0% 100%;
+    --calendar-text: 19 30% 14%;
+    --calendar-text-muted: 19 26% 41%;
+    --calendar-border: 22 58% 89%;
+
+    --product-bg: 0 0% 100%;
+  }
   .theme-peach, .dark .theme-peach {
     --background: 25 90% 95%;
     --foreground: 20 22% 30%;
@@ -379,19 +435,19 @@
   }
 
   .glass-card {
-    background: hsl(220 12% 12% / 0.85);
+    background: hsl(var(--card) / 0.85);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
-    border: 1px solid hsl(220 10% 20%);
-    box-shadow: 0 2px 16px hsl(0 0% 0% / 0.2);
+    border: 1px solid hsl(var(--border));
+    box-shadow: 0 2px 16px hsl(0 0% 0% / 0.1);
   }
 
   .glass-card-strong {
-    background: hsl(220 12% 10% / 0.95);
+    background: hsl(var(--card) / 0.95);
     backdrop-filter: blur(28px);
     -webkit-backdrop-filter: blur(28px);
-    border: 1px solid hsl(220 10% 20%);
-    box-shadow: 0 4px 24px hsl(0 0% 0% / 0.25);
+    border: 1px solid hsl(var(--border));
+    box-shadow: 0 4px 24px hsl(0 0% 0% / 0.12);
   }
 
   .pb-safe {
