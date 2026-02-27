@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { cropToBoundingBox } from "@/utils/imageProcessing";
 // Lazy-loaded to avoid WASM pre-bundling timeout
 const loadRemoveBackground = () =>
   import("@imgly/background-removal").then((m) => m.removeBackground);
@@ -88,7 +89,9 @@ const SmartCamera = ({ open, onOpenChange, onAnalyzed }: SmartCameraProps) => {
         let hasTransparentBg = false;
         try {
           const removeBackground = await loadRemoveBackground();
-          processedBlob = await removeBackground(blob);
+          const bgRemoved = await removeBackground(blob);
+          // Auto-crop transparent padding so garment fills the frame
+          processedBlob = await cropToBoundingBox(bgRemoved);
           hasTransparentBg = true;
         } catch (e) {
           console.warn("Background removal failed, using raw image:", e);

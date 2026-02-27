@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Camera, Loader2, Sparkles, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { cropToBoundingBox } from "@/utils/imageProcessing";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
@@ -177,11 +178,22 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
     setSaving(true);
 
     try {
+      // Auto-crop transparent padding before uploading
+      let uploadBlob: Blob = file;
+      const isPng = file.type === "image/png";
+      if (isPng || prefill?.hasTransparentBg) {
+        try {
+          uploadBlob = await cropToBoundingBox(file);
+        } catch (e) {
+          console.warn("Auto-crop failed, uploading original:", e);
+        }
+      }
+
       const ext = file.name.split(".").pop();
       const filePath = `${user.id}/${crypto.randomUUID()}.${ext}`;
       const { error: uploadError } = await supabase.storage
         .from("garments")
-        .upload(filePath, file);
+        .upload(filePath, uploadBlob, { contentType: file.type });
 
       if (uploadError) throw uploadError;
 
