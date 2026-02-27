@@ -41,11 +41,21 @@ const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 
 function applyTheme(theme: string) {
   const root = document.documentElement;
-  // Remove all theme classes
+
+  // Remove all custom theme classes
   Object.values(THEME_CLASS_MAP).forEach((cls) => {
     if (cls) root.classList.remove(cls);
   });
-  // Apply new one
+
+  // Manage Tailwind's dark class
+  const lightThemes = ["rose", "cream", "peach"];
+  if (lightThemes.includes(theme)) {
+    root.classList.remove("dark");
+  } else {
+    root.classList.add("dark");
+  }
+
+  // Apply new theme class
   const cls = THEME_CLASS_MAP[theme];
   if (cls) root.classList.add(cls);
 }
