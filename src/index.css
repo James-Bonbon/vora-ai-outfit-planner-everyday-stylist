@@ -169,7 +169,7 @@
     --product-bg: 36 30% 88%;
   }
 
-  .theme-rose {
+  .theme-rose, .dark .theme-rose {
     --background: 340 82% 95%;
     --foreground: 340 18% 30%;
 
@@ -223,7 +223,7 @@
     --product-bg: 340 100% 98%;
   }
 
-  .theme-cream {
+  .theme-cream, .dark .theme-cream {
     --background: 48 18% 95%;
     --foreground: 30 6% 27%;
 
@@ -277,7 +277,7 @@
     --product-bg: 0 0% 100%;
   }
 
-  .theme-peach {
+  .theme-peach, .dark .theme-peach {
     --background: 25 90% 95%;
     --foreground: 20 22% 30%;
 
