@@ -111,7 +111,7 @@ const Landing = () => {
                   style={{
                     fontWeight: 600,
                     fontSize: 14,
-                    background: "hsl(var(--primary))",
+                    background: "#C07A5A",
                     padding: "12px 16px",
                     opacity: agreed ? 1 : 0.55,
                     borderRadius: 24,
@@ -149,8 +149,8 @@ const Landing = () => {
               onClick={() => setAgreed(!agreed)}
               className="flex-shrink-0 w-[28px] h-[28px] rounded-full border-2 flex items-center justify-center mt-0.5 transition-colors"
               style={{
-                borderColor: agreed ? "hsl(var(--primary))" : "hsl(var(--border))",
-                background: agreed ? "hsl(var(--primary))" : "transparent",
+                borderColor: agreed ? "#C07A5A" : "hsl(var(--border))",
+                background: agreed ? "#C07A5A" : "transparent",
               }}
             >
               {agreed && (
@@ -197,7 +197,7 @@ const Landing = () => {
               fontWeight: 700,
               fontSize: 18,
               height: 60,
-              background: "hsl(var(--primary))",
+              background: "#C07A5A",
               opacity: agreed ? 1 : 0.55,
               borderRadius: 999,
             }}
