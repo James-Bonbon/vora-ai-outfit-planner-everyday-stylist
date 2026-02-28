@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import VoraLogo from "@/components/VoraLogo";
+import VoraLogo from "@/component94%s/VoraLogo";
 import { ChevronRight } from "lucide-react";
 import outfitCollage from "@/assets/outfit-collage.png";
 import { lovable } from "@/integrations/lovable";
@@ -84,7 +84,7 @@ const Landing = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.6 }}
-          className="w-[100%] max-w-[460px]"
+          className="w-[100%] max-w-[500px]"
         >
           <div className="bg-card rounded-[24px] p-7" style={{ boxShadow: "0px 18px 60px rgba(0,0,0,0.08)" }}>
             <h3 className="font-inter text-left text-muted-foreground" style={{ fontWeight: 600, fontSize: 18 }}>
