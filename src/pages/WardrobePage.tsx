@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import GlassCard from "@/components/GlassCard";
 import SafeImage from "@/components/ui/SafeImage";
 import { Plus, Library, Camera } from "lucide-react";
@@ -20,72 +21,69 @@ type TabValue = "closet" | "dream";
 const WardrobePage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabValue>("closet");
-
-  // Closet state
-  const [items, setItems] = useState<ClosetItem[]>([]);
-  const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const [activeCategory, setActiveCategory] = useState("All");
   const [addOpen, setAddOpen] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [prefill, setPrefill] = useState<PrefillData | null>(null);
   const [bulkQueue, setBulkQueue] = useState<AnalyzedItem[]>([]);
-
-  // Dream state
-  const [dreamItems, setDreamItems] = useState<DreamItem[]>([]);
-
-  // Shared detail sheet
   const [selectedItem, setSelectedItem] = useState<GarmentDisplay | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
-  const fetchItems = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("closet_items")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
+  const { data: closetData } = useQuery({
+    queryKey: ['closet', user?.id],
+    enabled: !!user,
+    staleTime: 1000 * 60 * 30,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("closet_items")
+        .select("*")
+        .eq("user_id", user!.id)
+        .order("created_at", { ascending: false });
 
-    if (data) {
-      setItems(data as ClosetItem[]);
+      if (error) throw error;
+      if (!data) return { items: [] as ClosetItem[], imageUrls: {} as Record<string, string> };
+
       const urls: Record<string, string> = {};
-      const paths = data.map((item: ClosetItem) => item.image_url).filter(Boolean);
+      const paths = data.map((item) => item.image_url).filter(Boolean);
 
       if (paths.length > 0) {
-        const { data: urlData, error } = await supabase.storage
+        const { data: urlData, error: urlError } = await supabase.storage
           .from("garments")
           .createSignedUrls(paths, 3600);
-        if (!error && urlData) {
+        if (!urlError && urlData) {
           urlData.forEach((u, index) => {
             if (u.signedUrl) urls[data[index].id] = u.signedUrl;
           });
         }
       }
-      setImageUrls(urls);
+      return { items: data as ClosetItem[], imageUrls: urls };
     }
-  }, [user]);
+  });
 
-  const fetchDreamItems = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("dream_items")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
+  const { data: dreamItems = [] } = useQuery({
+    queryKey: ['dream', user?.id],
+    enabled: !!user,
+    staleTime: 1000 * 60 * 30,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("dream_items")
+        .select("*")
+        .eq("user_id", user!.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data as DreamItem[]) ?? [];
+    }
+  });
 
-    if (data) setDreamItems(data as DreamItem[]);
-  }, [user]);
-
-  useEffect(() => {
-    fetchItems();
-    fetchDreamItems();
-  }, [fetchItems, fetchDreamItems]);
-
+  const items = closetData?.items ?? [];
+  const imageUrls = closetData?.imageUrls ?? {};
   const filtered = activeCategory === "All" ? items : items.filter((i) => i.category === activeCategory);
 
   const handleRefresh = () => {
-    if (activeTab === "closet") fetchItems();
-    else fetchDreamItems();
+    if (activeTab === "closet") queryClient.invalidateQueries({ queryKey: ['closet', user?.id] });
+    else queryClient.invalidateQueries({ queryKey: ['dream', user?.id] });
   };
 
   return (
@@ -245,14 +243,13 @@ const WardrobePage = () => {
         onOpenChange={(v) => {
           setAddOpen(v);
           if (!v && bulkQueue.length > 0) {
-            // Auto-open next item in queue
             const [next, ...rest] = bulkQueue;
             setPrefill(next);
             setBulkQueue(rest);
             setTimeout(() => setAddOpen(true), 300);
           }
         }}
-        onItemAdded={fetchItems}
+        onItemAdded={() => queryClient.invalidateQueries({ queryKey: ['closet', user?.id] })}
         prefill={prefill}
       />
       <GarmentDetailSheet item={selectedItem} open={detailOpen} onOpenChange={setDetailOpen} onDeleted={handleRefresh} />
@@ -264,7 +261,6 @@ const WardrobePage = () => {
             setPrefill(items[0]);
             setAddOpen(true);
           } else if (items.length > 1) {
-            // Open first item for review, queue rest
             setPrefill(items[0]);
             setBulkQueue(items.slice(1));
             setAddOpen(true);
