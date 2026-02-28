@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Camera, Loader2, Sparkles, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { cropToBoundingBox } from "@/utils/imageProcessing";
+import { cropToBoundingBox, normalizeToPng } from "@/utils/imageProcessing";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
@@ -88,8 +88,11 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
     let finalBlob: Blob = f;
     let bgRemoved = false;
     try {
+      // Normalize to PNG first to prevent AVIF/WebP silent failures
+      const normalizedBlob = await normalizeToPng(f);
+      const normalizedFile = new File([normalizedBlob], "normalized.png", { type: "image/png" });
       const removeBackground = await loadRemoveBackground();
-      const transparent = await removeBackground(f);
+      const transparent = await removeBackground(normalizedFile);
       const cropped = await cropToBoundingBox(transparent);
       finalBlob = cropped;
       bgRemoved = true;
@@ -104,7 +107,8 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       });
       setPreview(processedPreview);
     } catch (err) {
-      console.warn("Background removal failed, using original:", err);
+      console.error("Background removal failed:", err);
+      toast.error("Background removal failed. The original image will be used.");
     } finally {
       setRemovingBg(false);
     }
