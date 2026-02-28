@@ -84,7 +84,7 @@ const Landing = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.6 }}
-          className="w-[88%] max-w-[420px]"
+          className="w-[100%] max-w-[500px]"
         >
           <div className="bg-card rounded-[24px] p-7" style={{ boxShadow: "0px 18px 60px rgba(0,0,0,0.08)" }}>
             <h3 className="font-inter text-left text-muted-foreground" style={{ fontWeight: 600, fontSize: 18 }}>
@@ -93,32 +93,40 @@ const Landing = () => {
             <div className="mt-4 mb-[18px]" style={{ height: 1, background: "hsl(var(--border))" }} />
 
             <div className="flex items-center gap-4">
-              <div className="w-[55%] flex-shrink-0">
+              <div className="w-[62%] flex-shrink-0">
                 <img
                   src={outfitCollage}
                   alt="Casual outfit: beige jacket, white tee, light blue jeans, white sneakers"
-                  className="w-full h-auto rounded-xl object-cover"
+                  className="w-full h-auto rounded-xl object-contain scale-100 transition-transform"
                   loading="lazy"
                 />
               </div>
-              <div className="flex flex-col gap-3 items-start">
-                <span className="font-inter text-muted-foreground" style={{ fontWeight: 500, fontSize: 16 }}>
+              <div className="flex flex-col gap-3 items-start flex-1">
+                <span
+                  className="font-inter text-muted-foreground whitespace-nowrap"
+                  style={{ fontWeight: 500, fontSize: 16 }}
+                >
                   Casual &amp; Chic
                 </span>
                 <button
                   onClick={handleGoogleSignIn}
-                  className="flex items-center gap-1 text-primary-foreground font-inter rounded-full transition-all"
+                  className="flex flex-col items-start text-primary-foreground font-inter transition-all"
                   style={{
-                    fontWeight: 700,
-                    fontSize: 15,
-                    background: "hsl(var(--primary))",
-                    padding: "12px 22px",
+                    fontWeight: 600,
+                    fontSize: 14,
+                    lineHeight: "1.2",
+                    background: "#B86B4D",
+                    padding: "10px 14px",
                     opacity: agreed ? 1 : 0.55,
-                    borderRadius: 999,
+                    borderRadius: "20px",
+                    width: "100px", // Forces "Outfit" to the second line
                   }}
                   disabled={!agreed}
                 >
-                  Plan My Outfit <ChevronRight className="w-4 h-4" />
+                  <span>Plan My</span>
+                  <span className="flex items-center gap-1">
+                    Outfit <ChevronRight className="w-3 h-3" />
+                  </span>
                 </button>
               </div>
             </div>
@@ -131,7 +139,7 @@ const Landing = () => {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.35, duration: 0.5 }}
           className="font-inter text-center text-muted-foreground"
-          style={{ fontWeight: 500, fontSize: 16, marginTop: 18, marginBottom: 14 }}
+          style={{ fontWeight: 500, fontSize: 16, marginTop: 14, marginBottom: 14 }}
         >
           Get outfit ideas from your wardrobe.
         </motion.p>
@@ -149,8 +157,8 @@ const Landing = () => {
               onClick={() => setAgreed(!agreed)}
               className="flex-shrink-0 w-[28px] h-[28px] rounded-full border-2 flex items-center justify-center mt-0.5 transition-colors"
               style={{
-                borderColor: agreed ? "hsl(var(--primary))" : "hsl(var(--border))",
-                background: agreed ? "hsl(var(--primary))" : "transparent",
+                borderColor: agreed ? "#C07A5A" : "hsl(var(--border))",
+                background: agreed ? "#C07A5A" : "transparent",
               }}
             >
               {agreed && (
@@ -187,7 +195,7 @@ const Landing = () => {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35, duration: 0.6 }}
-          className="w-[88%] max-w-[420px] flex flex-col gap-3 mt-6"
+          className="w-[88%] max-w-[420px] flex flex-col gap-3 mt-4"
         >
           {/* Primary CTA - Sign up with Google */}
           <button
@@ -197,7 +205,7 @@ const Landing = () => {
               fontWeight: 700,
               fontSize: 18,
               height: 60,
-              background: "hsl(var(--primary))",
+              background: "#C07A5A",
               opacity: agreed ? 1 : 0.55,
               borderRadius: 999,
             }}
