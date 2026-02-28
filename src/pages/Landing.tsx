@@ -93,7 +93,7 @@ const Landing = () => {
             <div className="mt-4 mb-[18px]" style={{ height: 1, background: "hsl(var(--border))" }} />
 
             <div className="flex items-center gap-4">
-              <div className="w-[45%] flex-shrink-0">
+              <div className="w-[62%] flex-shrink-0">
                 <img
                   src={outfitCollage}
                   alt="Casual outfit: beige jacket, white tee, light blue jeans, white sneakers"
