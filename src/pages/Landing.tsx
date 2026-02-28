@@ -84,7 +84,7 @@ const Landing = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.6 }}
-          className="w-[100%] max-w-[460px]"
+          className="w-[100%] max-w-[500px]"
         >
           <div className="bg-card rounded-[24px] p-7" style={{ boxShadow: "0px 18px 60px rgba(0,0,0,0.08)" }}>
             <h3 className="font-inter text-left text-muted-foreground" style={{ fontWeight: 600, fontSize: 18 }}>
@@ -102,10 +102,8 @@ const Landing = () => {
                 />
               </div>
               <div className="flex flex-col gap-3 items-start flex-1">
-                {" "}
-                {/* Added flex-1 */}
                 <span
-                  className="font-inter text-muted-foreground whitespace-nowrap" // Added whitespace-nowrap
+                  className="font-inter text-muted-foreground whitespace-nowrap"
                   style={{ fontWeight: 500, fontSize: 16 }}
                 >
                   Casual &amp; Chic
@@ -141,7 +139,7 @@ const Landing = () => {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.35, duration: 0.5 }}
           className="font-inter text-center text-muted-foreground"
-          style={{ fontWeight: 500, fontSize: 16, marginTop: 18, marginBottom: 14 }}
+          style={{ fontWeight: 500, fontSize: 16, marginTop: 14, marginBottom: 14 }}
         >
           Get outfit ideas from your wardrobe.
         </motion.p>
@@ -197,7 +195,7 @@ const Landing = () => {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35, duration: 0.6 }}
-          className="w-[88%] max-w-[420px] flex flex-col gap-3 mt-6"
+          className="w-[88%] max-w-[420px] flex flex-col gap-3 mt-4"
         >
           {/* Primary CTA - Sign up with Google */}
           <button
