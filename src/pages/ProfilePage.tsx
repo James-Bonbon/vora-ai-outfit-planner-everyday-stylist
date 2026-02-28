@@ -142,12 +142,24 @@ const ProfilePage = () => {
 
       if (editSelfieFile) {
         const fileExt = editSelfieFile.name.split(".").pop();
-        const filePath = `${user.id}/selfie.${fileExt}`;
+        const filePath = `${user.id}/selfie_${Date.now()}.${fileExt}`;
+
         const { error: uploadError } = await supabase.storage
           .from("selfies")
-          .upload(filePath, editSelfieFile, { upsert: true });
+          .upload(filePath, editSelfieFile);
         if (uploadError) throw uploadError;
+
+        // Delete old selfie to avoid orphaned files
+        if (profile?.selfie_url) {
+          await supabase.storage.from("selfies").remove([profile.selfie_url]);
+        }
+
         selfiePath = filePath;
+
+        // Clear cached selfie signed URLs from session storage
+        Object.keys(sessionStorage).forEach((key) => {
+          if (key.startsWith("vora_selfie")) sessionStorage.removeItem(key);
+        });
         // Clear cached selfie signed URLs
         Object.keys(sessionStorage).forEach((key) => {
           if (key.startsWith("vora_selfie")) sessionStorage.removeItem(key);
