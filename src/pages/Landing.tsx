@@ -97,7 +97,7 @@ const Landing = () => {
                 <img
                   src={outfitCollage}
                   alt="Casual outfit: beige jacket, white tee, light blue jeans, white sneakers"
-                  className="w-full h-auto rounded-xl object-cover"
+                  className="w-full h-auto rounded-xl object-contain scale-110 transition-transform"
                   loading="lazy"
                 />
               </div>
