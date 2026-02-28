@@ -141,7 +141,7 @@ const Landing = () => {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.35, duration: 0.5 }}
           className="font-inter text-center text-muted-foreground"
-          style={{ fontWeight: 500, fontSize: 16, marginTop: 18, marginBottom: 14 }}
+          style={{ fontWeight: 500, fontSize: 16, marginTop: 14, marginBottom: 14 }}
         >
           Get outfit ideas from your wardrobe.
         </motion.p>
@@ -197,7 +197,7 @@ const Landing = () => {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35, duration: 0.6 }}
-          className="w-[88%] max-w-[420px] flex flex-col gap-3 mt-6"
+          className="w-[88%] max-w-[420px] flex flex-col gap-3 mt-4"
         >
           {/* Primary CTA - Sign up with Google */}
           <button
