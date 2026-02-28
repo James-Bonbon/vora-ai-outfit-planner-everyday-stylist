@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 import SafeImage from "@/components/ui/SafeImage";
 import GlassCard from "@/components/GlassCard";
 import { User, Settings, Crown, LogOut, Pencil, X, Check, Ruler, Weight, Calendar, Users, Camera, Database, Loader2, Lock, Palette } from "lucide-react";
@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { applyTheme } from "@/components/ThemeProvider";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface ProfileData {
   display_name: string | null;
@@ -32,20 +33,40 @@ const BODY_SHAPE_LABELS: Record<string, string> = {
   curvy: "Curvy",
 };
 
-const CACHE_KEY_PROFILE = "vora_profile_cache";
-const CACHE_KEY_SELFIE_URL = "vora_selfie_url_cache"; // kept for potential future use
-
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<ProfileData | null>(() => {
-    const cached = sessionStorage.getItem(CACHE_KEY_PROFILE);
-    return cached ? JSON.parse(cached) : null;
+  const queryClient = useQueryClient();
+
+  const { data: profileData, isLoading } = useQuery({
+    queryKey: ['profile', user?.id],
+    enabled: !!user,
+    staleTime: 1000 * 60 * 30,
+    queryFn: async () => {
+      const [profileRes, roleRes] = await Promise.all([
+        supabase.from("profiles").select("*").eq("user_id", user!.id).single(),
+        supabase.from("user_roles").select("role").eq("user_id", user!.id).eq("role", "admin").maybeSingle(),
+      ]);
+
+      let signedUrl = null;
+      if (profileRes.data?.selfie_url) {
+        const { data } = await supabase.storage.from("selfies").createSignedUrl(profileRes.data.selfie_url, 3600);
+        signedUrl = data?.signedUrl || null;
+      }
+
+      return {
+        profile: profileRes.data as ProfileData,
+        isAdmin: !!roleRes.data,
+        selfieSignedUrl: signedUrl
+      };
+    }
   });
-  const [selfieSignedUrl, setSelfieSignedUrl] = useState<string | null>(null);
+
+  const profile = profileData?.profile || null;
+  const isAdmin = profileData?.isAdmin || false;
+  const selfieSignedUrl = profileData?.selfieSignedUrl || null;
+
   const [editing, setEditing] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  
 
   // Edit state
   const [editName, setEditName] = useState("");
@@ -56,46 +77,6 @@ const ProfilePage = () => {
   const [editBodyShape, setEditBodyShape] = useState("");
   const [saving, setSaving] = useState(false);
   const [seeding, setSeeding] = useState(false);
-  const fetchProfile = useCallback(async () => {
-    if (!user) return;
-    const [profileRes, roleRes] = await Promise.all([
-      supabase
-        .from("profiles")
-        .select("display_name, avatar_url, selfie_url, date_of_birth, sex, height_cm, weight_kg, body_shape, subscription_tier, app_theme")
-        .eq("user_id", user.id)
-        .single(),
-      supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle(),
-    ]);
-
-    setIsAdmin(!!roleRes.data);
-
-    if (profileRes.data) {
-      setProfile(profileRes.data);
-      sessionStorage.setItem(CACHE_KEY_PROFILE, JSON.stringify(profileRes.data));
-      if (profileRes.data.selfie_url) {
-        const { data: signedData } = await supabase.storage
-          .from("selfies")
-          .createSignedUrl(profileRes.data.selfie_url, 3600);
-        if (signedData?.signedUrl) {
-          setSelfieSignedUrl(signedData.signedUrl);
-        }
-      }
-    }
-  }, [user]);
-
-  useEffect(() => {
-    fetchProfile();
-  }, [fetchProfile]);
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/", { replace: true });
-  };
 
   const startEditing = () => {
     setEditName(profile?.display_name || "");
@@ -138,13 +119,11 @@ const ProfilePage = () => {
           .upload(filePath, editSelfieFile);
         if (uploadError) throw uploadError;
 
-        // Delete old selfie to avoid orphaned files
         if (profile?.selfie_url) {
           await supabase.storage.from("selfies").remove([profile.selfie_url]);
         }
 
         selfiePath = filePath;
-
       }
 
       const { error } = await supabase
@@ -161,15 +140,20 @@ const ProfilePage = () => {
         .eq("user_id", user.id);
       if (error) throw error;
       toast.success("Profile updated!");
+      queryClient.invalidateQueries({ queryKey: ['profile', user.id] });
       setEditing(false);
       setEditSelfieFile(null);
       setEditSelfiePreview(null);
-      fetchProfile();
     } catch {
       toast.error("Failed to update profile.");
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/", { replace: true });
   };
 
   const displayName = profile?.display_name || user?.user_metadata?.full_name || "VORA User";
@@ -360,7 +344,7 @@ const ProfilePage = () => {
                   await supabase.from("profiles").update({ app_theme: t.key }).eq("user_id", user.id);
                   localStorage.setItem("vora_app_theme", t.key);
                   applyTheme(t.key);
-                  setProfile((p) => p ? { ...p, app_theme: t.key } : p);
+                  queryClient.invalidateQueries({ queryKey: ['profile', user.id] });
                   toast.success("Theme updated!");
                 }}
                 className={`relative rounded-xl border-2 p-3 text-left transition-all ${
