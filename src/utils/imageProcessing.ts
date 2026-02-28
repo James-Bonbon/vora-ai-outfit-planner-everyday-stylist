@@ -6,6 +6,26 @@
  * @param padding  Extra pixels of breathing room around the crop (default 8).
  * @returns A tightly-cropped PNG Blob.
  */
+/**
+ * Converts any image format (AVIF, WebP, HEIC, etc.) to a standard PNG Blob
+ * to prevent silent failures in downstream processors like @imgly/background-removal.
+ */
+export async function normalizeToPng(file: Blob): Promise<Blob> {
+  const bitmap = await createImageBitmap(file);
+  const canvas = document.createElement("canvas");
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(bitmap, 0, 0);
+  bitmap.close();
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error("normalizeToPng toBlob failed"))),
+      "image/png",
+    );
+  });
+}
+
 export async function cropToBoundingBox(
   file: Blob,
   padding = 8,
