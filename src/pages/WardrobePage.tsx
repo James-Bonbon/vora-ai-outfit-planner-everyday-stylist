@@ -31,7 +31,7 @@ const WardrobePage = () => {
   const [selectedItem, setSelectedItem] = useState<GarmentDisplay | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
-  const { data: closetData } = useQuery({
+  const { data: closetData, isLoading: isClosetLoading } = useQuery({
     queryKey: ['closet', user?.id],
     enabled: !!user,
     staleTime: 1000 * 60 * 30,
@@ -62,7 +62,7 @@ const WardrobePage = () => {
     }
   });
 
-  const { data: dreamItems = [] } = useQuery({
+  const { data: dreamItems = [], isLoading: isDreamLoading } = useQuery({
     queryKey: ['dream', user?.id],
     enabled: !!user,
     staleTime: 1000 * 60 * 30,
@@ -139,7 +139,12 @@ const WardrobePage = () => {
             ))}
           </div>
 
-          {filtered.length === 0 ? (
+          {isClosetLoading ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground gap-3">
+              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+              <p className="text-sm font-medium">Loading your wardrobe...</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <GlassCard className="flex flex-col items-center justify-center py-16 text-center">
               <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
                 <Plus className="w-8 h-8 text-primary" />
@@ -187,7 +192,12 @@ const WardrobePage = () => {
       {/* Dream List Tab */}
       {activeTab === "dream" && (
         <>
-          {dreamItems.length === 0 ? (
+          {isDreamLoading ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground gap-3">
+              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+              <p className="text-sm font-medium">Loading dream list...</p>
+            </div>
+          ) : dreamItems.length === 0 ? (
             <GlassCard className="flex flex-col items-center justify-center py-16 text-center">
               <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
                 <Library className="w-8 h-8 text-primary" />
