@@ -9,6 +9,9 @@ import { cropToBoundingBox } from "@/utils/imageProcessing";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
+const loadRemoveBackground = () =>
+  import("@imgly/background-removal").then((m) => m.removeBackground);
+
 export interface PrefillData {
   imageFile: File;
   preview: string;
@@ -18,6 +21,8 @@ export interface PrefillData {
   material: string;
   brand: string;
   hasTransparentBg?: boolean;
+  /** Processed blob after bg removal (for manual uploads) */
+  processedBlob?: Blob;
 }
 
 interface AddItemSheetProps {
@@ -32,11 +37,13 @@ const CATEGORIES = ["Tops", "Bottoms", "Shoes", "Accessories", "Outerwear"];
 const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheetProps) => {
   const { user } = useAuth();
   const [file, setFile] = useState<File | null>(null);
+  const [processedBlob, setProcessedBlob] = useState<Blob | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const [hasTransparentBg, setHasTransparentBg] = useState(false);
   const [tagging, setTagging] = useState(false);
   const [saving, setSaving] = useState(false);
   const [lookingUp, setLookingUp] = useState(false);
+  const [removingBg, setRemovingBg] = useState(false);
 
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
@@ -49,36 +56,71 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
 
   const resetForm = () => {
     setFile(null);
+    setProcessedBlob(null);
     setPreview(null);
-    setImageBase64(null);
+    setHasTransparentBg(false);
     setName("");
     setCategory("");
     setColor("");
     setMaterial("");
     setBrand("");
     setCareData(null);
+    setRemovingBg(false);
   };
+
+  const imageBase64Ref = useRef<string | null>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
     setFile(f);
-    const reader = new FileReader();
-    reader.onload = (ev) => setPreview(ev.target?.result as string);
-    reader.readAsDataURL(f);
 
-    // Store base64 for later product lookup
+    // Show raw preview immediately
+    const rawPreview = await new Promise<string>((res) => {
+      const r = new FileReader();
+      r.onload = (ev) => res(ev.target?.result as string);
+      r.readAsDataURL(f);
+    });
+    setPreview(rawPreview);
+
+    // Step 1: Background removal
+    setRemovingBg(true);
+    let finalBlob: Blob = f;
+    let bgRemoved = false;
+    try {
+      const removeBackground = await loadRemoveBackground();
+      const transparent = await removeBackground(f);
+      const cropped = await cropToBoundingBox(transparent);
+      finalBlob = cropped;
+      bgRemoved = true;
+      setHasTransparentBg(true);
+      setProcessedBlob(cropped);
+
+      // Update preview with processed image
+      const processedPreview = await new Promise<string>((res) => {
+        const r = new FileReader();
+        r.onload = (ev) => res(ev.target?.result as string);
+        r.readAsDataURL(cropped);
+      });
+      setPreview(processedPreview);
+    } catch (err) {
+      console.warn("Background removal failed, using original:", err);
+    } finally {
+      setRemovingBg(false);
+    }
+
+    // Store base64 for AI tagging / product lookup
     const base64 = await new Promise<string>((resolve) => {
       const b64Reader = new FileReader();
       b64Reader.onload = (ev) => {
         const result = ev.target?.result as string;
         resolve(result.split(",")[1]);
       };
-      b64Reader.readAsDataURL(f);
+      b64Reader.readAsDataURL(finalBlob);
     });
-    setImageBase64(base64);
+    imageBase64Ref.current = base64;
 
-    // Auto-tag with AI
+    // Step 2: Auto-tag with AI
     setTagging(true);
     try {
       const { data, error } = await supabase.functions.invoke("tag-garment", {
@@ -92,9 +134,8 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       if (data?.color) setColor(data.color);
       if (data?.material) setMaterial(data.material);
       if (data?.brand) setBrand(data.brand || "");
-      toast.success("AI tagged your item! ✨");
+      toast.success(bgRemoved ? "Background removed & AI tagged! ✨" : "AI tagged your item! ✨");
 
-      // If brand was detected, auto-lookup product
       if (data?.brand) {
         triggerProductLookup(base64, data.brand, data.name, data.category, data.color, data.material);
       }
@@ -147,9 +188,9 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
   const handleBrandChange = (val: string) => {
     setBrand(val);
     if (brandTimerRef.current) clearTimeout(brandTimerRef.current);
-    if (val.trim().length >= 2 && imageBase64) {
+    if (val.trim().length >= 2 && imageBase64Ref.current) {
       brandTimerRef.current = setTimeout(() => {
-        triggerProductLookup(imageBase64, val);
+        triggerProductLookup(imageBase64Ref.current, val);
       }, 1200);
     }
   };
@@ -170,6 +211,8 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       setColor(prefill.color);
       setMaterial(prefill.material);
       setBrand(prefill.brand);
+      setHasTransparentBg(!!prefill.hasTransparentBg);
+      if (prefill.processedBlob) setProcessedBlob(prefill.processedBlob);
     }
   }, [prefill, open]);
 
@@ -178,22 +221,14 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
     setSaving(true);
 
     try {
-      // Auto-crop transparent padding before uploading
-      let uploadBlob: Blob = file;
-      const isPng = file.type === "image/png";
-      if (isPng || prefill?.hasTransparentBg) {
-        try {
-          uploadBlob = await cropToBoundingBox(file);
-        } catch (e) {
-          console.warn("Auto-crop failed, uploading original:", e);
-        }
-      }
-
-      const ext = file.name.split(".").pop();
+      // Use processed blob (bg-removed + cropped) if available, otherwise original
+      const uploadBlob: Blob = processedBlob || file;
+      const ext = hasTransparentBg || processedBlob ? "png" : file.name.split(".").pop() || "jpg";
+      const contentType = hasTransparentBg || processedBlob ? "image/png" : file.type;
       const filePath = `${user.id}/${crypto.randomUUID()}.${ext}`;
       const { error: uploadError } = await supabase.storage
         .from("garments")
-        .upload(filePath, uploadBlob, { contentType: file.type });
+        .upload(filePath, uploadBlob, { contentType });
 
       if (uploadError) throw uploadError;
 
@@ -232,18 +267,18 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
         <div className="space-y-5 mt-4 pb-6">
           {/* Photo Upload */}
           {preview ? (
-            <div className={`relative w-full aspect-square rounded-2xl overflow-hidden ${prefill?.hasTransparentBg ? "bg-product-bg p-[12%]" : "bg-card"}`}>
+            <div className={`relative w-full aspect-square rounded-2xl overflow-hidden ${hasTransparentBg ? "bg-product-bg p-[12%]" : "bg-card"}`}>
               <img
                 src={preview}
                 alt="Item preview"
-                className={`w-full h-full ${prefill?.hasTransparentBg ? "object-contain" : "object-cover"}`}
-                style={prefill?.hasTransparentBg ? { filter: "drop-shadow(0px 10px 15px rgba(0,0,0,0.1))" } : undefined}
+                className={`w-full h-full ${hasTransparentBg ? "object-contain" : "object-cover"}`}
+                style={hasTransparentBg ? { filter: "drop-shadow(0px 10px 15px rgba(0,0,0,0.1))" } : undefined}
               />
-              {tagging && (
+              {(removingBg || tagging) && (
                 <div className="absolute inset-0 bg-background/60 flex flex-col items-center justify-center gap-2">
                   <Loader2 className="w-8 h-8 text-primary animate-spin" />
                   <span className="text-sm font-medium text-foreground flex items-center gap-1">
-                    <Sparkles className="w-4 h-4 text-primary" /> AI is tagging...
+                    <Sparkles className="w-4 h-4 text-primary" /> {removingBg ? "Removing background…" : "AI is tagging..."}
                   </span>
                 </div>
               )}
