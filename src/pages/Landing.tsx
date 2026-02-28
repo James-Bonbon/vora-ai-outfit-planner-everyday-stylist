@@ -86,7 +86,7 @@ const Landing = () => {
           transition={{ delay: 0.2, duration: 0.6 }}
           className="w-[88%] max-w-[420px]"
         >
-          <div className="bg-card rounded-[4px] p-7" style={{ boxShadow: "0px 18px 60px rgba(0,0,0,0.08)" }}>
+          <div className="bg-card rounded-[24px] p-7" style={{ boxShadow: "0px 18px 60px rgba(0,0,0,0.08)" }}>
             <h3 className="font-inter text-left text-muted-foreground" style={{ fontWeight: 600, fontSize: 18 }}>
               Today's Outfit
             </h3>
@@ -114,7 +114,7 @@ const Landing = () => {
                     background: "hsl(var(--primary))",
                     padding: "12px 22px",
                     opacity: agreed ? 1 : 0.55,
-                    borderRadius: 4,
+                    borderRadius: 24,
                   }}
                   disabled={!agreed}
                 >
