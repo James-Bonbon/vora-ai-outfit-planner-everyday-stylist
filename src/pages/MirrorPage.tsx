@@ -385,16 +385,17 @@ const MirrorPage = () => {
                     <button
                       key={item.id}
                       onClick={() => toggleItem(item.id)}
-                      className={`relative rounded-xl overflow-hidden border-2 transition-all ${
-                        isSelected ? "border-primary ring-1 ring-primary/30" : "border-transparent"
+                      className={`relative rounded-2xl overflow-hidden shadow-sm border-2 transition-all bg-[#FAF9F6] ${
+                        isSelected ? "border-primary ring-1 ring-primary/30" : "border-black/5"
                       }`}
                     >
-                      <div className="aspect-square bg-card">
+                      <div className="aspect-square w-full flex items-center justify-center bg-[#FAF9F6] p-2">
                         <SafeImage
                           src={imageUrls[item.id]}
                           alt={item.name || "Garment"}
                           wrapperClassName="w-full h-full"
                           aspectRatio=""
+                          fit="contain"
                           loading="lazy"
                         />
                       </div>
@@ -403,7 +404,7 @@ const MirrorPage = () => {
                           <Check className="w-3 h-3 text-primary-foreground" />
                         </div>
                       )}
-                      <p className="text-[10px] text-muted-foreground truncate px-1.5 py-1">{item.name || "Unnamed"}</p>
+                      <p className="text-[10px] text-[#6B6B6B] truncate px-1.5 py-1">{item.name || "Unnamed"}</p>
                     </button>
                   );
                 })}

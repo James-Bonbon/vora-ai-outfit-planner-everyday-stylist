@@ -150,15 +150,15 @@ const WardrobePage = () => {
           ) : (
             <div className="grid grid-cols-2 gap-3">
               {filtered.map((item) => (
-                <GlassCard
+                <div
                   key={item.id}
-                  className="p-0 overflow-hidden cursor-pointer"
+                  className="bg-[#FAF9F6] rounded-2xl overflow-hidden shadow-sm border border-black/5 cursor-pointer"
                   onClick={() => {
                     setSelectedItem({ ...item, source: "closet" });
                     setDetailOpen(true);
                   }}
                 >
-                  <div className="aspect-square w-full flex items-center justify-center mix-blend-multiply bg-[hsl(var(--product-bg))] p-2">
+                  <div className="aspect-square w-full flex items-center justify-center bg-[#FAF9F6] p-2">
                     <SafeImage
                       src={imageUrls[item.id]}
                       alt={item.name || "Garment"}
@@ -170,12 +170,12 @@ const WardrobePage = () => {
                     />
                   </div>
                   <div className="p-3">
-                    <p className="text-sm font-medium text-foreground truncate">{item.name || "Unnamed"}</p>
+                    <p className="text-sm font-medium text-[#2A2A2A] truncate">{item.name || "Unnamed"}</p>
                     {item.category && (
-                      <span className="text-[10px] text-muted-foreground">{item.category}</span>
+                      <span className="text-[10px] text-[#6B6B6B]">{item.category}</span>
                     )}
                   </div>
-                </GlassCard>
+                </div>
               ))}
             </div>
           )}
@@ -202,33 +202,34 @@ const WardrobePage = () => {
           ) : (
             <div className="grid grid-cols-2 gap-3">
               {dreamItems.map((item) => (
-                <GlassCard
+                <div
                   key={item.id}
-                  className="p-0 overflow-hidden cursor-pointer"
+                  className="bg-[#FAF9F6] rounded-2xl overflow-hidden shadow-sm border border-black/5 cursor-pointer"
                   onClick={() => {
                     setSelectedItem({ ...item, source: "dream" });
                     setDetailOpen(true);
                   }}
                 >
-                  <div className="aspect-square bg-card">
+                  <div className="aspect-square w-full flex items-center justify-center bg-[#FAF9F6] p-2">
                     <SafeImage
                       src={item.image_url}
                       alt={item.name || "Dream item"}
                       wrapperClassName="w-full h-full"
                       aspectRatio=""
+                      fit="contain"
                       loading="lazy"
                     />
                   </div>
                   <div className="p-3">
-                    <p className="text-sm font-medium text-foreground truncate">{item.name || "Unnamed"}</p>
+                    <p className="text-sm font-medium text-[#2A2A2A] truncate">{item.name || "Unnamed"}</p>
                     <div className="flex items-center justify-between">
-                      {item.brand && <span className="text-[10px] text-muted-foreground">{item.brand}</span>}
+                      {item.brand && <span className="text-[10px] text-[#6B6B6B]">{item.brand}</span>}
                       {item.price != null && (
                         <span className="text-[10px] font-semibold text-primary">${item.price}</span>
                       )}
                     </div>
                   </div>
-                </GlassCard>
+                </div>
               ))}
             </div>
           )}
