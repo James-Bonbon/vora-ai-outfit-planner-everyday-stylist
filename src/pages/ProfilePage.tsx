@@ -33,7 +33,7 @@ const BODY_SHAPE_LABELS: Record<string, string> = {
 };
 
 const CACHE_KEY_PROFILE = "vora_profile_cache";
-const CACHE_KEY_SELFIE_URL = "vora_selfie_url_cache";
+const CACHE_KEY_SELFIE_URL = "vora_selfie_url_cache"; // kept for potential future use
 
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
@@ -42,9 +42,7 @@ const ProfilePage = () => {
     const cached = sessionStorage.getItem(CACHE_KEY_PROFILE);
     return cached ? JSON.parse(cached) : null;
   });
-  const [selfieSignedUrl, setSelfieSignedUrl] = useState<string | null>(() => {
-    return sessionStorage.getItem(CACHE_KEY_SELFIE_URL) || null;
-  });
+  const [selfieSignedUrl, setSelfieSignedUrl] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   
@@ -80,20 +78,11 @@ const ProfilePage = () => {
       setProfile(profileRes.data);
       sessionStorage.setItem(CACHE_KEY_PROFILE, JSON.stringify(profileRes.data));
       if (profileRes.data.selfie_url) {
-        const cacheKey = `vora_selfie_signed_${profileRes.data.selfie_url}`;
-        const cached = sessionStorage.getItem(cacheKey);
-        if (cached) {
-          setSelfieSignedUrl(cached);
-          sessionStorage.setItem(CACHE_KEY_SELFIE_URL, cached);
-        } else {
-          const { data: signedData } = await supabase.storage
-            .from("selfies")
-            .createSignedUrl(profileRes.data.selfie_url, 3600);
-          if (signedData?.signedUrl) {
-            setSelfieSignedUrl(signedData.signedUrl);
-            sessionStorage.setItem(cacheKey, signedData.signedUrl);
-            sessionStorage.setItem(CACHE_KEY_SELFIE_URL, signedData.signedUrl);
-          }
+        const { data: signedData } = await supabase.storage
+          .from("selfies")
+          .createSignedUrl(profileRes.data.selfie_url, 3600);
+        if (signedData?.signedUrl) {
+          setSelfieSignedUrl(signedData.signedUrl);
         }
       }
     }
@@ -156,14 +145,6 @@ const ProfilePage = () => {
 
         selfiePath = filePath;
 
-        // Clear cached selfie signed URLs from session storage
-        Object.keys(sessionStorage).forEach((key) => {
-          if (key.startsWith("vora_selfie")) sessionStorage.removeItem(key);
-        });
-        // Clear cached selfie signed URLs
-        Object.keys(sessionStorage).forEach((key) => {
-          if (key.startsWith("vora_selfie")) sessionStorage.removeItem(key);
-        });
       }
 
       const { error } = await supabase
