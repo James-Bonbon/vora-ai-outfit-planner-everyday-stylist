@@ -49,14 +49,18 @@ const WardrobePage = () => {
     if (data) {
       setItems(data as ClosetItem[]);
       const urls: Record<string, string> = {};
-      await Promise.all(
-        data.map(async (item: ClosetItem) => {
-          const { data: urlData } = await supabase.storage
-            .from("garments")
-            .createSignedUrl(item.image_url, 3600);
-          if (urlData?.signedUrl) urls[item.id] = urlData.signedUrl;
-        })
-      );
+      const paths = data.map((item: ClosetItem) => item.image_url).filter(Boolean);
+
+      if (paths.length > 0) {
+        const { data: urlData, error } = await supabase.storage
+          .from("garments")
+          .createSignedUrls(paths, 3600);
+        if (!error && urlData) {
+          urlData.forEach((u, index) => {
+            if (u.signedUrl) urls[data[index].id] = u.signedUrl;
+          });
+        }
+      }
       setImageUrls(urls);
     }
   }, [user]);
