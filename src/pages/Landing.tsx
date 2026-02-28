@@ -84,7 +84,7 @@ const Landing = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.6 }}
-          className="w-[88%] max-w-[420px]"
+          className="w-[94%] max-w-[460px]"
         >
           <div className="bg-card rounded-[24px] p-7" style={{ boxShadow: "0px 18px 60px rgba(0,0,0,0.08)" }}>
             <h3 className="font-inter text-left text-muted-foreground" style={{ fontWeight: 600, fontSize: 18 }}>
@@ -93,7 +93,7 @@ const Landing = () => {
             <div className="mt-4 mb-[18px]" style={{ height: 1, background: "hsl(var(--border))" }} />
 
             <div className="flex items-center gap-4">
-              <div className="w-[55%] flex-shrink-0">
+              <div className="w-[45%] flex-shrink-0">
                 <img
                   src={outfitCollage}
                   alt="Casual outfit: beige jacket, white tee, light blue jeans, white sneakers"
