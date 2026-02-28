@@ -466,3 +466,9 @@
     padding-right: env(safe-area-inset-right, 0px);
   }
 }
+
+/* Fix Sonner toast close button responsiveness */
+[data-sonner-toaster] [data-close-button] {
+  pointer-events: auto !important;
+  z-index: 50 !important;
+}
