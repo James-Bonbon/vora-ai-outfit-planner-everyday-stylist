@@ -101,24 +101,34 @@ const Landing = () => {
                   loading="lazy"
                 />
               </div>
-              <div className="flex flex-col gap-3 items-start">
-                <span className="font-inter text-muted-foreground" style={{ fontWeight: 500, fontSize: 16 }}>
+              <div className="flex flex-col gap-3 items-start flex-1">
+                {" "}
+                {/* Added flex-1 */}
+                <span
+                  className="font-inter text-muted-foreground whitespace-nowrap" // Added whitespace-nowrap
+                  style={{ fontWeight: 500, fontSize: 16 }}
+                >
                   Casual &amp; Chic
                 </span>
                 <button
                   onClick={handleGoogleSignIn}
-                  className="flex items-center gap-1 text-primary-foreground font-inter rounded-full transition-all"
+                  className="flex flex-col items-start text-primary-foreground font-inter transition-all"
                   style={{
                     fontWeight: 600,
                     fontSize: 14,
-                    background: "#C07A5A",
-                    padding: "12px 16px",
+                    lineHeight: "1.2",
+                    background: "#B86B4D",
+                    padding: "10px 14px",
                     opacity: agreed ? 1 : 0.55,
-                    borderRadius: 24,
+                    borderRadius: "20px",
+                    width: "100px", // Forces "Outfit" to the second line
                   }}
                   disabled={!agreed}
                 >
-                  Plan My Outfit <ChevronRight className="w-4 h-4" />
+                  <span>Plan My</span>
+                  <span className="flex items-center gap-1">
+                    Outfit <ChevronRight className="w-3 h-3" />
+                  </span>
                 </button>
               </div>
             </div>
