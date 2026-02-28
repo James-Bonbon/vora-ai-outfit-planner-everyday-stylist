@@ -109,12 +109,12 @@ const Landing = () => {
                   onClick={handleGoogleSignIn}
                   className="flex items-center gap-1 text-primary-foreground font-inter rounded-full transition-all"
                   style={{
-                    fontWeight: 700,
-                    fontSize: 15,
+                    fontWeight: 600,
+                    fontSize: 14,
                     background: "hsl(var(--primary))",
                     padding: "12px 22px",
                     opacity: agreed ? 1 : 0.55,
-                    borderRadius: 999,
+                    borderRadius: 4,
                   }}
                   disabled={!agreed}
                 >
