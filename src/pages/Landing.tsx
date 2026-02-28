@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import VoraLogo from "@/components/VoraLogo";
+import VoraLogo from "@/component94%s/VoraLogo";
 import { ChevronRight } from "lucide-react";
 import outfitCollage from "@/assets/outfit-collage.png";
 import { lovable } from "@/integrations/lovable";
@@ -102,8 +102,10 @@ const Landing = () => {
                 />
               </div>
               <div className="flex flex-col gap-3 items-start flex-1">
+                {" "}
+                {/* Added flex-1 */}
                 <span
-                  className="font-inter text-muted-foreground whitespace-nowrap"
+                  className="font-inter text-muted-foreground whitespace-nowrap" // Added whitespace-nowrap
                   style={{ fontWeight: 500, fontSize: 16 }}
                 >
                   Casual &amp; Chic
@@ -139,7 +141,7 @@ const Landing = () => {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.35, duration: 0.5 }}
           className="font-inter text-center text-muted-foreground"
-          style={{ fontWeight: 500, fontSize: 16, marginTop: 14, marginBottom: 14 }}
+          style={{ fontWeight: 500, fontSize: 16, marginTop: 18, marginBottom: 14 }}
         >
           Get outfit ideas from your wardrobe.
         </motion.p>
@@ -195,7 +197,7 @@ const Landing = () => {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35, duration: 0.6 }}
-          className="w-[88%] max-w-[420px] flex flex-col gap-3 mt-4"
+          className="w-[88%] max-w-[420px] flex flex-col gap-3 mt-6"
         >
           {/* Primary CTA - Sign up with Google */}
           <button
