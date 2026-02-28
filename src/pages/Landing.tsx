@@ -52,7 +52,6 @@ const Landing = () => {
 
       {/* Main content */}
       <div className="flex flex-col items-center w-full relative z-10 px-[6%] pt-6 pb-6 pb-safe">
-
         {/* Logo + Wordmark */}
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
@@ -87,14 +86,8 @@ const Landing = () => {
           transition={{ delay: 0.2, duration: 0.6 }}
           className="w-[88%] max-w-[420px]"
         >
-          <div
-            className="bg-card rounded-[44px] p-7"
-            style={{ boxShadow: "0px 18px 60px rgba(0,0,0,0.08)" }}
-          >
-            <h3
-              className="font-inter text-left text-muted-foreground"
-              style={{ fontWeight: 600, fontSize: 18 }}
-            >
+          <div className="bg-card rounded-[24px] p-7" style={{ boxShadow: "0px 18px 60px rgba(0,0,0,0.08)" }}>
+            <h3 className="font-inter text-left text-muted-foreground" style={{ fontWeight: 600, fontSize: 18 }}>
               Today's Outfit
             </h3>
             <div className="mt-4 mb-[18px]" style={{ height: 1, background: "hsl(var(--border))" }} />
@@ -109,23 +102,20 @@ const Landing = () => {
                 />
               </div>
               <div className="flex flex-col gap-3 items-start">
-                <span
-                  className="font-inter text-muted-foreground"
-                  style={{ fontWeight: 500, fontSize: 16 }}
-                >
+                <span className="font-inter text-muted-foreground" style={{ fontWeight: 500, fontSize: 16 }}>
                   Casual &amp; Chic
                 </span>
-                 <button
+                <button
                   onClick={handleGoogleSignIn}
                   className="flex items-center gap-1 text-primary-foreground font-inter rounded-full transition-all"
-                   style={{
-                     fontWeight: 700,
-                     fontSize: 15,
-                     background: "hsl(var(--primary))",
-                     padding: "12px 22px",
-                     opacity: agreed ? 1 : 0.55,
-                     borderRadius: 999,
-                   }}
+                  style={{
+                    fontWeight: 700,
+                    fontSize: 15,
+                    background: "hsl(var(--primary))",
+                    padding: "12px 22px",
+                    opacity: agreed ? 1 : 0.55,
+                    borderRadius: 999,
+                  }}
                   disabled={!agreed}
                 >
                   Plan My Outfit <ChevronRight className="w-4 h-4" />
@@ -165,7 +155,13 @@ const Landing = () => {
             >
               {agreed && (
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <path d="M3 7L6 10L11 4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path
+                    d="M3 7L6 10L11 4"
+                    stroke="white"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
               )}
             </button>
@@ -197,7 +193,7 @@ const Landing = () => {
           <button
             onClick={handleGoogleSignIn}
             className="w-full font-inter text-primary-foreground rounded-full transition-all"
-             style={{
+            style={{
               fontWeight: 700,
               fontSize: 18,
               height: 60,
