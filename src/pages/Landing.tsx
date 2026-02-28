@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion"mt-6;
+import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import VoraLogo from "@/components/VoraLogo";
 import { ChevronRight } from "lucide-react";
