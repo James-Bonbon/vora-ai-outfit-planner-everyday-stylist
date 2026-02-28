@@ -102,10 +102,8 @@ const Landing = () => {
                 />
               </div>
               <div className="flex flex-col gap-3 items-start flex-1">
-                {" "}
-                {/* Added flex-1 */}
                 <span
-                  className="font-inter text-muted-foreground whitespace-nowrap" // Added whitespace-nowrap
+                  className="font-inter text-muted-foreground whitespace-nowrap"
                   style={{ fontWeight: 500, fontSize: 16 }}
                 >
                   Casual &amp; Chic
