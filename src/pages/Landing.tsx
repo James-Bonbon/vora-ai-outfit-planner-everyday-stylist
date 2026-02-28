@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import VoraLogo from "@/component94%s/VoraLogo";
+import VoraLogo from "@/components/VoraLogo";
 import { ChevronRight } from "lucide-react";
 import outfitCollage from "@/assets/outfit-collage.png";
 import { lovable } from "@/integrations/lovable";
@@ -52,6 +52,7 @@ const Landing = () => {
 
       {/* Main content */}
       <div className="flex flex-col items-center w-full relative z-10 px-[6%] pt-6 pb-6 pb-safe">
+
         {/* Logo + Wordmark */}
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
@@ -84,51 +85,50 @@ const Landing = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.6 }}
-          className="w-[100%] max-w-[500px]"
+          className="w-[88%] max-w-[420px]"
         >
-          <div className="bg-card rounded-[24px] p-7" style={{ boxShadow: "0px 18px 60px rgba(0,0,0,0.08)" }}>
-            <h3 className="font-inter text-left text-muted-foreground" style={{ fontWeight: 600, fontSize: 18 }}>
+          <div
+            className="bg-card rounded-[44px] p-7"
+            style={{ boxShadow: "0px 18px 60px rgba(0,0,0,0.08)" }}
+          >
+            <h3
+              className="font-inter text-left text-muted-foreground"
+              style={{ fontWeight: 600, fontSize: 18 }}
+            >
               Today's Outfit
             </h3>
             <div className="mt-4 mb-[18px]" style={{ height: 1, background: "hsl(var(--border))" }} />
 
             <div className="flex items-center gap-4">
-              <div className="w-[62%] flex-shrink-0">
+              <div className="w-[55%] flex-shrink-0">
                 <img
                   src={outfitCollage}
                   alt="Casual outfit: beige jacket, white tee, light blue jeans, white sneakers"
-                  className="w-full h-auto rounded-xl object-contain scale-100 transition-transform"
+                  className="w-full h-auto rounded-xl object-cover"
                   loading="lazy"
                 />
               </div>
-              <div className="flex flex-col gap-3 items-start flex-1">
-                {" "}
-                {/* Added flex-1 */}
+              <div className="flex flex-col gap-3 items-start">
                 <span
-                  className="font-inter text-muted-foreground whitespace-nowrap" // Added whitespace-nowrap
+                  className="font-inter text-muted-foreground"
                   style={{ fontWeight: 500, fontSize: 16 }}
                 >
                   Casual &amp; Chic
                 </span>
-                <button
+                 <button
                   onClick={handleGoogleSignIn}
-                  className="flex flex-col items-start text-primary-foreground font-inter transition-all"
-                  style={{
-                    fontWeight: 600,
-                    fontSize: 14,
-                    lineHeight: "1.2",
-                    background: "#B86B4D",
-                    padding: "10px 14px",
-                    opacity: agreed ? 1 : 0.55,
-                    borderRadius: "20px",
-                    width: "100px", // Forces "Outfit" to the second line
-                  }}
+                  className="flex items-center gap-1 text-primary-foreground font-inter rounded-full transition-all"
+                   style={{
+                     fontWeight: 700,
+                     fontSize: 15,
+                     background: "hsl(var(--primary))",
+                     padding: "12px 22px",
+                     opacity: agreed ? 1 : 0.55,
+                     borderRadius: 999,
+                   }}
                   disabled={!agreed}
                 >
-                  <span>Plan My</span>
-                  <span className="flex items-center gap-1">
-                    Outfit <ChevronRight className="w-3 h-3" />
-                  </span>
+                  Plan My Outfit <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -159,19 +159,13 @@ const Landing = () => {
               onClick={() => setAgreed(!agreed)}
               className="flex-shrink-0 w-[28px] h-[28px] rounded-full border-2 flex items-center justify-center mt-0.5 transition-colors"
               style={{
-                borderColor: agreed ? "#C07A5A" : "hsl(var(--border))",
-                background: agreed ? "#C07A5A" : "transparent",
+                borderColor: agreed ? "hsl(var(--primary))" : "hsl(var(--border))",
+                background: agreed ? "hsl(var(--primary))" : "transparent",
               }}
             >
               {agreed && (
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <path
-                    d="M3 7L6 10L11 4"
-                    stroke="white"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
+                  <path d="M3 7L6 10L11 4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               )}
             </button>
@@ -203,11 +197,11 @@ const Landing = () => {
           <button
             onClick={handleGoogleSignIn}
             className="w-full font-inter text-primary-foreground rounded-full transition-all"
-            style={{
+             style={{
               fontWeight: 700,
               fontSize: 18,
               height: 60,
-              background: "#C07A5A",
+              background: "hsl(var(--primary))",
               opacity: agreed ? 1 : 0.55,
               borderRadius: 999,
             }}
