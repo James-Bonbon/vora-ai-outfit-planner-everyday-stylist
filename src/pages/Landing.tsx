@@ -112,7 +112,7 @@ const Landing = () => {
                     fontWeight: 600,
                     fontSize: 14,
                     background: "hsl(var(--primary))",
-                    padding: "12px 22px",
+                    padding: "12px 16px",
                     opacity: agreed ? 1 : 0.55,
                     borderRadius: 24,
                   }}
