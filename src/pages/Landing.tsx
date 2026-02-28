@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import VoraLogo from "@/component94%s/VoraLogo";
+import VoraLogo from "@/components/VoraLogo";
 import { ChevronRight } from "lucide-react";
 import outfitCollage from "@/assets/outfit-collage.png";
 import { lovable } from "@/integrations/lovable";
