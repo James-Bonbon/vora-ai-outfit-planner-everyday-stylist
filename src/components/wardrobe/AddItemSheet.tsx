@@ -122,14 +122,16 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       setIsProcessingAI(false);
     }
 
-    // Store base64 for AI tagging / product lookup
+    // Store base64 of the ORIGINAL image for AI tagging / product lookup
+    // (original has better context: colors, brand logos, fabric texture)
+    const normalizedForTagging = await normalizeToPng(f);
     const base64 = await new Promise<string>((resolve) => {
       const b64Reader = new FileReader();
       b64Reader.onload = (ev) => {
         const result = ev.target?.result as string;
         resolve(result.split(",")[1]);
       };
-      b64Reader.readAsDataURL(finalBlob);
+      b64Reader.readAsDataURL(normalizedForTagging);
     });
     imageBase64Ref.current = base64;
 
