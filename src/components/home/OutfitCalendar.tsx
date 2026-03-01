@@ -7,18 +7,8 @@ import GlassCard from "@/components/GlassCard";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-} from "@/components/ui/carousel";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
+import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -51,7 +41,7 @@ const WEATHER_ICON: Record<string, typeof Sun> = {
 
 const TOP_RE = /\b(top|shirt|blazer|sweater|knit|jacket|coat|polo|camisole|cardigan|hoodie)\b/i;
 const BOTTOM_RE = /\b(bottom|trouser|pant|jeans|skirt|short|chinos|sweatpants)\b/i;
-const THRESHOLD = 10;
+const THRESHOLD = 5;
 
 function isWeekend(date: Date) {
   const d = getDay(date);
@@ -95,8 +85,14 @@ const OutfitCalendar = () => {
       const withUrls = await Promise.all(
         closetRes.data.map(async (item) => {
           const { data } = await supabase.storage.from("garments").createSignedUrl(item.image_url, 3600);
-          return { id: item.id, name: item.name, image_url: data?.signedUrl || item.image_url, category: item.category, source: "closet" as const };
-        })
+          return {
+            id: item.id,
+            name: item.name,
+            image_url: data?.signedUrl || item.image_url,
+            category: item.category,
+            source: "closet" as const,
+          };
+        }),
       );
       pool.push(...withUrls);
     }
@@ -113,7 +109,7 @@ const OutfitCalendar = () => {
             url = data?.signedUrl || item.image_url;
           }
           return { id: item.id, name: item.name, image_url: url, category: null, source: "dream" as const };
-        })
+        }),
       );
       pool.push(...withUrls);
     }
@@ -146,16 +142,13 @@ const OutfitCalendar = () => {
     if (unique.length === 0) return;
 
     (async () => {
-      const { data } = await supabase
-        .from("closet_items")
-        .select("id, name, image_url, category")
-        .in("id", unique);
+      const { data } = await supabase.from("closet_items").select("id, name, image_url, category").in("id", unique);
       if (data) {
         const withUrls = await Promise.all(
           data.map(async (g) => {
             const { data: urlData } = await supabase.storage.from("garments").createSignedUrl(g.image_url, 3600);
             return { ...g, image_url: urlData?.signedUrl || g.image_url, source: "closet" as const } as GarmentSnapshot;
-          })
+          }),
         );
         const map: Record<string, GarmentSnapshot> = { ...garments };
         withUrls.forEach((g) => (map[g.id] = g));
@@ -170,8 +163,14 @@ const OutfitCalendar = () => {
   }, [fetchBootstrap, fetchCalendar]);
 
   /* ---- Filter pools ---- */
-  const topsPool = useMemo(() => garmentPool.filter((i) => TOP_RE.test(i.category || '') || TOP_RE.test(i.name || '')), [garmentPool]);
-  const bottomsPool = useMemo(() => garmentPool.filter((i) => BOTTOM_RE.test(i.category || '') || BOTTOM_RE.test(i.name || '')), [garmentPool]);
+  const topsPool = useMemo(
+    () => garmentPool.filter((i) => TOP_RE.test(i.category || "") || TOP_RE.test(i.name || "")),
+    [garmentPool],
+  );
+  const bottomsPool = useMemo(
+    () => garmentPool.filter((i) => BOTTOM_RE.test(i.category || "") || BOTTOM_RE.test(i.name || "")),
+    [garmentPool],
+  );
 
   const meetsThreshold = topsPool.length >= THRESHOLD && bottomsPool.length >= THRESHOLD;
 
@@ -194,7 +193,7 @@ const OutfitCalendar = () => {
       const bottom = pickFrom(bottomsPool, 1);
       return [top, bottom].filter(Boolean) as GarmentSnapshot[];
     },
-    [garments, topsPool, bottomsPool, meetsThreshold]
+    [garments, topsPool, bottomsPool, meetsThreshold],
   );
 
   /* ---- Swap handler ---- */
@@ -211,9 +210,7 @@ const OutfitCalendar = () => {
       setEntries((prev) => {
         const existing = prev.find((e) => e.date === dateStr);
         if (existing) {
-          return prev.map((e) =>
-            e.date === dateStr ? { ...e, garment_ids: randomTwo.map((g) => g.id) } : e
-          );
+          return prev.map((e) => (e.date === dateStr ? { ...e, garment_ids: randomTwo.map((g) => g.id) } : e));
         }
         return [
           ...prev,
@@ -229,7 +226,7 @@ const OutfitCalendar = () => {
         ];
       });
     },
-    [garments, topsPool, bottomsPool, meetsThreshold]
+    [garments, topsPool, bottomsPool, meetsThreshold],
   );
 
   /* ---- Edit: assign specific item ---- */
@@ -267,7 +264,7 @@ const OutfitCalendar = () => {
       });
       setDrawerOpen(false);
     },
-    [editingDate, editingSlot, garments]
+    [editingDate, editingSlot, garments],
   );
 
   /* ---- Build day slots ---- */
@@ -300,15 +297,23 @@ const OutfitCalendar = () => {
         <div className="space-y-3 max-w-[260px] mx-auto">
           <div>
             <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-              <span className="flex items-center gap-1"><ShirtIcon className="w-3 h-3" /> Tops</span>
-              <span className="font-semibold text-foreground">{topsPool.length}/{THRESHOLD}</span>
+              <span className="flex items-center gap-1">
+                <ShirtIcon className="w-3 h-3" /> Tops
+              </span>
+              <span className="font-semibold text-foreground">
+                {topsPool.length}/{THRESHOLD}
+              </span>
             </div>
             <Progress value={(topsPool.length / THRESHOLD) * 100} className="h-2" />
           </div>
           <div>
             <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-              <span className="flex items-center gap-1"><Layers className="w-3 h-3" /> Bottoms</span>
-              <span className="font-semibold text-foreground">{bottomsPool.length}/{THRESHOLD}</span>
+              <span className="flex items-center gap-1">
+                <Layers className="w-3 h-3" /> Bottoms
+              </span>
+              <span className="font-semibold text-foreground">
+                {bottomsPool.length}/{THRESHOLD}
+              </span>
             </div>
             <Progress value={(bottomsPool.length / THRESHOLD) * 100} className="h-2" />
           </div>
@@ -331,9 +336,7 @@ const OutfitCalendar = () => {
 
   const todayGarments = getItemsForDate(todaySlot.date, todaySlot.entry);
   const WeatherIconComp = WEATHER_ICON[todaySlot.entry?.weather_label || "neutral"] || Cloud;
-  const tempDisplay = todaySlot.entry?.weather_temp
-    ? `${Math.round(todaySlot.entry.weather_temp)}°F`
-    : "";
+  const tempDisplay = todaySlot.entry?.weather_temp ? `${Math.round(todaySlot.entry.weather_temp)}°F` : "";
   const todayOccasion = todaySlot.entry?.occasion || (isWeekend(todaySlot.date) ? "Casual" : "Smart Casual");
 
   return (
@@ -452,9 +455,7 @@ const OutfitCalendar = () => {
                   <CarouselItem key={slot.dateStr} className="pl-2 basis-[55%] sm:basis-[42%]">
                     <div className="rounded-2xl bg-card border border-border p-3">
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-bold text-foreground font-outfit">
-                          {format(slot.date, "EEE d")}
-                        </p>
+                        <p className="text-sm font-bold text-foreground font-outfit">{format(slot.date, "EEE d")}</p>
                         <span className="text-[9px] text-muted-foreground capitalize">{occasion}</span>
                       </div>
 
@@ -519,10 +520,7 @@ const OutfitCalendar = () => {
 
             <div className="flex justify-center gap-1.5 mt-3">
               {visibleUpcoming.map((_, i) => (
-                <div
-                  key={i}
-                  className={`w-1.5 h-1.5 rounded-full ${i === 0 ? "bg-primary" : "bg-border"}`}
-                />
+                <div key={i} className={`w-1.5 h-1.5 rounded-full ${i === 0 ? "bg-primary" : "bg-border"}`} />
               ))}
               {showLockedCard && <div className="w-1.5 h-1.5 rounded-full bg-border" />}
             </div>
@@ -552,9 +550,7 @@ const OutfitCalendar = () => {
                   wrapperClassName="w-full h-full"
                 />
               </div>
-              <p className="text-[10px] text-foreground p-1.5 truncate">
-                {item.name || item.category || "Item"}
-              </p>
+              <p className="text-[10px] text-foreground p-1.5 truncate">{item.name || item.category || "Item"}</p>
             </button>
           ))}
           {garmentPool.length === 0 && (
