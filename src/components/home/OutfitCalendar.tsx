@@ -41,7 +41,7 @@ const WEATHER_ICON: Record<string, typeof Sun> = {
 
 const TOP_RE = /\b(top|shirt|blazer|sweater|knit|jacket|coat|polo|camisole|cardigan|hoodie)\b/i;
 const BOTTOM_RE = /\b(bottom|trouser|pant|jeans|skirt|short|chinos|sweatpants)\b/i;
-const THRESHOLD = 10;
+const THRESHOLD = 5;
 
 function isWeekend(date: Date) {
   const d = getDay(date);
@@ -291,7 +291,7 @@ const OutfitCalendar = () => {
         <div>
           <h3 className="text-lg font-bold text-foreground font-outfit">Unlock Your Daily Stylist</h3>
           <p className="text-sm text-muted-foreground mt-1">
-            Add at least 10 Tops and 10 Bottoms to your Wardrobe or Dream List to activate the Outfit Calendar.
+            Add at least 5 Tops and 5 Bottoms to your Wardrobe or Dream List to activate the Outfit Calendar.
           </p>
         </div>
         <div className="space-y-3 max-w-[260px] mx-auto">
