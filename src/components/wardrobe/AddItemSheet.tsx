@@ -91,47 +91,30 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       const formData = new FormData();
       formData.append("image_file", normalizedFile);
 
-      const { data, error, response } = await supabase.functions.invoke("process-garment", {
+      // Bypass supabase.functions.invoke to avoid binary response corruption
+      const { data: { session } } = await supabase.auth.getSession();
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/process-garment`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
         body: formData,
       });
 
-      if (error) {
-        // Try to extract a JSON error message from the response body
-        let msg = error.message || "Failed to connect to AI server.";
-        if (response) {
-          try {
-            const errJson = await response.clone().json();
-            if (errJson?.error) msg = errJson.error;
-          } catch {}
-        }
-        console.error("Edge Function Error Details:", error);
-        throw new Error(msg);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`AI Processing Error: ${errorText}`);
       }
 
-      if (!data) {
-        throw new Error("AI returned an empty response.");
+      const safeBlob = await response.blob();
+
+      if (safeBlob.size === 0) {
+        throw new Error("AI returned an empty image.");
       }
 
-      // The SDK may auto-parse the binary as text/json, corrupting it.
-      // Re-read the pristine blob from the raw Response object.
-      let blob: Blob;
-      if (response) {
-        const cloned = response.clone();
-        blob = await cloned.blob();
-      } else if (data instanceof Blob) {
-        blob = data;
-      } else {
-        throw new Error("Unexpected response format from AI server.");
-      }
-
-      // If the Edge Function caught an error internally, it returns a JSON blob.
-      if (blob.type === 'application/json') {
-        const errorText = await blob.text();
-        const errorJson = JSON.parse(errorText);
-        throw new Error(errorJson.error || "AI server returned an error.");
-      }
-
-      const processedFile = new File([blob], `processed_${Date.now()}.png`, { type: "image/png" });
+      const processedFile = new File([safeBlob], `processed_${Date.now()}.png`, { type: "image/png" });
       finalBlob = processedFile;
       bgRemoved = true;
       setHasTransparentBg(true);
