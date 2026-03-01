@@ -41,7 +41,7 @@ const WEATHER_ICON: Record<string, typeof Sun> = {
 
 const TOP_RE = /\b(top|shirt|blazer|sweater|knit|jacket|coat|polo|camisole|cardigan|hoodie)\b/i;
 const BOTTOM_RE = /\b(bottom|trouser|pant|jeans|skirt|short|chinos|sweatpants)\b/i;
-const THRESHOLD = 5;
+const THRESHOLD = 10;
 
 function isWeekend(date: Date) {
   const d = getDay(date);
