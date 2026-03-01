@@ -91,20 +91,47 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       const formData = new FormData();
       formData.append("image_file", normalizedFile);
 
-      const { data, error } = await supabase.functions.invoke("process-garment", {
+      const { data, error, response } = await supabase.functions.invoke("process-garment", {
         body: formData,
       });
 
       if (error) {
+        // Try to extract a JSON error message from the response body
+        let msg = error.message || "Failed to connect to AI server.";
+        if (response) {
+          try {
+            const errJson = await response.clone().json();
+            if (errJson?.error) msg = errJson.error;
+          } catch {}
+        }
         console.error("Edge Function Error Details:", error);
-        throw new Error(error.message || "Failed to connect to AI server.");
+        throw new Error(msg);
       }
 
       if (!data) {
         throw new Error("AI returned an empty response.");
       }
 
-      const processedFile = new File([data], `processed_${Date.now()}.png`, { type: "image/png" });
+      // The SDK may auto-parse the binary as text/json, corrupting it.
+      // Re-read the pristine blob from the raw Response object.
+      let blob: Blob;
+      if (response) {
+        const cloned = response.clone();
+        blob = await cloned.blob();
+      } else if (data instanceof Blob) {
+        blob = data;
+      } else {
+        throw new Error("Unexpected response format from AI server.");
+      }
+
+      // If the Edge Function caught an error internally, it returns a JSON blob.
+      if (blob.type === 'application/json') {
+        const errorText = await blob.text();
+        const errorJson = JSON.parse(errorText);
+        throw new Error(errorJson.error || "AI server returned an error.");
+      }
+
+      const processedFile = new File([blob], `processed_${Date.now()}.png`, { type: "image/png" });
       finalBlob = processedFile;
       bgRemoved = true;
       setHasTransparentBg(true);
