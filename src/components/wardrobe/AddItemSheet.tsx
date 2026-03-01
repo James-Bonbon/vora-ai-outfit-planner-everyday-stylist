@@ -5,12 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Camera, Loader2, Sparkles, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { cropToBoundingBox, normalizeToPng } from "@/utils/imageProcessing";
+import { normalizeToPng } from "@/utils/imageProcessing";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-
-const loadRemoveBackground = () =>
-  import("@imgly/background-removal").then((m) => m.removeBackground);
 
 export interface PrefillData {
   imageFile: File;
@@ -43,7 +40,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
   const [tagging, setTagging] = useState(false);
   const [saving, setSaving] = useState(false);
   const [lookingUp, setLookingUp] = useState(false);
-  const [removingBg, setRemovingBg] = useState(false);
+  const [isProcessingAI, setIsProcessingAI] = useState(false);
 
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
@@ -65,7 +62,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
     setMaterial("");
     setBrand("");
     setCareData(null);
-    setRemovingBg(false);
+    setIsProcessingAI(false);
   };
 
   const imageBase64Ref = useRef<string | null>(null);
@@ -83,34 +80,46 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
     });
     setPreview(rawPreview);
 
-    // Step 1: Background removal
-    setRemovingBg(true);
+    // Step 1: AI flat-lay generation + background removal via Edge Function
+    setIsProcessingAI(true);
     let finalBlob: Blob = f;
     let bgRemoved = false;
     try {
-      // Normalize to PNG first to prevent AVIF/WebP silent failures
       const normalizedBlob = await normalizeToPng(f);
       const normalizedFile = new File([normalizedBlob], "normalized.png", { type: "image/png" });
-      const removeBackground = await loadRemoveBackground();
-      const transparent = await removeBackground(normalizedFile);
-      const cropped = await cropToBoundingBox(transparent);
-      finalBlob = cropped;
+
+      const formData = new FormData();
+      formData.append("image_file", normalizedFile);
+
+      const { data, error } = await supabase.functions.invoke("process-garment", {
+        body: formData,
+      });
+
+      if (error) {
+        console.error("Edge Function Error Details:", error);
+        throw new Error(error.message || "Failed to connect to AI server.");
+      }
+
+      if (!data) {
+        throw new Error("AI returned an empty response.");
+      }
+
+      const processedFile = new File([data], `processed_${Date.now()}.png`, { type: "image/png" });
+      finalBlob = processedFile;
       bgRemoved = true;
       setHasTransparentBg(true);
-      setProcessedBlob(cropped);
+      setProcessedBlob(processedFile);
 
-      // Update preview with processed image
-      const processedPreview = await new Promise<string>((res) => {
-        const r = new FileReader();
-        r.onload = (ev) => res(ev.target?.result as string);
-        r.readAsDataURL(cropped);
-      });
+      const processedPreview = URL.createObjectURL(processedFile);
       setPreview(processedPreview);
-    } catch (err) {
-      console.error("Background removal failed:", err);
-      toast.error("Background removal failed. The original image will be used.");
+    } catch (err: any) {
+      console.error("AI Processing Error:", err);
+      toast.error(`AI Processing Failed: ${err.message || "Unknown error occurred"}`);
+      // Keep the raw preview but clear processed state so user doesn't upload unprocessed accidentally
+      setProcessedBlob(null);
+      setHasTransparentBg(false);
     } finally {
-      setRemovingBg(false);
+      setIsProcessingAI(false);
     }
 
     // Store base64 for AI tagging / product lookup
@@ -278,11 +287,11 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
                 className={`w-full h-full ${hasTransparentBg ? "object-contain" : "object-cover"}`}
                 style={hasTransparentBg ? { filter: "drop-shadow(0px 10px 15px rgba(0,0,0,0.1))" } : undefined}
               />
-              {(removingBg || tagging) && (
+              {(isProcessingAI || tagging) && (
                 <div className="absolute inset-0 bg-background/60 flex flex-col items-center justify-center gap-2">
                   <Loader2 className="w-8 h-8 text-primary animate-spin" />
                   <span className="text-sm font-medium text-foreground flex items-center gap-1">
-                    <Sparkles className="w-4 h-4 text-primary" /> {removingBg ? "Removing background…" : "AI is tagging..."}
+                    <Sparkles className="w-4 h-4 text-primary" /> {isProcessingAI ? "AI is generating your flat-lay…" : "AI is tagging..."}
                   </span>
                 </div>
               )}
