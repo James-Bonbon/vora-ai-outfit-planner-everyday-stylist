@@ -3,7 +3,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Camera, Loader2, Sparkles, Search } from "lucide-react";
+import { Camera, Loader2, Sparkles, Search, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { normalizeToPng } from "@/utils/imageProcessing";
 import { useAuth } from "@/hooks/useAuth";
@@ -284,7 +284,16 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="rounded-t-3xl max-h-[90vh] overflow-y-auto bg-background">
+      <SheetContent
+        side="bottom"
+        className="rounded-t-3xl max-h-[90vh] overflow-y-auto bg-background"
+        onInteractOutside={(e) => {
+          const isToast = (e.target as Element).closest('[data-sonner-toast]');
+          if (isToast) {
+            e.preventDefault();
+          }
+        }}
+      >
         <SheetHeader>
           <SheetTitle className="font-outfit">Add to Wardrobe</SheetTitle>
         </SheetHeader>
@@ -299,8 +308,15 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
                 className={`w-full h-full ${hasTransparentBg ? "object-contain" : "object-cover"}`}
                 style={hasTransparentBg ? { filter: "drop-shadow(0px 10px 15px rgba(0,0,0,0.1))" } : undefined}
               />
+              {!(isProcessingAI || tagging) && (
+                <label className="absolute bottom-3 right-3 bg-background/90 backdrop-blur shadow-sm text-foreground px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer flex items-center gap-1.5 hover:bg-background transition-colors z-10 border border-border">
+                  <RefreshCw className="w-3 h-3" />
+                  Replace
+                  <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                </label>
+              )}
               {(isProcessingAI || tagging) && (
-                <div className="absolute inset-0 bg-background/60 flex flex-col items-center justify-center gap-2">
+                <div className="absolute inset-0 bg-background/60 flex flex-col items-center justify-center gap-2 z-20">
                   <Loader2 className="w-8 h-8 text-primary animate-spin" />
                   <span className="text-sm font-medium text-foreground flex items-center gap-1">
                     <Sparkles className="w-4 h-4 text-primary" /> {isProcessingAI ? "AI is generating your flat-lay…" : "AI is tagging..."}
