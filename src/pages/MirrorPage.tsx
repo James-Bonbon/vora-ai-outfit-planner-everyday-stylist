@@ -52,8 +52,31 @@ const MirrorPage = () => {
   const toggleItem = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else if (next.size < 4) next.add(id);
+
+      if (next.has(id)) {
+        next.delete(id);
+        return next;
+      }
+
+      // Smart Category Swapping
+      const itemToAdd = items.find((i) => i.id === id);
+      if (itemToAdd?.category) {
+        const strictCategories = ["Tops", "Bottoms", "Shoes", "Outerwear", "Dresses"];
+        if (strictCategories.includes(itemToAdd.category)) {
+          const conflictId = Array.from(next).find((existingId) => {
+            const existingItem = items.find((i) => i.id === existingId);
+            return existingItem?.category === itemToAdd.category;
+          });
+          if (conflictId) next.delete(conflictId);
+        }
+      }
+
+      if (next.size < 4) {
+        next.add(id);
+      } else {
+        toast.error("Maximum 4 items allowed.");
+      }
+
       return next;
     });
   };
@@ -71,8 +94,14 @@ const MirrorPage = () => {
     const garmentUrls = Array.from(selectedIds).map((id) => imageUrls[id]).filter(Boolean);
     const garmentIds = Array.from(selectedIds);
 
+    // Combine Occasion and Desired Look into a single prompt
+    const finalDesiredLook = [
+      occasion ? `Style suitable for a ${occasion} occasion` : null,
+      desiredLook.trim()
+    ].filter(Boolean).join(". ");
+
     tryOnMutation.mutate(
-      { selfieUrl, garmentUrls, garmentIds, occasion, desiredLook: desiredLook.trim() || null, weather: outfitPlan?.weather ?? null },
+      { selfieUrl, garmentUrls, garmentIds, occasion, desiredLook: finalDesiredLook || null, weather: outfitPlan?.weather ?? null },
       {
         onSuccess: (data) => {
           if (data.cached) {
@@ -84,10 +113,9 @@ const MirrorPage = () => {
   };
 
   const handleSaveLook = () => {
-    const imagePath = tryOnMutation.data?.image_path;
+    // Fallback: Cached results return .image instead of .image_path
+    const imagePath = tryOnMutation.data?.image_path || tryOnMutation.data?.image;
     if (!imagePath) {
-      // Fallback: upload from signed URL shouldn't happen with new flow,
-      // but handle gracefully
       toast.error("Cannot save — no image path available.");
       return;
     }
