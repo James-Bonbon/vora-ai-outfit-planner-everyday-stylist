@@ -44,14 +44,15 @@ const MirrorPage = () => {
   const items = closetData?.items ?? [];
   const imageUrls = closetData?.urls ?? {};
 
-  // MAGIC STYLIST THRESHOLD LOGIC (Requires 5 Tops & 5 Bottoms)
+  // MAGIC STYLIST THRESHOLD LOGIC (Requires 7 Tops & 3 Bottoms)
   const TOP_RE = /\b(top|shirt|blazer|sweater|knit|jacket|coat|polo|camisole|cardigan|hoodie)\b/i;
   const BOTTOM_RE = /\b(bottom|trouser|pant|jeans|skirt|short|chinos|sweatpants)\b/i;
-  const THRESHOLD = 5;
+  const MIN_TOPS = 7;
+  const MIN_BOTTOMS = 3;
 
-  const topsCount = items.filter(i => TOP_RE.test(i.category || "") || TOP_RE.test(i.name || "")).length;
-  const bottomsCount = items.filter(i => BOTTOM_RE.test(i.category || "") || BOTTOM_RE.test(i.name || "")).length;
-  const meetsThreshold = topsCount >= THRESHOLD && bottomsCount >= THRESHOLD;
+  const topsCount = items.filter((i) => TOP_RE.test(i.category || "") || TOP_RE.test(i.name || "")).length;
+  const bottomsCount = items.filter((i) => BOTTOM_RE.test(i.category || "") || BOTTOM_RE.test(i.name || "")).length;
+  const meetsThreshold = topsCount >= MIN_TOPS && bottomsCount >= MIN_BOTTOMS;
   const looks = looksData?.looks ?? [];
   const lookUrls = looksData?.urls ?? {};
 
@@ -97,7 +98,9 @@ const MirrorPage = () => {
     }
 
     if (selectedIds.size === 0 && !occasion && !desiredLook.trim()) {
-      toast.error("Need direction", { description: "Select garments manually, or pick an Occasion so I can style you!" });
+      toast.error("Need direction", {
+        description: "Select garments manually, or pick an Occasion so I can style you!",
+      });
       return;
     }
 
@@ -108,8 +111,10 @@ const MirrorPage = () => {
     // SMART OUTFIT COMPLETER LOGIC
     // ==========================================
     if (hasDirection && finalGarmentIds.size < 4) {
-      const selectedItems = Array.from(finalGarmentIds).map(id => items.find(i => i.id === id)).filter(Boolean);
-      const selectedCategories = selectedItems.map(i => i?.category?.toLowerCase());
+      const selectedItems = Array.from(finalGarmentIds)
+        .map((id) => items.find((i) => i.id === id))
+        .filter(Boolean);
+      const selectedCategories = selectedItems.map((i) => i?.category?.toLowerCase());
       const hasTop = selectedCategories.includes("tops");
       const hasBottom = selectedCategories.includes("bottoms");
       const hasDress = selectedCategories.includes("dresses") || selectedCategories.includes("one-piece");
@@ -125,27 +130,23 @@ const MirrorPage = () => {
       if (!hasOuterwear) neededCategories.push("outerwear");
 
       const occasionKeywords: Record<string, string[]> = {
-        "work": ["blazer", "trouser", "shirt", "loafers", "tailored", "smart"],
+        work: ["blazer", "trouser", "shirt", "loafers", "tailored", "smart"],
         "date night": ["dress", "skirt", "heel", "silk", "satin", "leather"],
-        "casual": ["jeans", "t-shirt", "sneakers", "denim", "cotton", "hoodie"],
-        "party": ["mini", "sequin", "leather", "heels", "party", "statement"],
-        "streetwear": ["hoodie", "cargo", "sneakers", "oversized", "jacket"]
+        casual: ["jeans", "t-shirt", "sneakers", "denim", "cotton", "hoodie"],
+        party: ["mini", "sequin", "leather", "heels", "party", "statement"],
+        streetwear: ["hoodie", "cargo", "sneakers", "oversized", "jacket"],
       };
 
       const keywords = occasion ? occasionKeywords[occasion.toLowerCase()] || [] : [];
-      const availableItems = items.filter(i => !finalGarmentIds.has(i.id));
+      const availableItems = items.filter((i) => !finalGarmentIds.has(i.id));
       let itemsAdded = 0;
 
       for (const cat of neededCategories) {
         if (finalGarmentIds.size >= 4) break;
-        const catItems = availableItems.filter(i => i.category?.toLowerCase() === cat);
+        const catItems = availableItems.filter((i) => i.category?.toLowerCase() === cat);
         if (catItems.length === 0) continue;
 
-        let matchedItem = catItems.find(i =>
-          keywords.some(kw =>
-            i.name?.toLowerCase().includes(kw)
-          )
-        );
+        let matchedItem = catItems.find((i) => keywords.some((kw) => i.name?.toLowerCase().includes(kw)));
 
         if (!matchedItem) {
           matchedItem = catItems[Math.floor(Math.random() * catItems.length)];
@@ -159,9 +160,13 @@ const MirrorPage = () => {
 
       if (itemsAdded > 0) {
         setSelectedIds(new Set(finalGarmentIds));
-        toast.success("Outfit completed! ✨", { description: `Added ${itemsAdded} item(s) to match your ${occasion || 'look'}.` });
+        toast.success("Outfit completed! ✨", {
+          description: `Added ${itemsAdded} item(s) to match your ${occasion || "look"}.`,
+        });
       } else if (finalGarmentIds.size === 0) {
-        toast.error("Wardrobe too empty", { description: "Not enough items to auto-style. Please pick items manually." });
+        toast.error("Wardrobe too empty", {
+          description: "Not enough items to auto-style. Please pick items manually.",
+        });
         return;
       }
     }
@@ -172,19 +177,18 @@ const MirrorPage = () => {
     const garmentIdsArray = Array.from(finalGarmentIds);
     const garmentUrls = garmentIdsArray.map((id) => imageUrls[id]).filter(Boolean);
 
-    const finalDesiredLook = [
-      occasion ? `Style suitable for a ${occasion} occasion` : null,
-      desiredLook.trim()
-    ].filter(Boolean).join(". ");
+    const finalDesiredLook = [occasion ? `Style suitable for a ${occasion} occasion` : null, desiredLook.trim()]
+      .filter(Boolean)
+      .join(". ");
 
     tryOnMutation.mutate(
-      { 
-        selfieUrl, 
-        garmentUrls, 
-        garmentIds: garmentIdsArray, 
-        occasion, 
-        desiredLook: finalDesiredLook || null, 
-        weather: outfitPlan?.weather ?? null 
+      {
+        selfieUrl,
+        garmentUrls,
+        garmentIds: garmentIdsArray,
+        occasion,
+        desiredLook: finalDesiredLook || null,
+        weather: outfitPlan?.weather ?? null,
       },
       {
         onSuccess: (data) => {
@@ -192,7 +196,7 @@ const MirrorPage = () => {
             toast.info("Loaded from cache — instant result!");
           }
         },
-      }
+      },
     );
   };
 
@@ -250,11 +254,12 @@ const MirrorPage = () => {
       {/* Tabs */}
       <div className="flex gap-2">
         <button
-          onClick={() => { setTab("tryon"); setSelectedLook(null); }}
+          onClick={() => {
+            setTab("tryon");
+            setSelectedLook(null);
+          }}
           className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors min-h-[44px] ${
-            tab === "tryon"
-              ? "bg-primary text-primary-foreground"
-              : "border border-border text-muted-foreground"
+            tab === "tryon" ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground"
           }`}
         >
           <Sparkles className="w-4 h-4 inline mr-1.5 -mt-0.5" />
@@ -263,9 +268,7 @@ const MirrorPage = () => {
         <button
           onClick={() => setTab("gallery")}
           className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors min-h-[44px] ${
-            tab === "gallery"
-              ? "bg-primary text-primary-foreground"
-              : "border border-border text-muted-foreground"
+            tab === "gallery" ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground"
           }`}
         >
           <GalleryHorizontalEnd className="w-4 h-4 inline mr-1.5 -mt-0.5" />
@@ -295,7 +298,11 @@ const MirrorPage = () => {
                     </span>
                   )}
                   <p className="text-xs text-muted-foreground mt-1.5">
-                    {new Date(selectedLook.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                    {new Date(selectedLook.created_at).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
                   </p>
                 </div>
                 <Button
@@ -305,7 +312,11 @@ const MirrorPage = () => {
                   disabled={deleteMutation.isPending}
                   onClick={() => handleDeleteLook(selectedLook)}
                 >
-                  {deleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  {deleteMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
                   Delete
                 </Button>
               </div>
@@ -313,7 +324,9 @@ const MirrorPage = () => {
               {/* Garment Details */}
               {lookGarments.length > 0 && (
                 <div className="mt-4 space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Garments in this look</p>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Garments in this look
+                  </p>
                   {lookGarments.map((g) => (
                     <div key={g.id} className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border">
                       <div className="flex-1 min-w-0">
@@ -362,9 +375,7 @@ const MirrorPage = () => {
                     />
                   </div>
                   <div className="p-2.5">
-                    {look.occasion && (
-                      <span className="text-[10px] font-medium text-primary">{look.occasion}</span>
-                    )}
+                    {look.occasion && <span className="text-[10px] font-medium text-primary">{look.occasion}</span>}
                     <p className="text-[10px] text-muted-foreground">
                       {new Date(look.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                     </p>
@@ -384,7 +395,8 @@ const MirrorPage = () => {
             <GlassCard className="flex items-center gap-3 p-3 border-destructive/30">
               <AlertTriangle className="w-5 h-5 text-destructive shrink-0" />
               <p className="text-xs text-muted-foreground">
-                Upload a selfie in your <span className="text-foreground font-medium">Profile</span> to enable virtual try-on.
+                Upload a selfie in your <span className="text-foreground font-medium">Profile</span> to enable virtual
+                try-on.
               </p>
             </GlassCard>
           )}
@@ -400,9 +412,20 @@ const MirrorPage = () => {
                 </GlassCard>
               </motion.div>
             ) : tryOnMutation.data?.image ? (
-              <motion.div key="result" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+              <motion.div
+                key="result"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+              >
                 <GlassCard className="p-0 overflow-hidden">
-                  <SafeImage src={tryOnMutation.data.image} alt="Virtual try-on result" aspectRatio="aspect-auto" wrapperClassName="w-full rounded-2xl" skeletonClassName="rounded-2xl" />
+                  <SafeImage
+                    src={tryOnMutation.data.image}
+                    alt="Virtual try-on result"
+                    aspectRatio="aspect-auto"
+                    wrapperClassName="w-full rounded-2xl"
+                    skeletonClassName="rounded-2xl"
+                  />
                 </GlassCard>
                 <div className="flex gap-2 mt-3">
                   <Button
@@ -410,14 +433,14 @@ const MirrorPage = () => {
                     disabled={saveMutation.isPending}
                     onClick={handleSaveLook}
                   >
-                    {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    {saveMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4" />
+                    )}
                     Save Look
                   </Button>
-                  <Button
-                    variant="outline"
-                    className="flex-1 rounded-xl"
-                    onClick={handleTryAnother}
-                  >
+                  <Button variant="outline" className="flex-1 rounded-xl" onClick={handleTryAnother}>
                     Try another
                   </Button>
                 </div>
@@ -440,7 +463,8 @@ const MirrorPage = () => {
                     <Image className="w-8 h-8 text-primary" />
                   </div>
                   <p className="text-sm text-muted-foreground max-w-[220px]">
-                    Select garments below and tap <span className="text-foreground font-medium">Try On</span> to see yourself wearing them
+                    Select garments below and tap <span className="text-foreground font-medium">Try On</span> to see
+                    yourself wearing them
                   </p>
                 </GlassCard>
               </motion.div>
@@ -451,15 +475,20 @@ const MirrorPage = () => {
           {!tryOnMutation.data && (
             <div className="mb-4">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Occasion (optional)</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Occasion (optional)
+                </p>
                 {!meetsThreshold && (
                   <span className="text-[10px] font-medium text-primary flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full">
-                    <Lock className="w-3 h-3" /> 
-                    Add {Math.max(0, THRESHOLD - topsCount)} Tops, {Math.max(0, THRESHOLD - bottomsCount)} Bottoms to unlock
+                    <Lock className="w-3 h-3" />
+                    Add {Math.max(0, MIN_TOPS - topsCount)} Tops, {Math.max(0, MIN_BOTTOMS - bottomsCount)} Bottoms to
+                    unlock
                   </span>
                 )}
               </div>
-              <div className={`flex gap-2 overflow-x-auto no-scrollbar pb-1 ${!meetsThreshold ? "opacity-40 pointer-events-none grayscale" : ""}`}>
+              <div
+                className={`flex gap-2 overflow-x-auto no-scrollbar pb-1 ${!meetsThreshold ? "opacity-40 pointer-events-none grayscale" : ""}`}
+              >
                 {OCCASIONS.map((o) => (
                   <button
                     key={o}
@@ -539,16 +568,16 @@ const MirrorPage = () => {
               className="w-full rounded-xl gap-2 h-12 text-base transition-all"
               size="lg"
               disabled={
-                !hasSelfie || 
-                tryOnMutation.isPending || 
-                (selectedIds.size === 0 && !occasion && !desiredLook.trim())
+                !hasSelfie || tryOnMutation.isPending || (selectedIds.size === 0 && !occasion && !desiredLook.trim())
               }
               onClick={handleTryOn}
             >
               <Sparkles className="w-5 h-5" />
-              {selectedIds.size > 0 
-                ? `Try On (${selectedIds.size} Items)` 
-                : (occasion || desiredLook.trim() ? "Style Me 🪄" : "Select Items to Try On")}
+              {selectedIds.size > 0
+                ? `Try On (${selectedIds.size} Items)`
+                : occasion || desiredLook.trim()
+                  ? "Style Me 🪄"
+                  : "Select Items to Try On"}
             </Button>
           )}
         </>
