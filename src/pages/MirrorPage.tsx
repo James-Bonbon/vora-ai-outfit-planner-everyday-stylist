@@ -87,43 +87,81 @@ const MirrorPage = () => {
       return;
     }
 
-    let finalGarmentIds = Array.from(selectedIds);
+    if (selectedIds.size === 0 && !occasion && !desiredLook.trim()) {
+      toast.error("Need direction", { description: "Select garments manually, or pick an Occasion so I can style you!" });
+      return;
+    }
 
-    // MAGIC STYLIST MODE: Auto-select an outfit if no garments are manually chosen
-    if (finalGarmentIds.length === 0) {
-      if (!occasion && !desiredLook.trim()) {
-        toast.error("Need direction", { description: "Select garments manually, or pick an Occasion so I can style you!" });
-        return;
+    let finalGarmentIds = new Set(selectedIds);
+    const hasDirection = !!occasion || !!desiredLook.trim();
+
+    // ==========================================
+    // SMART OUTFIT COMPLETER LOGIC
+    // ==========================================
+    if (hasDirection && finalGarmentIds.size < 4) {
+      const selectedItems = Array.from(finalGarmentIds).map(id => items.find(i => i.id === id)).filter(Boolean);
+      const selectedCategories = selectedItems.map(i => i?.category?.toLowerCase());
+      const hasTop = selectedCategories.includes("tops");
+      const hasBottom = selectedCategories.includes("bottoms");
+      const hasDress = selectedCategories.includes("dresses") || selectedCategories.includes("one-piece");
+      const hasShoes = selectedCategories.includes("shoes");
+      const hasOuterwear = selectedCategories.includes("outerwear");
+
+      const neededCategories: string[] = [];
+      if (!hasDress) {
+        if (!hasTop) neededCategories.push("tops");
+        if (!hasBottom) neededCategories.push("bottoms");
+      }
+      if (!hasShoes) neededCategories.push("shoes");
+      if (!hasOuterwear) neededCategories.push("outerwear");
+
+      const occasionKeywords: Record<string, string[]> = {
+        "work": ["blazer", "trouser", "shirt", "loafers", "tailored", "smart"],
+        "date night": ["dress", "skirt", "heel", "silk", "satin", "leather"],
+        "casual": ["jeans", "t-shirt", "sneakers", "denim", "cotton", "hoodie"],
+        "party": ["mini", "sequin", "leather", "heels", "party", "statement"],
+        "streetwear": ["hoodie", "cargo", "sneakers", "oversized", "jacket"]
+      };
+
+      const keywords = occasion ? occasionKeywords[occasion.toLowerCase()] || [] : [];
+      const availableItems = items.filter(i => !finalGarmentIds.has(i.id));
+      let itemsAdded = 0;
+
+      for (const cat of neededCategories) {
+        if (finalGarmentIds.size >= 4) break;
+        const catItems = availableItems.filter(i => i.category?.toLowerCase() === cat);
+        if (catItems.length === 0) continue;
+
+        let matchedItem = catItems.find(i =>
+          keywords.some(kw =>
+            i.name?.toLowerCase().includes(kw)
+          )
+        );
+
+        if (!matchedItem) {
+          matchedItem = catItems[Math.floor(Math.random() * catItems.length)];
+        }
+
+        if (matchedItem) {
+          finalGarmentIds.add(matchedItem.id);
+          itemsAdded++;
+        }
       }
 
-      const tops = items.filter(i => i.category?.toLowerCase() === "tops");
-      const bottoms = items.filter(i => i.category?.toLowerCase() === "bottoms");
-      const dresses = items.filter(i => i.category?.toLowerCase() === "dresses" || i.category?.toLowerCase() === "outerwear");
-
-      const outfitIds: string[] = [];
-      const useDress = dresses.length > 0 && (Math.random() > 0.7 || tops.length === 0 || bottoms.length === 0);
-
-      if (useDress) {
-        const randomDress = dresses[Math.floor(Math.random() * dresses.length)];
-        if (randomDress) outfitIds.push(randomDress.id);
-      } else {
-        const randomTop = tops.length > 0 ? tops[Math.floor(Math.random() * tops.length)] : null;
-        const randomBottom = bottoms.length > 0 ? bottoms[Math.floor(Math.random() * bottoms.length)] : null;
-        if (randomTop) outfitIds.push(randomTop.id);
-        if (randomBottom) outfitIds.push(randomBottom.id);
-      }
-
-      if (outfitIds.length === 0) {
+      if (itemsAdded > 0) {
+        setSelectedIds(new Set(finalGarmentIds));
+        toast.success("Outfit completed! ✨", { description: `Added ${itemsAdded} item(s) to match your ${occasion || 'look'}.` });
+      } else if (finalGarmentIds.size === 0) {
         toast.error("Wardrobe too empty", { description: "Not enough items to auto-style. Please pick items manually." });
         return;
       }
-
-      finalGarmentIds = outfitIds;
-      setSelectedIds(new Set(outfitIds));
-      toast.success("Magic Stylist activated! ✨", { description: "We picked an outfit for your occasion." });
     }
 
-    const garmentUrls = finalGarmentIds.map((id) => imageUrls[id]).filter(Boolean);
+    // ==========================================
+    // EXECUTE API CALL
+    // ==========================================
+    const garmentIdsArray = Array.from(finalGarmentIds);
+    const garmentUrls = garmentIdsArray.map((id) => imageUrls[id]).filter(Boolean);
 
     const finalDesiredLook = [
       occasion ? `Style suitable for a ${occasion} occasion` : null,
@@ -134,7 +172,7 @@ const MirrorPage = () => {
       { 
         selfieUrl, 
         garmentUrls, 
-        garmentIds: finalGarmentIds, 
+        garmentIds: garmentIdsArray, 
         occasion, 
         desiredLook: finalDesiredLook || null, 
         weather: outfitPlan?.weather ?? null 
