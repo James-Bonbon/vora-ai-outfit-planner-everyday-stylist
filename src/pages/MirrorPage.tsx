@@ -177,9 +177,11 @@ const MirrorPage = () => {
     const garmentIdsArray = Array.from(finalGarmentIds);
     const garmentUrls = garmentIdsArray.map((id) => imageUrls[id]).filter(Boolean);
 
-    const finalDesiredLook = [occasion ? `Style suitable for a ${occasion} occasion` : null, desiredLook.trim()]
-      .filter(Boolean)
-      .join(". ");
+    const finalDesiredLook = [
+      occasion ? `Style suitable for a ${occasion} occasion` : null,
+      desiredLook.trim(),
+      "Professional fashion photography, subject perfectly centered, waist-up portrait, head and torso fully visible, well-framed, maintain 3:4 aspect ratio"
+    ].filter(Boolean).join(". ");
 
     tryOnMutation.mutate(
       {
@@ -362,21 +364,22 @@ const MirrorPage = () => {
               {looks.map((look) => (
                 <GlassCard
                   key={look.id}
-                  className="p-0 overflow-hidden cursor-pointer"
+                  className="p-0 overflow-hidden cursor-pointer flex flex-col"
                   onClick={() => setSelectedLook(look)}
                 >
-                  <div className="aspect-[3/4] bg-card">
+                  <div className="aspect-[3/4] bg-card w-full relative">
                     <SafeImage
                       src={lookUrls[look.id]}
                       alt="Saved look"
-                      wrapperClassName="w-full h-full"
+                      wrapperClassName="absolute inset-0 w-full h-full"
+                      className="w-full h-full object-cover object-top"
                       aspectRatio=""
                       loading="lazy"
                     />
                   </div>
-                  <div className="p-2.5">
+                  <div className="p-2.5 bg-card/50">
                     {look.occasion && <span className="text-[10px] font-medium text-primary">{look.occasion}</span>}
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
                       {new Date(look.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                     </p>
                   </div>
@@ -419,13 +422,15 @@ const MirrorPage = () => {
                 exit={{ opacity: 0 }}
               >
                 <GlassCard className="p-0 overflow-hidden">
-                  <SafeImage
-                    src={tryOnMutation.data.image}
-                    alt="Virtual try-on result"
-                    aspectRatio="aspect-auto"
-                    wrapperClassName="w-full rounded-2xl"
-                    skeletonClassName="rounded-2xl"
-                  />
+                  <div className="aspect-[3/4] w-full relative bg-card">
+                    <SafeImage
+                      src={tryOnMutation.data.image}
+                      alt="Virtual try-on result"
+                      wrapperClassName="absolute inset-0 w-full h-full rounded-2xl overflow-hidden"
+                      className="w-full h-full object-cover object-top"
+                      aspectRatio=""
+                    />
+                  </div>
                 </GlassCard>
                 <div className="flex gap-2 mt-3">
                   <Button
