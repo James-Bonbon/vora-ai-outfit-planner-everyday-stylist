@@ -43,7 +43,7 @@ const TOP_RE = /\b(top|shirt|blazer|sweater|knit|jacket|coat|polo|camisole|cardi
 const BOTTOM_RE = /\b(bottom|trouser|pant|jeans|skirt|short|chinos|sweatpants)\b/i;
 const MIN_TOPS = 7;
 const MIN_BOTTOMS = 3;
-const meetsThreshold = topsPool.length >= MIN_TOPS && bottomsPool.length >= MIN_BOTTOMS;
+// meetsThreshold is computed inside the component after pools are derived
 
 function isWeekend(date: Date) {
   const d = getDay(date);
@@ -174,7 +174,7 @@ const OutfitCalendar = () => {
     [garmentPool],
   );
 
-  const meetsThreshold = topsPool.length >= THRESHOLD && bottomsPool.length >= THRESHOLD;
+  const meetsThreshold = topsPool.length >= MIN_TOPS && bottomsPool.length >= MIN_BOTTOMS;
 
   /* ---- Get contextual items for a date ---- */
   const getItemsForDate = useCallback(
