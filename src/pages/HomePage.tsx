@@ -282,15 +282,18 @@ const HomePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [closetCount, setClosetCount] = useState(0);
+  const [beautyCount, setBeautyCount] = useState(0);
   const [userSex, setUserSex] = useState<string | null>(null);
 
   const fetchCounts = useCallback(async () => {
     if (!user) return;
-    const [{ count }, { data: profileData }] = await Promise.all([
+    const [{ count: wardrobeCount }, { count: beautyItemCount }, { data: profileData }] = await Promise.all([
       supabase.from("closet_items").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+      supabase.from("beauty_products").select("id", { count: "exact", head: true }).eq("user_id", user.id),
       supabase.from("profiles").select("sex").eq("user_id", user.id).maybeSingle(),
     ]);
-    if (count !== null) setClosetCount(count);
+    if (wardrobeCount !== null) setClosetCount(wardrobeCount);
+    if (beautyItemCount !== null) setBeautyCount(beautyItemCount);
     if (profileData?.sex) setUserSex(profileData.sex);
   }, [user]);
 
@@ -329,7 +332,7 @@ const HomePage = () => {
           </div>
           <div>
             <h3 className="font-semibold text-foreground text-sm font-outfit">Beauty</h3>
-            <p className="text-xs text-muted-foreground">{closetCount} Items</p>
+            <p className="text-xs text-muted-foreground">{beautyCount} Items</p>
           </div>
         </GlassCard>
       </div>
