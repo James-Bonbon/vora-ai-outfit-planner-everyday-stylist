@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import GlassCard from "@/components/GlassCard";
 import SafeImage from "@/components/ui/SafeImage";
-import { Sparkles, Check, Image, Loader2, AlertTriangle, Save, Trash2, GalleryHorizontalEnd } from "lucide-react";
+import { Sparkles, Check, Image, Loader2, AlertTriangle, Save, Trash2, GalleryHorizontalEnd, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
@@ -43,6 +43,15 @@ const MirrorPage = () => {
 
   const items = closetData?.items ?? [];
   const imageUrls = closetData?.urls ?? {};
+
+  // MAGIC STYLIST THRESHOLD LOGIC (Requires 5 Tops & 5 Bottoms)
+  const TOP_RE = /\b(top|shirt|blazer|sweater|knit|jacket|coat|polo|camisole|cardigan|hoodie)\b/i;
+  const BOTTOM_RE = /\b(bottom|trouser|pant|jeans|skirt|short|chinos|sweatpants)\b/i;
+  const THRESHOLD = 5;
+
+  const topsCount = items.filter(i => TOP_RE.test(i.category || "") || TOP_RE.test(i.name || "")).length;
+  const bottomsCount = items.filter(i => BOTTOM_RE.test(i.category || "") || BOTTOM_RE.test(i.name || "")).length;
+  const meetsThreshold = topsCount >= THRESHOLD && bottomsCount >= THRESHOLD;
   const looks = looksData?.looks ?? [];
   const lookUrls = looksData?.urls ?? {};
 
@@ -440,12 +449,21 @@ const MirrorPage = () => {
 
           {/* Occasion selector */}
           {!tryOnMutation.data && (
-            <div>
-              <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Occasion (optional)</p>
-              <div className="flex gap-2 overflow-x-auto no-scrollbar">
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Occasion (optional)</p>
+                {!meetsThreshold && (
+                  <span className="text-[10px] font-medium text-primary flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full">
+                    <Lock className="w-3 h-3" /> 
+                    Add {Math.max(0, THRESHOLD - topsCount)} Tops, {Math.max(0, THRESHOLD - bottomsCount)} Bottoms to unlock
+                  </span>
+                )}
+              </div>
+              <div className={`flex gap-2 overflow-x-auto no-scrollbar pb-1 ${!meetsThreshold ? "opacity-40 pointer-events-none grayscale" : ""}`}>
                 {OCCASIONS.map((o) => (
                   <button
                     key={o}
+                    disabled={!meetsThreshold}
                     onClick={() => setOccasion(occasion === o ? null : o)}
                     className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-colors min-h-[36px] ${
                       occasion === o
