@@ -41,7 +41,9 @@ const WEATHER_ICON: Record<string, typeof Sun> = {
 
 const TOP_RE = /\b(top|shirt|blazer|sweater|knit|jacket|coat|polo|camisole|cardigan|hoodie)\b/i;
 const BOTTOM_RE = /\b(bottom|trouser|pant|jeans|skirt|short|chinos|sweatpants)\b/i;
-const THRESHOLD = 5;
+const MIN_TOPS = 7;
+const MIN_BOTTOMS = 3;
+const meetsThreshold = topsPool.length >= MIN_TOPS && bottomsPool.length >= MIN_BOTTOMS;
 
 function isWeekend(date: Date) {
   const d = getDay(date);
@@ -291,7 +293,7 @@ const OutfitCalendar = () => {
         <div>
           <h3 className="text-lg font-bold text-foreground font-outfit">Unlock Your Daily Stylist</h3>
           <p className="text-sm text-muted-foreground mt-1">
-            Add at least 5 Tops and 5 Bottoms to your Wardrobe or Dream List to activate the Outfit Calendar.
+            Add at least 7 Tops and 3 Bottoms to your Wardrobe or Dream List to activate the Outfit Calendar.
           </p>
         </div>
         <div className="space-y-3 max-w-[260px] mx-auto">
@@ -301,10 +303,10 @@ const OutfitCalendar = () => {
                 <ShirtIcon className="w-3 h-3" /> Tops
               </span>
               <span className="font-semibold text-foreground">
-                {topsPool.length}/{THRESHOLD}
+                {topsPool.length}/{MIN_TOPS}
               </span>
             </div>
-            <Progress value={(topsPool.length / THRESHOLD) * 100} className="h-2" />
+            <Progress value={(topsPool.length / MIN_TOPS) * 100} className="h-2" />
           </div>
           <div>
             <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
@@ -312,10 +314,10 @@ const OutfitCalendar = () => {
                 <Layers className="w-3 h-3" /> Bottoms
               </span>
               <span className="font-semibold text-foreground">
-                {bottomsPool.length}/{THRESHOLD}
+                {bottomsPool.length}/{MIN_BOTTOMS}
               </span>
             </div>
-            <Progress value={(bottomsPool.length / THRESHOLD) * 100} className="h-2" />
+            <Progress value={(bottomsPool.length / MIN_BOTTOMS) * 100} className="h-2" />
           </div>
         </div>
       </GlassCard>
