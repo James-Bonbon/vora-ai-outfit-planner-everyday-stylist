@@ -86,22 +86,59 @@ const MirrorPage = () => {
       toast.error("No selfie found", { description: "Upload a selfie in your profile first." });
       return;
     }
-    if (selectedIds.size === 0) {
-      toast.error("Select garments", { description: "Pick at least one item to try on." });
-      return;
+
+    let finalGarmentIds = Array.from(selectedIds);
+
+    // MAGIC STYLIST MODE: Auto-select an outfit if no garments are manually chosen
+    if (finalGarmentIds.length === 0) {
+      if (!occasion && !desiredLook.trim()) {
+        toast.error("Need direction", { description: "Select garments manually, or pick an Occasion so I can style you!" });
+        return;
+      }
+
+      const tops = items.filter(i => i.category?.toLowerCase() === "tops");
+      const bottoms = items.filter(i => i.category?.toLowerCase() === "bottoms");
+      const dresses = items.filter(i => i.category?.toLowerCase() === "dresses" || i.category?.toLowerCase() === "outerwear");
+
+      const outfitIds: string[] = [];
+      const useDress = dresses.length > 0 && (Math.random() > 0.7 || tops.length === 0 || bottoms.length === 0);
+
+      if (useDress) {
+        const randomDress = dresses[Math.floor(Math.random() * dresses.length)];
+        if (randomDress) outfitIds.push(randomDress.id);
+      } else {
+        const randomTop = tops.length > 0 ? tops[Math.floor(Math.random() * tops.length)] : null;
+        const randomBottom = bottoms.length > 0 ? bottoms[Math.floor(Math.random() * bottoms.length)] : null;
+        if (randomTop) outfitIds.push(randomTop.id);
+        if (randomBottom) outfitIds.push(randomBottom.id);
+      }
+
+      if (outfitIds.length === 0) {
+        toast.error("Wardrobe too empty", { description: "Not enough items to auto-style. Please pick items manually." });
+        return;
+      }
+
+      finalGarmentIds = outfitIds;
+      setSelectedIds(new Set(outfitIds));
+      toast.success("Magic Stylist activated! ✨", { description: "We picked an outfit for your occasion." });
     }
 
-    const garmentUrls = Array.from(selectedIds).map((id) => imageUrls[id]).filter(Boolean);
-    const garmentIds = Array.from(selectedIds);
+    const garmentUrls = finalGarmentIds.map((id) => imageUrls[id]).filter(Boolean);
 
-    // Combine Occasion and Desired Look into a single prompt
     const finalDesiredLook = [
       occasion ? `Style suitable for a ${occasion} occasion` : null,
       desiredLook.trim()
     ].filter(Boolean).join(". ");
 
     tryOnMutation.mutate(
-      { selfieUrl, garmentUrls, garmentIds, occasion, desiredLook: finalDesiredLook || null, weather: outfitPlan?.weather ?? null },
+      { 
+        selfieUrl, 
+        garmentUrls, 
+        garmentIds: finalGarmentIds, 
+        occasion, 
+        desiredLook: finalDesiredLook || null, 
+        weather: outfitPlan?.weather ?? null 
+      },
       {
         onSuccess: (data) => {
           if (data.cached) {
@@ -443,13 +480,15 @@ const MirrorPage = () => {
           {/* Try On button */}
           {!tryOnMutation.data && (
             <Button
-              className="w-full rounded-xl gap-2 h-12 text-base"
+              className="w-full rounded-xl gap-2 h-12 text-base transition-all"
               size="lg"
-              disabled={!hasSelfie || selectedIds.size === 0 || tryOnMutation.isPending}
+              disabled={!hasSelfie || tryOnMutation.isPending}
               onClick={handleTryOn}
             >
               <Sparkles className="w-5 h-5" />
-              Try On
+              {selectedIds.size > 0 
+                ? `Try On (${selectedIds.size} Items)` 
+                : (occasion || desiredLook.trim() ? "Style Me 🪄" : "Select Items to Try On")}
             </Button>
           )}
         </>
