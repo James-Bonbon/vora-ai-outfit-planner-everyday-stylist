@@ -482,7 +482,11 @@ const MirrorPage = () => {
             <Button
               className="w-full rounded-xl gap-2 h-12 text-base transition-all"
               size="lg"
-              disabled={!hasSelfie || tryOnMutation.isPending}
+              disabled={
+                !hasSelfie || 
+                tryOnMutation.isPending || 
+                (selectedIds.size === 0 && !occasion && !desiredLook.trim())
+              }
               onClick={handleTryOn}
             >
               <Sparkles className="w-5 h-5" />
