@@ -11,50 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
-const BODY_SHAPES = [
-  {
-    id: "balanced",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8">
-        <path d="M7 4h10M7 4c0 4 3 7 3 8s-3 4-3 8m10-16c0 4-3 7-3 8s3 4 3 8M7 20h10" />
-      </svg>
-    ),
-  },
-  {
-    id: "shoulders_wider",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8">
-        <path d="M5 6h14M5 6c1 5 4 10 7 14M19 6c-1 5-4 10-7 14" />
-      </svg>
-    ),
-  },
-  {
-    id: "hips_wider",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8">
-        <path d="M12 4c-3 8-6 12-7 16h14c-1-4-4-8-7-16z" />
-      </svg>
-    ),
-  },
-  {
-    id: "midsection_fuller",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8">
-        <ellipse cx="12" cy="12" rx="7" ry="9" />
-        <path d="M10 3h4M10 21h4" />
-      </svg>
-    ),
-  },
-  {
-    id: "curvy",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8">
-        <path d="M8 5c0 3 2 5 2 7s-3 4-3 7h10c0-3-3-4-3-7s2-4 2-7" />
-        <path d="M9 5h6M9 19h6" />
-      </svg>
-    ),
-  },
-];
+import { BODY_SHAPES, BODY_SHAPE_LABELS } from "@/constants/bodyShapes";
 
 const MIN_AGE = 13;
 
@@ -270,7 +227,14 @@ const OnboardingPage = () => {
                 aria-label={shape.id}
                 title={shape.id}
               >
-                {shape.icon}
+                <div className="w-8 h-8 flex items-center justify-center bg-muted/50 rounded-md overflow-hidden">
+                  <img
+                    src={shape.iconSrc}
+                    alt={BODY_SHAPE_LABELS[shape.id] || shape.id}
+                    className="w-full h-full object-contain"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                </div>
               </button>
             );
           })}
