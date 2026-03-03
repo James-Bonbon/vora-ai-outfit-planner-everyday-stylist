@@ -1,22 +1,59 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, ChevronRight, ChevronLeft, Check, AlertTriangle } from "lucide-react";
+import { Camera, ChevronRight, ChevronLeft, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import GlassCard from "@/components/GlassCard";
-import BodyShapeIcon from "@/components/onboarding/BodyShapeIcon";
+
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 const BODY_SHAPES = [
-  { id: "balanced", label: "Balanced" },
-  { id: "shoulders_wider", label: "Shoulders Wider" },
-  { id: "hips_wider", label: "Hips Wider" },
-  { id: "midsection_fuller", label: "Midsection Fuller" },
-  { id: "curvy", label: "Curvy" },
+  {
+    id: "balanced",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8">
+        <path d="M7 4h10M7 4c0 4 3 7 3 8s-3 4-3 8m10-16c0 4-3 7-3 8s3 4 3 8M7 20h10" />
+      </svg>
+    ),
+  },
+  {
+    id: "shoulders_wider",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8">
+        <path d="M5 6h14M5 6c1 5 4 10 7 14M19 6c-1 5-4 10-7 14" />
+      </svg>
+    ),
+  },
+  {
+    id: "hips_wider",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8">
+        <path d="M12 4c-3 8-6 12-7 16h14c-1-4-4-8-7-16z" />
+      </svg>
+    ),
+  },
+  {
+    id: "midsection_fuller",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8">
+        <ellipse cx="12" cy="12" rx="7" ry="9" />
+        <path d="M10 3h4M10 21h4" />
+      </svg>
+    ),
+  },
+  {
+    id: "curvy",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8">
+        <path d="M8 5c0 3 2 5 2 7s-3 4-3 7h10c0-3-3-4-3-7s2-4 2-7" />
+        <path d="M9 5h6M9 19h6" />
+      </svg>
+    ),
+  },
 ];
 
 const MIN_AGE = 13;
@@ -215,27 +252,29 @@ const OnboardingPage = () => {
         <p className="text-sm text-muted-foreground mt-1">Select the closest body shape</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        {BODY_SHAPES.map((shape) => {
-          const selected = bodyShape === shape.id;
-          return (
-            <div
-              key={shape.id}
-              onClick={() => setBodyShape(shape.id)}
-              className={`relative flex flex-col items-center gap-2 p-5 rounded-2xl cursor-pointer transition-all bg-card ${
-                selected ? "border-2 border-primary shadow-sm" : "border border-border"
-              }`}
-            >
-              {selected && (
-                <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                  <Check className="w-3 h-3 text-primary-foreground" />
-                </div>
-              )}
-              <BodyShapeIcon shape={shape.id} className="w-12 h-12" />
-              <span className="text-sm font-medium text-foreground">{shape.label}</span>
-            </div>
-          );
-        })}
+      <div>
+        <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wider">Body Shape</p>
+        <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+          {BODY_SHAPES.map((shape) => {
+            const isSelected = bodyShape === shape.id;
+            return (
+              <button
+                key={shape.id}
+                type="button"
+                onClick={() => setBodyShape(shape.id)}
+                className={`relative flex-shrink-0 w-16 h-20 rounded-2xl flex items-center justify-center transition-all bg-card border-2 ${
+                  isSelected
+                    ? "border-primary ring-2 ring-primary/20 bg-primary/5 text-primary"
+                    : "border-border text-muted-foreground hover:border-primary/50"
+                }`}
+                aria-label={shape.id}
+                title={shape.id}
+              >
+                {shape.icon}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </motion.div>,
   ];
