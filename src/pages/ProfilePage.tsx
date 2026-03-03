@@ -245,20 +245,32 @@ const ProfilePage = () => {
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Body Shape</Label>
-              <div className="flex flex-wrap gap-2 mt-1">
-                {Object.entries(BODY_SHAPE_LABELS).map(([key, label]) => (
-                  <button
-                    key={key}
-                    onClick={() => setEditBodyShape(key)}
-                    className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
-                      editBodyShape === key
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-card text-foreground border border-border"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
+              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 mt-1">
+                {[
+                  { id: "balanced", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8"><path d="M7 4h10M7 4c0 4 3 7 3 8s-3 4-3 8m10-16c0 4-3 7-3 8s3 4 3 8M7 20h10" /></svg> },
+                  { id: "shoulders_wider", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8"><path d="M5 6h14M5 6c1 5 4 10 7 14M19 6c-1 5-4 10-7 14" /></svg> },
+                  { id: "hips_wider", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8"><path d="M12 4c-3 8-6 12-7 16h14c-1-4-4-8-7-16z" /></svg> },
+                  { id: "midsection_fuller", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8"><ellipse cx="12" cy="12" rx="7" ry="9" /><path d="M10 3h4M10 21h4" /></svg> },
+                  { id: "curvy", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8"><path d="M8 5c0 3 2 5 2 7s-3 4-3 7h10c0-3-3-4-3-7s2-4 2-7" /><path d="M9 5h6M9 19h6" /></svg> },
+                ].map((shape) => {
+                  const isSelected = editBodyShape === shape.id;
+                  return (
+                    <button
+                      key={shape.id}
+                      type="button"
+                      onClick={() => setEditBodyShape(shape.id)}
+                      className={`relative flex-shrink-0 w-16 h-20 rounded-2xl flex items-center justify-center transition-all bg-card border-2 ${
+                        isSelected
+                          ? "border-primary ring-2 ring-primary/20 bg-primary/5 text-primary"
+                          : "border-border text-muted-foreground hover:border-primary/50"
+                      }`}
+                      aria-label={BODY_SHAPE_LABELS[shape.id]}
+                      title={BODY_SHAPE_LABELS[shape.id]}
+                    >
+                      {shape.icon}
+                    </button>
+                  );
+                })}
               </div>
             </div>
             <div className="flex gap-3">
