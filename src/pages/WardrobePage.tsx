@@ -100,7 +100,12 @@ const WardrobePage = () => {
               <Plus className="w-5 h-5" />
             </Button>
           </div>
-        ) : null}
+        ) : (
+          <Button variant="outline" size="sm" className="rounded-xl gap-1.5" onClick={() => navigate("/library")}>
+            <Plus className="w-4 h-4" />
+            Browse Library
+          </Button>
+        )}
       </div>
 
       {/* Tab Toggle */}
