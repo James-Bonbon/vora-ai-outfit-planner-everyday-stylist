@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
-import { BODY_SHAPES, BODY_SHAPE_LABELS } from "@/constants/bodyShapes";
+import { BODY_SHAPES } from "@/constants/bodyShapes";
 
 const MIN_AGE = 13;
 
@@ -211,30 +211,21 @@ const OnboardingPage = () => {
 
       <div>
         <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wider">Body Shape</p>
-        <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+        <div className="flex gap-3">
           {BODY_SHAPES.map((shape) => {
-            const isSelected = bodyShape === shape.id;
+            const isSelected = bodyShape === shape;
             return (
               <button
-                key={shape.id}
+                key={shape}
                 type="button"
-                onClick={() => setBodyShape(shape.id)}
-                className={`relative flex-shrink-0 w-16 h-20 rounded-2xl flex items-center justify-center transition-all bg-card border-2 ${
+                onClick={() => setBodyShape(shape)}
+                className={`flex-1 py-3 rounded-xl text-sm font-medium transition-colors ${
                   isSelected
-                    ? "border-primary ring-2 ring-primary/20 bg-primary/5 text-primary"
-                    : "border-border text-muted-foreground hover:border-primary/50"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-card text-foreground border border-border hover:border-primary/50"
                 }`}
-                aria-label={shape.id}
-                title={shape.id}
               >
-                <div className="w-8 h-8 flex items-center justify-center bg-muted/50 rounded-md overflow-hidden">
-                  <img
-                    src={shape.iconSrc}
-                    alt={BODY_SHAPE_LABELS[shape.id] || shape.id}
-                    className="w-full h-full object-contain"
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                  />
-                </div>
+                {shape}
               </button>
             );
           })}

@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { applyTheme } from "@/components/ThemeProvider";
-import { BODY_SHAPES, BODY_SHAPE_LABELS } from "@/constants/bodyShapes";
+import { BODY_SHAPES } from "@/constants/bodyShapes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface ProfileData {
@@ -239,30 +239,21 @@ const ProfilePage = () => {
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Body Shape</Label>
-              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 mt-1">
+              <div className="flex gap-3 mt-1">
                 {BODY_SHAPES.map((shape) => {
-                  const isSelected = editBodyShape === shape.id;
+                  const isSelected = editBodyShape === shape;
                   return (
                     <button
-                      key={shape.id}
+                      key={shape}
                       type="button"
-                      onClick={() => setEditBodyShape(shape.id)}
-                      className={`relative flex-shrink-0 w-16 h-20 rounded-2xl flex items-center justify-center transition-all bg-card border-2 ${
+                      onClick={() => setEditBodyShape(shape)}
+                      className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                         isSelected
-                          ? "border-primary ring-2 ring-primary/20 bg-primary/5 text-primary"
-                          : "border-border text-muted-foreground hover:border-primary/50"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-card text-foreground border border-border hover:border-primary/50"
                       }`}
-                      aria-label={BODY_SHAPE_LABELS[shape.id]}
-                      title={BODY_SHAPE_LABELS[shape.id]}
                     >
-                      <div className="w-8 h-8 flex items-center justify-center bg-muted/50 rounded-md overflow-hidden">
-                        <img
-                          src={shape.iconSrc}
-                          alt={BODY_SHAPE_LABELS[shape.id] || shape.id}
-                          className="w-full h-full object-contain"
-                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                        />
-                      </div>
+                      {shape}
                     </button>
                   );
                 })}
@@ -313,7 +304,7 @@ const ProfilePage = () => {
               <User className="w-4 h-4 text-muted-foreground" />
               <div>
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Body Shape</p>
-                <p className="text-sm font-medium text-foreground">{profile?.body_shape ? BODY_SHAPE_LABELS[profile.body_shape] || profile.body_shape : "—"}</p>
+                <p className="text-sm font-medium text-foreground">{profile?.body_shape || "—"}</p>
               </div>
             </div>
           </div>

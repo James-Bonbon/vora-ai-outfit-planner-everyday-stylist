@@ -15,6 +15,7 @@ import {
   useTryOnMutation,
   useSaveLookMutation,
   useDeleteLookMutation,
+  useProfileData,
   type SavedLook,
 } from "@/hooks/useMirrorData";
 
@@ -34,6 +35,8 @@ const MirrorPage = () => {
   const { data: selfieUrl } = useSelfieUrl();
   const { data: closetData } = useClosetItems();
   const { data: looksData } = useSavedLooks();
+  const { data: profileData } = useProfileData();
+  const bodyShape = profileData?.body_shape;
   const { data: lookGarments = [] } = useLookGarments(selectedLook?.garment_ids ?? null);
 
   // Mutations
@@ -177,7 +180,15 @@ const MirrorPage = () => {
     const garmentIdsArray = Array.from(finalGarmentIds);
     const garmentUrls = garmentIdsArray.map((id) => imageUrls[id]).filter(Boolean);
 
+    const shapePrompts: Record<string, string> = {
+      "Slim": "tailored slim fit, close to the body, clean narrow silhouette",
+      "Balanced": "naturally contoured tailored fit, balanced upper and lower proportions, standard drape",
+      "Fuller": "relaxed fit, comfortable drape, elongated vertical lines, soft tailored structure with slightly more volume",
+    };
+    const shapeInstruction = bodyShape ? shapePrompts[bodyShape] : null;
+
     const finalDesiredLook = [
+      shapeInstruction ? `Ensure a ${shapeInstruction}` : null,
       occasion ? `Style suitable for a ${occasion} occasion` : null,
       desiredLook.trim(),
       "Professional fashion photography, subject perfectly centered, waist-up portrait, head and torso fully visible, well-framed, maintain 3:4 aspect ratio"
