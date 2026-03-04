@@ -47,7 +47,11 @@ serve(async (req) => {
 
     if (!editRes.ok) {
       const errorText = await editRes.text();
-      throw new Error(`Photoroom Generative API Error (${editRes.status}): ${errorText}`);
+      const statusCode = editRes.status === 402 ? 402 : 500;
+      return new Response(
+        JSON.stringify({ error: `Photoroom Generative API Error (${editRes.status}): ${errorText}` }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: statusCode }
+      );
     }
 
     const flatLayBlob = await editRes.blob();
@@ -68,7 +72,11 @@ serve(async (req) => {
 
     if (!segmentRes.ok) {
       const errorText = await segmentRes.text();
-      throw new Error(`Photoroom Segment API Error (${segmentRes.status}): ${errorText}`);
+      const statusCode = segmentRes.status === 402 ? 402 : 500;
+      return new Response(
+        JSON.stringify({ error: `Photoroom Segment API Error (${segmentRes.status}): ${errorText}` }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: statusCode }
+      );
     }
 
     const finalTransparentBlob = await segmentRes.blob();
