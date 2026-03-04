@@ -55,6 +55,25 @@ async function getSignedUrl(bucket: string, path: string): Promise<string | null
 
 // ─── Queries ────────────────────────────────────────────────────────────
 
+export function useProfileData() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["profile-data", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("body_shape")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+    staleTime: 30 * 60 * 1000,
+  });
+}
+
 export function useSelfieUrl() {
   const { user } = useAuth();
   return useQuery({
