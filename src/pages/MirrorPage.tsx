@@ -202,6 +202,7 @@ const MirrorPage = () => {
         occasion,
         desiredLook: finalDesiredLook || null,
         weather: outfitPlan?.weather ?? null,
+        bodyShape: bodyShape ?? null,
       },
       {
         onSuccess: (data) => {
@@ -225,6 +226,7 @@ const MirrorPage = () => {
       imagePath,
       occasion,
       garmentIds: Array.from(selectedIds),
+      bodyShape: bodyShape ?? null,
     });
   };
 

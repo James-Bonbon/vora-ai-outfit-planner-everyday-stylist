@@ -183,11 +183,12 @@ export function useTryOnMutation() {
     occasion: string | null;
     desiredLook?: string | null;
     weather?: string | null;
+    bodyShape?: string | null;
   }>({
     mutationKey: ["virtual-tryon"],
-    mutationFn: async ({ selfieUrl, garmentUrls, garmentIds, occasion, desiredLook, weather }) => {
+    mutationFn: async ({ selfieUrl, garmentUrls, garmentIds, occasion, desiredLook, weather, bodyShape }) => {
       const { data, error } = await supabase.functions.invoke("virtual-tryon", {
-        body: { selfieUrl, garmentUrls, garmentIds, occasion, desiredLook, weather },
+        body: { selfieUrl, garmentUrls, garmentIds, occasion, desiredLook, weather, bodyShape },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -202,16 +203,18 @@ export function useSaveLookMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ imagePath, occasion, garmentIds }: {
+    mutationFn: async ({ imagePath, occasion, garmentIds, bodyShape }: {
       imagePath: string;
       occasion: string | null;
       garmentIds: string[];
+      bodyShape?: string | null;
     }) => {
       const { error } = await supabase.from("looks").insert({
         user_id: user!.id,
         image_path: imagePath,
         occasion,
         garment_ids: garmentIds,
+        body_shape: bodyShape,
       });
       if (error) throw error;
     },

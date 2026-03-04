@@ -21,10 +21,10 @@ async function toDataUrl(url: string): Promise<string> {
   return `data:${mime};base64,${b64}`;
 }
 
-/** Generate a deterministic SHA-256 hash from userId + sorted garmentIds */
-async function computeInputHash(userId: string, garmentIds: string[]): Promise<string> {
+/** Generate a deterministic SHA-256 hash from userId + sorted garmentIds + bodyShape */
+async function computeInputHash(userId: string, garmentIds: string[], bodyShape?: string | null): Promise<string> {
   const sorted = [...garmentIds].sort();
-  const input = `${userId}:${sorted.join(",")}`;
+  const input = `${userId}:${sorted.join(",")}:${bodyShape || "none"}`;
   const encoder = new TextEncoder();
   const data = encoder.encode(input);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
@@ -65,7 +65,7 @@ serve(async (req) => {
     }
     const userId = user.id;
 
-    const { selfieUrl, garmentUrls, garmentIds, occasion, desiredLook, weather } = await req.json();
+    const { selfieUrl, garmentUrls, garmentIds, occasion, desiredLook, weather, bodyShape: reqBodyShape } = await req.json();
 
     if (!selfieUrl || !garmentUrls?.length || !garmentIds?.length) {
       return new Response(
@@ -80,13 +80,13 @@ serve(async (req) => {
       .select("body_shape")
       .eq("user_id", userId)
       .maybeSingle();
-    const bodyShape = profileData?.body_shape || null;
+    const bodyShape = reqBodyShape || profileData?.body_shape || null;
 
     // Service-role client for cache and storage operations
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
     // Step 1: Compute input hash and check cache
-    const inputHash = await computeInputHash(userId, garmentIds);
+    const inputHash = await computeInputHash(userId, garmentIds, bodyShape);
 
     const { data: cached } = await supabaseAdmin
       .from("generated_looks_cache")

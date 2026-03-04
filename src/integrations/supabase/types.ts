@@ -205,6 +205,7 @@ export type Database = {
       }
       looks: {
         Row: {
+          body_shape: string | null
           created_at: string
           garment_ids: string[] | null
           id: string
@@ -213,6 +214,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          body_shape?: string | null
           created_at?: string
           garment_ids?: string[] | null
           id?: string
@@ -221,6 +223,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          body_shape?: string | null
           created_at?: string
           garment_ids?: string[] | null
           id?: string

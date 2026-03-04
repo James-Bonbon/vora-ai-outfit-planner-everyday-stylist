@@ -1,0 +1,1 @@
+ALTER TABLE public.looks ADD COLUMN body_shape text DEFAULT NULL;
