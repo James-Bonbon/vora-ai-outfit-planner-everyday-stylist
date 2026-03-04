@@ -104,15 +104,20 @@ const LibraryPage = () => {
       });
       toast({ title: "Removed from Dream List" });
     } else {
-      await supabase.from("dream_items").insert({
+      const { error } = await supabase.from("dream_items").insert({
         user_id: user.id,
         image_url: item.image_url || "",
         name: item.title,
         brand: item.brand,
         catalog_item_id: item.id,
       });
-      setDreamIds((prev) => new Set(prev).add(item.id));
-      toast({ title: "Added to Dream List! ✨" });
+      if (error) {
+        console.error("Dream List Insert Error:", error);
+        toast({ title: "Failed to save to Dream List", variant: "destructive" });
+      } else {
+        setDreamIds((prev) => new Set(prev).add(item.id));
+        toast({ title: "Added to Dream List! ✨" });
+      }
     }
     setSavingId(null);
   };
