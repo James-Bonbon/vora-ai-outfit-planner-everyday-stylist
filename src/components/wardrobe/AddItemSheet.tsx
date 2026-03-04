@@ -104,6 +104,10 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       });
 
       if (!response.ok) {
+        if (response.status === 402) {
+          toast.info("AI flat-lay unavailable (quota reached). Using original photo.");
+          throw new Error("QUOTA_EXCEEDED");
+        }
         const errorText = await response.text();
         throw new Error(`AI Processing Error: ${errorText}`);
       }
@@ -124,8 +128,9 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       setPreview(processedPreview);
     } catch (err: any) {
       console.error("AI Processing Error:", err);
-      toast.error(`AI Processing Failed: ${err.message || "Unknown error occurred"}`);
-      // Keep the raw preview but clear processed state so user doesn't upload unprocessed accidentally
+      if (err.message !== "QUOTA_EXCEEDED") {
+        toast.error(`AI Processing Failed: ${err.message || "Unknown error occurred"}`);
+      }
       setProcessedBlob(null);
       setHasTransparentBg(false);
     } finally {
