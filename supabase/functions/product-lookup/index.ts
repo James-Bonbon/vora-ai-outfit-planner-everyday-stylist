@@ -75,7 +75,7 @@ Return ONLY valid JSON, no markdown.`,
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages,
-        max_tokens: 600,
+        max_tokens: 1500,
       }),
     });
 
