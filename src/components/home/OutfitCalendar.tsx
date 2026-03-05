@@ -9,6 +9,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
+import {
+  generateSmartOutfit,
+  generateSwappedOutfit,
+  countPools,
+  MIN_TOPS,
+  MIN_BOTTOMS,
+  type StylingItem,
+} from "@/utils/stylingEngine";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -24,13 +32,7 @@ interface CalendarEntry {
   status: string;
 }
 
-interface GarmentSnapshot {
-  id: string;
-  name: string | null;
-  image_url: string;
-  category: string | null;
-  source: "closet" | "dream";
-}
+interface GarmentSnapshot extends StylingItem {}
 
 const WEATHER_ICON: Record<string, typeof Sun> = {
   warm: Sun,
@@ -38,12 +40,6 @@ const WEATHER_ICON: Record<string, typeof Sun> = {
   neutral: Cloud,
   rainy: CloudRain,
 };
-
-const TOP_RE = /\b(top|shirt|blazer|sweater|knit|jacket|coat|polo|camisole|cardigan|hoodie)\b/i;
-const BOTTOM_RE = /\b(bottom|trouser|pant|jeans|skirt|short|chinos|sweatpants)\b/i;
-const MIN_TOPS = 7;
-const MIN_BOTTOMS = 3;
-// meetsThreshold is computed inside the component after pools are derived
 
 function isWeekend(date: Date) {
   const d = getDay(date);
@@ -72,8 +68,8 @@ const OutfitCalendar = () => {
 
     const [profileRes, closetRes, dreamRes] = await Promise.all([
       supabase.from("profiles").select("subscription_tier").eq("user_id", user.id).maybeSingle(),
-      supabase.from("closet_items").select("id, name, image_url, category").eq("user_id", user.id),
-      supabase.from("dream_items").select("id, name, image_url").eq("user_id", user.id),
+      supabase.from("closet_items").select("id, name, image_url, category, created_at, is_in_laundry").eq("user_id", user.id),
+      supabase.from("dream_items").select("id, name, image_url, created_at").eq("user_id", user.id),
     ]);
 
     if (profileRes.data) {
@@ -92,6 +88,8 @@ const OutfitCalendar = () => {
             name: item.name,
             image_url: data?.signedUrl || item.image_url,
             category: item.category,
+            created_at: item.created_at,
+            is_in_laundry: item.is_in_laundry,
             source: "closet" as const,
           };
         }),
@@ -110,7 +108,7 @@ const OutfitCalendar = () => {
             const { data } = await supabase.storage.from("garments").createSignedUrl(item.image_url, 3600);
             url = data?.signedUrl || item.image_url;
           }
-          return { id: item.id, name: item.name, image_url: url, category: null, source: "dream" as const };
+          return { id: item.id, name: item.name, image_url: url, category: null, created_at: item.created_at, source: "dream" as const };
         }),
       );
       pool.push(...withUrls);
@@ -164,17 +162,14 @@ const OutfitCalendar = () => {
     fetchCalendar();
   }, [fetchBootstrap, fetchCalendar]);
 
-  /* ---- Filter pools ---- */
-  const topsPool = useMemo(
-    () => garmentPool.filter((i) => TOP_RE.test(i.category || "") || TOP_RE.test(i.name || "")),
-    [garmentPool],
-  );
-  const bottomsPool = useMemo(
-    () => garmentPool.filter((i) => BOTTOM_RE.test(i.category || "") || BOTTOM_RE.test(i.name || "")),
+  /* ---- Pool counts & threshold (via styling engine) ---- */
+  const { topsCount, bottomsCount, meetsThreshold } = useMemo(
+    () => countPools(garmentPool),
     [garmentPool],
   );
 
-  const meetsThreshold = topsPool.length >= MIN_TOPS && bottomsPool.length >= MIN_BOTTOMS;
+  /* ---- Swap counters per date (deterministic rotation) ---- */
+  const [swapCounts, setSwapCounts] = useState<Record<string, number>>({});
 
   /* ---- Get contextual items for a date ---- */
   const getItemsForDate = useCallback(
@@ -184,42 +179,45 @@ const OutfitCalendar = () => {
       }
       if (!meetsThreshold) return [];
 
-      const seed = date.getTime();
-      const pickFrom = (arr: GarmentSnapshot[], offset: number) => {
-        if (arr.length === 0) return null;
-        const idx = Math.abs((seed + offset * 2654435761) | 0) % arr.length;
-        return arr[idx];
-      };
+      const dateStr = format(date, "yyyy-MM-dd");
+      const swapOffset = swapCounts[dateStr] || 0;
 
-      const top = pickFrom(topsPool, 0);
-      const bottom = pickFrom(bottomsPool, 1);
-      return [top, bottom].filter(Boolean) as GarmentSnapshot[];
+      if (swapOffset > 0) {
+        return generateSwappedOutfit(garmentPool, date, swapOffset) as GarmentSnapshot[];
+      }
+
+      return generateSmartOutfit(garmentPool, date) as GarmentSnapshot[];
     },
-    [garments, topsPool, bottomsPool, meetsThreshold],
+    [garments, garmentPool, meetsThreshold, swapCounts],
   );
 
-  /* ---- Swap handler ---- */
+  /* ---- Swap handler (deterministic rotation, no Math.random) ---- */
   const handleSwap = useCallback(
     (dateStr: string) => {
       if (!meetsThreshold) return;
-      const top = topsPool[Math.floor(Math.random() * topsPool.length)];
-      const bottom = bottomsPool[Math.floor(Math.random() * bottomsPool.length)];
-      const randomTwo = [top, bottom].filter(Boolean);
+      const newCount = (swapCounts[dateStr] || 0) + 1;
+      setSwapCounts((prev) => ({ ...prev, [dateStr]: newCount }));
+
+      // Generate the swapped outfit to update garments map & entries
+      const date = new Date(dateStr + "T00:00");
+      const swapped = generateSwappedOutfit(garmentPool, date, newCount);
+      if (swapped.length === 0) return;
+
       const map = { ...garments };
-      randomTwo.forEach((g) => (map[g.id] = g));
+      swapped.forEach((g) => (map[g.id] = g as GarmentSnapshot));
       setGarments(map);
 
       setEntries((prev) => {
         const existing = prev.find((e) => e.date === dateStr);
         if (existing) {
-          return prev.map((e) => (e.date === dateStr ? { ...e, garment_ids: randomTwo.map((g) => g.id) } : e));
+          return prev.map((e) => (e.date === dateStr ? { ...e, garment_ids: swapped.map((g) => g.id) } : e));
         }
         return [
           ...prev,
           {
             id: crypto.randomUUID(),
             date: dateStr,
-            garment_ids: randomTwo.map((g) => g.id),
+            garment_ids: swapped.map((g) => g.id),
             weather_temp: null,
             weather_label: null,
             occasion: null,
@@ -228,7 +226,7 @@ const OutfitCalendar = () => {
         ];
       });
     },
-    [garments, topsPool, bottomsPool, meetsThreshold],
+    [garments, garmentPool, meetsThreshold, swapCounts],
   );
 
   /* ---- Edit: assign specific item ---- */
@@ -303,10 +301,10 @@ const OutfitCalendar = () => {
                 <ShirtIcon className="w-3 h-3" /> Tops
               </span>
               <span className="font-semibold text-foreground">
-                {topsPool.length}/{MIN_TOPS}
+                {topsCount}/{MIN_TOPS}
               </span>
             </div>
-            <Progress value={(topsPool.length / MIN_TOPS) * 100} className="h-2" />
+            <Progress value={(topsCount / MIN_TOPS) * 100} className="h-2" />
           </div>
           <div>
             <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
@@ -314,10 +312,10 @@ const OutfitCalendar = () => {
                 <Layers className="w-3 h-3" /> Bottoms
               </span>
               <span className="font-semibold text-foreground">
-                {bottomsPool.length}/{MIN_BOTTOMS}
+                {bottomsCount}/{MIN_BOTTOMS}
               </span>
             </div>
-            <Progress value={(bottomsPool.length / MIN_BOTTOMS) * 100} className="h-2" />
+            <Progress value={(bottomsCount / MIN_BOTTOMS) * 100} className="h-2" />
           </div>
         </div>
       </GlassCard>
