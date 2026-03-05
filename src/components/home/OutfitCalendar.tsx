@@ -88,6 +88,8 @@ const OutfitCalendar = () => {
             name: item.name,
             image_url: data?.signedUrl || item.image_url,
             category: item.category,
+            created_at: item.created_at,
+            is_in_laundry: item.is_in_laundry,
             source: "closet" as const,
           };
         }),
