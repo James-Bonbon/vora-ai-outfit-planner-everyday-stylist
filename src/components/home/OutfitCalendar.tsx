@@ -160,17 +160,14 @@ const OutfitCalendar = () => {
     fetchCalendar();
   }, [fetchBootstrap, fetchCalendar]);
 
-  /* ---- Filter pools ---- */
-  const topsPool = useMemo(
-    () => garmentPool.filter((i) => TOP_RE.test(i.category || "") || TOP_RE.test(i.name || "")),
-    [garmentPool],
-  );
-  const bottomsPool = useMemo(
-    () => garmentPool.filter((i) => BOTTOM_RE.test(i.category || "") || BOTTOM_RE.test(i.name || "")),
+  /* ---- Pool counts & threshold (via styling engine) ---- */
+  const { topsCount, bottomsCount, meetsThreshold } = useMemo(
+    () => countPools(garmentPool),
     [garmentPool],
   );
 
-  const meetsThreshold = topsPool.length >= MIN_TOPS && bottomsPool.length >= MIN_BOTTOMS;
+  /* ---- Swap counters per date (deterministic rotation) ---- */
+  const [swapCounts, setSwapCounts] = useState<Record<string, number>>({});
 
   /* ---- Get contextual items for a date ---- */
   const getItemsForDate = useCallback(
@@ -180,42 +177,45 @@ const OutfitCalendar = () => {
       }
       if (!meetsThreshold) return [];
 
-      const seed = date.getTime();
-      const pickFrom = (arr: GarmentSnapshot[], offset: number) => {
-        if (arr.length === 0) return null;
-        const idx = Math.abs((seed + offset * 2654435761) | 0) % arr.length;
-        return arr[idx];
-      };
+      const dateStr = format(date, "yyyy-MM-dd");
+      const swapOffset = swapCounts[dateStr] || 0;
 
-      const top = pickFrom(topsPool, 0);
-      const bottom = pickFrom(bottomsPool, 1);
-      return [top, bottom].filter(Boolean) as GarmentSnapshot[];
+      if (swapOffset > 0) {
+        return generateSwappedOutfit(garmentPool, date, swapOffset) as GarmentSnapshot[];
+      }
+
+      return generateSmartOutfit(garmentPool, date) as GarmentSnapshot[];
     },
-    [garments, topsPool, bottomsPool, meetsThreshold],
+    [garments, garmentPool, meetsThreshold, swapCounts],
   );
 
-  /* ---- Swap handler ---- */
+  /* ---- Swap handler (deterministic rotation, no Math.random) ---- */
   const handleSwap = useCallback(
     (dateStr: string) => {
       if (!meetsThreshold) return;
-      const top = topsPool[Math.floor(Math.random() * topsPool.length)];
-      const bottom = bottomsPool[Math.floor(Math.random() * bottomsPool.length)];
-      const randomTwo = [top, bottom].filter(Boolean);
+      const newCount = (swapCounts[dateStr] || 0) + 1;
+      setSwapCounts((prev) => ({ ...prev, [dateStr]: newCount }));
+
+      // Generate the swapped outfit to update garments map & entries
+      const date = new Date(dateStr + "T00:00");
+      const swapped = generateSwappedOutfit(garmentPool, date, newCount);
+      if (swapped.length === 0) return;
+
       const map = { ...garments };
-      randomTwo.forEach((g) => (map[g.id] = g));
+      swapped.forEach((g) => (map[g.id] = g as GarmentSnapshot));
       setGarments(map);
 
       setEntries((prev) => {
         const existing = prev.find((e) => e.date === dateStr);
         if (existing) {
-          return prev.map((e) => (e.date === dateStr ? { ...e, garment_ids: randomTwo.map((g) => g.id) } : e));
+          return prev.map((e) => (e.date === dateStr ? { ...e, garment_ids: swapped.map((g) => g.id) } : e));
         }
         return [
           ...prev,
           {
             id: crypto.randomUUID(),
             date: dateStr,
-            garment_ids: randomTwo.map((g) => g.id),
+            garment_ids: swapped.map((g) => g.id),
             weather_temp: null,
             weather_label: null,
             occasion: null,
@@ -224,7 +224,7 @@ const OutfitCalendar = () => {
         ];
       });
     },
-    [garments, topsPool, bottomsPool, meetsThreshold],
+    [garments, garmentPool, meetsThreshold, swapCounts],
   );
 
   /* ---- Edit: assign specific item ---- */
