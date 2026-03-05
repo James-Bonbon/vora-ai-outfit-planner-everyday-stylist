@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
-import { BODY_SHAPES } from "@/constants/bodyShapes";
+import { getBodyShapes } from "@/constants/bodyShapes";
 
 const MIN_AGE = 13;
 
