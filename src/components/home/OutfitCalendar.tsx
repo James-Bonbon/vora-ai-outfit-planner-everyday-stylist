@@ -108,7 +108,7 @@ const OutfitCalendar = () => {
             const { data } = await supabase.storage.from("garments").createSignedUrl(item.image_url, 3600);
             url = data?.signedUrl || item.image_url;
           }
-          return { id: item.id, name: item.name, image_url: url, category: null, source: "dream" as const };
+          return { id: item.id, name: item.name, image_url: url, category: null, created_at: item.created_at, source: "dream" as const };
         }),
       );
       pool.push(...withUrls);
