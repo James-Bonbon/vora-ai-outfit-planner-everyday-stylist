@@ -212,7 +212,7 @@ const OnboardingPage = () => {
       <div>
         <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wider">Body Shape</p>
         <div className="flex gap-3">
-          {BODY_SHAPES.map((shape) => {
+          {getBodyShapes(sex).map((shape) => {
             const isSelected = bodyShape === shape;
             return (
               <button

@@ -240,7 +240,7 @@ const ProfilePage = () => {
             <div>
               <Label className="text-xs text-muted-foreground">Body Shape</Label>
               <div className="flex gap-3 mt-1">
-                {BODY_SHAPES.map((shape) => {
+                {getBodyShapes(editSex || profile?.sex).map((shape) => {
                   const isSelected = editBodyShape === shape;
                   return (
                     <button
