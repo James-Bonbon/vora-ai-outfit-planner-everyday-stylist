@@ -32,13 +32,7 @@ interface CalendarEntry {
   status: string;
 }
 
-interface GarmentSnapshot {
-  id: string;
-  name: string | null;
-  image_url: string;
-  category: string | null;
-  source: "closet" | "dream";
-}
+interface GarmentSnapshot extends StylingItem {}
 
 const WEATHER_ICON: Record<string, typeof Sun> = {
   warm: Sun,
@@ -46,12 +40,6 @@ const WEATHER_ICON: Record<string, typeof Sun> = {
   neutral: Cloud,
   rainy: CloudRain,
 };
-
-const TOP_RE = /\b(top|shirt|blazer|sweater|knit|jacket|coat|polo|camisole|cardigan|hoodie)\b/i;
-const BOTTOM_RE = /\b(bottom|trouser|pant|jeans|skirt|short|chinos|sweatpants)\b/i;
-const MIN_TOPS = 7;
-const MIN_BOTTOMS = 3;
-// meetsThreshold is computed inside the component after pools are derived
 
 function isWeekend(date: Date) {
   const d = getDay(date);
