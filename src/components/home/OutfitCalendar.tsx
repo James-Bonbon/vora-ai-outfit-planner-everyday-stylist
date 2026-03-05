@@ -299,10 +299,10 @@ const OutfitCalendar = () => {
                 <ShirtIcon className="w-3 h-3" /> Tops
               </span>
               <span className="font-semibold text-foreground">
-                {topsPool.length}/{MIN_TOPS}
+                {topsCount}/{MIN_TOPS}
               </span>
             </div>
-            <Progress value={(topsPool.length / MIN_TOPS) * 100} className="h-2" />
+            <Progress value={(topsCount / MIN_TOPS) * 100} className="h-2" />
           </div>
           <div>
             <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
@@ -310,10 +310,10 @@ const OutfitCalendar = () => {
                 <Layers className="w-3 h-3" /> Bottoms
               </span>
               <span className="font-semibold text-foreground">
-                {bottomsPool.length}/{MIN_BOTTOMS}
+                {bottomsCount}/{MIN_BOTTOMS}
               </span>
             </div>
-            <Progress value={(bottomsPool.length / MIN_BOTTOMS) * 100} className="h-2" />
+            <Progress value={(bottomsCount / MIN_BOTTOMS) * 100} className="h-2" />
           </div>
         </div>
       </GlassCard>
