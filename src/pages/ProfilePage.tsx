@@ -225,7 +225,7 @@ const ProfilePage = () => {
                 {["Female", "Male"].map((s) => (
                   <button
                     key={s}
-                    onClick={() => setEditSex(s.toLowerCase())}
+                    onClick={() => { setEditSex(s.toLowerCase()); setEditBodyShape(""); }}
                     className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${
                       editSex === s.toLowerCase()
                         ? "bg-primary text-primary-foreground"
