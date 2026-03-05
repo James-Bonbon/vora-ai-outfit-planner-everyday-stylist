@@ -181,9 +181,13 @@ const MirrorPage = () => {
     const garmentUrls = garmentIdsArray.map((id) => imageUrls[id]).filter(Boolean);
 
     const shapePrompts: Record<string, string> = {
+      // Female / Neutral
       "Slim": "tailored slim fit, close to the body, clean narrow silhouette",
       "Balanced": "naturally contoured tailored fit, balanced upper and lower proportions, standard drape",
       "Fuller": "relaxed fit, comfortable drape, elongated vertical lines, soft tailored structure with slightly more volume",
+      // Male specific
+      "Athletic": "broad shoulders, v-taper silhouette, narrow waist, structured muscular fit",
+      "Broad": "relaxed fit, comfortable drape across the midsection, wider frame, robust build, straight lines",
     };
     const shapeInstruction = bodyShape ? shapePrompts[bodyShape] : null;
 

@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
-import { BODY_SHAPES } from "@/constants/bodyShapes";
+import { getBodyShapes } from "@/constants/bodyShapes";
 
 const MIN_AGE = 13;
 
@@ -212,7 +212,7 @@ const OnboardingPage = () => {
       <div>
         <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wider">Body Shape</p>
         <div className="flex gap-3">
-          {BODY_SHAPES.map((shape) => {
+          {getBodyShapes(sex).map((shape) => {
             const isSelected = bodyShape === shape;
             return (
               <button

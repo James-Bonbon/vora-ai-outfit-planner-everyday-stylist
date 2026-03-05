@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { applyTheme } from "@/components/ThemeProvider";
-import { BODY_SHAPES } from "@/constants/bodyShapes";
+import { getBodyShapes } from "@/constants/bodyShapes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface ProfileData {
@@ -225,7 +225,7 @@ const ProfilePage = () => {
                 {["Female", "Male"].map((s) => (
                   <button
                     key={s}
-                    onClick={() => setEditSex(s.toLowerCase())}
+                    onClick={() => { setEditSex(s.toLowerCase()); setEditBodyShape(""); }}
                     className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${
                       editSex === s.toLowerCase()
                         ? "bg-primary text-primary-foreground"
@@ -240,7 +240,7 @@ const ProfilePage = () => {
             <div>
               <Label className="text-xs text-muted-foreground">Body Shape</Label>
               <div className="flex gap-3 mt-1">
-                {BODY_SHAPES.map((shape) => {
+                {getBodyShapes(editSex || profile?.sex).map((shape) => {
                   const isSelected = editBodyShape === shape;
                   return (
                     <button
