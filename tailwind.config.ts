@@ -71,6 +71,11 @@ export default {
           border: "hsl(var(--calendar-border))",
         },
         "product-bg": "hsl(var(--product-bg))",
+        flatlay: {
+          DEFAULT: "hsl(var(--flatlay-bg))",
+          cta: "hsl(var(--flatlay-cta))",
+          "cta-foreground": "hsl(var(--flatlay-cta-foreground))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
