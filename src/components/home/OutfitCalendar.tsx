@@ -362,61 +362,32 @@ const OutfitCalendar = () => {
             </span>
           </div>
 
-          <div className="flex gap-4">
-            <div className="flex-1 min-w-0 flex flex-col">
-              <p className="text-2xl font-bold text-foreground font-outfit leading-none">
-                {format(new Date(), "EEE d")}
-              </p>
-              {todaySlot.entry?.weather_label && (
-                <p className="text-xs text-muted-foreground mt-1 capitalize">
-                  {todaySlot.entry.weather_label}
-                  {tempDisplay && ` · ${tempDisplay}`}
-                </p>
-              )}
-              <div className="mt-3 space-y-1">
-                {todayGarments.length > 0 ? (
-                  todayGarments.slice(0, 3).map((g) => (
-                    <p key={g.id} className="text-xs text-foreground font-medium truncate max-w-[140px]">
-                      {g.name || g.category || "Garment"}
-                    </p>
-                  ))
-                ) : (
-                  <p className="text-xs text-muted-foreground italic">No outfit planned yet</p>
-                )}
+          {/* Flat-Lay Display */}
+          {todayGarments.length > 0 ? (
+            <OutfitFlatLay
+              garments={todayGarments}
+              onTryOnMake={() => {
+                // Navigate to AI Stylist with garments pre-selected
+                navigate("/mirror", {
+                  state: {
+                    preSelectedIds: todayGarments.map((g) => g.id),
+                    vibe: todayOccasion,
+                  },
+                });
+              }}
+            />
+          ) : (
+            <div className="flex gap-2 justify-center py-4">
+              <div className="w-20 h-24 rounded-xl bg-muted flex items-center justify-center">
+                <span className="text-[10px] text-muted-foreground">Top</span>
+              </div>
+              <div className="w-20 h-24 rounded-xl bg-muted flex items-center justify-center">
+                <span className="text-[10px] text-muted-foreground">Bottom</span>
               </div>
             </div>
+          )}
 
-            <div className="flex gap-2 shrink-0">
-              {todayGarments.length > 0 ? (
-                todayGarments.slice(0, 2).map((g) => (
-                  <div
-                    key={g.id}
-                    className="w-20 h-24 rounded-xl overflow-hidden bg-product-bg p-2 flex items-center justify-center mix-blend-multiply"
-                  >
-                    <SafeImage
-                      src={g.image_url}
-                      alt={g.name || "Garment"}
-                      aspectRatio=""
-                      fit="contain"
-                      className="drop-shadow-[0px_8px_10px_rgba(0,0,0,0.15)]"
-                      wrapperClassName="w-full h-full"
-                    />
-                  </div>
-                ))
-              ) : (
-                <>
-                  <div className="w-20 h-24 rounded-xl bg-muted flex items-center justify-center">
-                    <span className="text-[10px] text-muted-foreground">Top</span>
-                  </div>
-                  <div className="w-20 h-24 rounded-xl bg-muted flex items-center justify-center">
-                    <span className="text-[10px] text-muted-foreground">Bottom</span>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          <div className="flex justify-center gap-4 mt-5 pt-2 w-full">
+          <div className="flex justify-center gap-4 mt-4 pt-2 w-full">
             <Button
               size="sm"
               className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 text-xs h-8 px-4"
