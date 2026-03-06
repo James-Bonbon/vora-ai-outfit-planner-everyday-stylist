@@ -104,6 +104,33 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          role: string
+          suggested_garment_ids: string[] | null
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          role?: string
+          suggested_garment_ids?: string[] | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+          suggested_garment_ids?: string[] | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       closet_items: {
         Row: {
           brand: string | null
