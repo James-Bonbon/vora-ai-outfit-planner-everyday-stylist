@@ -343,9 +343,35 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
         }}
       >
         <SheetHeader>
-          <SheetTitle className="font-outfit">Add to Wardrobe</SheetTitle>
+          <SheetTitle className="font-outfit">
+            {showMapStep ? "Where does it live?" : "Add to Wardrobe"}
+          </SheetTitle>
         </SheetHeader>
 
+        {showMapStep && closetSvg ? (
+          <div className="space-y-4 mt-4 pb-6">
+            <p className="text-sm text-muted-foreground text-center">
+              Tap the compartment where you store this item
+            </p>
+            <WardrobeMap
+              svgString={closetSvg}
+              isSelectionMode
+              activeZoneId={storageZoneId || undefined}
+              onZoneSelect={handleZoneSelect}
+            />
+            <Button
+              variant="ghost"
+              className="w-full rounded-xl text-muted-foreground"
+              onClick={() => {
+                resetForm();
+                onOpenChange(false);
+                onItemAdded();
+              }}
+            >
+              Skip
+            </Button>
+          </div>
+        ) : (
         <div className="space-y-5 mt-4 pb-6">
           {/* Photo Upload */}
           {preview ? (
