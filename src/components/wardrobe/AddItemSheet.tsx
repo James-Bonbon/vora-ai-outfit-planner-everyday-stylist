@@ -42,6 +42,10 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
   const [saving, setSaving] = useState(false);
   const [lookingUp, setLookingUp] = useState(false);
   const [isProcessingAI, setIsProcessingAI] = useState(false);
+  const [storageZoneId, setStorageZoneId] = useState<string | null>(null);
+  const [closetSvg, setClosetSvg] = useState<string | null>(null);
+  const [showMapStep, setShowMapStep] = useState(false);
+  const [savedItemId, setSavedItemId] = useState<string | null>(null);
 
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
