@@ -59,6 +59,7 @@ const DetailRow = ({ label, value }: { label: string; value: string | null | und
 };
 
 const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDetailSheetProps) => {
+  const { user } = useAuth();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [showCare, setShowCare] = useState(false);
@@ -68,6 +69,8 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
   const [stainResult, setStainResult] = useState<StainResult | null>(null);
   const [isInLaundry, setIsInLaundry] = useState(false);
   const [laundryUpdating, setLaundryUpdating] = useState(false);
+  const [closetSvg, setClosetSvg] = useState<string | null>(null);
+  const [storageZoneId, setStorageZoneId] = useState<string | null>(null);
 
   const isDream = item?.source === "dream";
 
