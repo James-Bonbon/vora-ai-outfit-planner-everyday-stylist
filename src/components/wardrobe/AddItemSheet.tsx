@@ -283,7 +283,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
 
       if (uploadError) throw uploadError;
 
-      const { error: dbError } = await supabase.from("closet_items").insert({
+      const { data: insertData, error: dbError } = await supabase.from("closet_items").insert({
         user_id: user.id,
         image_url: filePath,
         name: name || "Unnamed Item",
@@ -292,20 +292,42 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
         material: material || null,
         brand: brand || null,
         notes: careData ? JSON.stringify(careData) : null,
-      });
+        storage_zone_id: storageZoneId,
+      }).select("id").single();
 
       if (dbError) throw dbError;
 
       toast.success("Item added to your wardrobe!");
-      resetForm();
-      onOpenChange(false);
-      onItemAdded();
+
+      // If user has a closet map, show zone selection step
+      if (closetSvg && insertData?.id) {
+        setSavedItemId(insertData.id);
+        setShowMapStep(true);
+      } else {
+        resetForm();
+        onOpenChange(false);
+        onItemAdded();
+      }
     } catch (err) {
       console.error("Save error:", err);
       toast.error("Failed to save item.");
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleZoneSelect = async (zoneId: string) => {
+    setStorageZoneId(zoneId);
+    if (savedItemId) {
+      await supabase
+        .from("closet_items")
+        .update({ storage_zone_id: zoneId })
+        .eq("id", savedItemId);
+      toast.success(`Mapped to "${zoneId}" zone!`);
+    }
+    resetForm();
+    onOpenChange(false);
+    onItemAdded();
   };
 
   return (
