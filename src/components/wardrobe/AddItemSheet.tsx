@@ -3,11 +3,12 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Camera, Loader2, Sparkles, Search, RefreshCw } from "lucide-react";
+import { Camera, Loader2, Sparkles, Search, RefreshCw, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { normalizeToPng } from "@/utils/imageProcessing";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { WardrobeMap } from "@/components/wardrobe/WardrobeMap";
 
 export interface PrefillData {
   imageFile: File;
