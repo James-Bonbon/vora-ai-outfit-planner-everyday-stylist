@@ -19,14 +19,6 @@ import {
   MIN_BOTTOMS,
   type StylingItem,
 } from "@/utils/stylingEngine";
-import {
-  generateSmartOutfit,
-  generateSwappedOutfit,
-  countPools,
-  MIN_TOPS,
-  MIN_BOTTOMS,
-  type StylingItem,
-} from "@/utils/stylingEngine";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
