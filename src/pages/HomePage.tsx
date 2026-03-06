@@ -308,12 +308,32 @@ const HomePage = () => {
 
   return (
     <div className="pt-6 space-y-5 pb-4">
+      {/* ===== Header ===== */}
+      <div className="flex items-center justify-between h-10">
+        <h1 className="text-2xl font-bold text-foreground font-outfit">Outfit Calendar</h1>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate('/home')}
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-secondary border border-border hover:bg-muted text-muted-foreground transition-colors shrink-0"
+          >
+            <CalendarDays className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => navigate('/profile')}
+            className="shrink-0 transition-transform hover:scale-105"
+          >
+            <Avatar className="w-9 h-9 border border-border">
+              <AvatarImage src={avatarUrl ?? undefined} alt="Profile" />
+              <AvatarFallback className="bg-secondary text-muted-foreground">
+                <User className="w-4 h-4" />
+              </AvatarFallback>
+            </Avatar>
+          </button>
+        </div>
+      </div>
+
       {/* ===== Outfit Calendar (Top Widget) ===== */}
       <div>
-        <div className="flex items-center justify-between h-10">
-          <h1 className="text-2xl font-bold text-foreground font-outfit">Outfit Calendar</h1>
-          <CalendarDays className="w-5 h-5 text-muted-foreground" />
-        </div>
         <OutfitCalendar />
       </div>
 
