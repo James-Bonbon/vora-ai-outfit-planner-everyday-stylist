@@ -68,6 +68,9 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
     setBrand("");
     setCareData(null);
     setIsProcessingAI(false);
+    setStorageZoneId(null);
+    setShowMapStep(false);
+    setSavedItemId(null);
   };
 
   const imageBase64Ref = useRef<string | null>(null);
