@@ -116,6 +116,7 @@ export type Database = {
           material: string | null
           name: string | null
           notes: string | null
+          storage_zone_id: string | null
           updated_at: string
           user_id: string
         }
@@ -130,6 +131,7 @@ export type Database = {
           material?: string | null
           name?: string | null
           notes?: string | null
+          storage_zone_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -144,6 +146,7 @@ export type Database = {
           material?: string | null
           name?: string | null
           notes?: string | null
+          storage_zone_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -281,6 +284,7 @@ export type Database = {
           avatar_url: string | null
           biometric_consent: boolean
           body_shape: string | null
+          closet_svg: string | null
           created_at: string
           date_of_birth: string | null
           display_name: string | null
@@ -300,6 +304,7 @@ export type Database = {
           avatar_url?: string | null
           biometric_consent?: boolean
           body_shape?: string | null
+          closet_svg?: string | null
           created_at?: string
           date_of_birth?: string | null
           display_name?: string | null
@@ -319,6 +324,7 @@ export type Database = {
           avatar_url?: string | null
           biometric_consent?: boolean
           body_shape?: string | null
+          closet_svg?: string | null
           created_at?: string
           date_of_birth?: string | null
           display_name?: string | null
