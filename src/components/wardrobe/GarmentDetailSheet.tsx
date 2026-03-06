@@ -225,7 +225,16 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
             )}
           </div>
 
-          {/* Laundry Toggle — closet items only */}
+          {/* Wardrobe Map Zone */}
+          {!isDream && closetSvg && storageZoneId && (
+            <div className="space-y-2">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1 px-1">
+                <MapPin className="w-3 h-3" /> Stored in: {storageZoneId.replace(/-/g, " ")}
+              </p>
+              <WardrobeMap svgString={closetSvg} activeZoneId={storageZoneId} />
+            </div>
+          )}
+
           {!isDream && (
             <div className="flex items-center justify-between bg-card rounded-2xl px-4 py-3">
               <Label htmlFor="laundry-toggle" className="text-sm font-medium text-foreground cursor-pointer">
