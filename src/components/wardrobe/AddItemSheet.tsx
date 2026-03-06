@@ -254,6 +254,19 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
     }
   }, [prefill, open]);
 
+  // Load closet SVG for zone selection
+  useEffect(() => {
+    if (!user || !open) return;
+    supabase
+      .from("profiles")
+      .select("closet_svg")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.closet_svg) setClosetSvg(data.closet_svg);
+      });
+  }, [user, open]);
+
   const handleSave = async () => {
     if (!user || !file) return;
     setSaving(true);
