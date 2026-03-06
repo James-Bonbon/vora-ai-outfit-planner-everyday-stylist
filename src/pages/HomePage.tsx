@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import GlassCard from "@/components/GlassCard";
 import SafeImage from "@/components/ui/SafeImage";
-import { CalendarDays, DoorOpen, ExternalLink, HeartPulse } from "lucide-react";
+import { CalendarDays, DoorOpen, ExternalLink, HeartPulse, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import OutfitCalendar from "@/components/home/OutfitCalendar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 
 const TRENDING_FEMALE = [
@@ -284,17 +285,19 @@ const HomePage = () => {
   const [closetCount, setClosetCount] = useState(0);
   const [beautyCount, setBeautyCount] = useState(0);
   const [userSex, setUserSex] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   const fetchCounts = useCallback(async () => {
     if (!user) return;
     const [{ count: wardrobeCount }, { count: beautyItemCount }, { data: profileData }] = await Promise.all([
       supabase.from("closet_items").select("id", { count: "exact", head: true }).eq("user_id", user.id),
       supabase.from("beauty_products").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-      supabase.from("profiles").select("sex").eq("user_id", user.id).maybeSingle(),
+      supabase.from("profiles").select("sex, avatar_url").eq("user_id", user.id).maybeSingle(),
     ]);
     if (wardrobeCount !== null) setClosetCount(wardrobeCount);
     if (beautyItemCount !== null) setBeautyCount(beautyItemCount);
     if (profileData?.sex) setUserSex(profileData.sex);
+    if (profileData?.avatar_url) setAvatarUrl(profileData.avatar_url);
   }, [user]);
 
   useEffect(() => {
@@ -305,12 +308,32 @@ const HomePage = () => {
 
   return (
     <div className="pt-6 space-y-5 pb-4">
+      {/* ===== Header ===== */}
+      <div className="flex items-center justify-between h-10">
+        <h1 className="text-2xl font-bold text-foreground font-outfit">Outfit Calendar</h1>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate('/home')}
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-secondary border border-border hover:bg-muted text-muted-foreground transition-colors shrink-0"
+          >
+            <CalendarDays className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => navigate('/profile')}
+            className="shrink-0 transition-transform hover:scale-105"
+          >
+            <Avatar className="w-9 h-9 border border-border">
+              <AvatarImage src={avatarUrl ?? undefined} alt="Profile" />
+              <AvatarFallback className="bg-secondary text-muted-foreground">
+                <User className="w-4 h-4" />
+              </AvatarFallback>
+            </Avatar>
+          </button>
+        </div>
+      </div>
+
       {/* ===== Outfit Calendar (Top Widget) ===== */}
       <div>
-        <div className="flex items-center justify-between h-10">
-          <h1 className="text-2xl font-bold text-foreground font-outfit">Outfit Calendar</h1>
-          <CalendarDays className="w-5 h-5 text-muted-foreground" />
-        </div>
         <OutfitCalendar />
       </div>
 
