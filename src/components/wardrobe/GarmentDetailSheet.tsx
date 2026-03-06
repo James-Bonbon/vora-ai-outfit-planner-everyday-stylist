@@ -1,7 +1,7 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import SafeImage from "@/components/ui/SafeImage";
-import { Trash2, Droplets, SprayCan, Loader2, AlertTriangle } from "lucide-react";
+import { Trash2, Droplets, SprayCan, Loader2, AlertTriangle, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useEffect, useState, useMemo } from "react";
@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import type { GarmentDisplay } from "@/types/wardrobe";
+import { useAuth } from "@/hooks/useAuth";
+import { WardrobeMap } from "@/components/wardrobe/WardrobeMap";
 
 interface GarmentDetailSheetProps {
   item: GarmentDisplay | null;
