@@ -3,11 +3,12 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Camera, Loader2, Sparkles, Search, RefreshCw } from "lucide-react";
+import { Camera, Loader2, Sparkles, Search, RefreshCw, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { normalizeToPng } from "@/utils/imageProcessing";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { WardrobeMap } from "@/components/wardrobe/WardrobeMap";
 
 export interface PrefillData {
   imageFile: File;
@@ -41,6 +42,10 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
   const [saving, setSaving] = useState(false);
   const [lookingUp, setLookingUp] = useState(false);
   const [isProcessingAI, setIsProcessingAI] = useState(false);
+  const [storageZoneId, setStorageZoneId] = useState<string | null>(null);
+  const [closetSvg, setClosetSvg] = useState<string | null>(null);
+  const [showMapStep, setShowMapStep] = useState(false);
+  const [savedItemId, setSavedItemId] = useState<string | null>(null);
 
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
@@ -63,6 +68,9 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
     setBrand("");
     setCareData(null);
     setIsProcessingAI(false);
+    setStorageZoneId(null);
+    setShowMapStep(false);
+    setSavedItemId(null);
   };
 
   const imageBase64Ref = useRef<string | null>(null);
@@ -246,6 +254,19 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
     }
   }, [prefill, open]);
 
+  // Load closet SVG for zone selection
+  useEffect(() => {
+    if (!user || !open) return;
+    supabase
+      .from("profiles")
+      .select("closet_svg")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.closet_svg) setClosetSvg(data.closet_svg);
+      });
+  }, [user, open]);
+
   const handleSave = async () => {
     if (!user || !file) return;
     setSaving(true);
@@ -262,7 +283,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
 
       if (uploadError) throw uploadError;
 
-      const { error: dbError } = await supabase.from("closet_items").insert({
+      const { data: insertData, error: dbError } = await supabase.from("closet_items").insert({
         user_id: user.id,
         image_url: filePath,
         name: name || "Unnamed Item",
@@ -271,20 +292,42 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
         material: material || null,
         brand: brand || null,
         notes: careData ? JSON.stringify(careData) : null,
-      });
+        storage_zone_id: storageZoneId,
+      }).select("id").single();
 
       if (dbError) throw dbError;
 
       toast.success("Item added to your wardrobe!");
-      resetForm();
-      onOpenChange(false);
-      onItemAdded();
+
+      // If user has a closet map, show zone selection step
+      if (closetSvg && insertData?.id) {
+        setSavedItemId(insertData.id);
+        setShowMapStep(true);
+      } else {
+        resetForm();
+        onOpenChange(false);
+        onItemAdded();
+      }
     } catch (err) {
       console.error("Save error:", err);
       toast.error("Failed to save item.");
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleZoneSelect = async (zoneId: string) => {
+    setStorageZoneId(zoneId);
+    if (savedItemId) {
+      await supabase
+        .from("closet_items")
+        .update({ storage_zone_id: zoneId })
+        .eq("id", savedItemId);
+      toast.success(`Mapped to "${zoneId}" zone!`);
+    }
+    resetForm();
+    onOpenChange(false);
+    onItemAdded();
   };
 
   return (
@@ -300,9 +343,35 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
         }}
       >
         <SheetHeader>
-          <SheetTitle className="font-outfit">Add to Wardrobe</SheetTitle>
+          <SheetTitle className="font-outfit">
+            {showMapStep ? "Where does it live?" : "Add to Wardrobe"}
+          </SheetTitle>
         </SheetHeader>
 
+        {showMapStep && closetSvg ? (
+          <div className="space-y-4 mt-4 pb-6">
+            <p className="text-sm text-muted-foreground text-center">
+              Tap the compartment where you store this item
+            </p>
+            <WardrobeMap
+              svgString={closetSvg}
+              isSelectionMode
+              activeZoneId={storageZoneId || undefined}
+              onZoneSelect={handleZoneSelect}
+            />
+            <Button
+              variant="ghost"
+              className="w-full rounded-xl text-muted-foreground"
+              onClick={() => {
+                resetForm();
+                onOpenChange(false);
+                onItemAdded();
+              }}
+            >
+              Skip
+            </Button>
+          </div>
+        ) : (
         <div className="space-y-5 mt-4 pb-6">
           {/* Photo Upload */}
           {preview ? (
@@ -411,6 +480,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
             {saving ? "Saving..." : "Add to Wardrobe"}
           </Button>
         </div>
+        )}
       </SheetContent>
     </Sheet>
   );

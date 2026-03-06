@@ -1,7 +1,7 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import SafeImage from "@/components/ui/SafeImage";
-import { Trash2, Droplets, SprayCan, Loader2, AlertTriangle } from "lucide-react";
+import { Trash2, Droplets, SprayCan, Loader2, AlertTriangle, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useEffect, useState, useMemo } from "react";
@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import type { GarmentDisplay } from "@/types/wardrobe";
+import { useAuth } from "@/hooks/useAuth";
+import { WardrobeMap } from "@/components/wardrobe/WardrobeMap";
 
 interface GarmentDetailSheetProps {
   item: GarmentDisplay | null;
@@ -57,6 +59,7 @@ const DetailRow = ({ label, value }: { label: string; value: string | null | und
 };
 
 const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDetailSheetProps) => {
+  const { user } = useAuth();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [showCare, setShowCare] = useState(false);
@@ -66,6 +69,8 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
   const [stainResult, setStainResult] = useState<StainResult | null>(null);
   const [isInLaundry, setIsInLaundry] = useState(false);
   const [laundryUpdating, setLaundryUpdating] = useState(false);
+  const [closetSvg, setClosetSvg] = useState<string | null>(null);
+  const [storageZoneId, setStorageZoneId] = useState<string | null>(null);
 
   const isDream = item?.source === "dream";
 
@@ -88,9 +93,9 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
     setStainResult(null);
     setStainType("");
     setIsInLaundry(!isDream ? (item as any).is_in_laundry ?? false : false);
+    setStorageZoneId(!isDream ? (item as any).storage_zone_id ?? null : null);
 
     if (isDream) {
-      // Dream items use direct external URLs
       setImageUrl(item.image_url);
     } else {
       supabase.storage
@@ -99,6 +104,19 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
         .then(({ data }) => setImageUrl(data?.signedUrl || null));
     }
   }, [item, isDream]);
+
+  // Load closet SVG for zone display
+  useEffect(() => {
+    if (!user || !open) return;
+    supabase
+      .from("profiles")
+      .select("closet_svg")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.closet_svg) setClosetSvg(data.closet_svg);
+      });
+  }, [user, open]);
 
   const handleToggleLaundry = async (checked: boolean) => {
     if (!item || isDream) return;
@@ -207,7 +225,16 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
             )}
           </div>
 
-          {/* Laundry Toggle — closet items only */}
+          {/* Wardrobe Map Zone */}
+          {!isDream && closetSvg && storageZoneId && (
+            <div className="space-y-2">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1 px-1">
+                <MapPin className="w-3 h-3" /> Stored in: {storageZoneId.replace(/-/g, " ")}
+              </p>
+              <WardrobeMap svgString={closetSvg} activeZoneId={storageZoneId} />
+            </div>
+          )}
+
           {!isDream && (
             <div className="flex items-center justify-between bg-card rounded-2xl px-4 py-3">
               <Label htmlFor="laundry-toggle" className="text-sm font-medium text-foreground cursor-pointer">
