@@ -9,6 +9,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
+import { OutfitFlatLay } from "@/components/OutfitFlatLay";
+import { useNavigate } from "react-router-dom";
+import {
+  generateSmartOutfit,
+  generateSwappedOutfit,
+  countPools,
+  MIN_TOPS,
+  MIN_BOTTOMS,
+  type StylingItem,
+} from "@/utils/stylingEngine";
 import {
   generateSmartOutfit,
   generateSwappedOutfit,
