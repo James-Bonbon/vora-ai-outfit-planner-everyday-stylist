@@ -93,9 +93,9 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
     setStainResult(null);
     setStainType("");
     setIsInLaundry(!isDream ? (item as any).is_in_laundry ?? false : false);
+    setStorageZoneId(!isDream ? (item as any).storage_zone_id ?? null : null);
 
     if (isDream) {
-      // Dream items use direct external URLs
       setImageUrl(item.image_url);
     } else {
       supabase.storage
@@ -104,6 +104,19 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
         .then(({ data }) => setImageUrl(data?.signedUrl || null));
     }
   }, [item, isDream]);
+
+  // Load closet SVG for zone display
+  useEffect(() => {
+    if (!user || !open) return;
+    supabase
+      .from("profiles")
+      .select("closet_svg")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.closet_svg) setClosetSvg(data.closet_svg);
+      });
+  }, [user, open]);
 
   const handleToggleLaundry = async (checked: boolean) => {
     if (!item || isDream) return;
