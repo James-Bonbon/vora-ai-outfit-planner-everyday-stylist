@@ -59,6 +59,11 @@
     --calendar-text: 40 20% 92%;
     --calendar-text-muted: 220 8% 55%;
     --calendar-border: 220 10% 20%;
+
+    /* Flat-Lay canvas */
+    --flatlay-bg: 50 14% 96%;
+    --flatlay-cta: 110 10% 38%;
+    --flatlay-cta-foreground: 0 0% 100%;
   }
 
   .theme-forest {
