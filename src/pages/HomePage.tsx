@@ -285,17 +285,19 @@ const HomePage = () => {
   const [closetCount, setClosetCount] = useState(0);
   const [beautyCount, setBeautyCount] = useState(0);
   const [userSex, setUserSex] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   const fetchCounts = useCallback(async () => {
     if (!user) return;
     const [{ count: wardrobeCount }, { count: beautyItemCount }, { data: profileData }] = await Promise.all([
       supabase.from("closet_items").select("id", { count: "exact", head: true }).eq("user_id", user.id),
       supabase.from("beauty_products").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-      supabase.from("profiles").select("sex").eq("user_id", user.id).maybeSingle(),
+      supabase.from("profiles").select("sex, avatar_url").eq("user_id", user.id).maybeSingle(),
     ]);
     if (wardrobeCount !== null) setClosetCount(wardrobeCount);
     if (beautyItemCount !== null) setBeautyCount(beautyItemCount);
     if (profileData?.sex) setUserSex(profileData.sex);
+    if (profileData?.avatar_url) setAvatarUrl(profileData.avatar_url);
   }, [user]);
 
   useEffect(() => {
