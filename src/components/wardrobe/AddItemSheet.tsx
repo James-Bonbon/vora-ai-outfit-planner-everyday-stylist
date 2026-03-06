@@ -480,6 +480,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
             {saving ? "Saving..." : "Add to Wardrobe"}
           </Button>
         </div>
+        )}
       </SheetContent>
     </Sheet>
   );
