@@ -16,6 +16,7 @@ import BeautyPage from "./pages/BeautyPage";
 import ProfilePage from "./pages/ProfilePage";
 import OnboardingPage from "./pages/OnboardingPage";
 import LibraryPage from "./pages/LibraryPage";
+import ChatPage from "./pages/ChatPage";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -41,6 +42,7 @@ const App = () => (
               <Route path="/beauty" element={<BeautyPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/library" element={<LibraryPage />} />
+              <Route path="/chat" element={<ChatPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
