@@ -207,7 +207,7 @@ const OutfitCalendar = () => {
 
       // Generate the swapped outfit to update garments map & entries
       const date = new Date(dateStr + "T00:00");
-      const swapped = generateSwappedOutfit(garmentPool, date, newCount);
+      const swapped = generateSwappedOutfit(garmentPool, date, newCount, weather?.temp ?? null);
       if (swapped.length === 0) return;
 
       const map = { ...garments };
