@@ -187,14 +187,15 @@ const OutfitCalendar = () => {
 
       const dateStr = format(date, "yyyy-MM-dd");
       const swapOffset = swapCounts[dateStr] || 0;
+      const temp = weather?.temp ?? null;
 
       if (swapOffset > 0) {
-        return generateSwappedOutfit(garmentPool, date, swapOffset) as GarmentSnapshot[];
+        return generateSwappedOutfit(garmentPool, date, swapOffset, temp) as GarmentSnapshot[];
       }
 
-      return generateSmartOutfit(garmentPool, date) as GarmentSnapshot[];
+      return generateSmartOutfit(garmentPool, date, temp) as GarmentSnapshot[];
     },
-    [garments, garmentPool, meetsThreshold, swapCounts],
+    [garments, garmentPool, meetsThreshold, swapCounts, weather],
   );
 
   /* ---- Swap handler (deterministic rotation, no Math.random) ---- */
