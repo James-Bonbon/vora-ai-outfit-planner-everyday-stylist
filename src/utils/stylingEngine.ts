@@ -171,14 +171,30 @@ export function generateSwappedOutfit(
 
   const day = dayOfYear(date) + swapCount;
 
+  const isWarmLayer = (item: StylingItem) =>
+    WARM_LAYER_RE.test(item.category || "") || WARM_LAYER_RE.test(item.name || "");
+
   if (dresses.length > 0) {
     const selectedDress = pickByDay(dresses, day, 0)!;
+    if (tempC != null && tempC > 22) return [selectedDress];
     const selectedCoat = pickByDay(outerwear, day, 1);
     return selectedCoat ? [selectedDress, selectedCoat] : [selectedDress];
   }
 
   if (tops.length > 0 && bottoms.length > 0) {
-    return [pickByDay(tops, day, 0)!, pickByDay(bottoms, day, 1)!];
+    let filteredTops = tops;
+    if (tempC != null && tempC > 22) {
+      const lightTops = tops.filter((t) => !isWarmLayer(t));
+      if (lightTops.length > 0) filteredTops = lightTops;
+    }
+    const selectedTop = pickByDay(filteredTops, day, 0)!;
+    const selectedBottom = pickByDay(bottoms, day, 1)!;
+    const outfit: StylingItem[] = [selectedTop, selectedBottom];
+    if (tempC != null && tempC < 15 && outerwear.length > 0) {
+      const selectedCoat = pickByDay(outerwear, day, 2);
+      if (selectedCoat) outfit.push(selectedCoat);
+    }
+    return outfit;
   }
 
   return [];
