@@ -39,12 +39,22 @@ function sortDeterministically<T extends { created_at?: string; id: string }>(it
 }
 
 /**
- * Pick an item from a sorted array using a day-based offset to rotate through the wardrobe.
- * dayIndex is typically the day-of-year so each day picks a different item.
+ * Deterministic seeded pseudo-random: sin-based hash returns 0–1.
  */
-function pickByDay<T>(items: T[], dayIndex: number, offset: number = 0): T | null {
+function seededRandom(seed: number): number {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+
+/**
+ * Pick an item from a sorted array using a seeded hash so that every
+ * (day + offset + swapCount) combination produces a unique selection.
+ */
+function pickByHash<T>(items: T[], dayIndex: number, offset: number, swapCount: number = 0): T | null {
   if (items.length === 0) return null;
-  const idx = Math.abs(dayIndex + offset) % items.length;
+  const seed = (dayIndex * 100) + (offset * 10) + swapCount;
+  const rand = seededRandom(seed);
+  const idx = Math.floor(rand * items.length);
   return items[idx];
 }
 
@@ -102,12 +112,12 @@ export function generateSmartOutfit(
 
   // Formula A: Dress + optional Outerwear
   if (dresses.length > 0) {
-    const selectedDress = pickByDay(dresses, day, 0)!;
+    const selectedDress = pickByHash(dresses, day, 0)!;
     // Cold: prioritise outerwear; Hot: skip outerwear
     if (tempC != null && tempC > 22) {
       return [selectedDress];
     }
-    const selectedCoat = pickByDay(outerwear, day, 1);
+    const selectedCoat = pickByHash(outerwear, day, 1);
     if (tempC != null && tempC < 15 && !selectedCoat && outerwear.length === 0) {
       // no outerwear available, just return dress
       return [selectedDress];
@@ -124,13 +134,13 @@ export function generateSmartOutfit(
       if (lightTops.length > 0) filteredTops = lightTops;
     }
 
-    const selectedTop = pickByDay(filteredTops, day, 0)!;
-    const selectedBottom = pickByDay(bottoms, day, 1)!;
+    const selectedTop = pickByHash(filteredTops, day, 0)!;
+    const selectedBottom = pickByHash(bottoms, day, 1)!;
     const outfit: StylingItem[] = [selectedTop, selectedBottom];
 
     // Cold weather: add outerwear if available
     if (tempC != null && tempC < 15 && outerwear.length > 0) {
-      const selectedCoat = pickByDay(outerwear, day, 2);
+      const selectedCoat = pickByHash(outerwear, day, 2);
       if (selectedCoat) outfit.push(selectedCoat);
     }
 
@@ -169,15 +179,16 @@ export function generateSwappedOutfit(
     available.filter((i) => matchesCategory(i, BOTTOM_RE) && !matchesCategory(i, DRESS_RE)),
   );
 
-  const day = dayOfYear(date) + swapCount;
+  const day = dayOfYear(date);
+  const swap = swapCount;
 
   const isWarmLayer = (item: StylingItem) =>
     WARM_LAYER_RE.test(item.category || "") || WARM_LAYER_RE.test(item.name || "");
 
   if (dresses.length > 0) {
-    const selectedDress = pickByDay(dresses, day, 0)!;
+    const selectedDress = pickByHash(dresses, day, 0, swap)!;
     if (tempC != null && tempC > 22) return [selectedDress];
-    const selectedCoat = pickByDay(outerwear, day, 1);
+    const selectedCoat = pickByHash(outerwear, day, 1, swap);
     return selectedCoat ? [selectedDress, selectedCoat] : [selectedDress];
   }
 
@@ -187,11 +198,11 @@ export function generateSwappedOutfit(
       const lightTops = tops.filter((t) => !isWarmLayer(t));
       if (lightTops.length > 0) filteredTops = lightTops;
     }
-    const selectedTop = pickByDay(filteredTops, day, 0)!;
-    const selectedBottom = pickByDay(bottoms, day, 1)!;
+    const selectedTop = pickByHash(filteredTops, day, 0, swap)!;
+    const selectedBottom = pickByHash(bottoms, day, 1, swap)!;
     const outfit: StylingItem[] = [selectedTop, selectedBottom];
     if (tempC != null && tempC < 15 && outerwear.length > 0) {
-      const selectedCoat = pickByDay(outerwear, day, 2);
+      const selectedCoat = pickByHash(outerwear, day, 2, swap);
       if (selectedCoat) outfit.push(selectedCoat);
     }
     return outfit;

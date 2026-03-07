@@ -23,7 +23,7 @@ const OCCASIONS = ["Casual", "Date Night", "Work", "Party", "Streetwear"];
 
 const MirrorPage = () => {
   const location = useLocation();
-  const outfitPlan = location.state as { vibe?: string; weather?: string } | null;
+  const outfitPlan = location.state as { vibe?: string; weather?: string; preSelectedIds?: string[] } | null;
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [occasion, setOccasion] = useState<string | null>(outfitPlan?.vibe ?? null);
@@ -46,6 +46,16 @@ const MirrorPage = () => {
 
   const items = closetData?.items ?? [];
   const imageUrls = closetData?.urls ?? {};
+
+  // Wire up pre-selected garments from OutfitCalendar navigation
+  useEffect(() => {
+    if (outfitPlan?.preSelectedIds && outfitPlan.preSelectedIds.length > 0 && items.length > 0) {
+      const validIds = outfitPlan.preSelectedIds.filter((id) => items.some((i) => i.id === id));
+      if (validIds.length > 0) {
+        setSelectedIds(new Set(validIds));
+      }
+    }
+  }, [items]); // re-run when items load
 
   // MAGIC STYLIST THRESHOLD LOGIC (Requires 7 Tops & 3 Bottoms)
   const TOP_RE = /\b(top|shirt|blazer|sweater|knit|jacket|coat|polo|camisole|cardigan|hoodie)\b/i;

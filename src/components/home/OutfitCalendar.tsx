@@ -63,7 +63,7 @@ const OutfitCalendar = () => {
   const [garmentPool, setGarmentPool] = useState<GarmentSnapshot[]>([]);
   const [subscriptionTier, setSubscriptionTier] = useState("free");
   const [editingDate, setEditingDate] = useState<string | null>(null);
-  const [editingSlot, setEditingSlot] = useState<"top" | "bottom">("top");
+  const [editingSlotIndex, setEditingSlotIndex] = useState<number>(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -246,11 +246,11 @@ const OutfitCalendar = () => {
       setEntries((prev) => {
         const existing = prev.find((e) => e.date === editingDate);
         const currentIds = existing?.garment_ids || [];
-        let newIds: string[];
-        if (editingSlot === "top") {
-          newIds = [item.id, ...(currentIds.length > 1 ? [currentIds[1]] : [])];
+        const newIds = [...currentIds];
+        if (editingSlotIndex < newIds.length) {
+          newIds[editingSlotIndex] = item.id;
         } else {
-          newIds = [...(currentIds.length > 0 ? [currentIds[0]] : []), item.id];
+          newIds.push(item.id);
         }
 
         if (existing) {
@@ -271,7 +271,7 @@ const OutfitCalendar = () => {
       });
       setDrawerOpen(false);
     },
-    [editingDate, editingSlot, garments],
+    [editingDate, editingSlotIndex, garments],
   );
 
   /* ---- Build day slots ---- */
@@ -407,7 +407,7 @@ const OutfitCalendar = () => {
                 className="rounded-xl border-primary text-primary hover:bg-primary/10 text-xs h-8 px-4"
                 onClick={() => {
                   setEditingDate(todaySlot.dateStr);
-                  setEditingSlot("top");
+                  setEditingSlotIndex(0);
                 }}
               >
                 <Pencil className="w-3 h-3 mr-1" /> Edit
@@ -514,6 +514,22 @@ const OutfitCalendar = () => {
             Pick an item for {editingDate ? format(new Date(editingDate + "T00:00"), "EEE, MMM d") : ""}
           </DrawerTitle>
         </DrawerHeader>
+        {/* Slot selector */}
+        {editingDate && (
+          <div className="flex justify-center gap-2 mb-4 px-4">
+            {getItemsForDate(new Date(editingDate + "T00:00")).map((g, idx) => (
+              <Button
+                key={idx}
+                variant={editingSlotIndex === idx ? "default" : "outline"}
+                size="sm"
+                className="rounded-xl text-xs"
+                onClick={() => setEditingSlotIndex(idx)}
+              >
+                Replace {g.category || g.name || `Item ${idx + 1}`}
+              </Button>
+            ))}
+          </div>
+        )}
         <div className="px-4 pb-6 grid grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto">
           {garmentPool.map((item) => (
             <button
