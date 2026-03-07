@@ -117,7 +117,7 @@ export function generateSmartOutfit(
     if (tempC != null && tempC > 22) {
       return [selectedDress];
     }
-    const selectedCoat = pickByDay(outerwear, day, 1);
+    const selectedCoat = pickByHash(outerwear, day, 1);
     if (tempC != null && tempC < 15 && !selectedCoat && outerwear.length === 0) {
       // no outerwear available, just return dress
       return [selectedDress];
