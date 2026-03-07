@@ -75,7 +75,7 @@ const OutfitCalendar = () => {
     const [profileRes, closetRes, dreamRes] = await Promise.all([
       supabase.from("profiles").select("subscription_tier").eq("user_id", user.id).maybeSingle(),
       supabase.from("closet_items").select("id, name, image_url, category, created_at, is_in_laundry").eq("user_id", user.id),
-      supabase.from("dream_items").select("id, name, image_url, created_at").eq("user_id", user.id),
+      supabase.from("dream_items").select("id, name, image_url, created_at, category").eq("user_id", user.id),
     ]);
 
     if (profileRes.data) {
