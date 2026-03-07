@@ -63,7 +63,7 @@ export const OutfitFlatLay: React.FC<OutfitFlatLayProps> = ({
       <Button
         onClick={onTryOnMake}
         disabled={isLoading}
-        className="w-full rounded-xl bg-flatlay-cta text-flatlay-cta-foreground hover:bg-flatlay-cta/90 shadow-md h-11 text-sm font-semibold gap-2"
+        className="w-full rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-md h-11 text-sm font-semibold gap-2"
       >
         <Sparkles className="w-4 h-4" />
         {isLoading ? "Generating Magic…" : "See it on me"}

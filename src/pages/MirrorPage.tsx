@@ -245,7 +245,9 @@ const MirrorPage = () => {
   };
 
   // Empty state
-  if (!hasItems && tab === "tryon") {
+  const isClosetLoading = !closetData && !items.length;
+
+  if (!isClosetLoading && !hasItems && tab === "tryon") {
     return (
       <div className="pt-6 space-y-5">
         <div className="flex items-center justify-between h-10">
