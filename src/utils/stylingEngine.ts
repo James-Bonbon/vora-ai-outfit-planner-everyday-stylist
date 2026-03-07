@@ -149,6 +149,7 @@ export function generateSwappedOutfit(
   allItems: StylingItem[],
   date: Date,
   swapCount: number,
+  tempC?: number | null,
 ): StylingItem[] {
   const available = allItems.filter((i) => !i.is_in_laundry);
 
