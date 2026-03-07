@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import GlassCard from "@/components/GlassCard";
 import SafeImage from "@/components/ui/SafeImage";
 import { CalendarDays, DoorOpen, ExternalLink, HeartPulse, User } from "lucide-react";
+import { useWeather } from "@/hooks/useWeather";
+import { WeatherWidget } from "@/components/WeatherWidget";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import OutfitCalendar from "@/components/home/OutfitCalendar";
