@@ -66,9 +66,13 @@ export function dayOfYear(date: Date): number {
  *
  * Items marked as in_laundry are excluded.
  */
+/** Warm-layer regex for weather filtering */
+const WARM_LAYER_RE = /\b(coat|jacket|sweater|hoodie|cardigan|parka|puffer|fleece)\b/i;
+
 export function generateSmartOutfit(
   allItems: StylingItem[],
   date: Date,
+  tempC?: number | null,
 ): StylingItem[] {
   // Exclude laundry items
   const available = allItems.filter((i) => !i.is_in_laundry);
