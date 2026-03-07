@@ -179,7 +179,8 @@ export function generateSwappedOutfit(
     available.filter((i) => matchesCategory(i, BOTTOM_RE) && !matchesCategory(i, DRESS_RE)),
   );
 
-  const day = dayOfYear(date) + swapCount;
+  const day = dayOfYear(date);
+  const swap = swapCount;
 
   const isWarmLayer = (item: StylingItem) =>
     WARM_LAYER_RE.test(item.category || "") || WARM_LAYER_RE.test(item.name || "");
