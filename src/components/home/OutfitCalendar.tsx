@@ -63,7 +63,7 @@ const OutfitCalendar = () => {
   const [garmentPool, setGarmentPool] = useState<GarmentSnapshot[]>([]);
   const [subscriptionTier, setSubscriptionTier] = useState("free");
   const [editingDate, setEditingDate] = useState<string | null>(null);
-  const [editingSlot, setEditingSlot] = useState<"top" | "bottom">("top");
+  const [editingSlotIndex, setEditingSlotIndex] = useState<number>(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
