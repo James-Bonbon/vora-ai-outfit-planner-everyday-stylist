@@ -351,11 +351,12 @@ const OutfitCalendar = () => {
       <div className="rounded-2xl glass-card p-4">
         {/* ===== TODAY'S OUTFIT CARD ===== */}
         <div className="rounded-2xl bg-card border border-border p-4 mb-4">
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
             <span className="px-3 py-1 rounded-full bg-primary text-primary-foreground text-[11px] font-semibold">
               Today
             </span>
-            {tempDisplay && (
+            <WeatherWidget weather={weather} loading={weatherLoading} />
+            {!weather && tempDisplay && (
               <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted text-foreground text-[11px] font-medium">
                 <WeatherIconComp className="w-3.5 h-3.5" />
                 {tempDisplay}
