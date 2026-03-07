@@ -271,7 +271,7 @@ const OutfitCalendar = () => {
       });
       setDrawerOpen(false);
     },
-    [editingDate, editingSlot, garments],
+    [editingDate, editingSlotIndex, garments],
   );
 
   /* ---- Build day slots ---- */
