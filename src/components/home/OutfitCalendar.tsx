@@ -407,7 +407,7 @@ const OutfitCalendar = () => {
                 className="rounded-xl border-primary text-primary hover:bg-primary/10 text-xs h-8 px-4"
                 onClick={() => {
                   setEditingDate(todaySlot.dateStr);
-                  setEditingSlot("top");
+                  setEditingSlotIndex(0);
                 }}
               >
                 <Pencil className="w-3 h-3 mr-1" /> Edit
