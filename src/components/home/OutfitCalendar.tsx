@@ -58,7 +58,6 @@ const OutfitCalendar = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { weather, loading: weatherLoading } = useWeather();
-  const navigate = useNavigate();
   const [entries, setEntries] = useState<CalendarEntry[]>([]);
   const [garments, setGarments] = useState<Record<string, GarmentSnapshot>>({});
   const [garmentPool, setGarmentPool] = useState<GarmentSnapshot[]>([]);
