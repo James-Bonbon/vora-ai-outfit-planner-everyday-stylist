@@ -39,12 +39,22 @@ function sortDeterministically<T extends { created_at?: string; id: string }>(it
 }
 
 /**
- * Pick an item from a sorted array using a day-based offset to rotate through the wardrobe.
- * dayIndex is typically the day-of-year so each day picks a different item.
+ * Deterministic seeded pseudo-random: sin-based hash returns 0–1.
  */
-function pickByDay<T>(items: T[], dayIndex: number, offset: number = 0): T | null {
+function seededRandom(seed: number): number {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+
+/**
+ * Pick an item from a sorted array using a seeded hash so that every
+ * (day + offset + swapCount) combination produces a unique selection.
+ */
+function pickByHash<T>(items: T[], dayIndex: number, offset: number, swapCount: number = 0): T | null {
   if (items.length === 0) return null;
-  const idx = Math.abs(dayIndex + offset) % items.length;
+  const seed = (dayIndex * 100) + (offset * 10) + swapCount;
+  const rand = seededRandom(seed);
+  const idx = Math.floor(rand * items.length);
   return items[idx];
 }
 

@@ -23,7 +23,7 @@ const OCCASIONS = ["Casual", "Date Night", "Work", "Party", "Streetwear"];
 
 const MirrorPage = () => {
   const location = useLocation();
-  const outfitPlan = location.state as { vibe?: string; weather?: string } | null;
+  const outfitPlan = location.state as { vibe?: string; weather?: string; preSelectedIds?: string[] } | null;
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [occasion, setOccasion] = useState<string | null>(outfitPlan?.vibe ?? null);
