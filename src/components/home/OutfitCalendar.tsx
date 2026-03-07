@@ -246,11 +246,11 @@ const OutfitCalendar = () => {
       setEntries((prev) => {
         const existing = prev.find((e) => e.date === editingDate);
         const currentIds = existing?.garment_ids || [];
-        let newIds: string[];
-        if (editingSlot === "top") {
-          newIds = [item.id, ...(currentIds.length > 1 ? [currentIds[1]] : [])];
+        const newIds = [...currentIds];
+        if (editingSlotIndex < newIds.length) {
+          newIds[editingSlotIndex] = item.id;
         } else {
-          newIds = [...(currentIds.length > 0 ? [currentIds[0]] : []), item.id];
+          newIds.push(item.id);
         }
 
         if (existing) {
