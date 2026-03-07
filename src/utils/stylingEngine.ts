@@ -66,9 +66,13 @@ export function dayOfYear(date: Date): number {
  *
  * Items marked as in_laundry are excluded.
  */
+/** Warm-layer regex for weather filtering */
+const WARM_LAYER_RE = /\b(coat|jacket|sweater|hoodie|cardigan|parka|puffer|fleece)\b/i;
+
 export function generateSmartOutfit(
   allItems: StylingItem[],
   date: Date,
+  tempC?: number | null,
 ): StylingItem[] {
   // Exclude laundry items
   const available = allItems.filter((i) => !i.is_in_laundry);
@@ -92,18 +96,45 @@ export function generateSmartOutfit(
 
   const day = dayOfYear(date);
 
+  // Weather-aware filtering helper
+  const isWarmLayer = (item: StylingItem) =>
+    WARM_LAYER_RE.test(item.category || "") || WARM_LAYER_RE.test(item.name || "");
+
   // Formula A: Dress + optional Outerwear
   if (dresses.length > 0) {
     const selectedDress = pickByDay(dresses, day, 0)!;
+    // Cold: prioritise outerwear; Hot: skip outerwear
+    if (tempC != null && tempC > 22) {
+      return [selectedDress];
+    }
     const selectedCoat = pickByDay(outerwear, day, 1);
+    if (tempC != null && tempC < 15 && !selectedCoat && outerwear.length === 0) {
+      // no outerwear available, just return dress
+      return [selectedDress];
+    }
     return selectedCoat ? [selectedDress, selectedCoat] : [selectedDress];
   }
 
-  // Formula B: Top + Bottom
+  // Formula B: Top + Bottom (+ optional outerwear in cold)
   if (tops.length > 0 && bottoms.length > 0) {
-    const selectedTop = pickByDay(tops, day, 0)!;
+    let filteredTops = tops;
+    // Hot weather: filter out warm layers from tops
+    if (tempC != null && tempC > 22) {
+      const lightTops = tops.filter((t) => !isWarmLayer(t));
+      if (lightTops.length > 0) filteredTops = lightTops;
+    }
+
+    const selectedTop = pickByDay(filteredTops, day, 0)!;
     const selectedBottom = pickByDay(bottoms, day, 1)!;
-    return [selectedTop, selectedBottom];
+    const outfit: StylingItem[] = [selectedTop, selectedBottom];
+
+    // Cold weather: add outerwear if available
+    if (tempC != null && tempC < 15 && outerwear.length > 0) {
+      const selectedCoat = pickByDay(outerwear, day, 2);
+      if (selectedCoat) outfit.push(selectedCoat);
+    }
+
+    return outfit;
   }
 
   // Fallback
@@ -118,6 +149,7 @@ export function generateSwappedOutfit(
   allItems: StylingItem[],
   date: Date,
   swapCount: number,
+  tempC?: number | null,
 ): StylingItem[] {
   const available = allItems.filter((i) => !i.is_in_laundry);
 
@@ -139,14 +171,30 @@ export function generateSwappedOutfit(
 
   const day = dayOfYear(date) + swapCount;
 
+  const isWarmLayer = (item: StylingItem) =>
+    WARM_LAYER_RE.test(item.category || "") || WARM_LAYER_RE.test(item.name || "");
+
   if (dresses.length > 0) {
     const selectedDress = pickByDay(dresses, day, 0)!;
+    if (tempC != null && tempC > 22) return [selectedDress];
     const selectedCoat = pickByDay(outerwear, day, 1);
     return selectedCoat ? [selectedDress, selectedCoat] : [selectedDress];
   }
 
   if (tops.length > 0 && bottoms.length > 0) {
-    return [pickByDay(tops, day, 0)!, pickByDay(bottoms, day, 1)!];
+    let filteredTops = tops;
+    if (tempC != null && tempC > 22) {
+      const lightTops = tops.filter((t) => !isWarmLayer(t));
+      if (lightTops.length > 0) filteredTops = lightTops;
+    }
+    const selectedTop = pickByDay(filteredTops, day, 0)!;
+    const selectedBottom = pickByDay(bottoms, day, 1)!;
+    const outfit: StylingItem[] = [selectedTop, selectedBottom];
+    if (tempC != null && tempC < 15 && outerwear.length > 0) {
+      const selectedCoat = pickByDay(outerwear, day, 2);
+      if (selectedCoat) outfit.push(selectedCoat);
+    }
+    return outfit;
   }
 
   return [];

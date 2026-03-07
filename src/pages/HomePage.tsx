@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import GlassCard from "@/components/GlassCard";
 import SafeImage from "@/components/ui/SafeImage";
 import { CalendarDays, DoorOpen, ExternalLink, HeartPulse, User } from "lucide-react";
+import { useWeather } from "@/hooks/useWeather";
+import { WeatherWidget } from "@/components/WeatherWidget";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import OutfitCalendar from "@/components/home/OutfitCalendar";
@@ -286,6 +288,7 @@ const HomePage = () => {
   const [beautyCount, setBeautyCount] = useState(0);
   const [userSex, setUserSex] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const { weather, loading: weatherLoading } = useWeather();
 
   const fetchCounts = useCallback(async () => {
     if (!user) return;
@@ -312,6 +315,7 @@ const HomePage = () => {
       <div className="flex items-center justify-between h-10">
         <h1 className="text-2xl font-bold text-foreground font-outfit">Outfit Calendar</h1>
         <div className="flex items-center gap-2">
+          <WeatherWidget weather={weather} loading={weatherLoading} />
           <button
             onClick={() => navigate('/home')}
             className="w-9 h-9 flex items-center justify-center rounded-full bg-secondary border border-border hover:bg-muted text-muted-foreground transition-colors shrink-0"

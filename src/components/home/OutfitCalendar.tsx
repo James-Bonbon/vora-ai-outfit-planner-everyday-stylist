@@ -7,6 +7,8 @@ import GlassCard from "@/components/GlassCard";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useWeather } from "@/hooks/useWeather";
+import { WeatherWidget } from "@/components/WeatherWidget";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { OutfitFlatLay } from "@/components/OutfitFlatLay";
@@ -55,6 +57,7 @@ function isWeekend(date: Date) {
 const OutfitCalendar = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { weather, loading: weatherLoading } = useWeather();
   const [entries, setEntries] = useState<CalendarEntry[]>([]);
   const [garments, setGarments] = useState<Record<string, GarmentSnapshot>>({});
   const [garmentPool, setGarmentPool] = useState<GarmentSnapshot[]>([]);
@@ -184,14 +187,15 @@ const OutfitCalendar = () => {
 
       const dateStr = format(date, "yyyy-MM-dd");
       const swapOffset = swapCounts[dateStr] || 0;
+      const temp = weather?.temp ?? null;
 
       if (swapOffset > 0) {
-        return generateSwappedOutfit(garmentPool, date, swapOffset) as GarmentSnapshot[];
+        return generateSwappedOutfit(garmentPool, date, swapOffset, temp) as GarmentSnapshot[];
       }
 
-      return generateSmartOutfit(garmentPool, date) as GarmentSnapshot[];
+      return generateSmartOutfit(garmentPool, date, temp) as GarmentSnapshot[];
     },
-    [garments, garmentPool, meetsThreshold, swapCounts],
+    [garments, garmentPool, meetsThreshold, swapCounts, weather],
   );
 
   /* ---- Swap handler (deterministic rotation, no Math.random) ---- */
@@ -203,7 +207,7 @@ const OutfitCalendar = () => {
 
       // Generate the swapped outfit to update garments map & entries
       const date = new Date(dateStr + "T00:00");
-      const swapped = generateSwappedOutfit(garmentPool, date, newCount);
+      const swapped = generateSwappedOutfit(garmentPool, date, newCount, weather?.temp ?? null);
       if (swapped.length === 0) return;
 
       const map = { ...garments };
@@ -347,11 +351,12 @@ const OutfitCalendar = () => {
       <div className="rounded-2xl glass-card p-4">
         {/* ===== TODAY'S OUTFIT CARD ===== */}
         <div className="rounded-2xl bg-card border border-border p-4 mb-4">
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
             <span className="px-3 py-1 rounded-full bg-primary text-primary-foreground text-[11px] font-semibold">
               Today
             </span>
-            {tempDisplay && (
+            <WeatherWidget weather={weather} loading={weatherLoading} />
+            {!weather && tempDisplay && (
               <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted text-foreground text-[11px] font-medium">
                 <WeatherIconComp className="w-3.5 h-3.5" />
                 {tempDisplay}
