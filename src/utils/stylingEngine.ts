@@ -134,13 +134,13 @@ export function generateSmartOutfit(
       if (lightTops.length > 0) filteredTops = lightTops;
     }
 
-    const selectedTop = pickByDay(filteredTops, day, 0)!;
-    const selectedBottom = pickByDay(bottoms, day, 1)!;
+    const selectedTop = pickByHash(filteredTops, day, 0)!;
+    const selectedBottom = pickByHash(bottoms, day, 1)!;
     const outfit: StylingItem[] = [selectedTop, selectedBottom];
 
     // Cold weather: add outerwear if available
     if (tempC != null && tempC < 15 && outerwear.length > 0) {
-      const selectedCoat = pickByDay(outerwear, day, 2);
+      const selectedCoat = pickByHash(outerwear, day, 2);
       if (selectedCoat) outfit.push(selectedCoat);
     }
 
