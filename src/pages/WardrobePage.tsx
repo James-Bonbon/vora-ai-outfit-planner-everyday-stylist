@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import GlassCard from "@/components/GlassCard";
@@ -13,6 +13,15 @@ import GarmentDetailSheet from "@/components/wardrobe/GarmentDetailSheet";
 import SmartCamera from "@/components/wardrobe/SmartCamera";
 import type { AnalyzedItem } from "@/components/wardrobe/SmartCamera";
 import type { ClosetItem, DreamItem, GarmentDisplay } from "@/types/wardrobe";
+import { WardrobeMap } from "@/components/wardrobe/WardrobeMap";
+import { normalizeToPng } from "@/utils/imageProcessing";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const CATEGORIES = ["All", "Tops", "Bottoms", "Shoes", "Accessories", "Outerwear"];
 
@@ -30,6 +39,58 @@ const WardrobePage = () => {
   const [bulkQueue, setBulkQueue] = useState<AnalyzedItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<GarmentDisplay | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+
+  // Wardrobe Map state
+  const [mapOpen, setMapOpen] = useState(false);
+  const [closetSvg, setClosetSvg] = useState<string | null>(null);
+  const [generatingMap, setGeneratingMap] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load existing SVG
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("profiles")
+      .select("closet_svg")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.closet_svg) setClosetSvg(data.closet_svg);
+      });
+  }, [user]);
+
+  const handleClosetPhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setGeneratingMap(true);
+    try {
+      const normalizedBlob = await normalizeToPng(file);
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const result = ev.target?.result as string;
+          resolve(result.split(",")[1]);
+        };
+        reader.readAsDataURL(normalizedBlob);
+      });
+      const { data, error } = await supabase.functions.invoke("generate-wardrobe-svg", {
+        body: { imageBase64: base64 },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (data?.svg) {
+        setClosetSvg(data.svg);
+        toast.success("Wardrobe map generated! ✨");
+      } else {
+        throw new Error("No SVG returned");
+      }
+    } catch (err: any) {
+      console.error("Wardrobe map error:", err);
+      toast.error(err.message || "Failed to generate wardrobe map.");
+    } finally {
+      setGeneratingMap(false);
+    }
+  };
 
   const { data: closetData, isLoading: isClosetLoading } = useQuery({
     queryKey: ['closet', user?.id],
@@ -93,6 +154,9 @@ const WardrobePage = () => {
         <h1 className="text-2xl font-bold text-foreground font-outfit">Wardrobe</h1>
         {activeTab === "closet" ? (
           <div className="flex gap-2">
+            <Button size="icon" variant="outline" className="rounded-xl h-10 w-10" onClick={() => setMapOpen(true)}>
+              <MapIcon className="w-5 h-5" />
+            </Button>
             <Button size="icon" variant="outline" className="rounded-xl h-10 w-10" onClick={() => setCameraOpen(true)}>
               <Camera className="w-5 h-5" />
             </Button>
@@ -282,6 +346,51 @@ const WardrobePage = () => {
           }
         }}
       />
+
+      {/* Wardrobe Map Dialog */}
+      <Dialog open={mapOpen} onOpenChange={setMapOpen}>
+        <DialogContent className="rounded-2xl max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-outfit">AI Wardrobe Map</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {closetSvg ? (
+              <WardrobeMap svgString={closetSvg} />
+            ) : (
+              <div className="text-center py-6">
+                <MapIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">
+                  Take a photo of your closet and AI will create an interactive map of its compartments.
+                </p>
+              </div>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleClosetPhotoSelect}
+            />
+            <Button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={generatingMap}
+              className="w-full rounded-xl gap-2"
+              variant={closetSvg ? "outline" : "default"}
+            >
+              {generatingMap ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Analyzing your closet…
+                </>
+              ) : closetSvg ? (
+                "Retake Photo"
+              ) : (
+                "Take Closet Photo"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
