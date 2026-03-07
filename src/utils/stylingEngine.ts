@@ -186,9 +186,9 @@ export function generateSwappedOutfit(
     WARM_LAYER_RE.test(item.category || "") || WARM_LAYER_RE.test(item.name || "");
 
   if (dresses.length > 0) {
-    const selectedDress = pickByDay(dresses, day, 0)!;
+    const selectedDress = pickByHash(dresses, day, 0, swap)!;
     if (tempC != null && tempC > 22) return [selectedDress];
-    const selectedCoat = pickByDay(outerwear, day, 1);
+    const selectedCoat = pickByHash(outerwear, day, 1, swap);
     return selectedCoat ? [selectedDress, selectedCoat] : [selectedDress];
   }
 
