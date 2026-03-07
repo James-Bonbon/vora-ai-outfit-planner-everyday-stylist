@@ -112,7 +112,7 @@ export function generateSmartOutfit(
 
   // Formula A: Dress + optional Outerwear
   if (dresses.length > 0) {
-    const selectedDress = pickByDay(dresses, day, 0)!;
+    const selectedDress = pickByHash(dresses, day, 0)!;
     // Cold: prioritise outerwear; Hot: skip outerwear
     if (tempC != null && tempC > 22) {
       return [selectedDress];
