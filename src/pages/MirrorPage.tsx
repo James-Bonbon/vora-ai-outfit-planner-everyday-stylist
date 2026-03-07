@@ -47,6 +47,16 @@ const MirrorPage = () => {
   const items = closetData?.items ?? [];
   const imageUrls = closetData?.urls ?? {};
 
+  // Wire up pre-selected garments from OutfitCalendar navigation
+  useEffect(() => {
+    if (outfitPlan?.preSelectedIds && outfitPlan.preSelectedIds.length > 0 && items.length > 0) {
+      const validIds = outfitPlan.preSelectedIds.filter((id) => items.some((i) => i.id === id));
+      if (validIds.length > 0) {
+        setSelectedIds(new Set(validIds));
+      }
+    }
+  }, [items]); // re-run when items load
+
   // MAGIC STYLIST THRESHOLD LOGIC (Requires 7 Tops & 3 Bottoms)
   const TOP_RE = /\b(top|shirt|blazer|sweater|knit|jacket|coat|polo|camisole|cardigan|hoodie)\b/i;
   const BOTTOM_RE = /\b(bottom|trouser|pant|jeans|skirt|short|chinos|sweatpants)\b/i;
