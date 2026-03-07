@@ -1,6 +1,6 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Trash2, FileText, Shield, Loader2, MapPin, Camera, Check } from "lucide-react";
+import { ArrowLeft, Trash2, FileText, Shield, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import GlassCard from "@/components/GlassCard";
 import {
@@ -17,8 +17,6 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { normalizeToPng } from "@/utils/imageProcessing";
-import { WardrobeMap } from "@/components/wardrobe/WardrobeMap";
 
 const SettingsPage = () => {
   const navigate = useNavigate();
