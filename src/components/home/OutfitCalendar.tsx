@@ -514,6 +514,22 @@ const OutfitCalendar = () => {
             Pick an item for {editingDate ? format(new Date(editingDate + "T00:00"), "EEE, MMM d") : ""}
           </DrawerTitle>
         </DrawerHeader>
+        {/* Slot selector */}
+        {editingDate && (
+          <div className="flex justify-center gap-2 mb-4 px-4">
+            {getItemsForDate(new Date(editingDate + "T00:00")).map((g, idx) => (
+              <Button
+                key={idx}
+                variant={editingSlotIndex === idx ? "default" : "outline"}
+                size="sm"
+                className="rounded-xl text-xs"
+                onClick={() => setEditingSlotIndex(idx)}
+              >
+                Replace {g.category || g.name || `Item ${idx + 1}`}
+              </Button>
+            ))}
+          </div>
+        )}
         <div className="px-4 pb-6 grid grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto">
           {garmentPool.map((item) => (
             <button
