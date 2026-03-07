@@ -7,6 +7,8 @@ import GlassCard from "@/components/GlassCard";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useWeather } from "@/hooks/useWeather";
+import { WeatherWidget } from "@/components/WeatherWidget";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { OutfitFlatLay } from "@/components/OutfitFlatLay";
