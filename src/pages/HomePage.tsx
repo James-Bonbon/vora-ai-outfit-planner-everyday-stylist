@@ -300,7 +300,16 @@ const HomePage = () => {
     if (wardrobeCount !== null) setClosetCount(wardrobeCount);
     if (beautyItemCount !== null) setBeautyCount(beautyItemCount);
     if (profileData?.sex) setUserSex(profileData.sex);
-    if (profileData?.avatar_url) setAvatarUrl(profileData.avatar_url);
+    if (profileData?.avatar_url) {
+      if (profileData.avatar_url.startsWith("http")) {
+        setAvatarUrl(profileData.avatar_url);
+      } else {
+        const { data: urlData } = await supabase.storage
+          .from("selfies")
+          .createSignedUrl(profileData.avatar_url, 3600);
+        setAvatarUrl(urlData?.signedUrl || profileData.avatar_url);
+      }
+    }
   }, [user]);
 
   useEffect(() => {
