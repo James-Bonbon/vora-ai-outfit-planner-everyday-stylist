@@ -300,7 +300,16 @@ const HomePage = () => {
     if (wardrobeCount !== null) setClosetCount(wardrobeCount);
     if (beautyItemCount !== null) setBeautyCount(beautyItemCount);
     if (profileData?.sex) setUserSex(profileData.sex);
-    if (profileData?.avatar_url) setAvatarUrl(profileData.avatar_url);
+    if (profileData?.avatar_url) {
+      if (profileData.avatar_url.startsWith("http")) {
+        setAvatarUrl(profileData.avatar_url);
+      } else {
+        const { data: urlData } = await supabase.storage
+          .from("selfies")
+          .createSignedUrl(profileData.avatar_url, 3600);
+        setAvatarUrl(urlData?.signedUrl || profileData.avatar_url);
+      }
+    }
   }, [user]);
 
   useEffect(() => {
@@ -326,10 +335,10 @@ const HomePage = () => {
             onClick={() => navigate('/profile')}
             className="shrink-0 transition-transform hover:scale-105"
           >
-            <Avatar className="w-9 h-9 border border-border">
-              <AvatarImage src={avatarUrl ?? undefined} alt="Profile" />
-              <AvatarFallback className="bg-secondary text-muted-foreground">
-                <User className="w-4 h-4" />
+            <Avatar className="w-9 h-9 border border-border shadow-sm">
+              <AvatarImage src={avatarUrl || ""} alt="Profile" />
+              <AvatarFallback className="bg-primary text-primary-foreground font-medium text-sm">
+                {user?.email?.charAt(0).toUpperCase() || "U"}
               </AvatarFallback>
             </Avatar>
           </button>
