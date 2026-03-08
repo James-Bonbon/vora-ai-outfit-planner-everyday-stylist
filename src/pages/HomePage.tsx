@@ -335,10 +335,10 @@ const HomePage = () => {
             onClick={() => navigate('/profile')}
             className="shrink-0 transition-transform hover:scale-105"
           >
-            <Avatar className="w-9 h-9 border border-border">
-              <AvatarImage src={avatarUrl ?? undefined} alt="Profile" />
-              <AvatarFallback className="bg-secondary text-muted-foreground">
-                <User className="w-4 h-4" />
+            <Avatar className="w-9 h-9 border border-border shadow-sm">
+              <AvatarImage src={avatarUrl || ""} alt="Profile" />
+              <AvatarFallback className="bg-primary text-primary-foreground font-medium text-sm">
+                {user?.email?.charAt(0).toUpperCase() || "U"}
               </AvatarFallback>
             </Avatar>
           </button>
