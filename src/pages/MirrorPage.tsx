@@ -35,6 +35,7 @@ const MirrorPage = () => {
   // Data queries
   const { data: selfieUrl } = useSelfieUrl();
   const { data: closetData } = useClosetItems();
+  const { data: dreamData } = useDreamItems();
   const { data: looksData } = useSavedLooks();
   const { data: profileData } = useProfileData();
   const bodyShape = profileData?.body_shape;
@@ -45,8 +46,11 @@ const MirrorPage = () => {
   const saveMutation = useSaveLookMutation();
   const deleteMutation = useDeleteLookMutation();
 
-  const items = closetData?.items ?? [];
-  const imageUrls = closetData?.urls ?? {};
+  // Combine closet + dream items for the stylist
+  const closetItems = closetData?.items ?? [];
+  const dreamItems = dreamData?.items ?? [];
+  const items = [...closetItems, ...dreamItems];
+  const imageUrls = { ...(closetData?.urls ?? {}), ...(dreamData?.urls ?? {}) };
 
   // Wire up pre-selected garments from OutfitCalendar navigation
   useEffect(() => {
