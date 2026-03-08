@@ -92,6 +92,10 @@ export function useSelfieUrl() {
   });
 }
 
+export interface StylistItem extends ClosetItem {
+  source: "closet" | "dream";
+}
+
 export function useClosetItems() {
   const { user } = useAuth();
   return useQuery({
@@ -103,10 +107,12 @@ export function useClosetItems() {
         .eq("user_id", user!.id)
         .order("created_at", { ascending: false });
 
-      if (!data) return { items: [] as ClosetItem[], urls: {} as Record<string, string> };
+      if (!data) return { items: [] as StylistItem[], urls: {} as Record<string, string> };
 
       // Filter out laundry items for display in try-on
-      const availableItems = data.filter((item) => !item.is_in_laundry);
+      const availableItems: StylistItem[] = data
+        .filter((item) => !item.is_in_laundry)
+        .map((item) => ({ ...item, source: "closet" as const }));
 
       // Batch sign all URLs in parallel
       const urlEntries = await Promise.all(
@@ -117,7 +123,51 @@ export function useClosetItems() {
       );
 
       return {
-        items: availableItems as ClosetItem[],
+        items: availableItems,
+        urls: Object.fromEntries(urlEntries) as Record<string, string>,
+      };
+    },
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useDreamItems() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["dream-items-stylist", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("dream_items")
+        .select("id, image_url, name, brand, created_at")
+        .eq("user_id", user!.id)
+        .order("created_at", { ascending: false });
+
+      if (!data) return { items: [] as StylistItem[], urls: {} as Record<string, string> };
+
+      const dreamItems: StylistItem[] = data.map((item) => ({
+        id: item.id,
+        image_url: item.image_url,
+        name: item.name,
+        category: null,
+        is_in_laundry: false,
+        source: "dream" as const,
+      }));
+
+      // Sign URLs — dream items may be external URLs or bucket paths
+      const urlEntries = await Promise.all(
+        dreamItems.map(async (item) => {
+          const isPath = !item.image_url.startsWith("http");
+          if (isPath) {
+            const url = await getSignedUrl("garments", item.image_url);
+            return [item.id, url || ""] as const;
+          }
+          return [item.id, item.image_url] as const;
+        })
+      );
+
+      return {
+        items: dreamItems,
         urls: Object.fromEntries(urlEntries) as Record<string, string>,
       };
     },

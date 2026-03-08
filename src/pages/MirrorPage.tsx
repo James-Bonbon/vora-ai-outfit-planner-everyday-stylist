@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import GlassCard from "@/components/GlassCard";
 import SafeImage from "@/components/ui/SafeImage";
-import { Sparkles, Check, Image, Loader2, AlertTriangle, Save, Trash2, GalleryHorizontalEnd, Lock } from "lucide-react";
+import { Sparkles, Check, Image, Loader2, AlertTriangle, Save, Trash2, GalleryHorizontalEnd, Lock, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
