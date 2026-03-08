@@ -72,10 +72,9 @@ const OutfitCalendar = () => {
     if (!user) return;
     setLoading(true);
 
-    const [profileRes, closetRes, dreamRes] = await Promise.all([
+    const [profileRes, closetRes] = await Promise.all([
       supabase.from("profiles").select("subscription_tier").eq("user_id", user.id).maybeSingle(),
       supabase.from("closet_items").select("id, name, image_url, category, created_at, is_in_laundry").eq("user_id", user.id),
-      supabase.from("dream_items").select("id, name, image_url, created_at").eq("user_id", user.id),
     ]);
 
     if (profileRes.data) {
@@ -84,7 +83,7 @@ const OutfitCalendar = () => {
 
     const pool: GarmentSnapshot[] = [];
 
-    // Sign closet item URLs
+    // Sign closet item URLs (only owned items belong in the calendar)
     if (closetRes.data && closetRes.data.length > 0) {
       const withUrls = await Promise.all(
         closetRes.data.map(async (item) => {
@@ -98,23 +97,6 @@ const OutfitCalendar = () => {
             is_in_laundry: item.is_in_laundry,
             source: "closet" as const,
           };
-        }),
-      );
-      pool.push(...withUrls);
-    }
-
-    // Sign dream item URLs (dream items use direct URLs, no signing needed unless stored in bucket)
-    if (dreamRes.data && dreamRes.data.length > 0) {
-      const withUrls = await Promise.all(
-        dreamRes.data.map(async (item) => {
-          // Dream items may use external URLs or garments bucket
-          const isPath = !item.image_url.startsWith("http");
-          let url = item.image_url;
-          if (isPath) {
-            const { data } = await supabase.storage.from("garments").createSignedUrl(item.image_url, 3600);
-            url = data?.signedUrl || item.image_url;
-          }
-          return { id: item.id, name: item.name, image_url: url, category: null, created_at: item.created_at, source: "dream" as const };
         }),
       );
       pool.push(...withUrls);

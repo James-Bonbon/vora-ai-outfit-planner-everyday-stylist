@@ -2,13 +2,14 @@ import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import GlassCard from "@/components/GlassCard";
 import SafeImage from "@/components/ui/SafeImage";
-import { Sparkles, Check, Image, Loader2, AlertTriangle, Save, Trash2, GalleryHorizontalEnd, Lock } from "lucide-react";
+import { Sparkles, Check, Image, Loader2, AlertTriangle, Save, Trash2, GalleryHorizontalEnd, Lock, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
   useClosetItems,
+  useDreamItems,
   useSelfieUrl,
   useSavedLooks,
   useLookGarments,
@@ -34,6 +35,7 @@ const MirrorPage = () => {
   // Data queries
   const { data: selfieUrl } = useSelfieUrl();
   const { data: closetData } = useClosetItems();
+  const { data: dreamData } = useDreamItems();
   const { data: looksData } = useSavedLooks();
   const { data: profileData } = useProfileData();
   const bodyShape = profileData?.body_shape;
@@ -44,8 +46,11 @@ const MirrorPage = () => {
   const saveMutation = useSaveLookMutation();
   const deleteMutation = useDeleteLookMutation();
 
-  const items = closetData?.items ?? [];
-  const imageUrls = closetData?.urls ?? {};
+  // Combine closet + dream items for the stylist
+  const closetItems = closetData?.items ?? [];
+  const dreamItems = dreamData?.items ?? [];
+  const items = [...closetItems, ...dreamItems];
+  const imageUrls = { ...(closetData?.urls ?? {}), ...(dreamData?.urls ?? {}) };
 
   // Wire up pre-selected garments from OutfitCalendar navigation
   useEffect(() => {
@@ -586,6 +591,12 @@ const MirrorPage = () => {
                       {isSelected && (
                         <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
                           <Check className="w-3 h-3 text-primary-foreground" />
+                        </div>
+                      )}
+                      {item.source === "dream" && (
+                        <div className="absolute top-1.5 left-1.5 flex items-center gap-0.5 bg-accent text-accent-foreground px-1.5 py-0.5 rounded-full">
+                          <Star className="w-2.5 h-2.5 fill-current" />
+                          <span className="text-[8px] font-semibold">Dream</span>
                         </div>
                       )}
                       <p className="text-[10px] text-[#6B6B6B] truncate px-1.5 py-1">{item.name || "Unnamed"}</p>
