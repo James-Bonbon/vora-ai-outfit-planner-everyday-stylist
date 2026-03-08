@@ -176,7 +176,8 @@ export const MIN_BOTTOMS = 3;
 
 export function countPools(items: StylingItem[]) {
   const available = items.filter((i) => !i.is_in_laundry);
-  const tops = available.filter(
+
+  const strictTops = available.filter(
     (i) =>
       matchesCategory(i, TOP_RE) &&
       !matchesCategory(i, DRESS_RE) &&
@@ -186,10 +187,12 @@ export function countPools(items: StylingItem[]) {
     (i) => matchesCategory(i, BOTTOM_RE) && !matchesCategory(i, DRESS_RE),
   );
   const dresses = available.filter((i) => matchesCategory(i, DRESS_RE));
+  const outerwear = available.filter(
+    (i) => matchesCategory(i, OUTERWEAR_RE) && !matchesCategory(i, DRESS_RE),
+  );
 
-  // Threshold met if enough tops+bottoms OR at least some dresses
-  const meetsThreshold =
-    (tops.length >= MIN_TOPS && bottoms.length >= MIN_BOTTOMS) || dresses.length >= 3;
+  const combinedTopsCount = strictTops.length + dresses.length + outerwear.length;
+  const meetsThreshold = combinedTopsCount >= MIN_TOPS && bottoms.length >= MIN_BOTTOMS;
 
-  return { topsCount: tops.length, bottomsCount: bottoms.length, dressesCount: dresses.length, meetsThreshold };
+  return { topsCount: combinedTopsCount, bottomsCount: bottoms.length, dressesCount: dresses.length, meetsThreshold };
 }
