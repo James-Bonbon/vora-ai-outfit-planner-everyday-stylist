@@ -67,95 +67,15 @@ export function dayOfYear(date: Date): number {
 
 // ─── Main Styling Engine ────────────────────────────────────────────────
 
-/**
- * Generate a smart outfit for a given date.
- * Uses a deterministic decision tree:
- *   Formula A: Dress + optional Outerwear (prioritised)
- *   Formula B: Top + Bottom
- *   Fallback: empty array (triggers "Add Clothes" state)
- *
- * Items marked as in_laundry are excluded.
- */
 /** Warm-layer regex for weather filtering */
 const WARM_LAYER_RE = /\b(coat|jacket|sweater|hoodie|cardigan|parka|puffer|fleece)\b/i;
 
-export function generateSmartOutfit(
-  allItems: StylingItem[],
-  date: Date,
-  tempC?: number | null,
-): StylingItem[] {
-  // Exclude laundry items
-  const available = allItems.filter((i) => !i.is_in_laundry);
-
-  // Classify & sort deterministically
-  const dresses = sortDeterministically(available.filter((i) => matchesCategory(i, DRESS_RE)));
-  const outerwear = sortDeterministically(
-    available.filter((i) => matchesCategory(i, OUTERWEAR_RE) && !matchesCategory(i, DRESS_RE)),
-  );
-  const tops = sortDeterministically(
-    available.filter(
-      (i) =>
-        matchesCategory(i, TOP_RE) &&
-        !matchesCategory(i, DRESS_RE) &&
-        !matchesCategory(i, OUTERWEAR_RE),
-    ),
-  );
-  const bottoms = sortDeterministically(
-    available.filter((i) => matchesCategory(i, BOTTOM_RE) && !matchesCategory(i, DRESS_RE)),
-  );
-
-  const day = dayOfYear(date);
-
-  // Weather-aware filtering helper
-  const isWarmLayer = (item: StylingItem) =>
-    WARM_LAYER_RE.test(item.category || "") || WARM_LAYER_RE.test(item.name || "");
-
-  // Formula A: Dress + optional Outerwear
-  if (dresses.length > 0) {
-    const selectedDress = pickByHash(dresses, day, 0)!;
-    // Cold: prioritise outerwear; Hot: skip outerwear
-    if (tempC != null && tempC > 22) {
-      return [selectedDress];
-    }
-    const selectedCoat = pickByHash(outerwear, day, 1);
-    if (tempC != null && tempC < 15 && !selectedCoat && outerwear.length === 0) {
-      // no outerwear available, just return dress
-      return [selectedDress];
-    }
-    return selectedCoat ? [selectedDress, selectedCoat] : [selectedDress];
-  }
-
-  // Formula B: Top + Bottom (+ optional outerwear in cold)
-  if (tops.length > 0 && bottoms.length > 0) {
-    let filteredTops = tops;
-    // Hot weather: filter out warm layers from tops
-    if (tempC != null && tempC > 22) {
-      const lightTops = tops.filter((t) => !isWarmLayer(t));
-      if (lightTops.length > 0) filteredTops = lightTops;
-    }
-
-    const selectedTop = pickByHash(filteredTops, day, 0)!;
-    const selectedBottom = pickByHash(bottoms, day, 1)!;
-    const outfit: StylingItem[] = [selectedTop, selectedBottom];
-
-    // Cold weather: add outerwear if available
-    if (tempC != null && tempC < 15 && outerwear.length > 0) {
-      const selectedCoat = pickByHash(outerwear, day, 2);
-      if (selectedCoat) outfit.push(selectedCoat);
-    }
-
-    return outfit;
-  }
-
-  // Fallback
-  return [];
-}
-
 /**
- * Swap: rotate to the next deterministic outfit by using an offset.
- * swapCount increments each time the user taps "Swap".
+ * Unified outfit generation core.
+ * Deterministically flips between Dress and Top+Bottom formulas
+ * so users with dresses still get varied combinations.
  */
-export function generateSwappedOutfit(
+function generateOutfitCore(
   allItems: StylingItem[],
   date: Date,
   swapCount: number,
@@ -179,36 +99,74 @@ export function generateSwappedOutfit(
     available.filter((i) => matchesCategory(i, BOTTOM_RE) && !matchesCategory(i, DRESS_RE)),
   );
 
-  const day = dayOfYear(date);
-  const swap = swapCount;
-
+  const baseDay = dayOfYear(date);
   const isWarmLayer = (item: StylingItem) =>
     WARM_LAYER_RE.test(item.category || "") || WARM_LAYER_RE.test(item.name || "");
 
-  if (dresses.length > 0) {
-    const selectedDress = pickByHash(dresses, day, 0, swap)!;
+  const canMakeDress = dresses.length > 0;
+  const canMakeTopBottom = tops.length > 0 && bottoms.length > 0;
+
+  if (!canMakeDress && !canMakeTopBottom) return [];
+
+  // Coin flip using seeded hash based on date + swapCount
+  const formulaSeed = (baseDay * 10) + swapCount;
+  const randFormula = seededRandom(formulaSeed);
+
+  let useDressFormula = false;
+  if (canMakeDress && canMakeTopBottom) {
+    useDressFormula = randFormula > 0.5;
+  } else if (canMakeDress) {
+    useDressFormula = true;
+  }
+
+  // FORMULA A: DRESS + OUTERWEAR
+  if (useDressFormula) {
+    const selectedDress = pickByHash(dresses, baseDay, 0, swapCount)!;
     if (tempC != null && tempC > 22) return [selectedDress];
-    const selectedCoat = pickByHash(outerwear, day, 1, swap);
+    const selectedCoat = pickByHash(outerwear, baseDay, 1, swapCount);
     return selectedCoat ? [selectedDress, selectedCoat] : [selectedDress];
   }
 
-  if (tops.length > 0 && bottoms.length > 0) {
-    let filteredTops = tops;
-    if (tempC != null && tempC > 22) {
-      const lightTops = tops.filter((t) => !isWarmLayer(t));
-      if (lightTops.length > 0) filteredTops = lightTops;
-    }
-    const selectedTop = pickByHash(filteredTops, day, 0, swap)!;
-    const selectedBottom = pickByHash(bottoms, day, 1, swap)!;
-    const outfit: StylingItem[] = [selectedTop, selectedBottom];
-    if (tempC != null && tempC < 15 && outerwear.length > 0) {
-      const selectedCoat = pickByHash(outerwear, day, 2, swap);
-      if (selectedCoat) outfit.push(selectedCoat);
-    }
-    return outfit;
+  // FORMULA B: TOP + BOTTOM (+ OUTERWEAR)
+  let filteredTops = tops;
+  if (tempC != null && tempC > 22) {
+    const lightTops = tops.filter((t) => !isWarmLayer(t));
+    if (lightTops.length > 0) filteredTops = lightTops;
   }
 
-  return [];
+  const selectedTop = pickByHash(filteredTops, baseDay, 0, swapCount)!;
+  const selectedBottom = pickByHash(bottoms, baseDay, 1, swapCount)!;
+  const outfit: StylingItem[] = [selectedTop, selectedBottom];
+
+  if (tempC != null && tempC < 15 && outerwear.length > 0) {
+    const selectedCoat = pickByHash(outerwear, baseDay, 2, swapCount);
+    if (selectedCoat) outfit.push(selectedCoat);
+  }
+
+  return outfit;
+}
+
+/**
+ * Generate a smart outfit for a given date (swap 0).
+ */
+export function generateSmartOutfit(
+  allItems: StylingItem[],
+  date: Date,
+  tempC?: number | null,
+): StylingItem[] {
+  return generateOutfitCore(allItems, date, 0, tempC);
+}
+
+/**
+ * Swap: rotate to the next deterministic outfit by using swapCount.
+ */
+export function generateSwappedOutfit(
+  allItems: StylingItem[],
+  date: Date,
+  swapCount: number,
+  tempC?: number | null,
+): StylingItem[] {
+  return generateOutfitCore(allItems, date, swapCount, tempC);
 }
 
 // ─── Threshold check ────────────────────────────────────────────────────
