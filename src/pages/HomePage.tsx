@@ -8,7 +8,7 @@ import { WeatherWidget } from "@/components/WeatherWidget";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import OutfitCalendar from "@/components/home/OutfitCalendar";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import UserProfileButton from "@/components/UserProfileButton";
 
 
 const TRENDING_FEMALE = [
