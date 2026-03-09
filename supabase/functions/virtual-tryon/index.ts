@@ -194,7 +194,17 @@ ${desiredLook ? `- The user specifically requested this style: "${desiredLook}".
       throw new Error(`AI gateway error: ${response.status}`);
     }
 
-    const data = await response.json();
+    const responseText = await response.text();
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      console.error("Failed to parse AI response:", responseText.slice(0, 500));
+      return new Response(
+        JSON.stringify({ error: "AI returned an invalid response. Please try again." }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     const message = data.choices?.[0]?.message;
     const imageBase64 = message?.images?.[0]?.image_url?.url;
 
