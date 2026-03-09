@@ -51,7 +51,6 @@ const ProfilePage = () => {
 
   const profile = profileData?.profile || null;
   const isAdmin = profileData?.isAdmin || false;
-  const selfieSignedUrl = profileData?.selfieSignedUrl || null;
 
   const [editing, setEditing] = useState(false);
 
