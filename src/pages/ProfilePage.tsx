@@ -42,8 +42,16 @@ const ProfilePage = () => {
         supabase.from("user_roles").select("role").eq("user_id", user!.id).eq("role", "admin").maybeSingle(),
       ]);
 
+      // Backward compatibility: expand legacy relative paths to full public URLs
+      let finalSelfieUrl = profileRes.data?.selfie_url || null;
+      if (finalSelfieUrl && !finalSelfieUrl.startsWith("http")) {
+        finalSelfieUrl = supabase.storage.from("selfies").getPublicUrl(finalSelfieUrl).data.publicUrl;
+      }
+
+      const profileWithResolvedUrl = { ...profileRes.data, selfie_url: finalSelfieUrl } as ProfileData;
+
       return {
-        profile: profileRes.data as ProfileData,
+        profile: profileWithResolvedUrl,
         isAdmin: !!roleRes.data,
       };
     }
