@@ -75,13 +75,18 @@ const OnboardingPage = () => {
 
       if (selfieFile) {
         const fileExt = selfieFile.name.split(".").pop();
-        const filePath = `${user.id}/selfie.${fileExt}`;
+        const filePath = `${user.id}/selfie_${Date.now()}.${fileExt}`;
         const { error: uploadError } = await supabase.storage
           .from("selfies")
           .upload(filePath, selfieFile, { upsert: true });
 
         if (uploadError) throw uploadError;
-        selfiePath = filePath;
+
+        // Get permanent public URL
+        const { data: publicUrlData } = supabase.storage
+          .from("selfies")
+          .getPublicUrl(filePath);
+        selfiePath = publicUrlData.publicUrl;
       }
 
       const { error } = await supabase

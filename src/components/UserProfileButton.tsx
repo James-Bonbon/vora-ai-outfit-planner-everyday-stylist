@@ -21,23 +21,9 @@ export const UserProfileButton = () => {
 
       if (error) return;
 
-      // 1. Prioritize the custom uploaded selfie
-      if (data?.selfie_url) {
-        const { data: urlData } = await supabase.storage
-          .from("selfies")
-          .createSignedUrl(data.selfie_url, 3600);
-
-        if (urlData?.signedUrl) {
-          setAvatarUrl(urlData.signedUrl);
-          return;
-        }
-      }
-
-      // 2. Fallback to avatar_url (e.g., Google Sign-In) or user metadata
-      const fallbackUrl = data?.avatar_url || user.user_metadata?.avatar_url;
-      if (fallbackUrl) {
-        setAvatarUrl(fallbackUrl);
-      }
+      // selfie_url is now a full public URL; avatar_url is an OAuth URL
+      const url = data?.selfie_url || data?.avatar_url || user.user_metadata?.avatar_url;
+      if (url) setAvatarUrl(url);
     };
 
     fetchAvatar();
