@@ -21,8 +21,13 @@ export const UserProfileButton = () => {
 
       if (error) return;
 
-      // selfie_url is now a full public URL; avatar_url is an OAuth URL
-      const url = data?.selfie_url || data?.avatar_url || user.user_metadata?.avatar_url;
+      // selfie_url may be a full public URL or a legacy relative path
+      let selfie = data?.selfie_url || null;
+      if (selfie && !selfie.startsWith("http")) {
+        selfie = supabase.storage.from("selfies").getPublicUrl(selfie).data.publicUrl;
+      }
+
+      const url = selfie || data?.avatar_url || user.user_metadata?.avatar_url;
       if (url) setAvatarUrl(url);
     };
 
