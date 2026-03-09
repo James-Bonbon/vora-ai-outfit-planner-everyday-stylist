@@ -295,21 +295,11 @@ const HomePage = () => {
     const [{ count: wardrobeCount }, { count: beautyItemCount }, { data: profileData }] = await Promise.all([
       supabase.from("closet_items").select("id", { count: "exact", head: true }).eq("user_id", user.id),
       supabase.from("beauty_products").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-      supabase.from("profiles").select("sex, avatar_url").eq("user_id", user.id).maybeSingle(),
+      supabase.from("profiles").select("sex").eq("user_id", user.id).maybeSingle(),
     ]);
     if (wardrobeCount !== null) setClosetCount(wardrobeCount);
     if (beautyItemCount !== null) setBeautyCount(beautyItemCount);
     if (profileData?.sex) setUserSex(profileData.sex);
-    if (profileData?.avatar_url) {
-      if (profileData.avatar_url.startsWith("http")) {
-        setAvatarUrl(profileData.avatar_url);
-      } else {
-        const { data: urlData } = await supabase.storage
-          .from("selfies")
-          .createSignedUrl(profileData.avatar_url, 3600);
-        setAvatarUrl(urlData?.signedUrl || profileData.avatar_url);
-      }
-    }
   }, [user]);
 
   useEffect(() => {
