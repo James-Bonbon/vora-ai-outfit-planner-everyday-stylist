@@ -94,7 +94,7 @@ const ProfilePage = () => {
     }
     setSaving(true);
     try {
-      let selfiePath = profile?.selfie_url ?? null;
+      let selfiePublicUrl = profile?.selfie_url ?? null;
 
       if (editSelfieFile) {
         const fileExt = editSelfieFile.name.split(".").pop();
@@ -105,11 +105,16 @@ const ProfilePage = () => {
           .upload(filePath, editSelfieFile);
         if (uploadError) throw uploadError;
 
-        if (profile?.selfie_url) {
+        // Clean up old storage file if it was a path (not a full URL)
+        if (profile?.selfie_url && !profile.selfie_url.startsWith("http")) {
           await supabase.storage.from("selfies").remove([profile.selfie_url]);
         }
 
-        selfiePath = filePath;
+        // Get permanent public URL
+        const { data: publicUrlData } = supabase.storage
+          .from("selfies")
+          .getPublicUrl(filePath);
+        selfiePublicUrl = publicUrlData.publicUrl;
       }
 
       const { error } = await supabase
