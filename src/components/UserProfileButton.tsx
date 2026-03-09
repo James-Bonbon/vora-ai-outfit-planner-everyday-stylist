@@ -13,33 +13,30 @@ export const UserProfileButton = () => {
     if (!user) return;
 
     const fetchAvatar = async () => {
-      // 1. Check user_metadata first (e.g., Google Sign-In)
-      if (user.user_metadata?.avatar_url) {
-        setAvatarUrl(user.user_metadata.avatar_url);
-        return;
-      }
-
-      // 2. Check the profiles table
       const { data, error } = await supabase
         .from("profiles")
-        .select("avatar_url")
+        .select("selfie_url, avatar_url")
         .eq("user_id", user.id)
         .maybeSingle();
 
-      if (error || !data?.avatar_url) return;
+      if (error) return;
 
-      // 3. Resolve the URL
-      if (data.avatar_url.startsWith("http")) {
-        setAvatarUrl(data.avatar_url);
-      } else {
-        // Storage path — use the selfies bucket
+      // 1. Prioritize the custom uploaded selfie
+      if (data?.selfie_url) {
         const { data: urlData } = await supabase.storage
           .from("selfies")
-          .createSignedUrl(data.avatar_url, 3600);
+          .createSignedUrl(data.selfie_url, 3600);
 
         if (urlData?.signedUrl) {
           setAvatarUrl(urlData.signedUrl);
+          return;
         }
+      }
+
+      // 2. Fallback to avatar_url (e.g., Google Sign-In) or user metadata
+      const fallbackUrl = data?.avatar_url || user.user_metadata?.avatar_url;
+      if (fallbackUrl) {
+        setAvatarUrl(fallbackUrl);
       }
     };
 
