@@ -287,7 +287,7 @@ const HomePage = () => {
   const [closetCount, setClosetCount] = useState(0);
   const [beautyCount, setBeautyCount] = useState(0);
   const [userSex, setUserSex] = useState<string | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  
   const { weather, loading: weatherLoading } = useWeather();
 
   const fetchCounts = useCallback(async () => {
