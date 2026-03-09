@@ -331,17 +331,7 @@ const HomePage = () => {
           >
             <CalendarDays className="w-4 h-4" />
           </button>
-          <button
-            onClick={() => navigate('/profile')}
-            className="shrink-0 transition-transform hover:scale-105"
-          >
-            <Avatar className="w-9 h-9 border border-border shadow-sm">
-              <AvatarImage src={avatarUrl || ""} alt="Profile" />
-              <AvatarFallback className="bg-primary text-primary-foreground font-medium text-sm">
-                {user?.email?.charAt(0).toUpperCase() || "U"}
-              </AvatarFallback>
-            </Avatar>
-          </button>
+          <UserProfileButton />
         </div>
       </div>
 
