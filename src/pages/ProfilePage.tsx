@@ -125,7 +125,7 @@ const ProfilePage = () => {
           sex: editSex || null,
           height_cm: editHeight ? Number(editHeight) : null,
           weight_kg: editWeight ? Number(editWeight) : null,
-          selfie_url: selfiePath,
+          selfie_url: selfiePublicUrl,
           body_shape: editBodyShape || null,
         })
         .eq("user_id", user.id);
