@@ -42,16 +42,9 @@ const ProfilePage = () => {
         supabase.from("user_roles").select("role").eq("user_id", user!.id).eq("role", "admin").maybeSingle(),
       ]);
 
-      let signedUrl = null;
-      if (profileRes.data?.selfie_url) {
-        const { data } = await supabase.storage.from("selfies").createSignedUrl(profileRes.data.selfie_url, 3600);
-        signedUrl = data?.signedUrl || null;
-      }
-
       return {
         profile: profileRes.data as ProfileData,
         isAdmin: !!roleRes.data,
-        selfieSignedUrl: signedUrl
       };
     }
   });
