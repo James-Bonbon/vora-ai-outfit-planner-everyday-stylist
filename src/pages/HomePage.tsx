@@ -8,7 +8,7 @@ import { WeatherWidget } from "@/components/WeatherWidget";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import OutfitCalendar from "@/components/home/OutfitCalendar";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import UserProfileButton from "@/components/UserProfileButton";
 
 
 const TRENDING_FEMALE = [
@@ -287,7 +287,7 @@ const HomePage = () => {
   const [closetCount, setClosetCount] = useState(0);
   const [beautyCount, setBeautyCount] = useState(0);
   const [userSex, setUserSex] = useState<string | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  
   const { weather, loading: weatherLoading } = useWeather();
 
   const fetchCounts = useCallback(async () => {
@@ -295,21 +295,11 @@ const HomePage = () => {
     const [{ count: wardrobeCount }, { count: beautyItemCount }, { data: profileData }] = await Promise.all([
       supabase.from("closet_items").select("id", { count: "exact", head: true }).eq("user_id", user.id),
       supabase.from("beauty_products").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-      supabase.from("profiles").select("sex, avatar_url").eq("user_id", user.id).maybeSingle(),
+      supabase.from("profiles").select("sex").eq("user_id", user.id).maybeSingle(),
     ]);
     if (wardrobeCount !== null) setClosetCount(wardrobeCount);
     if (beautyItemCount !== null) setBeautyCount(beautyItemCount);
     if (profileData?.sex) setUserSex(profileData.sex);
-    if (profileData?.avatar_url) {
-      if (profileData.avatar_url.startsWith("http")) {
-        setAvatarUrl(profileData.avatar_url);
-      } else {
-        const { data: urlData } = await supabase.storage
-          .from("selfies")
-          .createSignedUrl(profileData.avatar_url, 3600);
-        setAvatarUrl(urlData?.signedUrl || profileData.avatar_url);
-      }
-    }
   }, [user]);
 
   useEffect(() => {
@@ -331,17 +321,7 @@ const HomePage = () => {
           >
             <CalendarDays className="w-4 h-4" />
           </button>
-          <button
-            onClick={() => navigate('/profile')}
-            className="shrink-0 transition-transform hover:scale-105"
-          >
-            <Avatar className="w-9 h-9 border border-border shadow-sm">
-              <AvatarImage src={avatarUrl || ""} alt="Profile" />
-              <AvatarFallback className="bg-primary text-primary-foreground font-medium text-sm">
-                {user?.email?.charAt(0).toUpperCase() || "U"}
-              </AvatarFallback>
-            </Avatar>
-          </button>
+          <UserProfileButton />
         </div>
       </div>
 
