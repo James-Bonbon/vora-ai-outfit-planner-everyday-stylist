@@ -42,23 +42,15 @@ const ProfilePage = () => {
         supabase.from("user_roles").select("role").eq("user_id", user!.id).eq("role", "admin").maybeSingle(),
       ]);
 
-      let signedUrl = null;
-      if (profileRes.data?.selfie_url) {
-        const { data } = await supabase.storage.from("selfies").createSignedUrl(profileRes.data.selfie_url, 3600);
-        signedUrl = data?.signedUrl || null;
-      }
-
       return {
         profile: profileRes.data as ProfileData,
         isAdmin: !!roleRes.data,
-        selfieSignedUrl: signedUrl
       };
     }
   });
 
   const profile = profileData?.profile || null;
   const isAdmin = profileData?.isAdmin || false;
-  const selfieSignedUrl = profileData?.selfieSignedUrl || null;
 
   const [editing, setEditing] = useState(false);
 
@@ -102,7 +94,7 @@ const ProfilePage = () => {
     }
     setSaving(true);
     try {
-      let selfiePath = profile?.selfie_url ?? null;
+      let selfiePublicUrl = profile?.selfie_url ?? null;
 
       if (editSelfieFile) {
         const fileExt = editSelfieFile.name.split(".").pop();
@@ -113,11 +105,16 @@ const ProfilePage = () => {
           .upload(filePath, editSelfieFile);
         if (uploadError) throw uploadError;
 
-        if (profile?.selfie_url) {
+        // Clean up old storage file if it was a path (not a full URL)
+        if (profile?.selfie_url && !profile.selfie_url.startsWith("http")) {
           await supabase.storage.from("selfies").remove([profile.selfie_url]);
         }
 
-        selfiePath = filePath;
+        // Get permanent public URL
+        const { data: publicUrlData } = supabase.storage
+          .from("selfies")
+          .getPublicUrl(filePath);
+        selfiePublicUrl = publicUrlData.publicUrl;
       }
 
       const { error } = await supabase
@@ -128,7 +125,7 @@ const ProfilePage = () => {
           sex: editSex || null,
           height_cm: editHeight ? Number(editHeight) : null,
           weight_kg: editWeight ? Number(editWeight) : null,
-          selfie_url: selfiePath,
+          selfie_url: selfiePublicUrl,
           body_shape: editBodyShape || null,
         })
         .eq("user_id", user.id);
@@ -151,7 +148,7 @@ const ProfilePage = () => {
   };
 
   const displayName = profile?.display_name || user?.user_metadata?.full_name || "VORA User";
-  const avatarUrl = selfieSignedUrl || profile?.avatar_url || user?.user_metadata?.avatar_url;
+  const avatarUrl = profile?.selfie_url || profile?.avatar_url || user?.user_metadata?.avatar_url;
 
   const formatDate = (d: string | null) => {
     if (!d) return "—";
