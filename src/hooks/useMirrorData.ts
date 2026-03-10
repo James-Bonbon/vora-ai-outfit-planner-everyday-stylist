@@ -19,6 +19,7 @@ export interface SavedLook {
   occasion: string | null;
   garment_ids: string[] | null;
   created_at: string;
+  is_public: boolean;
 }
 
 export interface GarmentInfo {
