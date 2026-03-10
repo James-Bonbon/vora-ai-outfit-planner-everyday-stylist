@@ -33,6 +33,7 @@ const MirrorPage = () => {
   const [tab, setTab] = useState<"tryon" | "gallery">("tryon");
   const [selectedLook, setSelectedLook] = useState<SavedLook | null>(null);
   const [desiredLook, setDesiredLook] = useState("");
+  const [chatOpen, setChatOpen] = useState(false);
 
   // Data queries
   const { data: selfieUrl } = useSelfieUrl();
