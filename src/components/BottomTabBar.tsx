@@ -1,9 +1,7 @@
-import { Home, DoorOpen, Sparkles, MessageCircle, HeartPulse, User } from "lucide-react";
+import { Home, DoorOpen, Sparkles, HeartPulse } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
-
-import { Home, DoorOpen, Sparkles, HeartPulse } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";

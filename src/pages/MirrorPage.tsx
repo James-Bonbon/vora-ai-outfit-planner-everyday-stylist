@@ -297,7 +297,17 @@ const MirrorPage = () => {
     <div className="pt-6 space-y-5 pb-4">
       <div className="flex items-center justify-between h-10">
         <h1 className="text-2xl font-bold text-foreground font-outfit">AI Stylist</h1>
+        <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => setChatOpen(true)}>
+          <MessageCircle className="w-5 h-5" />
+        </Button>
       </div>
+
+      <Sheet open={chatOpen} onOpenChange={setChatOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-md p-4 flex flex-col">
+          <SheetTitle className="sr-only">Stylist Chat</SheetTitle>
+          <StylistChat />
+        </SheetContent>
+      </Sheet>
 
       {/* Tabs */}
       <div className="flex gap-2">
