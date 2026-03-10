@@ -2,9 +2,6 @@ import { Home, DoorOpen, Sparkles, HeartPulse } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
-import { useLocation, useNavigate } from "react-router-dom";
-import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
 
 const tabs = [
   { path: "/home", label: "Home", icon: Home },
