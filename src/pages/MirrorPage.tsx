@@ -366,20 +366,44 @@ const MirrorPage = () => {
                     })}
                   </p>
                 </div>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="rounded-xl gap-1.5"
-                  disabled={deleteMutation.isPending}
-                  onClick={() => handleDeleteLook(selectedLook)}
-                >
-                  {deleteMutation.isPending ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="w-4 h-4" />
-                  )}
-                  Delete
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant={selectedLook.is_public ? "default" : "secondary"}
+                    size="sm"
+                    className="rounded-xl gap-1.5"
+                    disabled={publishMutation.isPending}
+                    onClick={() => {
+                      publishMutation.mutate({
+                        lookId: selectedLook.id,
+                        isPublic: !selectedLook.is_public,
+                      });
+                      setSelectedLook({ ...selectedLook, is_public: !selectedLook.is_public });
+                    }}
+                  >
+                    {publishMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : selectedLook.is_public ? (
+                      <Globe className="w-4 h-4" />
+                    ) : (
+                      <Lock className="w-4 h-4" />
+                    )}
+                    {selectedLook.is_public ? "Public" : "Make Public"}
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="rounded-xl gap-1.5"
+                    disabled={deleteMutation.isPending}
+                    onClick={() => handleDeleteLook(selectedLook)}
+                  >
+                    {deleteMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                    Delete
+                  </Button>
+                </div>
               </div>
 
               {/* Garment Details */}
