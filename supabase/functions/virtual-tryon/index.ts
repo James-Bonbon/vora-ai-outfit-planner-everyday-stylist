@@ -118,34 +118,29 @@ serve(async (req) => {
     const content: any[] = [
       {
         type: "text",
-        text: `You are a fashion photographer creating a photorealistic editorial try-on image.
+        text: `CRITICAL OVERRIDE - IDENTITY PRESERVATION IS YOUR #1 PRIORITY.
+You are a precision Virtual Try-On engine. Your ONLY job is to change the user's clothing.
 
-Given:
-- A selfie/reference photo of a person
-- One or more garment photos
+ABSOLUTE RULES FOR THE HEAD, FACE, AND HAIR:
+1. DO NOT alter, repaint, or stylize the user's head, face, or hair under ANY circumstances.
+2. The hair color, hair style, hair length, and exact facial identity MUST remain 100% identical to the provided reference selfie.
+3. If the user has dark hair, it stays dark. If the hair is tied up, it stays tied up. Do not invent new hairstyles to match the outfit.
 
-Generate a SINGLE photorealistic full-body or three-quarter shot of the person wearing ALL the provided garment(s).
+TASK:
+Generate a photorealistic full-body or three-quarter shot of this exact person wearing ALL the provided garments naturally.
 
-CHARACTER CONSISTENCY (CRITICAL):
-- Preserve the person's IDENTITY: same face structure, jawline, nose shape, eye shape, skin tone, hair color, hair texture, hair length, body proportions, and build.
-- The person MUST be immediately recognizable as the same individual.
-- You MAY freely vary their facial expression (smiling, neutral, confident, etc.), head angle, gaze direction, and pose to create a natural, candid feel.
-- Do NOT produce a "face swap" or "pasted head" look. The person should look like they were naturally photographed in these clothes.
+CLOTHING ACCURACY (Secondary Priority):
+- Reproduce EVERY garment detail with pixel-level fidelity: exact colors, patterns, textures, collars, and hemlines.
+- The clothing must look naturally worn with realistic fit, draping, and shadow interaction based on their body shape.
 
-CLOTHING ACCURACY (CRITICAL):
-- Reproduce EVERY garment detail with pixel-level fidelity: exact colors, patterns, prints, textures, stitching, buttons, zippers, pocket placement, pocket shape, labels, logos, collar style, cuff style, and hemline.
-- Do NOT simplify, omit, recolor, distort, or alter any garment detail. If a jacket has 4 pockets, show exactly 4 pockets in the correct positions.
-- The clothing must look naturally worn on the person's body with realistic fit, draping, creasing, and shadow interaction based on their body shape.
-
-SCENE & QUALITY:
+SCENE & CONTEXT:
 - Clean, minimal background (soft studio or neutral setting).
-- Professional fashion photography lighting with natural shadows.
-- High resolution, sharp focus on person and clothing.
-${occasion ? `- Style the overall mood to suit a "${occasion}" occasion.` : ""}
-${weather ? `- The weather is ${weather}. Choose clothing layering and styling appropriate for this weather.` : ""}
-${bodyShape ? `- The user has a ${bodyShape} body type. Ensure the generated image accurately reflects this body shape with proper fit and proportions.` : ""}
-${desiredLook ? `- The user specifically requested this style: "${desiredLook}". Incorporate this aesthetic into the overall look.` : ""}
-- Do NOT add any watermark, logo, text overlay, or branding.`,
+- Professional fashion photography lighting.
+${occasion ? `- Style the overall outfit mood to suit a "${occasion}" occasion.` : ""}
+${weather ? `- The weather is ${weather}. Layer appropriately.` : ""}
+${bodyShape ? `- The user has a ${bodyShape} body type. Ensure the fit reflects this.` : ""}
+${desiredLook ? `- Incorporate this specific aesthetic: "${desiredLook}".` : ""}
+- NO watermarks, text, or logos.`,
       },
       {
         type: "image_url",
