@@ -213,6 +213,7 @@ const MirrorPage = () => {
       shapeInstruction ? `Ensure a ${shapeInstruction}` : null,
       occasion ? `Style suitable for a ${occasion} occasion` : null,
       desiredLook.trim(),
+      "CRITICAL INSTRUCTION: Strictly maintain the exact original facial features, identity, hair color, and hairstyle from the source selfie. Do not alter, repaint, or modify the head, face, or hair in any way.",
       "Professional fashion photography, subject perfectly centered, waist-up portrait, head and torso fully visible, well-framed, maintain 3:4 aspect ratio"
     ].filter(Boolean).join(". ");
 
