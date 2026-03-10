@@ -49,6 +49,7 @@ const MirrorPage = () => {
   const tryOnMutation = useTryOnMutation();
   const saveMutation = useSaveLookMutation();
   const deleteMutation = useDeleteLookMutation();
+  const publishMutation = useTogglePublishMutation();
 
   // Combine closet + dream items for the stylist
   const closetItems = closetData?.items ?? [];
