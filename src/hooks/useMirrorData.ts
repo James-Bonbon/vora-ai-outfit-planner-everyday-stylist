@@ -279,6 +279,27 @@ export function useSaveLookMutation() {
   });
 }
 
+export function useTogglePublishMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ lookId, isPublic }: { lookId: string; isPublic: boolean }) => {
+      const { error } = await supabase
+        .from("looks")
+        .update({ is_public: isPublic })
+        .eq("id", lookId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["saved-looks"] });
+      toast.success("Visibility updated!");
+    },
+    onError: (e) => {
+      toast.error("Failed to update visibility", { description: e.message });
+    },
+  });
+}
+
 export function useDeleteLookMutation() {
   const queryClient = useQueryClient();
 
