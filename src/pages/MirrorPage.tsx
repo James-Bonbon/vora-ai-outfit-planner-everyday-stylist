@@ -2,7 +2,9 @@ import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import GlassCard from "@/components/GlassCard";
 import SafeImage from "@/components/ui/SafeImage";
-import { Sparkles, Check, Image, Loader2, AlertTriangle, Save, Trash2, GalleryHorizontalEnd, Lock, Star } from "lucide-react";
+import { Sparkles, Check, Image, Loader2, AlertTriangle, Save, Trash2, GalleryHorizontalEnd, Lock, Star, MessageCircle } from "lucide-react";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { StylistChat } from "@/components/chat/StylistChat";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
@@ -31,6 +33,7 @@ const MirrorPage = () => {
   const [tab, setTab] = useState<"tryon" | "gallery">("tryon");
   const [selectedLook, setSelectedLook] = useState<SavedLook | null>(null);
   const [desiredLook, setDesiredLook] = useState("");
+  const [chatOpen, setChatOpen] = useState(false);
 
   // Data queries
   const { data: selfieUrl } = useSelfieUrl();
@@ -267,7 +270,16 @@ const MirrorPage = () => {
       <div className="pt-6 space-y-5">
         <div className="flex items-center justify-between h-10">
           <h1 className="text-2xl font-bold text-foreground font-outfit">AI Stylist</h1>
+          <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => setChatOpen(true)}>
+            <MessageCircle className="w-5 h-5" />
+          </Button>
         </div>
+        <Sheet open={chatOpen} onOpenChange={setChatOpen}>
+          <SheetContent side="right" className="w-full sm:max-w-md p-4 flex flex-col">
+            <SheetTitle className="sr-only">Stylist Chat</SheetTitle>
+            <StylistChat />
+          </SheetContent>
+        </Sheet>
         <GlassCard className="flex flex-col items-center justify-center py-20 text-center">
           <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center mb-5">
             <Sparkles className="w-10 h-10 text-primary" />
@@ -285,7 +297,17 @@ const MirrorPage = () => {
     <div className="pt-6 space-y-5 pb-4">
       <div className="flex items-center justify-between h-10">
         <h1 className="text-2xl font-bold text-foreground font-outfit">AI Stylist</h1>
+        <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => setChatOpen(true)}>
+          <MessageCircle className="w-5 h-5" />
+        </Button>
       </div>
+
+      <Sheet open={chatOpen} onOpenChange={setChatOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-md p-4 flex flex-col">
+          <SheetTitle className="sr-only">Stylist Chat</SheetTitle>
+          <StylistChat />
+        </SheetContent>
+      </Sheet>
 
       {/* Tabs */}
       <div className="flex gap-2">
