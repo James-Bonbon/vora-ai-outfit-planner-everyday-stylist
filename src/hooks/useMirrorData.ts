@@ -184,7 +184,7 @@ export function useSavedLooks() {
     queryFn: async () => {
       const { data } = await supabase
         .from("looks")
-        .select("id, image_path, occasion, garment_ids, created_at")
+        .select("id, image_path, occasion, garment_ids, created_at, is_public")
         .eq("user_id", user!.id)
         .order("created_at", { ascending: false });
 
