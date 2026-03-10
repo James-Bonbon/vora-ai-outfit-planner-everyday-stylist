@@ -233,6 +233,35 @@ export type Database = {
         }
         Relationships: []
       }
+      likes: {
+        Row: {
+          created_at: string
+          id: string
+          look_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          look_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          look_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "likes_look_id_fkey"
+            columns: ["look_id"]
+            isOneToOne: false
+            referencedRelation: "looks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       looks: {
         Row: {
           body_shape: string | null
@@ -240,7 +269,11 @@ export type Database = {
           garment_ids: string[] | null
           id: string
           image_path: string
+          is_featured: boolean | null
+          is_public: boolean | null
+          likes_count: number | null
           occasion: string | null
+          reported: boolean | null
           user_id: string
         }
         Insert: {
@@ -249,7 +282,11 @@ export type Database = {
           garment_ids?: string[] | null
           id?: string
           image_path: string
+          is_featured?: boolean | null
+          is_public?: boolean | null
+          likes_count?: number | null
           occasion?: string | null
+          reported?: boolean | null
           user_id: string
         }
         Update: {
@@ -258,7 +295,11 @@ export type Database = {
           garment_ids?: string[] | null
           id?: string
           image_path?: string
+          is_featured?: boolean | null
+          is_public?: boolean | null
+          likes_count?: number | null
           occasion?: string | null
+          reported?: boolean | null
           user_id?: string
         }
         Relationships: []
@@ -367,6 +408,38 @@ export type Database = {
           weight_kg?: number | null
         }
         Relationships: []
+      }
+      reports: {
+        Row: {
+          created_at: string
+          id: string
+          look_id: string | null
+          reason: string | null
+          reporter_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          look_id?: string | null
+          reason?: string | null
+          reporter_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          look_id?: string | null
+          reason?: string | null
+          reporter_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_look_id_fkey"
+            columns: ["look_id"]
+            isOneToOne: false
+            referencedRelation: "looks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       trending_clothes: {
         Row: {

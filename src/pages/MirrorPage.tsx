@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import GlassCard from "@/components/GlassCard";
 import SafeImage from "@/components/ui/SafeImage";
-import { Sparkles, Check, Image, Loader2, AlertTriangle, Save, Trash2, GalleryHorizontalEnd, Lock, Star, MessageCircle } from "lucide-react";
+import { Sparkles, Check, Image, Loader2, AlertTriangle, Save, Trash2, GalleryHorizontalEnd, Lock, Star, MessageCircle, Globe } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { StylistChat } from "@/components/chat/StylistChat";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import {
   useTryOnMutation,
   useSaveLookMutation,
   useDeleteLookMutation,
+  useTogglePublishMutation,
   useProfileData,
   type SavedLook,
 } from "@/hooks/useMirrorData";
@@ -48,6 +49,7 @@ const MirrorPage = () => {
   const tryOnMutation = useTryOnMutation();
   const saveMutation = useSaveLookMutation();
   const deleteMutation = useDeleteLookMutation();
+  const publishMutation = useTogglePublishMutation();
 
   // Combine closet + dream items for the stylist
   const closetItems = closetData?.items ?? [];
@@ -364,20 +366,44 @@ const MirrorPage = () => {
                     })}
                   </p>
                 </div>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="rounded-xl gap-1.5"
-                  disabled={deleteMutation.isPending}
-                  onClick={() => handleDeleteLook(selectedLook)}
-                >
-                  {deleteMutation.isPending ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="w-4 h-4" />
-                  )}
-                  Delete
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant={selectedLook.is_public ? "default" : "secondary"}
+                    size="sm"
+                    className="rounded-xl gap-1.5"
+                    disabled={publishMutation.isPending}
+                    onClick={() => {
+                      publishMutation.mutate({
+                        lookId: selectedLook.id,
+                        isPublic: !selectedLook.is_public,
+                      });
+                      setSelectedLook({ ...selectedLook, is_public: !selectedLook.is_public });
+                    }}
+                  >
+                    {publishMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : selectedLook.is_public ? (
+                      <Globe className="w-4 h-4" />
+                    ) : (
+                      <Lock className="w-4 h-4" />
+                    )}
+                    {selectedLook.is_public ? "Public" : "Make Public"}
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="rounded-xl gap-1.5"
+                    disabled={deleteMutation.isPending}
+                    onClick={() => handleDeleteLook(selectedLook)}
+                  >
+                    {deleteMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                    Delete
+                  </Button>
+                </div>
               </div>
 
               {/* Garment Details */}
@@ -433,6 +459,11 @@ const MirrorPage = () => {
                       aspectRatio=""
                       loading="lazy"
                     />
+                    {look.is_public && (
+                      <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-primary/90 flex items-center justify-center shadow-sm">
+                        <Globe className="w-3.5 h-3.5 text-primary-foreground" />
+                      </div>
+                    )}
                   </div>
                   <div className="p-2.5 bg-card/50">
                     {look.occasion && <span className="text-[10px] font-medium text-primary">{look.occasion}</span>}

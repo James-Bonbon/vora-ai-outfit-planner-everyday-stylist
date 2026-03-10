@@ -19,6 +19,7 @@ export interface SavedLook {
   occasion: string | null;
   garment_ids: string[] | null;
   created_at: string;
+  is_public: boolean;
 }
 
 export interface GarmentInfo {
@@ -183,7 +184,7 @@ export function useSavedLooks() {
     queryFn: async () => {
       const { data } = await supabase
         .from("looks")
-        .select("id, image_path, occasion, garment_ids, created_at")
+        .select("id, image_path, occasion, garment_ids, created_at, is_public")
         .eq("user_id", user!.id)
         .order("created_at", { ascending: false });
 
@@ -274,6 +275,27 @@ export function useSaveLookMutation() {
     },
     onError: (e) => {
       toast.error("Save failed", { description: e.message });
+    },
+  });
+}
+
+export function useTogglePublishMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ lookId, isPublic }: { lookId: string; isPublic: boolean }) => {
+      const { error } = await supabase
+        .from("looks")
+        .update({ is_public: isPublic })
+        .eq("id", lookId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["saved-looks"] });
+      toast.success("Visibility updated!");
+    },
+    onError: (e) => {
+      toast.error("Failed to update visibility", { description: e.message });
     },
   });
 }
