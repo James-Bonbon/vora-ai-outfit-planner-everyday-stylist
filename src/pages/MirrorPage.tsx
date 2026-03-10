@@ -18,6 +18,7 @@ import {
   useTryOnMutation,
   useSaveLookMutation,
   useDeleteLookMutation,
+  useTogglePublishMutation,
   useProfileData,
   type SavedLook,
 } from "@/hooks/useMirrorData";
