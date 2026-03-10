@@ -459,6 +459,11 @@ const MirrorPage = () => {
                       aspectRatio=""
                       loading="lazy"
                     />
+                    {look.is_public && (
+                      <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-primary/90 flex items-center justify-center shadow-sm">
+                        <Globe className="w-3.5 h-3.5 text-primary-foreground" />
+                      </div>
+                    )}
                   </div>
                   <div className="p-2.5 bg-card/50">
                     {look.occasion && <span className="text-[10px] font-medium text-primary">{look.occasion}</span>}
