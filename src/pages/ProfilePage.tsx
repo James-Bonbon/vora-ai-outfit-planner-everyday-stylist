@@ -187,15 +187,12 @@ const ProfilePage = () => {
       {/* Avatar + Name */}
       <GlassCard className="flex items-center gap-4 p-5">
         <div className="relative">
-          {(editing && editSelfiePreview) ? (
-            <img src={editSelfiePreview} alt="New selfie" className="w-16 h-16 rounded-full border-2 border-primary/20 object-cover" />
-          ) : avatarUrl ? (
-            <img src={avatarUrl} alt="Avatar" className="w-16 h-16 rounded-full border-2 border-primary/20 object-cover" />
-          ) : (
-            <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
+          <Avatar className="w-16 h-16 border-2 border-primary/20">
+            <AvatarImage src={(editing && editSelfiePreview) ? editSelfiePreview : avatarUrl || undefined} />
+            <AvatarFallback className="bg-secondary">
               <User className="w-8 h-8 text-muted-foreground" />
-            </div>
-          )}
+            </AvatarFallback>
+          </Avatar>
           {editing && (
             <label className="absolute -bottom-1 -right-1 w-7 h-7 bg-primary rounded-full flex items-center justify-center cursor-pointer shadow-lg">
               <Camera className="w-3.5 h-3.5 text-primary-foreground" />
