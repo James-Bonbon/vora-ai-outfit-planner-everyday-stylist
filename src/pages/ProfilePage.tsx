@@ -187,9 +187,9 @@ const ProfilePage = () => {
       <GlassCard className="flex items-center gap-4 p-5">
         <div className="relative">
           {(editing && editSelfiePreview) ? (
-            <SafeImage src={editSelfiePreview} alt="New selfie" aspectRatio="" wrapperClassName="w-16 h-16 rounded-full border-2 border-primary/20" skeletonClassName="rounded-full" />
+            <img src={editSelfiePreview} alt="New selfie" className="w-16 h-16 rounded-full border-2 border-primary/20 object-cover" />
           ) : avatarUrl ? (
-            <SafeImage src={avatarUrl} alt="Avatar" aspectRatio="" wrapperClassName="w-16 h-16 rounded-full border-2 border-primary/20" skeletonClassName="rounded-full" />
+            <img src={avatarUrl} alt="Avatar" className="w-16 h-16 rounded-full border-2 border-primary/20 object-cover" />
           ) : (
             <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
               <User className="w-8 h-8 text-muted-foreground" />
