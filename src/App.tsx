@@ -16,6 +16,7 @@ import BeautyPage from "./pages/BeautyPage";
 import ProfilePage from "./pages/ProfilePage";
 import OnboardingPage from "./pages/OnboardingPage";
 import LibraryPage from "./pages/LibraryPage";
+import CommunityPage from "./pages/CommunityPage";
 
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -39,6 +40,7 @@ const App = () => (
               <Route path="/home" element={<HomePage />} />
               <Route path="/wardrobe" element={<WardrobePage />} />
               <Route path="/mirror" element={<MirrorPage />} />
+              <Route path="/discover" element={<CommunityPage />} />
               <Route path="/beauty" element={<BeautyPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/library" element={<LibraryPage />} />
