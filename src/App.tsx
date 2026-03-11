@@ -16,6 +16,7 @@ import BeautyPage from "./pages/BeautyPage";
 import ProfilePage from "./pages/ProfilePage";
 import OnboardingPage from "./pages/OnboardingPage";
 import LibraryPage from "./pages/LibraryPage";
+import CommunityPage from "./pages/CommunityPage";
 
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
