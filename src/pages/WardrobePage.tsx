@@ -359,7 +359,7 @@ const WardrobePage = () => {
               <WardrobeMap svgString={closetSvg} />
             ) : (
               <div className="text-center py-6">
-                <MapIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                <CabinetIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">
                   Take a photo of your closet and AI will create an interactive map of its compartments.
                 </p>
