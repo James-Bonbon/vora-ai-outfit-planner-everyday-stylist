@@ -51,7 +51,7 @@ const CommunityPage = () => {
   return (
     <div className="pt-6 pb-24 space-y-5">
       <div className="flex items-center justify-between h-10">
-        <h1 className="text-2xl font-bold text-foreground font-outfit">Inspo</h1>
+        <h1 className="text-2xl font-bold text-foreground font-outfit">Feed</h1>
       </div>
 
       {looks.length === 0 ? (
