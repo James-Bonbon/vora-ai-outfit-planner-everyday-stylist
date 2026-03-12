@@ -156,7 +156,7 @@ const WardrobePage = () => {
         {activeTab === "closet" ? (
           <div className="flex gap-2">
             <Button size="icon" variant="outline" className="rounded-xl h-10 w-10" onClick={() => setMapOpen(true)}>
-              <MapIcon className="w-5 h-5" />
+              <CabinetIcon className="w-5 h-5" />
             </Button>
             <Button size="icon" variant="outline" className="rounded-xl h-10 w-10" onClick={() => setCameraOpen(true)}>
               <Camera className="w-5 h-5" />
