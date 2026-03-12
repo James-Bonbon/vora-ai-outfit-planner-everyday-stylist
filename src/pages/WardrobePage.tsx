@@ -160,8 +160,8 @@ const WardrobePage = () => {
             <Button size="icon" variant="outline" className="rounded-xl h-10 w-10" onClick={() => setCameraOpen(true)}>
               <Camera className="w-5 h-5" />
             </Button>
-            <Button size="icon" className="rounded-xl h-10 w-10" onClick={() => { setPrefill(null); setAddOpen(true); }}>
-              <Plus className="w-5 h-5" />
+            <Button variant="outline" size="icon" className="w-9 h-9 rounded-xl border-border hover:bg-muted shrink-0 shadow-sm" onClick={() => { setPrefill(null); setAddOpen(true); }}>
+              <Plus className="w-4 h-4 text-foreground" />
             </Button>
           </div>
         ) : (
