@@ -49,11 +49,9 @@ const CommunityPage = () => {
   const avatars = data?.avatarUrls || {};
 
   return (
-    <div className="px-4 pt-2 pb-24 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Discover
-        </h1>
+    <div className="pt-6 pb-24 space-y-5">
+      <div className="flex items-center justify-between h-10">
+        <h1 className="text-2xl font-bold text-foreground font-outfit">Inspo</h1>
       </div>
 
       {looks.length === 0 ? (
