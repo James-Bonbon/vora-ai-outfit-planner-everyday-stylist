@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import GlassCard from "@/components/GlassCard";
 import SafeImage from "@/components/ui/SafeImage";
-import { Plus, Library, Camera, Map as MapIcon, Loader2 } from "lucide-react";
+import { Plus, Library, Camera, Loader2 } from "lucide-react";
+import CabinetIcon from "@/components/icons/CabinetIcon";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -155,7 +156,7 @@ const WardrobePage = () => {
         {activeTab === "closet" ? (
           <div className="flex gap-2">
             <Button size="icon" variant="outline" className="rounded-xl h-10 w-10" onClick={() => setMapOpen(true)}>
-              <MapIcon className="w-5 h-5" />
+              <CabinetIcon className="w-5 h-5" />
             </Button>
             <Button size="icon" variant="outline" className="rounded-xl h-10 w-10" onClick={() => setCameraOpen(true)}>
               <Camera className="w-5 h-5" />
@@ -358,7 +359,7 @@ const WardrobePage = () => {
               <WardrobeMap svgString={closetSvg} />
             ) : (
               <div className="text-center py-6">
-                <MapIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                <CabinetIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">
                   Take a photo of your closet and AI will create an interactive map of its compartments.
                 </p>
