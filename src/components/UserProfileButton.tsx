@@ -8,11 +8,10 @@ export const UserProfileButton = () => {
   return (
     <Button
       variant="outline"
-      size="icon"
       onClick={() => navigate("/profile")}
-      className="rounded-full shadow-sm bg-card border-border hover:scale-105 transition-transform shrink-0"
+      className="w-9 h-9 p-0 rounded-full shadow-sm bg-card border-primary/20 hover:bg-primary/5 hover:scale-105 transition-all shrink-0 flex items-center justify-center text-primary"
     >
-      <User className="w-4 h-4" />
+      <User className="w-6 h-6 stroke-[1.5]" />
     </Button>
   );
 };
