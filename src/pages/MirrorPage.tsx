@@ -273,8 +273,8 @@ const MirrorPage = () => {
       <div className="pt-6 space-y-5">
         <div className="flex items-center justify-between h-10">
           <h1 className="text-2xl font-bold text-foreground font-outfit">AI Stylist</h1>
-          <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => setChatOpen(true)}>
-            <MessageCircle className="w-5 h-5" />
+          <Button variant="outline" size="icon" className="w-9 h-9 rounded-xl border-border hover:bg-muted shrink-0 shadow-sm relative" onClick={() => setChatOpen(true)}>
+            <MessageCircle className="w-4 h-4 text-foreground" />
           </Button>
         </div>
         <Sheet open={chatOpen} onOpenChange={setChatOpen}>
