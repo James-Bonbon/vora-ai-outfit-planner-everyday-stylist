@@ -432,6 +432,15 @@ const ProfilePage = () => {
           <span className="text-sm font-medium text-destructive">Sign Out</span>
         </GlassCard>
       </div>
+
+      {rawImageSrc && (
+        <AvatarCropperModal
+          isOpen={isCropperOpen}
+          onClose={() => setIsCropperOpen(false)}
+          imageSrc={rawImageSrc}
+          onCropComplete={handleCropComplete}
+        />
+      )}
     </div>
   );
 };
