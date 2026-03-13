@@ -9,7 +9,7 @@ export const UserProfileButton = () => {
       onClick={() => navigate('/profile')}
       className="w-9 h-9 flex items-center justify-center rounded-full bg-secondary border border-border hover:bg-muted text-muted-foreground transition-colors shrink-0"
     >
-      <User className="w-[19px] h-[19px] stroke-[1.5]" />
+      <User className="!w-6 !h-6 stroke-[1.5]" />
     </button>
   );
 };

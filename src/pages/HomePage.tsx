@@ -319,7 +319,7 @@ const HomePage = () => {
             onClick={() => navigate('/home')}
             className="w-9 h-9 flex items-center justify-center rounded-full bg-secondary border border-border hover:bg-muted text-muted-foreground transition-colors shrink-0"
           >
-            <CalendarDays className="w-4 h-4" />
+            <CalendarDays className="!w-6 !h-6 stroke-[1.5]" />
           </button>
           <UserProfileButton />
         </div>

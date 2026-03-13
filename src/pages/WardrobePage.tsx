@@ -175,7 +175,7 @@ const WardrobePage = () => {
                 setAddOpen(true);
               }}
             >
-              <Plus className="w-8 h-8 text-foreground stroke-[1.5]" />
+              <Plus className="!w-6 !h-6 text-foreground stroke-[1.5]" />
             </Button>
           </div>
         ) : (
