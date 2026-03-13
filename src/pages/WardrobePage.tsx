@@ -156,7 +156,7 @@ const WardrobePage = () => {
               className="w-9 h-9 rounded-xl border-border hover:bg-muted shrink-0 shadow-sm"
               onClick={() => setMapOpen(true)}
             >
-              <CabinetIcon className="!w-8 !h-8 text-foreground" strokeWidth={1.5} />
+              <CabinetIcon className="w-8 h-8 text-foreground" strokeWidth={1.5} />
             </Button>
             <Button
               size="icon"
