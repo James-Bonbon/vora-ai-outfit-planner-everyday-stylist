@@ -159,7 +159,7 @@ const WardrobePage = () => {
               <CabinetIcon className="w-6 h-6 text-foreground" strokeWidth={1.5} />
             </Button>
             <Button size="icon" variant="outline" className="w-9 h-9 rounded-xl border-border hover:bg-muted shrink-0 shadow-sm" onClick={() => setCameraOpen(true)}>
-              <Camera className="w-5 h-5 text-foreground stroke-[1.5]" />
+              <Camera className="w-6 h-6 text-foreground stroke-[1.5]" />
             </Button>
             <Button variant="outline" size="icon" className="w-9 h-9 rounded-xl border-border hover:bg-muted shrink-0 shadow-sm" onClick={() => { setPrefill(null); setAddOpen(true); }}>
               <Plus className="w-5 h-5 text-foreground stroke-[1.5]" />
