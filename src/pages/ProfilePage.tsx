@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { applyTheme } from "@/components/ThemeProvider";
 import { getBodyShapes } from "@/constants/bodyShapes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { AvatarCropperModal } from "@/components/AvatarCropperModal";
 
 interface ProfileData {
   display_name: string | null;
@@ -85,15 +86,25 @@ const ProfilePage = () => {
 
   const [editSelfieFile, setEditSelfieFile] = useState<File | null>(null);
   const [editSelfiePreview, setEditSelfiePreview] = useState<string | null>(null);
+  const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
+  const [isCropperOpen, setIsCropperOpen] = useState(false);
 
   const handleSelfieChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setEditSelfieFile(file);
       const reader = new FileReader();
-      reader.onload = (ev) => setEditSelfiePreview(ev.target?.result as string);
+      reader.onload = (ev) => {
+        setRawImageSrc(ev.target?.result as string);
+        setIsCropperOpen(true);
+      };
       reader.readAsDataURL(file);
     }
+    e.target.value = '';
+  };
+
+  const handleCropComplete = (croppedFile: File, previewUrl: string) => {
+    setEditSelfieFile(croppedFile);
+    setEditSelfiePreview(previewUrl);
   };
 
   const handleSave = async () => {
@@ -421,6 +432,15 @@ const ProfilePage = () => {
           <span className="text-sm font-medium text-destructive">Sign Out</span>
         </GlassCard>
       </div>
+
+      {rawImageSrc && (
+        <AvatarCropperModal
+          isOpen={isCropperOpen}
+          onClose={() => setIsCropperOpen(false)}
+          imageSrc={rawImageSrc}
+          onCropComplete={handleCropComplete}
+        />
+      )}
     </div>
   );
 };
