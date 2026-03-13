@@ -261,7 +261,7 @@ const BeautyPage = () => {
             className="w-9 h-9 rounded-xl border-border hover:bg-muted shrink-0 shadow-sm"
             onClick={() => setAddOpen(true)}
           >
-            <Plus className="!w-6 !h-6 text-foreground stroke-[1.5]" />
+            <Plus className="!w-6 !h-6 text-foreground stroke-[1]" />
           </Button>
         )}
       </div>
