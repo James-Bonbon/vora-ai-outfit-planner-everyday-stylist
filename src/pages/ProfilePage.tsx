@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { applyTheme } from "@/components/ThemeProvider";
 import { getBodyShapes } from "@/constants/bodyShapes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { AvatarCropperModal } from "@/components/AvatarCropperModal";
 
 interface ProfileData {
   display_name: string | null;
