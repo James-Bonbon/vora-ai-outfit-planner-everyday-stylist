@@ -17,12 +17,7 @@ import type { ClosetItem, DreamItem, GarmentDisplay } from "@/types/wardrobe";
 import { WardrobeMap } from "@/components/wardrobe/WardrobeMap";
 import { normalizeToPng } from "@/utils/imageProcessing";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const CATEGORIES = ["All", "Tops", "Bottoms", "Shoes", "Accessories", "Outerwear"];
 
@@ -94,7 +89,7 @@ const WardrobePage = () => {
   };
 
   const { data: closetData, isLoading: isClosetLoading } = useQuery({
-    queryKey: ['closet', user?.id],
+    queryKey: ["closet", user?.id],
     enabled: !!user,
     staleTime: 1000 * 60 * 30,
     queryFn: async () => {
@@ -121,11 +116,11 @@ const WardrobePage = () => {
         }
       }
       return { items: data as ClosetItem[], imageUrls: urls };
-    }
+    },
   });
 
   const { data: dreamItems = [], isLoading: isDreamLoading } = useQuery({
-    queryKey: ['dream', user?.id],
+    queryKey: ["dream", user?.id],
     enabled: !!user,
     staleTime: 1000 * 60 * 30,
     queryFn: async () => {
@@ -136,7 +131,7 @@ const WardrobePage = () => {
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data as DreamItem[]) ?? [];
-    }
+    },
   });
 
   const items = closetData?.items ?? [];
@@ -144,8 +139,8 @@ const WardrobePage = () => {
   const filtered = activeCategory === "All" ? items : items.filter((i) => i.category === activeCategory);
 
   const handleRefresh = () => {
-    if (activeTab === "closet") queryClient.invalidateQueries({ queryKey: ['closet', user?.id] });
-    else queryClient.invalidateQueries({ queryKey: ['dream', user?.id] });
+    if (activeTab === "closet") queryClient.invalidateQueries({ queryKey: ["closet", user?.id] });
+    else queryClient.invalidateQueries({ queryKey: ["dream", user?.id] });
   };
 
   return (
@@ -155,14 +150,32 @@ const WardrobePage = () => {
         <h1 className="text-2xl font-bold text-foreground font-outfit">Wardrobe</h1>
         {activeTab === "closet" ? (
           <div className="flex gap-2">
-            <Button size="icon" variant="outline" className="w-9 h-9 rounded-xl border-border hover:bg-muted shrink-0 shadow-sm" onClick={() => setMapOpen(true)}>
-              <CabinetIcon className="w-6 h-6 text-foreground" strokeWidth={1.5} />
+            <Button
+              size="icon"
+              variant="outline"
+              className="w-9 h-9 rounded-xl border-border hover:bg-muted shrink-0 shadow-sm"
+              onClick={() => setMapOpen(true)}
+            >
+              <CabinetIcon className="w-8 h-8 text-foreground" strokeWidth={1.5} />
             </Button>
-            <Button size="icon" variant="outline" className="w-9 h-9 rounded-xl border-border hover:bg-muted shrink-0 shadow-sm" onClick={() => setCameraOpen(true)}>
-              <Camera className="w-6 h-6 text-foreground stroke-[1.5]" />
+            <Button
+              size="icon"
+              variant="outline"
+              className="w-9 h-9 rounded-xl border-border hover:bg-muted shrink-0 shadow-sm"
+              onClick={() => setCameraOpen(true)}
+            >
+              <Camera className="w-8 h-8 text-foreground stroke-[1.5]" />
             </Button>
-            <Button variant="outline" size="icon" className="w-9 h-9 rounded-xl border-border hover:bg-muted shrink-0 shadow-sm" onClick={() => { setPrefill(null); setAddOpen(true); }}>
-              <Plus className="w-6 h-6 text-foreground stroke-[1.5]" />
+            <Button
+              variant="outline"
+              size="icon"
+              className="w-9 h-9 rounded-xl border-border hover:bg-muted shrink-0 shadow-sm"
+              onClick={() => {
+                setPrefill(null);
+                setAddOpen(true);
+              }}
+            >
+              <Plus className="w-8 h-8 text-foreground stroke-[1.5]" />
             </Button>
           </div>
         ) : (
@@ -180,9 +193,7 @@ const WardrobePage = () => {
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-              activeTab === tab
-                ? "bg-primary text-primary-foreground"
-                : "border border-border text-muted-foreground"
+              activeTab === tab ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground"
             }`}
           >
             {tab === "closet" ? "My Closet" : "Dream List"}
@@ -248,9 +259,7 @@ const WardrobePage = () => {
                   </div>
                   <div className="p-3">
                     <p className="text-sm font-medium text-[#2A2A2A] truncate">{item.name || "Unnamed"}</p>
-                    {item.category && (
-                      <span className="text-[10px] text-[#6B6B6B]">{item.category}</span>
-                    )}
+                    {item.category && <span className="text-[10px] text-[#6B6B6B]">{item.category}</span>}
                   </div>
                 </div>
               ))}
@@ -329,10 +338,15 @@ const WardrobePage = () => {
             setTimeout(() => setAddOpen(true), 300);
           }
         }}
-        onItemAdded={() => queryClient.invalidateQueries({ queryKey: ['closet', user?.id] })}
+        onItemAdded={() => queryClient.invalidateQueries({ queryKey: ["closet", user?.id] })}
         prefill={prefill}
       />
-      <GarmentDetailSheet item={selectedItem} open={detailOpen} onOpenChange={setDetailOpen} onDeleted={handleRefresh} />
+      <GarmentDetailSheet
+        item={selectedItem}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        onDeleted={handleRefresh}
+      />
       <SmartCamera
         open={cameraOpen}
         onOpenChange={setCameraOpen}
