@@ -2,7 +2,20 @@ import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import GlassCard from "@/components/GlassCard";
 import SafeImage from "@/components/ui/SafeImage";
-import { Sparkles, Check, Image, Loader2, AlertTriangle, Save, Trash2, GalleryHorizontalEnd, Lock, Star, MessageCircle, Globe } from "lucide-react";
+import {
+  Sparkles,
+  Check,
+  Image,
+  Loader2,
+  AlertTriangle,
+  Save,
+  Trash2,
+  GalleryHorizontalEnd,
+  Lock,
+  Star,
+  MessageCircle,
+  Globe,
+} from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { StylistChat } from "@/components/chat/StylistChat";
 import { Button } from "@/components/ui/button";
@@ -202,12 +215,13 @@ const MirrorPage = () => {
 
     const shapePrompts: Record<string, string> = {
       // Female / Neutral
-      "Slim": "tailored slim fit, close to the body, clean narrow silhouette",
-      "Balanced": "naturally contoured tailored fit, balanced upper and lower proportions, standard drape",
-      "Fuller": "relaxed fit, comfortable drape, elongated vertical lines, soft tailored structure with slightly more volume",
+      Slim: "tailored slim fit, close to the body, clean narrow silhouette",
+      Balanced: "naturally contoured tailored fit, balanced upper and lower proportions, standard drape",
+      Fuller:
+        "relaxed fit, comfortable drape, elongated vertical lines, soft tailored structure with slightly more volume",
       // Male specific
-      "Athletic": "broad shoulders, v-taper silhouette, narrow waist, structured muscular fit",
-      "Broad": "relaxed fit, comfortable drape across the midsection, wider frame, robust build, straight lines",
+      Athletic: "broad shoulders, v-taper silhouette, narrow waist, structured muscular fit",
+      Broad: "relaxed fit, comfortable drape across the midsection, wider frame, robust build, straight lines",
     };
     const shapeInstruction = bodyShape ? shapePrompts[bodyShape] : null;
 
@@ -216,8 +230,10 @@ const MirrorPage = () => {
       occasion ? `Style suitable for a ${occasion} occasion` : null,
       desiredLook.trim(),
       "CRITICAL INSTRUCTION: Strictly maintain the exact original facial features, identity, hair color, and hairstyle from the source selfie. Do not alter, repaint, or modify the head, face, or hair in any way.",
-      "Professional fashion photography, subject perfectly centered, waist-up portrait, head and torso fully visible, well-framed, maintain 3:4 aspect ratio"
-    ].filter(Boolean).join(". ");
+      "Professional fashion photography, subject perfectly centered, waist-up portrait, head and torso fully visible, well-framed, maintain 3:4 aspect ratio",
+    ]
+      .filter(Boolean)
+      .join(". ");
 
     tryOnMutation.mutate(
       {
@@ -273,8 +289,13 @@ const MirrorPage = () => {
       <div className="pt-6 space-y-5">
         <div className="flex items-center justify-between h-10">
           <h1 className="text-2xl font-bold text-foreground font-outfit">AI Stylist</h1>
-          <Button variant="outline" size="icon" className="w-9 h-9 rounded-xl border-border hover:bg-muted shrink-0 shadow-sm relative" onClick={() => setChatOpen(true)}>
-            <MessageCircle className="w-6 h-6 text-foreground stroke-[1.5]" />
+          <Button
+            variant="outline"
+            size="icon"
+            className="w-9 h-9 rounded-xl border-border hover:bg-muted shrink-0 shadow-sm relative"
+            onClick={() => setChatOpen(true)}
+          >
+            <MessageCircle className="w-8 h-8 text-foreground stroke-[1.5]" />
           </Button>
         </div>
         <Sheet open={chatOpen} onOpenChange={setChatOpen}>
@@ -300,8 +321,13 @@ const MirrorPage = () => {
     <div className="pt-6 space-y-5 pb-4">
       <div className="flex items-center justify-between h-10">
         <h1 className="text-2xl font-bold text-foreground font-outfit">AI Stylist</h1>
-        <Button variant="outline" size="icon" className="w-9 h-9 rounded-xl border-border hover:bg-muted shrink-0 shadow-sm relative" onClick={() => setChatOpen(true)}>
-            <MessageCircle className="w-6 h-6 text-foreground stroke-[1.5]" />
+        <Button
+          variant="outline"
+          size="icon"
+          className="w-9 h-9 rounded-xl border-border hover:bg-muted shrink-0 shadow-sm relative"
+          onClick={() => setChatOpen(true)}
+        >
+          <MessageCircle className="w-6 h-6 text-foreground stroke-[1.5]" />
         </Button>
       </div>
 
