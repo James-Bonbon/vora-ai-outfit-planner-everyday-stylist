@@ -295,7 +295,7 @@ const MirrorPage = () => {
             className="w-9 h-9 rounded-xl border-border hover:bg-muted shrink-0 shadow-sm relative"
             onClick={() => setChatOpen(true)}
           >
-            <MessageCircle className="w-8 h-8 text-foreground stroke-[1.5]" />
+            <MessageCircle className="w-6 h-6 text-foreground stroke-[1.5]" />
           </Button>
         </div>
         <Sheet open={chatOpen} onOpenChange={setChatOpen}>
