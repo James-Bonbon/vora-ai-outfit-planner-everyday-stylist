@@ -258,7 +258,7 @@ const BeautyPage = () => {
         <h1 className="text-2xl font-bold text-foreground font-outfit">Beauty</h1>
         {tab === "shelf" && (
           <Button variant="outline" size="icon" className="w-9 h-9 rounded-xl border-border hover:bg-muted shrink-0 shadow-sm" onClick={() => setAddOpen(true)}>
-            <Plus className="w-4 h-4 text-foreground" />
+            <Plus className="w-5 h-5 text-foreground stroke-[1.5]" />
           </Button>
         )}
       </div>
