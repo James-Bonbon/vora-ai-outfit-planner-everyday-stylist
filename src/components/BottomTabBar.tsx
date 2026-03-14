@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 const tabs = [
   { path: "/home", label: "Home", icon: Home },
   { path: "/wardrobe", label: "Wardrobe", icon: DoorOpen },
-  { path: "/discover", label: "Feed", icon: LayoutGrid },
+  { path: "/feed", label: "Feed", icon: LayoutGrid },
   { path: "/mirror", label: "Stylist", icon: Sparkles },
   { path: "/beauty", label: "Beauty", icon: HeartPulse },
 ];

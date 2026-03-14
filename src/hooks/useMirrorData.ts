@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { getSignedUrl } from "@/utils/urlCache";
 
 // ─── Types ───────────────────────────────────────────────────────────────
 
@@ -37,29 +38,12 @@ interface TryOnResult {
   cached: boolean;
 }
 
-// ─── Signed URL helper ──────────────────────────────────────────────────
-
-const signedUrlCache = new Map<string, { url: string; expiresAt: number }>();
-
-async function getSignedUrl(bucket: string, path: string): Promise<string | null> {
-  const key = `${bucket}:${path}`;
-  const cached = signedUrlCache.get(key);
-  if (cached && cached.expiresAt > Date.now()) return cached.url;
-
-  const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 3600);
-  if (data?.signedUrl) {
-    signedUrlCache.set(key, { url: data.signedUrl, expiresAt: Date.now() + 3500_000 });
-    return data.signedUrl;
-  }
-  return null;
-}
-
 // ─── Queries ────────────────────────────────────────────────────────────
 
 export function useProfileData() {
   const { user } = useAuth();
   return useQuery({
-    queryKey: ["profile-data", user?.id],
+    queryKey: ["profile", user?.id],
     queryFn: async () => {
       if (!user) return null;
       const { data, error } = await supabase

@@ -89,7 +89,7 @@ const WardrobePage = () => {
   };
 
   const { data: closetData, isLoading: isClosetLoading } = useQuery({
-    queryKey: ["closet", user?.id],
+    queryKey: ["closet-items", user?.id],
     enabled: !!user,
     staleTime: 1000 * 60 * 30,
     queryFn: async () => {
@@ -139,7 +139,7 @@ const WardrobePage = () => {
   const filtered = activeCategory === "All" ? items : items.filter((i) => i.category === activeCategory);
 
   const handleRefresh = () => {
-    if (activeTab === "closet") queryClient.invalidateQueries({ queryKey: ["closet", user?.id] });
+    if (activeTab === "closet") queryClient.invalidateQueries({ queryKey: ["closet-items", user?.id] });
     else queryClient.invalidateQueries({ queryKey: ["dream", user?.id] });
   };
 
@@ -338,7 +338,7 @@ const WardrobePage = () => {
             setTimeout(() => setAddOpen(true), 300);
           }
         }}
-        onItemAdded={() => queryClient.invalidateQueries({ queryKey: ["closet", user?.id] })}
+        onItemAdded={() => queryClient.invalidateQueries({ queryKey: ["closet-items", user?.id] })}
         prefill={prefill}
       />
       <GarmentDetailSheet
