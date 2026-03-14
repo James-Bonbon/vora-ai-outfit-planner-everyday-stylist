@@ -43,7 +43,7 @@ interface TryOnResult {
 export function useProfileData() {
   const { user } = useAuth();
   return useQuery({
-    queryKey: ["profile", user?.id],
+    queryKey: ["profile-data", user?.id], // Reverted to avoid collision with ProfilePage
     queryFn: async () => {
       if (!user) return null;
       const { data, error } = await supabase
@@ -55,7 +55,6 @@ export function useProfileData() {
       return data;
     },
     enabled: !!user,
-    staleTime: 30 * 60 * 1000,
   });
 }
 
@@ -69,11 +68,20 @@ export function useSelfieUrl() {
         .select("selfie_url")
         .eq("user_id", user!.id)
         .maybeSingle();
+
       if (!profile?.selfie_url) return null;
-      return getSignedUrl("selfies", profile.selfie_url);
+
+      // If ProfilePage saved a full public URL, use it directly!
+      if (profile.selfie_url.startsWith("http")) {
+        return profile.selfie_url;
+      }
+
+      // Fallback for legacy short paths
+      const { data } = await supabase.storage.from("selfies").createSignedUrl(profile.selfie_url, 3600);
+      return data?.signedUrl || null;
     },
     enabled: !!user,
-    staleTime: 30 * 60 * 1000, // 30 min
+    staleTime: 0, // Force fresh fetch to prevent stale cache
   });
 }
 

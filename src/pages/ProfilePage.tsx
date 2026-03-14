@@ -151,8 +151,9 @@ const ProfilePage = () => {
         .eq("user_id", user.id);
       if (error) throw error;
       toast.success("Profile updated!");
-      queryClient.invalidateQueries({ queryKey: ['profile', user.id] });
-      queryClient.invalidateQueries({ queryKey: ['selfie-url', user.id] });
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ['profile-data'] });
+      queryClient.invalidateQueries({ queryKey: ['selfie-url'] });
       setEditing(false);
       setEditSelfieFile(null);
       setEditSelfiePreview(null);
