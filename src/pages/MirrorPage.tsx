@@ -41,6 +41,7 @@ import {
 const OCCASIONS = ["Casual", "Date Night", "Work", "Party", "Streetwear"];
 
 const MirrorPage = () => {
+  const { user } = useAuth();
   const location = useLocation();
   const outfitPlan = location.state as { vibe?: string; weather?: string; preSelectedIds?: string[] } | null;
 
