@@ -89,7 +89,7 @@ const WardrobePage = () => {
   };
 
   const { data: closetData, isLoading: isClosetLoading } = useQuery({
-    queryKey: ["closet", user?.id],
+    queryKey: ["closet-items", user?.id],
     enabled: !!user,
     staleTime: 1000 * 60 * 30,
     queryFn: async () => {
