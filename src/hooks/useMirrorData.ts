@@ -43,7 +43,7 @@ interface TryOnResult {
 export function useProfileData() {
   const { user } = useAuth();
   return useQuery({
-    queryKey: ["profile-data", user?.id],
+    queryKey: ["profile", user?.id],
     queryFn: async () => {
       if (!user) return null;
       const { data, error } = await supabase

@@ -84,19 +84,28 @@ const BeautyPage = () => {
     if (data) {
       setProducts(data as BeautyProduct[]);
       const urls: Record<string, string> = {};
-      await Promise.all(
-        data.map(async (item: BeautyProduct) => {
-          // External URLs (from browse) don't need signed URLs
-          if (item.image_url.startsWith("http")) {
-            urls[item.id] = item.image_url;
-          } else {
-            const { data: urlData } = await supabase.storage
-              .from("beauty-products")
-              .createSignedUrl(item.image_url, 3600);
-            if (urlData?.signedUrl) urls[item.id] = urlData.signedUrl;
-          }
-        }),
-      );
+      const pathsToSign: string[] = [];
+
+      data.forEach((item: BeautyProduct) => {
+        if (item.image_url.startsWith("http")) {
+          urls[item.id] = item.image_url;
+        } else {
+          pathsToSign.push(item.image_url);
+        }
+      });
+
+      if (pathsToSign.length > 0) {
+        const { data: urlData } = await supabase.storage
+          .from("beauty-products")
+          .createSignedUrls(pathsToSign, 3600);
+          
+        if (urlData) {
+          const unsignedItems = data.filter((item: BeautyProduct) => !item.image_url.startsWith("http"));
+          urlData.forEach((u, index) => {
+            if (u.signedUrl) urls[unsignedItems[index].id] = u.signedUrl;
+          });
+        }
+      }
       setImageUrls(urls);
     }
   }, [user]);

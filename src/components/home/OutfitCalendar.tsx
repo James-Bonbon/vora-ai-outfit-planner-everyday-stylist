@@ -85,20 +85,29 @@ const OutfitCalendar = () => {
 
     // Sign closet item URLs (only owned items belong in the calendar)
     if (closetRes.data && closetRes.data.length > 0) {
-      const withUrls = await Promise.all(
-        closetRes.data.map(async (item) => {
-          const { data } = await supabase.storage.from("garments").createSignedUrl(item.image_url, 3600);
-          return {
-            id: item.id,
-            name: item.name,
-            image_url: data?.signedUrl || item.image_url,
-            category: item.category,
-            created_at: item.created_at,
-            is_in_laundry: item.is_in_laundry,
-            source: "closet" as const,
-          };
-        }),
-      );
+      const paths = closetRes.data.map((item) => item.image_url).filter(Boolean);
+      let urlMap: Record<string, string> = {};
+
+      if (paths.length > 0) {
+        const { data: urlData } = await supabase.storage
+          .from("garments")
+          .createSignedUrls(paths, 3600);
+        if (urlData) {
+          urlData.forEach((u, index) => {
+            if (u.signedUrl) urlMap[closetRes.data![index].image_url] = u.signedUrl;
+          });
+        }
+      }
+
+      const withUrls = closetRes.data.map((item) => ({
+        id: item.id,
+        name: item.name,
+        image_url: urlMap[item.image_url] || item.image_url,
+        category: item.category,
+        created_at: item.created_at,
+        is_in_laundry: item.is_in_laundry,
+        source: "closet" as const,
+      }));
       pool.push(...withUrls);
     }
 

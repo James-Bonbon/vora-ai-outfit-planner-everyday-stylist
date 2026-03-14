@@ -255,9 +255,32 @@ const MirrorPage = () => {
     );
   };
 
-  const handleSaveLook = () => {
-    // Fallback: Cached results return .image instead of .image_path
-    const imagePath = tryOnMutation.data?.image_path || tryOnMutation.data?.image;
+  const handleSaveLook = async () => {
+    let imagePath = tryOnMutation.data?.image_path;
+    const rawImage = tryOnMutation.data?.image;
+
+    if (!imagePath && rawImage?.startsWith("data:image")) {
+      try {
+        const base64Data = rawImage.split(",")[1];
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: "image/png" });
+        
+        const newPath = `${user?.id}/look_${Date.now()}.png`;
+        const { error: uploadErr } = await supabase.storage.from("looks").upload(newPath, blob);
+        if (uploadErr) throw uploadErr;
+        
+        imagePath = newPath;
+      } catch (err) {
+        toast.error("Failed to process image for saving.");
+        return;
+      }
+    }
+
     if (!imagePath) {
       toast.error("Cannot save — no image path available.");
       return;
