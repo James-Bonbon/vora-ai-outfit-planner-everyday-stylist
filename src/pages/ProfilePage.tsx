@@ -180,7 +180,12 @@ const ProfilePage = () => {
   return (
     <div className="pt-6 space-y-5">
       <div className="flex items-center justify-between h-10">
-        <h1 className="text-2xl font-bold text-foreground font-outfit">Profile</h1>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(-1)}>
+            <ChevronLeft className="w-5 h-5" />
+          </Button>
+          <h1 className="text-2xl font-bold text-foreground font-outfit">Profile</h1>
+        </div>
         {!editing ? (
           <Button variant="ghost" size="sm" onClick={startEditing} className="text-primary">
             <Pencil className="w-4 h-4 mr-1" /> Edit
