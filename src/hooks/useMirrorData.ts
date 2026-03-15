@@ -252,9 +252,29 @@ export function useSaveLookMutation() {
       garmentIds: string[];
       bodyShape?: string | null;
     }) => {
+      let finalPath = imagePath;
+
+      // Intercept raw Base64 and upload to Storage
+      if (imagePath.startsWith("data:image")) {
+        const base64Data = imagePath.split(",")[1];
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: "image/png" });
+        
+        const newPath = `${user!.id}/look_${Date.now()}.png`;
+        const { error: uploadErr } = await supabase.storage.from("looks").upload(newPath, blob);
+        if (uploadErr) throw new Error("Failed to upload image to storage");
+        
+        finalPath = newPath;
+      }
+
       const { error } = await supabase.from("looks").insert({
         user_id: user!.id,
-        image_path: imagePath,
+        image_path: finalPath,
         occasion,
         garment_ids: garmentIds,
         body_shape: bodyShape,
