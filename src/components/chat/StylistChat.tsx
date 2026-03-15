@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Send, Sparkles, Loader2, Trash2 } from "lucide-react";
+import { Send, Sparkles, Loader2, Trash2, Paperclip, X, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import SafeImage from "@/components/ui/SafeImage";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useProfileData } from "@/hooks/useMirrorData";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -27,12 +28,21 @@ interface GarmentMini {
   image_url: string;
 }
 
+interface Attachment {
+  url?: string;
+  base64?: string;
+  file?: File;
+}
+
 export const StylistChat: React.FC = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { data: profile } = useProfileData();
   const [input, setInput] = useState("");
+  const [attachment, setAttachment] = useState<Attachment | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch chat history
   const { data: messages = [] } = useQuery<ChatMessage[]>({
@@ -99,7 +109,17 @@ export const StylistChat: React.FC = () => {
       recentMessages.push({ role: "user", content: userMessage });
 
       const { data, error } = await supabase.functions.invoke("chat-stylist", {
-        body: { messages: recentMessages },
+        body: {
+          messages: recentMessages,
+          userContext: {
+            name: profile?.display_name,
+            bodyShape: profile?.body_shape,
+            sex: profile?.sex,
+            height: profile?.height_cm,
+            weight: profile?.weight_kg,
+          },
+          attachment: attachment ? { base64: attachment.base64, url: attachment.url } : undefined,
+        },
       });
 
       if (error) throw error;
@@ -111,7 +131,6 @@ export const StylistChat: React.FC = () => {
     },
     onError: (err: Error) => {
       toast.error("Stylist unavailable", { description: err.message });
-      // Still refresh to show the user message
       queryClient.invalidateQueries({ queryKey: ["chat-messages"] });
     },
   });
@@ -131,10 +150,27 @@ export const StylistChat: React.FC = () => {
     },
   });
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be less than 5MB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setAttachment({ base64: ev.target?.result as string, file });
+    };
+    reader.readAsDataURL(file);
+    // Reset so same file can be re-selected
+    e.target.value = "";
+  };
+
   const handleSend = () => {
     const text = input.trim();
     if (!text || sendMutation.isPending) return;
     setInput("");
+    setAttachment(null);
     sendMutation.mutate(text);
   };
 
@@ -150,7 +186,7 @@ export const StylistChat: React.FC = () => {
   return (
     <div className="flex flex-col h-[calc(100vh-10rem)]">
       {/* Header */}
-      <div className="flex items-center justify-between pb-3">
+      <div className="flex items-center justify-between pb-3 pr-8">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-flatlay-cta/20 flex items-center justify-center">
             <Sparkles className="w-4 h-4 text-flatlay-cta" />
@@ -290,8 +326,50 @@ export const StylistChat: React.FC = () => {
         )}
       </div>
 
+      {/* Attachment preview */}
+      {attachment && (
+        <div className="flex items-center gap-2 px-2 pt-2">
+          <div className="relative w-12 h-12 rounded-lg overflow-hidden border border-border bg-secondary">
+            {attachment.base64 ? (
+              <img src={attachment.base64} alt="Attachment" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <ImageIcon className="w-5 h-5 text-muted-foreground" />
+              </div>
+            )}
+            <button
+              onClick={() => setAttachment(null)}
+              className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+          <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+            {attachment.file?.name || "Image attached"}
+          </span>
+        </div>
+      )}
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileSelect}
+      />
+
       {/* Input */}
       <div className="flex items-center gap-2 pt-3 border-t border-border">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-10 w-10 shrink-0 text-muted-foreground"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={sendMutation.isPending}
+        >
+          <Paperclip className="w-4 h-4" />
+        </Button>
         <Input
           ref={inputRef}
           value={input}
