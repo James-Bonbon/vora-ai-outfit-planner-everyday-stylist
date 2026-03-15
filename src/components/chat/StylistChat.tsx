@@ -112,8 +112,11 @@ export const StylistChat: React.FC = () => {
         body: {
           messages: recentMessages,
           userContext: {
-            name: profile?.body_shape ? undefined : undefined, // profile only has body_shape
+            name: profile?.display_name,
             bodyShape: profile?.body_shape,
+            sex: profile?.sex,
+            height: profile?.height_cm,
+            weight: profile?.weight_kg,
           },
           attachment: attachment ? { base64: attachment.base64, url: attachment.url } : undefined,
         },
