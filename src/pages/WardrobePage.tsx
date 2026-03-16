@@ -149,7 +149,7 @@ const WardrobePage = () => {
       {/* Header */}
       <div className="flex items-center justify-between h-10">
         <h1 className="text-2xl font-bold text-foreground font-outfit">Wardrobe</h1>
-        {activeTab === "closet" ? (
+        {activeTab === "closet" && (
           <div className="flex gap-2">
             <Button
               size="icon"
@@ -179,11 +179,15 @@ const WardrobePage = () => {
               <Plus className="!w-6 !h-6 text-foreground stroke-[1]" />
             </Button>
           </div>
-        ) : (
+        )}
+        {activeTab === "dream" && (
           <Button variant="outline" size="sm" className="rounded-xl gap-1.5" onClick={() => navigate("/library")}>
             <Plus className="w-4 h-4" />
             Browse Library
           </Button>
+        )}
+        {activeTab === "lookbook" && (
+          <div /> {/* Spacer to keep header aligned */}
         )}
       </div>
 
