@@ -9,7 +9,6 @@ import {
   Check,
   Image,
   Loader2,
-  AlertTriangle,
   Save,
   Trash2,
   GalleryHorizontalEnd,
