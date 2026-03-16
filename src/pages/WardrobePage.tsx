@@ -345,7 +345,10 @@ const WardrobePage = () => {
             setTimeout(() => setAddOpen(true), 300);
           }
         }}
-        onItemAdded={() => queryClient.invalidateQueries({ queryKey: ["closet-items", user?.id] })}
+        onItemAdded={() => {
+          queryClient.invalidateQueries({ queryKey: ["closet"] });
+          queryClient.invalidateQueries({ queryKey: ["closet-items"] });
+        }}
         prefill={prefill}
       />
       <GarmentDetailSheet
