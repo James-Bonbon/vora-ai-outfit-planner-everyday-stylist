@@ -533,13 +533,12 @@ const MirrorPage = () => {
       {/* ========== TRY-ON TAB ========== */}
       {tab === "tryon" && (
         <>
-          {/* Selfie warning */}
-          {!hasSelfie && (
-            <GlassCard className="flex items-center gap-3 p-3 border-destructive/30">
-              <AlertTriangle className="w-5 h-5 text-destructive shrink-0" />
+          {/* Default model info */}
+          {isDefaultModel && (
+            <GlassCard className="flex items-center gap-3 p-3 border-primary/30 mb-4">
+              <Sparkles className="w-5 h-5 text-primary shrink-0" />
               <p className="text-xs text-muted-foreground">
-                Upload a selfie in your <span className="text-foreground font-medium">Profile</span> to enable virtual
-                try-on.
+                Using default model. Upload a selfie in your <span className="text-foreground font-medium">Profile</span> to try clothes on yourself.
               </p>
             </GlassCard>
           )}
