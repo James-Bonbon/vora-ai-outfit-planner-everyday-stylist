@@ -65,23 +65,24 @@ export function useSelfieUrl() {
     queryFn: async () => {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("selfie_url")
+        .select("selfie_url, sex")
         .eq("user_id", user!.id)
         .maybeSingle();
 
-      if (!profile?.selfie_url) return null;
-
-      // If ProfilePage saved a full public URL, use it directly!
-      if (profile.selfie_url.startsWith("http")) {
-        return profile.selfie_url;
+      // Fallback to Default Models
+      if (!profile?.selfie_url) {
+        const isMale = profile?.sex?.toLowerCase() === 'male';
+        const { data } = supabase.storage.from('assets').getPublicUrl(isMale ? 'nickson.jpg' : 'kaelie.jpg');
+        return data.publicUrl;
       }
 
-      // Fallback for legacy short paths
+      if (profile.selfie_url.startsWith("http")) return profile.selfie_url;
+
       const { data } = await supabase.storage.from("selfies").createSignedUrl(profile.selfie_url, 3600);
       return data?.signedUrl || null;
     },
     enabled: !!user,
-    staleTime: 0, // Force fresh fetch to prevent stale cache
+    staleTime: 0,
   });
 }
 
