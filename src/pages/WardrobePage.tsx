@@ -271,6 +271,9 @@ const WardrobePage = () => {
         </>
       )}
 
+      {/* Lookbook Tab */}
+      {activeTab === "lookbook" && <LookbookTab items={items} imageUrls={imageUrls} />}
+
       {/* Dream List Tab */}
       {activeTab === "dream" && (
         <>
