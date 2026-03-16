@@ -15,6 +15,7 @@ import SmartCamera from "@/components/wardrobe/SmartCamera";
 import type { AnalyzedItem } from "@/components/wardrobe/SmartCamera";
 import type { ClosetItem, DreamItem, GarmentDisplay } from "@/types/wardrobe";
 import { WardrobeMap } from "@/components/wardrobe/WardrobeMap";
+import { LookbookTab } from "@/components/wardrobe/LookbookTab";
 import { normalizeToPng } from "@/utils/imageProcessing";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
