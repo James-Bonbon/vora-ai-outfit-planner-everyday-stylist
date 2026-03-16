@@ -15,13 +15,14 @@ import SmartCamera from "@/components/wardrobe/SmartCamera";
 import type { AnalyzedItem } from "@/components/wardrobe/SmartCamera";
 import type { ClosetItem, DreamItem, GarmentDisplay } from "@/types/wardrobe";
 import { WardrobeMap } from "@/components/wardrobe/WardrobeMap";
+import { LookbookTab } from "@/components/wardrobe/LookbookTab";
 import { normalizeToPng } from "@/utils/imageProcessing";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const CATEGORIES = ["All", "Tops", "Bottoms", "Shoes", "Accessories", "Outerwear"];
 
-type TabValue = "closet" | "dream";
+type TabValue = "closet" | "lookbook" | "dream";
 
 const WardrobePage = () => {
   const { user } = useAuth();
@@ -148,7 +149,7 @@ const WardrobePage = () => {
       {/* Header */}
       <div className="flex items-center justify-between h-10">
         <h1 className="text-2xl font-bold text-foreground font-outfit">Wardrobe</h1>
-        {activeTab === "closet" ? (
+        {activeTab === "closet" && (
           <div className="flex gap-2">
             <Button
               size="icon"
@@ -178,17 +179,19 @@ const WardrobePage = () => {
               <Plus className="!w-6 !h-6 text-foreground stroke-[1]" />
             </Button>
           </div>
-        ) : (
+        )}
+        {activeTab === "dream" && (
           <Button variant="outline" size="sm" className="rounded-xl gap-1.5" onClick={() => navigate("/library")}>
             <Plus className="w-4 h-4" />
             Browse Library
           </Button>
         )}
+        {activeTab === "lookbook" && <div />}
       </div>
 
       {/* Tab Toggle */}
       <div className="flex gap-2">
-        {(["closet", "dream"] as const).map((tab) => (
+        {(["closet", "lookbook", "dream"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -196,7 +199,7 @@ const WardrobePage = () => {
               activeTab === tab ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground"
             }`}
           >
-            {tab === "closet" ? "My Closet" : "Dream List"}
+            {tab === "closet" ? "My Closet" : tab === "lookbook" ? "Lookbook" : "Dream List"}
           </button>
         ))}
       </div>
@@ -267,6 +270,9 @@ const WardrobePage = () => {
           )}
         </>
       )}
+
+      {/* Lookbook Tab */}
+      {activeTab === "lookbook" && <LookbookTab items={items} imageUrls={imageUrls} />}
 
       {/* Dream List Tab */}
       {activeTab === "dream" && (
