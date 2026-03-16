@@ -186,9 +186,7 @@ const WardrobePage = () => {
             Browse Library
           </Button>
         )}
-        {activeTab === "lookbook" && (
-          <div /> {/* Spacer to keep header aligned */}
-        )}
+        {activeTab === "lookbook" && <div />}
       </div>
 
       {/* Tab Toggle */}
