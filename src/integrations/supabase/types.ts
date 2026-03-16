@@ -262,6 +262,30 @@ export type Database = {
           },
         ]
       }
+      lookbook_outfits: {
+        Row: {
+          created_at: string
+          garment_ids: string[]
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          garment_ids: string[]
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          garment_ids?: string[]
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       looks: {
         Row: {
           body_shape: string | null
