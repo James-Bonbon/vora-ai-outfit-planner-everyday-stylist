@@ -95,7 +95,7 @@ const MirrorPage = () => {
   const looks = looksData?.looks ?? [];
   const lookUrls = looksData?.urls ?? {};
 
-  const hasSelfie = !!selfieUrl;
+  const isDefaultModel = selfieUrl?.includes('/assets/');
   const hasItems = items.length > 0;
 
   const toggleItem = (id: string) => {
