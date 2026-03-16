@@ -140,8 +140,9 @@ const WardrobePage = () => {
   const filtered = activeCategory === "All" ? items : items.filter((i) => i.category === activeCategory);
 
   const handleRefresh = () => {
-    if (activeTab === "closet") queryClient.invalidateQueries({ queryKey: ["closet-items", user?.id] });
-    else queryClient.invalidateQueries({ queryKey: ["dream", user?.id] });
+    queryClient.invalidateQueries({ queryKey: ["closet"] });
+    queryClient.invalidateQueries({ queryKey: ["closet-items"] });
+    if (activeTab === "dream") queryClient.invalidateQueries({ queryKey: ["dream", user?.id] });
   };
 
   return (
