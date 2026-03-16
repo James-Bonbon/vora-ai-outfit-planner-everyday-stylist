@@ -22,7 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 
 const CATEGORIES = ["All", "Tops", "Bottoms", "Shoes", "Accessories", "Outerwear"];
 
-type TabValue = "closet" | "dream";
+type TabValue = "closet" | "lookbook" | "dream";
 
 const WardrobePage = () => {
   const { user } = useAuth();
