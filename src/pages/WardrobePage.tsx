@@ -193,7 +193,7 @@ const WardrobePage = () => {
 
       {/* Tab Toggle */}
       <div className="flex gap-2">
-        {(["closet", "dream"] as const).map((tab) => (
+        {(["closet", "lookbook", "dream"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -201,7 +201,7 @@ const WardrobePage = () => {
               activeTab === tab ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground"
             }`}
           >
-            {tab === "closet" ? "My Closet" : "Dream List"}
+            {tab === "closet" ? "My Closet" : tab === "lookbook" ? "Lookbook" : "Dream List"}
           </button>
         ))}
       </div>
