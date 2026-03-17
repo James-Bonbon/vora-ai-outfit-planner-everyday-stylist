@@ -319,7 +319,7 @@ const HomePage = () => {
         <div className="flex items-center gap-2">
           <WeatherWidget weather={weather} loading={weatherLoading} />
           <button
-            onClick={() => navigate('/home')}
+            onClick={() => setIsCalendarOpen(true)}
             className="w-9 h-9 flex items-center justify-center rounded-full bg-secondary border border-border hover:bg-muted text-muted-foreground transition-colors shrink-0"
           >
             <CalendarDays className="!w-6 !h-6 stroke-[1.5]" />
