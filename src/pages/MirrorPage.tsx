@@ -146,11 +146,6 @@ const MirrorPage = () => {
   };
 
   const handleTryOn = () => {
-    if (!selfieUrl) {
-      toast.error("No selfie found", { description: "Upload a selfie in your profile first." });
-      return;
-    }
-
     if (selectedIds.size === 0 && !occasion && !desiredLook.trim()) {
       toast.error("Need direction", {
         description: "Select garments manually, or pick an Occasion so I can style you!",
