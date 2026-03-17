@@ -387,6 +387,7 @@ const HomePage = () => {
           ))}
         </div>
       </div>
+      <OutfitCalendarSheet isOpen={isCalendarOpen} onClose={() => setIsCalendarOpen(false)} />
     </div>
   );
 };
