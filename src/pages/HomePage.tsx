@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import OutfitCalendar from "@/components/home/OutfitCalendar";
 import UserProfileButton from "@/components/UserProfileButton";
 import { OutfitCalendarSheet } from "@/components/calendar/OutfitCalendarSheet";
+import { DiscoverFeed } from "@/components/feed/DiscoverFeed";
 
 
 const TRENDING_FEMALE = [
@@ -387,6 +388,10 @@ const HomePage = () => {
           ))}
         </div>
       </div>
+
+      {/* ===== Discover Feed ===== */}
+      <DiscoverFeed />
+
       <OutfitCalendarSheet isOpen={isCalendarOpen} onClose={() => setIsCalendarOpen(false)} />
     </div>
   );
