@@ -52,6 +52,7 @@ const MirrorPage = () => {
   const [selectedLook, setSelectedLook] = useState<SavedLook | null>(null);
   const [desiredLook, setDesiredLook] = useState("");
   const [chatOpen, setChatOpen] = useState(false);
+  const [useVoraModel, setUseVoraModel] = useState(false);
 
   // Data queries
   const { data: selfieUrl } = useSelfieUrl();
