@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import OutfitCalendar from "@/components/home/OutfitCalendar";
 import UserProfileButton from "@/components/UserProfileButton";
+import { OutfitCalendarSheet } from "@/components/calendar/OutfitCalendarSheet";
 
 
 const TRENDING_FEMALE = [
@@ -284,6 +285,7 @@ function getDailyItems<T>(items: T[], count: number): T[] {
 const HomePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [closetCount, setClosetCount] = useState(0);
   const [beautyCount, setBeautyCount] = useState(0);
   const [userSex, setUserSex] = useState<string | null>(null);
@@ -316,7 +318,7 @@ const HomePage = () => {
         <div className="flex items-center gap-2">
           <WeatherWidget weather={weather} loading={weatherLoading} />
           <button
-            onClick={() => navigate('/home')}
+            onClick={() => setIsCalendarOpen(true)}
             className="w-9 h-9 flex items-center justify-center rounded-full bg-secondary border border-border hover:bg-muted text-muted-foreground transition-colors shrink-0"
           >
             <CalendarDays className="!w-6 !h-6 stroke-[1.5]" />
@@ -385,6 +387,7 @@ const HomePage = () => {
           ))}
         </div>
       </div>
+      <OutfitCalendarSheet isOpen={isCalendarOpen} onClose={() => setIsCalendarOpen(false)} />
     </div>
   );
 };
