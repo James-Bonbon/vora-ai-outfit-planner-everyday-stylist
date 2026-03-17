@@ -286,7 +286,6 @@ const HomePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const { user } = useAuth();
   const [closetCount, setClosetCount] = useState(0);
   const [beautyCount, setBeautyCount] = useState(0);
   const [userSex, setUserSex] = useState<string | null>(null);
