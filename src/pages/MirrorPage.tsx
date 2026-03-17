@@ -543,16 +543,6 @@ const MirrorPage = () => {
       {/* ========== TRY-ON TAB ========== */}
       {tab === "tryon" && (
         <>
-          {/* Default model info */}
-          {isDefaultModel && (
-            <GlassCard className="flex items-center gap-3 p-3 border-primary/30 mb-4">
-              <Sparkles className="w-5 h-5 text-primary shrink-0" />
-              <p className="text-xs text-muted-foreground">
-                Using default model. Upload a selfie in your <span className="text-foreground font-medium">Profile</span> to try clothes on yourself.
-              </p>
-            </GlassCard>
-          )}
-
           {/* Result display */}
           <AnimatePresence mode="wait">
             {tryOnMutation.isPending ? (
