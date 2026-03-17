@@ -250,7 +250,7 @@ const MirrorPage = () => {
 
     tryOnMutation.mutate(
       {
-        selfieUrl,
+        selfieUrl: activeImageUrl!,
         garmentUrls,
         garmentIds: garmentIdsArray,
         occasion,
