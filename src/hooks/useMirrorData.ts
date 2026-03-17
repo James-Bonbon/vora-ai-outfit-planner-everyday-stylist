@@ -43,12 +43,12 @@ interface TryOnResult {
 export function useProfileData() {
   const { user } = useAuth();
   return useQuery({
-    queryKey: ["profile-data", user?.id], // Reverted to avoid collision with ProfilePage
+    queryKey: ["profile-data", user?.id],
     queryFn: async () => {
       if (!user) return null;
       const { data, error } = await supabase
         .from("profiles")
-        .select("body_shape, display_name, sex, height_cm, weight_kg")
+        .select("body_shape, sex")
         .eq("user_id", user.id)
         .maybeSingle();
       if (error) throw error;
