@@ -388,6 +388,10 @@ const HomePage = () => {
           ))}
         </div>
       </div>
+
+      {/* ===== Discover Feed ===== */}
+      <DiscoverFeed />
+
       <OutfitCalendarSheet isOpen={isCalendarOpen} onClose={() => setIsCalendarOpen(false)} />
     </div>
   );
