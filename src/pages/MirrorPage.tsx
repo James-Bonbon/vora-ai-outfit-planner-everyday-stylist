@@ -63,6 +63,20 @@ const MirrorPage = () => {
   const bodyShape = profileData?.body_shape;
   const { data: lookGarments = [] } = useLookGarments(selectedLook?.garment_ids ?? null);
 
+  // Force Vora model if no selfie
+  useEffect(() => {
+    if (!selfieUrl && !tryOnMutation.isPending) {
+      setUseVoraModel(true);
+    }
+  }, [selfieUrl, tryOnMutation.isPending]);
+
+  const voraModelUrl = supabase.storage
+    .from('assets')
+    .getPublicUrl(profileData?.sex?.toLowerCase() === 'male' ? 'nickson.png' : 'kaelie.png')
+    .data.publicUrl;
+
+  const activeImageUrl = useVoraModel ? voraModelUrl : selfieUrl;
+
   // Mutations
   const tryOnMutation = useTryOnMutation();
   const saveMutation = useSaveLookMutation();
