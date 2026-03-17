@@ -63,6 +63,12 @@ const MirrorPage = () => {
   const bodyShape = profileData?.body_shape;
   const { data: lookGarments = [] } = useLookGarments(selectedLook?.garment_ids ?? null);
 
+  // Mutations
+  const tryOnMutation = useTryOnMutation();
+  const saveMutation = useSaveLookMutation();
+  const deleteMutation = useDeleteLookMutation();
+  const publishMutation = useTogglePublishMutation();
+
   // Force Vora model if no selfie
   useEffect(() => {
     if (!selfieUrl && !tryOnMutation.isPending) {
@@ -76,12 +82,6 @@ const MirrorPage = () => {
     .data.publicUrl;
 
   const activeImageUrl = useVoraModel ? voraModelUrl : selfieUrl;
-
-  // Mutations
-  const tryOnMutation = useTryOnMutation();
-  const saveMutation = useSaveLookMutation();
-  const deleteMutation = useDeleteLookMutation();
-  const publishMutation = useTogglePublishMutation();
 
   // Combine closet + dream items for the stylist
   const closetItems = closetData?.items ?? [];
