@@ -17,6 +17,7 @@ import {
   Star,
   MessageCircle,
   Globe,
+  User,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { StylistChat } from "@/components/chat/StylistChat";
