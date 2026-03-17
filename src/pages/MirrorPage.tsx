@@ -615,6 +615,45 @@ const MirrorPage = () => {
             )}
           </AnimatePresence>
 
+          {/* Model toggle */}
+          {!tryOnMutation.data && (
+            <div className="mb-5">
+              <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">
+                Select Model
+              </p>
+              <div className="flex bg-card border border-border p-1 rounded-xl">
+                <button
+                  onClick={() => setUseVoraModel(false)}
+                  disabled={!selfieUrl}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium transition-all ${
+                    !useVoraModel
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  } ${!selfieUrl ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                  <User className="w-3.5 h-3.5" />
+                  My Selfie
+                </button>
+                <button
+                  onClick={() => setUseVoraModel(true)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium transition-all ${
+                    useVoraModel
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Vora Model
+                </button>
+              </div>
+              {!selfieUrl && (
+                <p className="text-[10px] text-muted-foreground mt-1.5 px-1">
+                  *Upload a selfie in your Profile to unlock your personal model.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Occasion selector */}
           {!tryOnMutation.data && (
             <div className="mb-4">
