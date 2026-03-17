@@ -17,6 +17,7 @@ import {
   Star,
   MessageCircle,
   Globe,
+  User,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { StylistChat } from "@/components/chat/StylistChat";
@@ -51,6 +52,7 @@ const MirrorPage = () => {
   const [selectedLook, setSelectedLook] = useState<SavedLook | null>(null);
   const [desiredLook, setDesiredLook] = useState("");
   const [chatOpen, setChatOpen] = useState(false);
+  const [useVoraModel, setUseVoraModel] = useState(false);
 
   // Data queries
   const { data: selfieUrl } = useSelfieUrl();
@@ -66,6 +68,20 @@ const MirrorPage = () => {
   const saveMutation = useSaveLookMutation();
   const deleteMutation = useDeleteLookMutation();
   const publishMutation = useTogglePublishMutation();
+
+  // Force Vora model if no selfie
+  useEffect(() => {
+    if (!selfieUrl && !tryOnMutation.isPending) {
+      setUseVoraModel(true);
+    }
+  }, [selfieUrl, tryOnMutation.isPending]);
+
+  const voraModelUrl = supabase.storage
+    .from('assets')
+    .getPublicUrl(profileData?.sex?.toLowerCase() === 'male' ? 'nickson.png' : 'kaelie.png')
+    .data.publicUrl;
+
+  const activeImageUrl = useVoraModel ? voraModelUrl : selfieUrl;
 
   // Combine closet + dream items for the stylist
   const closetItems = closetData?.items ?? [];
@@ -95,7 +111,6 @@ const MirrorPage = () => {
   const looks = looksData?.looks ?? [];
   const lookUrls = looksData?.urls ?? {};
 
-  const isDefaultModel = selfieUrl?.includes('/assets/');
   const hasItems = items.length > 0;
 
   const toggleItem = (id: string) => {
@@ -131,11 +146,6 @@ const MirrorPage = () => {
   };
 
   const handleTryOn = () => {
-    if (!selfieUrl) {
-      toast.error("No selfie found", { description: "Upload a selfie in your profile first." });
-      return;
-    }
-
     if (selectedIds.size === 0 && !occasion && !desiredLook.trim()) {
       toast.error("Need direction", {
         description: "Select garments manually, or pick an Occasion so I can style you!",
@@ -240,7 +250,7 @@ const MirrorPage = () => {
 
     tryOnMutation.mutate(
       {
-        selfieUrl,
+        selfieUrl: activeImageUrl!,
         garmentUrls,
         garmentIds: garmentIdsArray,
         occasion,
@@ -533,16 +543,6 @@ const MirrorPage = () => {
       {/* ========== TRY-ON TAB ========== */}
       {tab === "tryon" && (
         <>
-          {/* Default model info */}
-          {isDefaultModel && (
-            <GlassCard className="flex items-center gap-3 p-3 border-primary/30 mb-4">
-              <Sparkles className="w-5 h-5 text-primary shrink-0" />
-              <p className="text-xs text-muted-foreground">
-                Using default model. Upload a selfie in your <span className="text-foreground font-medium">Profile</span> to try clothes on yourself.
-              </p>
-            </GlassCard>
-          )}
-
           {/* Result display */}
           <AnimatePresence mode="wait">
             {tryOnMutation.isPending ? (
@@ -614,6 +614,45 @@ const MirrorPage = () => {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Model toggle */}
+          {!tryOnMutation.data && (
+            <div className="mb-5">
+              <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">
+                Select Model
+              </p>
+              <div className="flex bg-card border border-border p-1 rounded-xl">
+                <button
+                  onClick={() => setUseVoraModel(false)}
+                  disabled={!selfieUrl}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium transition-all ${
+                    !useVoraModel
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  } ${!selfieUrl ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                  <User className="w-3.5 h-3.5" />
+                  My Selfie
+                </button>
+                <button
+                  onClick={() => setUseVoraModel(true)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium transition-all ${
+                    useVoraModel
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Vora Model
+                </button>
+              </div>
+              {!selfieUrl && (
+                <p className="text-[10px] text-muted-foreground mt-1.5 px-1">
+                  *Upload a selfie in your Profile to unlock your personal model.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Occasion selector */}
           {!tryOnMutation.data && (

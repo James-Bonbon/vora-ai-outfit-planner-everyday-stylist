@@ -43,12 +43,12 @@ interface TryOnResult {
 export function useProfileData() {
   const { user } = useAuth();
   return useQuery({
-    queryKey: ["profile-data", user?.id], // Reverted to avoid collision with ProfilePage
+    queryKey: ["profile-data", user?.id],
     queryFn: async () => {
       if (!user) return null;
       const { data, error } = await supabase
         .from("profiles")
-        .select("body_shape, display_name, sex, height_cm, weight_kg")
+        .select("body_shape, sex, display_name, height_cm, weight_kg")
         .eq("user_id", user.id)
         .maybeSingle();
       if (error) throw error;
@@ -65,17 +65,11 @@ export function useSelfieUrl() {
     queryFn: async () => {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("selfie_url, sex")
+        .select("selfie_url")
         .eq("user_id", user!.id)
         .maybeSingle();
 
-      // Fallback to Default Models
-      if (!profile?.selfie_url) {
-        const isMale = profile?.sex?.toLowerCase() === 'male';
-        const { data } = supabase.storage.from('assets').getPublicUrl(isMale ? 'nickson.jpg' : 'kaelie.jpg');
-        return data.publicUrl;
-      }
-
+      if (!profile?.selfie_url) return null;
       if (profile.selfie_url.startsWith("http")) return profile.selfie_url;
 
       const { data } = await supabase.storage.from("selfies").createSignedUrl(profile.selfie_url, 3600);
