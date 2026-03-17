@@ -378,6 +378,38 @@ export type Database = {
         }
         Relationships: []
       }
+      planned_outfits: {
+        Row: {
+          created_at: string
+          id: string
+          lookbook_id: string
+          planned_date: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          lookbook_id: string
+          planned_date: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          lookbook_id?: string
+          planned_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planned_outfits_lookbook_id_fkey"
+            columns: ["lookbook_id"]
+            isOneToOne: false
+            referencedRelation: "lookbook_outfits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           app_theme: string

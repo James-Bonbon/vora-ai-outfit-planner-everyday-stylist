@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import OutfitCalendar from "@/components/home/OutfitCalendar";
 import UserProfileButton from "@/components/UserProfileButton";
+import { OutfitCalendarSheet } from "@/components/calendar/OutfitCalendarSheet";
 
 
 const TRENDING_FEMALE = [
