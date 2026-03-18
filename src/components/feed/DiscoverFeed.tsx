@@ -1,9 +1,12 @@
-import { useState } from "react";
-import { Heart, Bookmark, Sparkles } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Bookmark, Sparkles, Loader2 } from "lucide-react";
 import SafeImage from "@/components/ui/SafeImage";
 import GlassCard from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const FEED_ITEMS = [
   {
@@ -33,20 +36,68 @@ const FEED_ITEMS = [
 ];
 
 export const DiscoverFeed = () => {
-  const [savedItems, setSavedItems] = useState<Set<string>>(new Set());
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
-  const toggleSave = (id: string) => {
-    setSavedItems((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-        toast("Removed from Inspiration");
-      } else {
-        next.add(id);
-        toast.success("Saved to Dream Wardrobe");
-      }
-      return next;
-    });
+  // Fetch saved dream items to know which feed items are already bookmarked
+  const { data: dreamItems = [] } = useQuery({
+    queryKey: ["dream-items", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("dream_items")
+        .select("id, name, image_url")
+        .eq("user_id", user!.id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  // Build a set of saved image_urls for quick lookup
+  const savedImageUrls = new Set(dreamItems.map((d) => d.image_url));
+
+  const saveMutation = useMutation({
+    mutationFn: async (item: (typeof FEED_ITEMS)[0]) => {
+      const { error } = await supabase.from("dream_items").insert({
+        user_id: user!.id,
+        name: item.title,
+        image_url: item.image,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dream-items"] });
+      toast.success("Saved to Dream Wardrobe");
+    },
+    onError: () => toast.error("Failed to save item"),
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: async (imageUrl: string) => {
+      const { error } = await supabase
+        .from("dream_items")
+        .delete()
+        .eq("user_id", user!.id)
+        .eq("image_url", imageUrl);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dream-items"] });
+      toast("Removed from Inspiration");
+    },
+    onError: () => toast.error("Failed to remove item"),
+  });
+
+  const toggleSave = (item: (typeof FEED_ITEMS)[0]) => {
+    if (!user) {
+      toast.error("Sign in to save items");
+      return;
+    }
+    if (savedImageUrls.has(item.image)) {
+      removeMutation.mutate(item.image);
+    } else {
+      saveMutation.mutate(item);
+    }
   };
 
   return (
@@ -67,7 +118,7 @@ export const DiscoverFeed = () => {
       {/* Feed Cards */}
       <div className="space-y-4">
         {FEED_ITEMS.map((item) => {
-          const isSaved = savedItems.has(item.id);
+          const isSaved = savedImageUrls.has(item.image);
 
           return (
             <GlassCard key={item.id} className="p-0 overflow-hidden !rounded-2xl">
@@ -97,7 +148,8 @@ export const DiscoverFeed = () => {
                     variant="ghost"
                     size="icon"
                     className="shrink-0 w-8 h-8 rounded-full"
-                    onClick={() => toggleSave(item.id)}
+                    onClick={() => toggleSave(item)}
+                    disabled={saveMutation.isPending || removeMutation.isPending}
                   >
                     <Bookmark
                       className={`w-4 h-4 transition-colors ${

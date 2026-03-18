@@ -42,7 +42,7 @@ serve(async (req) => {
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
     // Delete user data from all tables
-    const tables = ["beauty_products", "closet_items", "dream_items", "looks", "profiles"];
+    const tables = ["planned_outfits", "lookbook_outfits", "outfit_calendar", "chat_messages", "beauty_products", "closet_items", "dream_items", "looks", "profiles"];
     for (const table of tables) {
       await supabaseAdmin.from(table).delete().eq("user_id", userId);
     }
