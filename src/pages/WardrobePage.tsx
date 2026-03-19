@@ -262,8 +262,8 @@ const WardrobePage = () => {
                     />
                   </div>
                   <div className="p-3">
-                    <p className="text-sm font-medium text-[#2A2A2A] truncate">{item.name || "Unnamed"}</p>
-                    {item.category && <span className="text-[10px] text-[#6B6B6B]">{item.category}</span>}
+                    <p className="text-sm font-medium text-foreground truncate">{item.name || "Unnamed"}</p>
+                    {item.category && <span className="text-[10px] text-muted-foreground">{item.category}</span>}
                   </div>
                 </div>
               ))}
