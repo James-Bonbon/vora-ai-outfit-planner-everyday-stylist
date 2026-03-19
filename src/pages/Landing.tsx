@@ -174,7 +174,8 @@ const Landing = () => {
             </button>
             <span
               className="font-inter"
-              style={{ fontWeight: 400, fontSize: 13, lineHeight: "20px", color: "rgba(45,45,45,0.60)" }}
+              className="text-muted-foreground"
+              style={{ fontWeight: 400, fontSize: 13, lineHeight: "20px" }}
             >
               I agree to the{" "}
               <a href="/legal" className="underline underline-offset-2 text-foreground/80">
