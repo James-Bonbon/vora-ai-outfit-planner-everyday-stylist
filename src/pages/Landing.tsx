@@ -205,7 +205,6 @@ const Landing = () => {
               fontWeight: 700,
               fontSize: 18,
               height: 60,
-              background: "#C07A5A",
               opacity: agreed ? 1 : 0.55,
               borderRadius: 999,
             }}
