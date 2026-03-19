@@ -115,7 +115,6 @@ const Landing = () => {
                     fontWeight: 600,
                     fontSize: 14,
                     lineHeight: "1.2",
-                    background: "#B86B4D",
                     padding: "10px 14px",
                     opacity: agreed ? 1 : 0.55,
                     borderRadius: "20px",
