@@ -244,13 +244,13 @@ const WardrobePage = () => {
               {filtered.map((item) => (
                 <div
                   key={item.id}
-                  className="bg-[#FAF9F6] rounded-2xl overflow-hidden shadow-sm border border-black/5 cursor-pointer"
+                  className="bg-product-bg rounded-2xl overflow-hidden shadow-sm border border-border cursor-pointer"
                   onClick={() => {
                     setSelectedItem({ ...item, source: "closet" });
                     setDetailOpen(true);
                   }}
                 >
-                  <div className="aspect-square w-full flex items-center justify-center bg-[#FAF9F6] p-2">
+                  <div className="aspect-square w-full flex items-center justify-center bg-product-bg p-2">
                     <SafeImage
                       src={imageUrls[item.id]}
                       alt={item.name || "Garment"}
@@ -262,8 +262,8 @@ const WardrobePage = () => {
                     />
                   </div>
                   <div className="p-3">
-                    <p className="text-sm font-medium text-[#2A2A2A] truncate">{item.name || "Unnamed"}</p>
-                    {item.category && <span className="text-[10px] text-[#6B6B6B]">{item.category}</span>}
+                    <p className="text-sm font-medium text-foreground truncate">{item.name || "Unnamed"}</p>
+                    {item.category && <span className="text-[10px] text-muted-foreground">{item.category}</span>}
                   </div>
                 </div>
               ))}
@@ -302,13 +302,13 @@ const WardrobePage = () => {
               {dreamItems.map((item) => (
                 <div
                   key={item.id}
-                  className="bg-[#FAF9F6] rounded-2xl overflow-hidden shadow-sm border border-black/5 cursor-pointer"
+                  className="bg-product-bg rounded-2xl overflow-hidden shadow-sm border border-border cursor-pointer"
                   onClick={() => {
                     setSelectedItem({ ...item, source: "dream" });
                     setDetailOpen(true);
                   }}
                 >
-                  <div className="aspect-square w-full flex items-center justify-center bg-[#FAF9F6] p-2">
+                  <div className="aspect-square w-full flex items-center justify-center bg-product-bg p-2">
                     <SafeImage
                       src={item.image_url}
                       alt={item.name || "Dream item"}
@@ -319,9 +319,9 @@ const WardrobePage = () => {
                     />
                   </div>
                   <div className="p-3">
-                    <p className="text-sm font-medium text-[#2A2A2A] truncate">{item.name || "Unnamed"}</p>
+                    <p className="text-sm font-medium text-foreground truncate">{item.name || "Unnamed"}</p>
                     <div className="flex items-center justify-between">
-                      {item.brand && <span className="text-[10px] text-[#6B6B6B]">{item.brand}</span>}
+                      {item.brand && <span className="text-[10px] text-muted-foreground">{item.brand}</span>}
                       {item.price != null && (
                         <span className="text-[10px] font-semibold text-primary">${item.price}</span>
                       )}

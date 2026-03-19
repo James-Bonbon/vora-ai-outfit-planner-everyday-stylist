@@ -110,12 +110,11 @@ const Landing = () => {
                 </span>
                 <button
                   onClick={handleGoogleSignIn}
-                  className="flex flex-col items-start text-primary-foreground font-inter transition-all"
+                  className="flex flex-col items-start text-primary-foreground font-inter transition-all bg-primary"
                   style={{
                     fontWeight: 600,
                     fontSize: 14,
                     lineHeight: "1.2",
-                    background: "#B86B4D",
                     padding: "10px 14px",
                     opacity: agreed ? 1 : 0.55,
                     borderRadius: "20px",
@@ -157,8 +156,8 @@ const Landing = () => {
               onClick={() => setAgreed(!agreed)}
               className="flex-shrink-0 w-[28px] h-[28px] rounded-full border-2 flex items-center justify-center mt-0.5 transition-colors"
               style={{
-                borderColor: agreed ? "#C07A5A" : "hsl(var(--border))",
-                background: agreed ? "#C07A5A" : "transparent",
+                borderColor: agreed ? "hsl(var(--primary))" : "hsl(var(--border))",
+                background: agreed ? "hsl(var(--primary))" : "transparent",
               }}
             >
               {agreed && (
@@ -174,8 +173,8 @@ const Landing = () => {
               )}
             </button>
             <span
-              className="font-inter"
-              style={{ fontWeight: 400, fontSize: 13, lineHeight: "20px", color: "rgba(45,45,45,0.60)" }}
+              className="font-inter text-muted-foreground"
+              style={{ fontWeight: 400, fontSize: 13, lineHeight: "20px" }}
             >
               I agree to the{" "}
               <a href="/legal" className="underline underline-offset-2 text-foreground/80">
@@ -200,12 +199,11 @@ const Landing = () => {
           {/* Primary CTA - Sign up with Google */}
           <button
             onClick={handleGoogleSignIn}
-            className="w-full font-inter text-primary-foreground rounded-full transition-all"
+            className="w-full font-inter text-primary-foreground rounded-full transition-all bg-primary"
             style={{
               fontWeight: 700,
               fontSize: 18,
               height: 60,
-              background: "#C07A5A",
               opacity: agreed ? 1 : 0.55,
               borderRadius: 999,
             }}

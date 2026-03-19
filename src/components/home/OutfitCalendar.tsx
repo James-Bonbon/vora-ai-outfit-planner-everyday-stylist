@@ -152,7 +152,7 @@ const OutfitCalendar = () => {
         setGarments(map);
       }
     })();
-  }, [entries]);
+  }, [entries, garments]);
 
   useEffect(() => {
     fetchBootstrap();
