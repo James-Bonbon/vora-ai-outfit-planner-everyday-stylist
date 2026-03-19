@@ -173,8 +173,7 @@ const Landing = () => {
               )}
             </button>
             <span
-              className="font-inter"
-              className="text-muted-foreground"
+              className="font-inter text-muted-foreground"
               style={{ fontWeight: 400, fontSize: 13, lineHeight: "20px" }}
             >
               I agree to the{" "}

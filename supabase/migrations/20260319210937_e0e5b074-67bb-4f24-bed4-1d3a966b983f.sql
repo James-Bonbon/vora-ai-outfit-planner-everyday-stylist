@@ -1,0 +1,1 @@
+ALTER TABLE public.planned_outfits ADD CONSTRAINT planned_outfits_user_date_unique UNIQUE (user_id, planned_date);
