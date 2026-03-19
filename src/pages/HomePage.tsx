@@ -390,7 +390,7 @@ const HomePage = () => {
       </div>
 
       {/* ===== Discover Feed ===== */}
-      <DiscoverFeed />
+      <DiscoverFeed layout="compact" />
 
       <OutfitCalendarSheet isOpen={isCalendarOpen} onClose={() => setIsCalendarOpen(false)} />
     </div>

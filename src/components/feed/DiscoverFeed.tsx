@@ -93,6 +93,8 @@ export const DiscoverFeed = ({ layout = "full" }: DiscoverFeedProps) => {
     onError: () => toast.error("Failed to remove item"),
   });
 
+  const displayItems = layout === "compact" ? FEED_ITEMS.slice(0, 1) : FEED_ITEMS;
+
   const toggleSave = (item: (typeof FEED_ITEMS)[0]) => {
     if (!user) {
       toast.error("Sign in to save items");

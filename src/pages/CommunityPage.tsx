@@ -3,7 +3,7 @@ import { DiscoverFeed } from "@/components/feed/DiscoverFeed";
 const CommunityPage = () => {
   return (
     <div className="pt-6 pb-20">
-      <DiscoverFeed />
+      <DiscoverFeed layout="full" />
     </div>
   );
 };
