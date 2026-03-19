@@ -302,7 +302,7 @@ const WardrobePage = () => {
               {dreamItems.map((item) => (
                 <div
                   key={item.id}
-                  className="bg-[#FAF9F6] rounded-2xl overflow-hidden shadow-sm border border-black/5 cursor-pointer"
+                  className="bg-product-bg rounded-2xl overflow-hidden shadow-sm border border-border cursor-pointer"
                   onClick={() => {
                     setSelectedItem({ ...item, source: "dream" });
                     setDetailOpen(true);
