@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Bookmark, Sparkles, Loader2 } from "lucide-react";
+import { Bookmark, Sparkles, Loader2, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 import SafeImage from "@/components/ui/SafeImage";
 import GlassCard from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,10 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+interface DiscoverFeedProps {
+  layout?: "compact" | "full";
+}
 
 const FEED_ITEMS = [
   {
@@ -35,7 +40,7 @@ const FEED_ITEMS = [
   },
 ];
 
-export const DiscoverFeed = () => {
+export const DiscoverFeed = ({ layout = "full" }: DiscoverFeedProps) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -88,6 +93,8 @@ export const DiscoverFeed = () => {
     onError: () => toast.error("Failed to remove item"),
   });
 
+  const displayItems = layout === "compact" ? FEED_ITEMS.slice(0, 1) : FEED_ITEMS;
+
   const toggleSave = (item: (typeof FEED_ITEMS)[0]) => {
     if (!user) {
       toast.error("Sign in to save items");
@@ -117,11 +124,17 @@ export const DiscoverFeed = () => {
 
       {/* Feed Cards */}
       <div className="space-y-4">
-        {FEED_ITEMS.map((item) => {
+        {displayItems.map((item) => {
           const isSaved = savedImageUrls.has(item.image);
+          const isCompact = layout === "compact";
 
           return (
-            <GlassCard key={item.id} className="p-0 overflow-hidden !rounded-2xl">
+            <GlassCard
+              key={item.id}
+              className={`p-0 overflow-hidden !rounded-2xl ${
+                isCompact ? "border border-[hsl(90_8%_89%)] shadow-sm" : ""
+              }`}
+            >
               {/* Image */}
               <div className="aspect-[4/5] bg-muted relative">
                 <SafeImage
@@ -131,6 +144,11 @@ export const DiscoverFeed = () => {
                   wrapperClassName="w-full h-full"
                   loading="lazy"
                 />
+                {isCompact && (
+                  <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-[hsl(150_28%_23%)] text-white">
+                    Featured Look
+                  </span>
+                )}
               </div>
 
               {/* Content */}
@@ -176,6 +194,18 @@ export const DiscoverFeed = () => {
           );
         })}
       </div>
+
+      {/* Compact: View All link */}
+      {layout === "compact" && (
+        <div className="flex justify-center pt-1">
+          <Button variant="ghost" asChild className="text-muted-foreground hover:text-foreground gap-1.5">
+            <Link to="/feed">
+              View All Inspiration
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
