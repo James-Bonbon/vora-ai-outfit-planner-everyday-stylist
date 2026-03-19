@@ -40,7 +40,7 @@ const FEED_ITEMS = [
   },
 ];
 
-export const DiscoverFeed = () => {
+export const DiscoverFeed = ({ layout = "full" }: DiscoverFeedProps) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
