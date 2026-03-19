@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Bookmark, Sparkles, Loader2 } from "lucide-react";
+import { Bookmark, Sparkles, Loader2, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 import SafeImage from "@/components/ui/SafeImage";
 import GlassCard from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,10 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+interface DiscoverFeedProps {
+  layout?: "compact" | "full";
+}
 
 const FEED_ITEMS = [
   {
