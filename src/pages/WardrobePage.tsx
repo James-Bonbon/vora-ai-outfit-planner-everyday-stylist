@@ -308,7 +308,7 @@ const WardrobePage = () => {
                     setDetailOpen(true);
                   }}
                 >
-                  <div className="aspect-square w-full flex items-center justify-center bg-[#FAF9F6] p-2">
+                  <div className="aspect-square w-full flex items-center justify-center bg-product-bg p-2">
                     <SafeImage
                       src={item.image_url}
                       alt={item.name || "Dream item"}
