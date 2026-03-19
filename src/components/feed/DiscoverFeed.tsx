@@ -122,11 +122,17 @@ export const DiscoverFeed = ({ layout = "full" }: DiscoverFeedProps) => {
 
       {/* Feed Cards */}
       <div className="space-y-4">
-        {FEED_ITEMS.map((item) => {
+        {displayItems.map((item) => {
           const isSaved = savedImageUrls.has(item.image);
+          const isCompact = layout === "compact";
 
           return (
-            <GlassCard key={item.id} className="p-0 overflow-hidden !rounded-2xl">
+            <GlassCard
+              key={item.id}
+              className={`p-0 overflow-hidden !rounded-2xl ${
+                isCompact ? "border border-[hsl(90_8%_89%)] shadow-sm" : ""
+              }`}
+            >
               {/* Image */}
               <div className="aspect-[4/5] bg-muted relative">
                 <SafeImage
@@ -136,6 +142,11 @@ export const DiscoverFeed = ({ layout = "full" }: DiscoverFeedProps) => {
                   wrapperClassName="w-full h-full"
                   loading="lazy"
                 />
+                {isCompact && (
+                  <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-[hsl(150_28%_23%)] text-white">
+                    Featured Look
+                  </span>
+                )}
               </div>
 
               {/* Content */}
@@ -181,6 +192,18 @@ export const DiscoverFeed = ({ layout = "full" }: DiscoverFeedProps) => {
           );
         })}
       </div>
+
+      {/* Compact: View All link */}
+      {layout === "compact" && (
+        <div className="flex justify-center pt-1">
+          <Button variant="ghost" asChild className="text-muted-foreground hover:text-foreground gap-1.5">
+            <Link to="/feed">
+              View All Inspiration
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
