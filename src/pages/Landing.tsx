@@ -156,8 +156,8 @@ const Landing = () => {
               onClick={() => setAgreed(!agreed)}
               className="flex-shrink-0 w-[28px] h-[28px] rounded-full border-2 flex items-center justify-center mt-0.5 transition-colors"
               style={{
-                borderColor: agreed ? "#C07A5A" : "hsl(var(--border))",
-                background: agreed ? "#C07A5A" : "transparent",
+                borderColor: agreed ? "hsl(var(--primary))" : "hsl(var(--border))",
+                background: agreed ? "hsl(var(--primary))" : "transparent",
               }}
             >
               {agreed && (
