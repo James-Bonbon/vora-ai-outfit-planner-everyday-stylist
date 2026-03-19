@@ -110,7 +110,7 @@ const Landing = () => {
                 </span>
                 <button
                   onClick={handleGoogleSignIn}
-                  className="flex flex-col items-start text-primary-foreground font-inter transition-all"
+                  className="flex flex-col items-start text-primary-foreground font-inter transition-all bg-primary"
                   style={{
                     fontWeight: 600,
                     fontSize: 14,
