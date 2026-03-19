@@ -224,7 +224,9 @@ const ProfilePage = () => {
           ) : (
             <>
               <h3 className="font-semibold text-foreground">{displayName}</h3>
-              <p className="text-xs text-primary font-medium">Pro tier ✨</p>
+              <p className="text-xs text-primary font-medium capitalize">
+                {(profile?.subscription_tier || "free")} tier {profile?.subscription_tier !== "free" ? "✨" : ""}
+              </p>
             </>
           )}
         </div>
