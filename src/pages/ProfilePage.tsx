@@ -400,34 +400,36 @@ const ProfilePage = () => {
       </GlassCard>
 
       {/* Admin Tools */}
-      <GlassCard className="p-5 space-y-3 border-dashed border-primary/30">
-        <h3 className="text-sm font-semibold text-muted-foreground font-outfit flex items-center gap-2">
-          <Database className="w-4 h-4" /> Admin Tools
-        </h3>
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full rounded-xl"
-          disabled={seeding}
-          onClick={async () => {
-            setSeeding(true);
-            toast.info("Fetching 500+ products… this may take a minute");
-            try {
-              const { data, error } = await supabase.functions.invoke("seed-beauty-library");
-              if (error) throw error;
-              if (data?.error) throw new Error(data.error);
-              toast.success(`Seeded ${data.totalInserted} products!${data.errors?.length ? ` (${data.errors.length} warnings)` : ""}`);
-            } catch (err: any) {
-              toast.error(err.message || "Seeding failed");
-            } finally {
-              setSeeding(false);
-            }
-          }}
-        >
-          {seeding ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Database className="w-4 h-4 mr-2" />}
-          Stock Beauty Library
-        </Button>
-      </GlassCard>
+      {isAdmin && (
+        <GlassCard className="p-5 space-y-3 border-dashed border-primary/30">
+          <h3 className="text-sm font-semibold text-muted-foreground font-outfit flex items-center gap-2">
+            <Database className="w-4 h-4" /> Admin Tools
+          </h3>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full rounded-xl"
+            disabled={seeding}
+            onClick={async () => {
+              setSeeding(true);
+              toast.info("Fetching 500+ products… this may take a minute");
+              try {
+                const { data, error } = await supabase.functions.invoke("seed-beauty-library");
+                if (error) throw error;
+                if (data?.error) throw new Error(data.error);
+                toast.success(`Seeded ${data.totalInserted} products!${data.errors?.length ? ` (${data.errors.length} warnings)` : ""}`);
+              } catch (err: any) {
+                toast.error(err.message || "Seeding failed");
+              } finally {
+                setSeeding(false);
+              }
+            }}
+          >
+            {seeding ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Database className="w-4 h-4 mr-2" />}
+            Stock Beauty Library
+          </Button>
+        </GlassCard>
+      )}
 
       {/* Menu */}
       <div className="space-y-2">

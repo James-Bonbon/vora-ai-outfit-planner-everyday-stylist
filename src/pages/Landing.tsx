@@ -200,7 +200,7 @@ const Landing = () => {
           {/* Primary CTA - Sign up with Google */}
           <button
             onClick={handleGoogleSignIn}
-            className="w-full font-inter text-primary-foreground rounded-full transition-all"
+            className="w-full font-inter text-primary-foreground rounded-full transition-all bg-primary"
             style={{
               fontWeight: 700,
               fontSize: 18,

@@ -319,9 +319,9 @@ const WardrobePage = () => {
                     />
                   </div>
                   <div className="p-3">
-                    <p className="text-sm font-medium text-[#2A2A2A] truncate">{item.name || "Unnamed"}</p>
+                    <p className="text-sm font-medium text-foreground truncate">{item.name || "Unnamed"}</p>
                     <div className="flex items-center justify-between">
-                      {item.brand && <span className="text-[10px] text-[#6B6B6B]">{item.brand}</span>}
+                      {item.brand && <span className="text-[10px] text-muted-foreground">{item.brand}</span>}
                       {item.price != null && (
                         <span className="text-[10px] font-semibold text-primary">${item.price}</span>
                       )}
