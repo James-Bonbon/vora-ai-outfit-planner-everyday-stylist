@@ -318,8 +318,8 @@ const WardrobePage = () => {
                       loading="lazy"
                     />
                   </div>
-                  <div className="p-3">
-                    <p className="text-sm font-medium text-foreground truncate">{item.name || "Unnamed"}</p>
+                  <div className="p-3 bg-card rounded-b-2xl">
+                    <p className="text-sm font-medium text-card-foreground truncate">{item.name || "Unnamed"}</p>
                     <div className="flex items-center justify-between">
                       {item.brand && <span className="text-[10px] text-muted-foreground">{item.brand}</span>}
                       {item.price != null && (
