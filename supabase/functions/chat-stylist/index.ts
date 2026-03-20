@@ -7,6 +7,37 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+/* ── URL metadata helper ─────────────────────────────────────── */
+async function fetchUrlMetadata(url: string): Promise<string> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(url, {
+      headers: { "User-Agent": "VoraBot/1.0" },
+      signal: controller.signal,
+      redirect: "follow",
+    });
+    clearTimeout(timeout);
+    const html = await res.text();
+    const title = html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1]?.trim() || "";
+    const desc =
+      html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["']/i)?.[1]?.trim() ||
+      html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']*)["']/i)?.[1]?.trim() ||
+      "";
+    const ogImage =
+      html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']*)["']/i)?.[1]?.trim() || "";
+    return `[Link Preview]\nURL: ${url}\nTitle: ${title}\nDescription: ${desc}\nImage: ${ogImage}`;
+  } catch {
+    return `[Link Preview]\nURL: ${url}\n(Could not fetch metadata)`;
+  }
+}
+
+/* ── Extract URLs from text ──────────────────────────────────── */
+function extractUrls(text: string): string[] {
+  const urlRegex = /https?:\/\/[^\s"'<>\])+]+/g;
+  return [...(text.match(urlRegex) || [])];
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -37,7 +68,7 @@ serve(async (req) => {
     }
     const userId = claimsData.claims.sub;
 
-    const { messages } = await req.json();
+    const { messages, userContext, attachment } = await req.json();
     if (!messages || !Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: "messages array required" }), {
         status: 400,
@@ -45,44 +76,87 @@ serve(async (req) => {
       });
     }
 
-    // Step A: Fetch user's wardrobe (lightweight columns only)
+    // ── Fetch wardrobe ──────────────────────────────────────
     const { data: wardrobe } = await supabase
       .from("closet_items")
       .select("id, name, category, color, material, brand")
       .eq("user_id", userId);
 
-    // Step B: Fetch user profile for context
+    // ── Fetch profile ───────────────────────────────────────
     const { data: profile } = await supabase
       .from("profiles")
-      .select("body_shape, sex")
+      .select("body_shape, sex, height_cm, weight_kg, display_name")
       .eq("user_id", userId)
       .single();
 
     const wardrobeJson = JSON.stringify(wardrobe || []);
 
-    const systemPrompt = `You are Vora, a warm, knowledgeable personal stylist AI. You have access to the user's complete digital wardrobe.
+    // ── VORA Senior Stylist system prompt ────────────────────
+    const systemPrompt = `You are the VORA Senior Stylist — an elite, editorial fashion consultant embodying "Quiet Luxury" and "Organic Minimalism."
 
-USER'S WARDROBE (JSON):
-${wardrobeJson}
+PERSONALITY & TONE:
+- Speak like a trusted personal stylist at a high-end atelier: warm yet authoritative, insightful yet concise.
+- Use elegant, measured language. Avoid exclamation marks, emojis, and generic enthusiasm.
+- Frame advice through the lens of timeless style: fabric quality, color harmony, silhouette balance, and intentional dressing.
+- When complimenting, be specific ("The drape of that crepe jersey pairs beautifully with structured tailoring") rather than generic ("That looks great!").
 
 USER PROFILE:
-- Body shape: ${profile?.body_shape || "unknown"}
+- Name: ${profile?.display_name || "there"}
+- Body shape: ${profile?.body_shape || "not specified"}
 - Sex: ${profile?.sex || "not specified"}
+- Height: ${profile?.height_cm ? profile.height_cm + " cm" : "not specified"}
+- Weight: ${profile?.weight_kg ? profile.weight_kg + " kg" : "not specified"}
+
+USER'S WARDROBE (JSON — these are the only items you may recommend):
+${wardrobeJson}
 
 RULES:
-1. When recommending outfits, ONLY suggest garments from the wardrobe above using their exact IDs.
-2. Be conversational, warm, and fashion-forward. Use concise language.
-3. When asked about outfits, always suggest specific items and explain WHY they work together (color theory, occasion, body shape, etc).
-4. If the wardrobe doesn't have suitable items, say so honestly and suggest what they might want to add.
-5. You MUST respond using the suggest_outfit tool when recommending specific garments. Use it even for single-item recommendations.
-6. For general fashion advice with no specific garment recommendations, respond normally without the tool.`;
+1. When recommending outfits, ONLY suggest garments from the wardrobe above using their exact IDs. Never invent items.
+2. You MUST use the suggest_outfit tool when recommending specific garments — even a single item.
+3. Explain WHY items work together: color theory, fabric interplay, silhouette balance, occasion-appropriateness.
+4. If the wardrobe lacks suitable items, say so honestly and describe what archetype or piece would complete the look.
+5. When the user shares an image, analyze it thoughtfully: identify colors, textures, silhouettes, and styling opportunities. Relate observations back to their wardrobe.
+6. When given a link preview, incorporate that context naturally into your advice.
+7. Keep responses focused and editorial — never rambling. Aim for the cadence of a personal styling note, not a blog post.`;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // Step C: Call LLM with tool calling for structured output
+    // ── Build messages with multimodal support ──────────────
+    // Process the last user message to handle images and URLs
+    const processedMessages = [...messages];
+    const lastMsg = processedMessages[processedMessages.length - 1];
+
+    // Handle image attachment — convert to multimodal content parts
+    if (attachment?.base64 && lastMsg?.role === "user") {
+      const textContent = lastMsg.content || "";
+      lastMsg.content = [
+        { type: "text", text: textContent || "What do you think of this?" },
+        {
+          type: "image_url",
+          image_url: { url: attachment.base64 },
+        },
+      ];
+    }
+
+    // Handle URLs in the last user message — fetch metadata and append
+    if (lastMsg?.role === "user") {
+      const textContent = typeof lastMsg.content === "string" ? lastMsg.content : "";
+      const urls = extractUrls(textContent);
+      if (urls.length > 0) {
+        const metadataResults = await Promise.all(urls.slice(0, 2).map(fetchUrlMetadata));
+        const linkContext = metadataResults.join("\n\n");
+        if (typeof lastMsg.content === "string") {
+          lastMsg.content = `${lastMsg.content}\n\n${linkContext}`;
+        } else if (Array.isArray(lastMsg.content)) {
+          lastMsg.content.push({ type: "text", text: linkContext });
+        }
+      }
+    }
+
+    // ── Call LLM ────────────────────────────────────────────
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -90,10 +164,10 @@ RULES:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          ...messages,
+          ...processedMessages,
         ],
         tools: [
           {
@@ -155,7 +229,7 @@ RULES:
       replyText = args.reply_text || "";
       recommendedIds = args.recommended_ids || [];
     } else {
-      replyText = choice?.message?.content || "I'm not sure how to help with that. Try asking me about outfit ideas!";
+      replyText = choice?.message?.content || "I'm not sure how to help with that. Try asking me about outfit ideas.";
     }
 
     // Persist assistant message
