@@ -277,22 +277,22 @@ export const StylistChat: React.FC = () => {
                         return (
                           <div
                             key={gId}
-                            className="rounded-xl overflow-hidden border border-border bg-card"
+                            className="rounded-xl border border-[#e5e7df] overflow-hidden bg-[#f5f2e9]"
                           >
                             {url && (
-                              <SafeImage
-                                src={url}
-                                alt={garment.name || "Garment"}
-                                aspectRatio="aspect-square"
-                                wrapperClassName="w-full"
-                                className="object-cover"
-                              />
+                              <div className="relative aspect-[4/5] w-full p-1.5 flex items-center justify-center">
+                                <img
+                                  src={url}
+                                  alt={garment.name || "Garment"}
+                                  className="max-h-full max-w-full drop-shadow-md"
+                                />
+                              </div>
                             )}
-                            <div className="p-2">
-                              <p className="text-xs font-medium text-foreground truncate">
+                            <div className="p-3 space-y-1">
+                              <p className="text-sm font-medium text-[#1a1a1a] truncate">
                                 {garment.name || "Unnamed"}
                               </p>
-                              <p className="text-[10px] text-muted-foreground">
+                              <p className="text-xs text-[#555] uppercase tracking-wider">
                                 {[garment.category, garment.color]
                                   .filter(Boolean)
                                   .join(" · ")}
