@@ -46,8 +46,8 @@ CRUCIAL BRAND INSTRUCTION: Look closely for a brand logo, text, or neck tag in t
 Return ONLY valid JSON, no markdown, no code fences.`;
 
     const attempts = [
+      { model: "google/gemini-3-flash-preview", tokenParam: "max_tokens" },
       { model: "openai/gpt-5-mini", tokenParam: "max_completion_tokens" },
-      { model: "google/gemini-2.5-flash", tokenParam: "max_tokens" },
     ];
 
     let lastError = "";
