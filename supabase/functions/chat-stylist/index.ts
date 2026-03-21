@@ -239,12 +239,14 @@ RULES:
 
     let replyText = "";
     let recommendedIds: string[] = [];
+    let stylingInstruction = "";
 
     if (choice?.message?.tool_calls?.length) {
       const toolCall = choice.message.tool_calls[0];
       const args = JSON.parse(toolCall.function.arguments);
       replyText = args.reply_text || "";
       recommendedIds = args.recommended_ids || [];
+      stylingInstruction = args.styling_instruction || "";
     } else {
       replyText = choice?.message?.content || "I'm not sure how to help with that. Try asking me about outfit ideas.";
     }
