@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { applyTheme } from "@/components/ThemeProvider";
-import { getBodyShapes } from "@/constants/bodyShapes";
+import { BODY_SHAPES, toDbValue, toDisplayLabel } from "@/constants/bodyShapes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AvatarCropperModal } from "@/components/AvatarCropperModal";
 
@@ -262,18 +262,19 @@ const ProfilePage = () => {
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Body Shape</Label>
-              <div className="flex gap-3 mt-1">
-                {getBodyShapes(editSex || profile?.sex).map((shape) => {
-                  const isSelected = editBodyShape === shape;
+              <div className="flex flex-wrap gap-2 mt-2">
+                {BODY_SHAPES.map((shape) => {
+                  const dbVal = toDbValue(shape);
+                  const isSelected = editBodyShape === dbVal;
                   return (
                     <button
                       key={shape}
                       type="button"
-                      onClick={() => setEditBodyShape(shape)}
-                      className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                      onClick={() => setEditBodyShape(dbVal)}
+                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
                         isSelected
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-card text-foreground border border-border hover:border-primary/50"
+                          ? "bg-[#2c4c3b] text-white shadow-sm"
+                          : "bg-[#f4f6f0] text-[#1a1a1a] hover:bg-[#e9ece4]"
                       }`}
                     >
                       {shape}
@@ -327,7 +328,7 @@ const ProfilePage = () => {
               <User className="w-4 h-4 text-muted-foreground" />
               <div>
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Body Shape</p>
-                <p className="text-sm font-medium text-foreground">{profile?.body_shape || "—"}</p>
+                <p className="text-sm font-medium text-foreground">{toDisplayLabel(profile?.body_shape) || "—"}</p>
               </div>
             </div>
           </div>

@@ -92,7 +92,11 @@ serve(async (req) => {
     const wardrobeJson = JSON.stringify(wardrobe || []);
 
     // ── VORA Senior Stylist system prompt ────────────────────
-    const systemPrompt = `You are the VORA Senior Stylist — an elite, editorial fashion consultant embodying "Quiet Luxury" and "Organic Minimalism."
+    const bodyShapeLabel = profile?.body_shape?.replace(/_/g, " ") || "not specified";
+
+    const systemPrompt = `You are VORA, a high-end luxury stylist. The user's body shape is ${bodyShapeLabel}. You must proactively evaluate all clothing choices against this specific shape. If an item contradicts their proportions (e.g., low-rise jeans for a pear shape), gently and elegantly warn them, explain why, and suggest a better alternative from their closet_items. Always provide specific styling techniques (e.g., "French tuck", "belted waist", "left unbuttoned") that flatter their shape.
+
+You are the VORA Senior Stylist — an elite, editorial fashion consultant embodying "Quiet Luxury" and "Organic Minimalism."
 
 PERSONALITY & TONE:
 - Speak like a trusted personal stylist at a high-end atelier: warm yet authoritative, insightful yet concise.
@@ -100,9 +104,16 @@ PERSONALITY & TONE:
 - Frame advice through the lens of timeless style: fabric quality, color harmony, silhouette balance, and intentional dressing.
 - When complimenting, be specific ("The drape of that crepe jersey pairs beautifully with structured tailoring") rather than generic ("That looks great!").
 
+BODY SHAPE STYLING INTELLIGENCE:
+- Hourglass: Emphasize the defined waist. Recommend wrap dresses, belted pieces, and balanced proportions. Avoid boxy or shapeless silhouettes.
+- Pear: Draw attention upward. Suggest structured shoulders, boat necks, and A-line skirts. Avoid clingy fabrics on hips, low-rise cuts.
+- Apple: Create elongation. Recommend empire waists, V-necklines, and structured blazers. Avoid belts at the widest point.
+- Rectangle: Add dimension with layering, peplums, and textured fabrics. Suggest waist-defining pieces. Avoid column silhouettes.
+- Inverted Triangle: Balance broader shoulders. Recommend wide-leg trousers, A-line skirts, and V-necks. Avoid heavy shoulder details.
+
 USER PROFILE:
 - Name: ${profile?.display_name || "there"}
-- Body shape: ${profile?.body_shape || "not specified"}
+- Body shape: ${bodyShapeLabel}
 - Sex: ${profile?.sex || "not specified"}
 - Height: ${profile?.height_cm ? profile.height_cm + " cm" : "not specified"}
 - Weight: ${profile?.weight_kg ? profile.weight_kg + " kg" : "not specified"}
@@ -114,10 +125,12 @@ RULES:
 1. When recommending outfits, ONLY suggest garments from the wardrobe above using their exact IDs. Never invent items.
 2. You MUST use the suggest_outfit tool when recommending specific garments — even a single item.
 3. Explain WHY items work together: color theory, fabric interplay, silhouette balance, occasion-appropriateness.
-4. If the wardrobe lacks suitable items, say so honestly and describe what archetype or piece would complete the look.
-5. When the user shares an image, analyze it thoughtfully: identify colors, textures, silhouettes, and styling opportunities. Relate observations back to their wardrobe.
-6. When given a link preview, incorporate that context naturally into your advice.
-7. Keep responses focused and editorial — never rambling. Aim for the cadence of a personal styling note, not a blog post.`;
+4. Always relate recommendations to the user's ${bodyShapeLabel} body shape with specific styling techniques.
+5. If the wardrobe lacks suitable items, say so honestly and describe what archetype or piece would complete the look.
+6. When the user shares an image, analyze it thoughtfully: identify colors, textures, silhouettes, and styling opportunities. Relate observations back to their wardrobe and body shape.
+7. When given a link preview, incorporate that context naturally into your advice.
+8. Keep responses focused and editorial — never rambling. Aim for the cadence of a personal styling note, not a blog post.
+9. When suggesting outfits, include a concise styling_instruction (e.g., "French tuck with a slim belt") that tells the user HOW to wear the pieces for their body shape.`;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -188,8 +201,12 @@ RULES:
                     items: { type: "string" },
                     description: "Array of garment UUIDs from the user's wardrobe.",
                   },
+                  styling_instruction: {
+                    type: "string",
+                    description: "A concise styling instruction for how to wear the outfit (e.g., 'French tuck with a slim belt at the waist'). Always include body-shape-specific techniques.",
+                  },
                 },
-                required: ["reply_text", "recommended_ids"],
+                required: ["reply_text", "recommended_ids", "styling_instruction"],
                 additionalProperties: false,
               },
             },
@@ -222,12 +239,14 @@ RULES:
 
     let replyText = "";
     let recommendedIds: string[] = [];
+    let stylingInstruction = "";
 
     if (choice?.message?.tool_calls?.length) {
       const toolCall = choice.message.tool_calls[0];
       const args = JSON.parse(toolCall.function.arguments);
       replyText = args.reply_text || "";
       recommendedIds = args.recommended_ids || [];
+      stylingInstruction = args.styling_instruction || "";
     } else {
       replyText = choice?.message?.content || "I'm not sure how to help with that. Try asking me about outfit ideas.";
     }
@@ -244,6 +263,7 @@ RULES:
       JSON.stringify({
         reply_text: replyText,
         recommended_ids: recommendedIds,
+        styling_instruction: stylingInstruction,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

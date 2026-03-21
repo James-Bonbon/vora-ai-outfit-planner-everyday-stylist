@@ -65,7 +65,7 @@ serve(async (req) => {
     }
     const userId = user.id;
 
-    const { selfieUrl, garmentUrls, garmentIds, occasion, desiredLook, weather, bodyShape: reqBodyShape } = await req.json();
+    const { selfieUrl, garmentUrls, garmentIds, occasion, desiredLook, weather, bodyShape: reqBodyShape, stylingInstruction } = await req.json();
 
     if (!selfieUrl || !garmentUrls?.length || !garmentIds?.length) {
       return new Response(
@@ -138,7 +138,8 @@ SCENE & CONTEXT:
 - Professional fashion photography lighting.
 ${occasion ? `- Style the overall outfit mood to suit a "${occasion}" occasion.` : ""}
 ${weather ? `- The weather is ${weather}. Layer appropriately.` : ""}
-${bodyShape ? `- The user has a ${bodyShape} body type. Ensure the fit reflects this.` : ""}
+${bodyShape ? `- The user has a ${bodyShape.replace(/_/g, " ")} body type. Ensure the fit and silhouette flatter this shape. Emphasize proportions that complement this body type.` : ""}
+${stylingInstruction ? `- The garments MUST be styled exactly as follows: "${stylingInstruction}".` : ""}
 ${desiredLook ? `- Incorporate this specific aesthetic: "${desiredLook}".` : ""}
 - NO watermarks, text, or logos.`,
       },
