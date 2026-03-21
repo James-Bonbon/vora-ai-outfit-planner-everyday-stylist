@@ -222,11 +222,12 @@ export function useTryOnMutation() {
     desiredLook?: string | null;
     weather?: string | null;
     bodyShape?: string | null;
+    stylingInstruction?: string | null;
   }>({
     mutationKey: ["virtual-tryon"],
-    mutationFn: async ({ selfieUrl, garmentUrls, garmentIds, occasion, desiredLook, weather, bodyShape }) => {
+    mutationFn: async ({ selfieUrl, garmentUrls, garmentIds, occasion, desiredLook, weather, bodyShape, stylingInstruction }) => {
       const { data, error } = await supabase.functions.invoke("virtual-tryon", {
-        body: { selfieUrl, garmentUrls, garmentIds, occasion, desiredLook, weather, bodyShape },
+        body: { selfieUrl, garmentUrls, garmentIds, occasion, desiredLook, weather, bodyShape, stylingInstruction },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
