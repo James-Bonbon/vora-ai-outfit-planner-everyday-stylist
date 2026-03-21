@@ -263,6 +263,7 @@ RULES:
       JSON.stringify({
         reply_text: replyText,
         recommended_ids: recommendedIds,
+        styling_instruction: stylingInstruction,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
