@@ -328,7 +328,7 @@ const ProfilePage = () => {
               <User className="w-4 h-4 text-muted-foreground" />
               <div>
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Body Shape</p>
-                <p className="text-sm font-medium text-foreground">{profile?.body_shape || "—"}</p>
+                <p className="text-sm font-medium text-foreground">{toDisplayLabel(profile?.body_shape) || "—"}</p>
               </div>
             </div>
           </div>
