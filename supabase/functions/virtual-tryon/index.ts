@@ -65,7 +65,7 @@ serve(async (req) => {
     }
     const userId = user.id;
 
-    const { selfieUrl, garmentUrls, garmentIds, occasion, desiredLook, weather, bodyShape: reqBodyShape } = await req.json();
+    const { selfieUrl, garmentUrls, garmentIds, occasion, desiredLook, weather, bodyShape: reqBodyShape, stylingInstruction } = await req.json();
 
     if (!selfieUrl || !garmentUrls?.length || !garmentIds?.length) {
       return new Response(
