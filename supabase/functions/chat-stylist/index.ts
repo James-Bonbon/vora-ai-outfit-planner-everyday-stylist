@@ -201,6 +201,10 @@ RULES:
                     items: { type: "string" },
                     description: "Array of garment UUIDs from the user's wardrobe.",
                   },
+                  styling_instruction: {
+                    type: "string",
+                    description: "A concise styling instruction for how to wear the outfit (e.g., 'French tuck with a slim belt at the waist'). Always include body-shape-specific techniques.",
+                  },
                 },
                 required: ["reply_text", "recommended_ids"],
                 additionalProperties: false,
