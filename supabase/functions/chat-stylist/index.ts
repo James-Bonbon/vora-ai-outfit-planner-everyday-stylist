@@ -206,7 +206,7 @@ RULES:
                     description: "A concise styling instruction for how to wear the outfit (e.g., 'French tuck with a slim belt at the waist'). Always include body-shape-specific techniques.",
                   },
                 },
-                required: ["reply_text", "recommended_ids"],
+                required: ["reply_text", "recommended_ids", "styling_instruction"],
                 additionalProperties: false,
               },
             },
