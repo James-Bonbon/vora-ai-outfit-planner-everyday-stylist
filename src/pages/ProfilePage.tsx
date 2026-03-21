@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { applyTheme } from "@/components/ThemeProvider";
-import { getBodyShapes } from "@/constants/bodyShapes";
+import { BODY_SHAPES, toDbValue, toDisplayLabel } from "@/constants/bodyShapes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AvatarCropperModal } from "@/components/AvatarCropperModal";
 
