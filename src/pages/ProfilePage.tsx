@@ -157,10 +157,20 @@ const ProfilePage = () => {
         selfiePublicUrl = publicUrlData.publicUrl;
       }
 
+      const updatePayload: Record<string, any> = {
+          display_name: editName.trim(),
+          date_of_birth: editDob || null,
+          sex: editSex || null,
+          height_cm: editHeight ? Number(editHeight) : null,
+          weight_kg: editWeight ? Number(editWeight) : null,
+          selfie_url: selfiePublicUrl,
+          body_shape: editBodyShape || null,
+          username: editUsername.trim() || null,
+        };
+
       const { error } = await supabase
         .from("profiles")
-        .update({
-          display_name: editName.trim(),
+        .update(updatePayload)
           date_of_birth: editDob || null,
           sex: editSex || null,
           height_cm: editHeight ? Number(editHeight) : null,
