@@ -26,6 +26,7 @@ interface ProfileData {
   body_shape: string | null;
   subscription_tier: string | null;
   app_theme: string | null;
+  username: string | null;
 }
 
 
