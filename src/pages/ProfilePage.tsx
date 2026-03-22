@@ -112,9 +112,24 @@ const ProfilePage = () => {
     setEditSelfiePreview(previewUrl);
   };
 
+  const validateUsername = (value: string): string | null => {
+    if (!value) return null;
+    if (value !== value.toLowerCase()) return "Username must be lowercase";
+    if (/\s/.test(value)) return "Username cannot contain spaces";
+    if (!/^[a-z0-9._]*$/.test(value)) return "Only letters, numbers, dots, and underscores";
+    if (value.length < 3) return "At least 3 characters";
+    if (value.length > 30) return "Max 30 characters";
+    return null;
+  };
+
   const handleSave = async () => {
     if (!user || !editName.trim()) {
       toast.error("Name is required.");
+      return;
+    }
+    const uError = validateUsername(editUsername);
+    if (editUsername && uError) {
+      setUsernameError(uError);
       return;
     }
     setSaving(true);
