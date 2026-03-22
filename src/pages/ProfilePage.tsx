@@ -243,10 +243,31 @@ const ProfilePage = () => {
         </div>
         <div className="flex-1">
           {editing ? (
-            <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Your name" className="rounded-xl bg-card" />
+            <div className="space-y-2">
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Your name" className="rounded-xl bg-card" />
+              <div>
+                <div className="relative">
+                  <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                  <Input
+                    value={editUsername}
+                    onChange={(e) => {
+                      const val = e.target.value.toLowerCase().replace(/\s/g, "");
+                      setEditUsername(val);
+                      setUsernameError(validateUsername(val));
+                    }}
+                    placeholder="username"
+                    className="rounded-xl bg-card pl-8 text-sm"
+                  />
+                </div>
+                {usernameError && <p className="text-[11px] text-destructive mt-1">{usernameError}</p>}
+              </div>
+            </div>
           ) : (
             <>
               <h3 className="font-semibold text-foreground">{displayName}</h3>
+              {profile?.username && (
+                <p className="text-xs text-muted-foreground">@{profile.username}</p>
+              )}
               <p className="text-xs text-primary font-medium capitalize">
                 {isAdmin ? "admin" : (profile?.subscription_tier || "free")} tier {(isAdmin || (profile?.subscription_tier && profile.subscription_tier !== "free")) ? "✨" : ""}
               </p>
