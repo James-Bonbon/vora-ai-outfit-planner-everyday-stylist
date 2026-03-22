@@ -200,7 +200,7 @@ const WardrobePage = () => {
               activeTab === tab ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground"
             }`}
           >
-            {tab === "closet" ? "My Closet" : tab === "lookbook" ? "Lookbook" : "Dream List"}
+            {tab === "closet" ? "My Closet" : tab === "lookbook" ? "Lookbook" : "Wishlist"}
           </button>
         ))}
       </div>
