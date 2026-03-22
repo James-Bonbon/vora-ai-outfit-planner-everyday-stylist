@@ -171,13 +171,6 @@ const ProfilePage = () => {
       const { error } = await supabase
         .from("profiles")
         .update(updatePayload)
-          date_of_birth: editDob || null,
-          sex: editSex || null,
-          height_cm: editHeight ? Number(editHeight) : null,
-          weight_kg: editWeight ? Number(editWeight) : null,
-          selfie_url: selfiePublicUrl,
-          body_shape: editBodyShape || null,
-        })
         .eq("user_id", user.id);
       if (error) throw error;
       toast.success("Profile updated!");
