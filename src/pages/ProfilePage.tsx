@@ -84,6 +84,8 @@ const ProfilePage = () => {
     setEditHeight(profile?.height_cm?.toString() || "");
     setEditWeight(profile?.weight_kg?.toString() || "");
     setEditBodyShape(profile?.body_shape || "");
+    setEditUsername(profile?.username || "");
+    setUsernameError(null);
     setEditing(true);
   };
 
