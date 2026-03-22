@@ -186,6 +186,14 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
     }
   }, [messages, sendMutation.isPending]);
 
+  // Auto-send initial message from shared garment
+  useEffect(() => {
+    if (initialMessage && !initialSentRef.current && user && !sendMutation.isPending) {
+      initialSentRef.current = true;
+      sendMutation.mutate(initialMessage);
+    }
+  }, [initialMessage, user]);
+
   const getGarment = (id: string) => garments.find((g) => g.id === id);
 
   return (
