@@ -34,7 +34,11 @@ interface Attachment {
   file?: File;
 }
 
-export const StylistChat: React.FC = () => {
+interface StylistChatProps {
+  initialMessage?: string;
+}
+
+export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: profile } = useProfileData();
@@ -43,6 +47,7 @@ export const StylistChat: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const initialSentRef = useRef(false);
 
   // Fetch chat history
   const { data: messages = [] } = useQuery<ChatMessage[]>({
@@ -180,6 +185,14 @@ export const StylistChat: React.FC = () => {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, sendMutation.isPending]);
+
+  // Auto-send initial message from shared garment
+  useEffect(() => {
+    if (initialMessage && !initialSentRef.current && user && !sendMutation.isPending) {
+      initialSentRef.current = true;
+      sendMutation.mutate(initialMessage);
+    }
+  }, [initialMessage, user]);
 
   const getGarment = (id: string) => garments.find((g) => g.id === id);
 
