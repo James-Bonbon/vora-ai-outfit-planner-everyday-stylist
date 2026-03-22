@@ -34,7 +34,11 @@ interface Attachment {
   file?: File;
 }
 
-export const StylistChat: React.FC = () => {
+interface StylistChatProps {
+  initialMessage?: string;
+}
+
+export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: profile } = useProfileData();
@@ -43,6 +47,7 @@ export const StylistChat: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const initialSentRef = useRef(false);
 
   // Fetch chat history
   const { data: messages = [] } = useQuery<ChatMessage[]>({
