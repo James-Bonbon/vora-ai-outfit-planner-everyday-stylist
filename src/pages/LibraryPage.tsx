@@ -112,11 +112,11 @@ const LibraryPage = () => {
         catalog_item_id: item.id,
       });
       if (error) {
-        console.error("Dream List Insert Error:", error);
-        toast({ title: "Failed to save to Dream List", variant: "destructive" });
+        console.error("Wishlist Insert Error:", error);
+        toast({ title: "Failed to save to Wishlist", variant: "destructive" });
       } else {
         setDreamIds((prev) => new Set(prev).add(item.id));
-        toast({ title: "Added to Dream List! ✨" });
+        toast({ title: "Added to Wishlist! ✨" });
       }
     }
     setSavingId(null);

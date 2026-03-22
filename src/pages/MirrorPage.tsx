@@ -740,7 +740,7 @@ const MirrorPage = () => {
                       {item.source === "dream" && (
                         <div className="absolute top-1.5 left-1.5 flex items-center gap-0.5 bg-accent text-accent-foreground px-1.5 py-0.5 rounded-full">
                           <Star className="w-2.5 h-2.5 fill-current" />
-                          <span className="text-[8px] font-semibold">Dream</span>
+                          <span className="text-[8px] font-semibold">Wishlist</span>
                         </div>
                       )}
                       <p className="text-[10px] text-[#6B6B6B] truncate px-1.5 py-1">{item.name || "Unnamed"}</p>

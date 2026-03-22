@@ -288,7 +288,7 @@ const WardrobePage = () => {
               <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
                 <Library className="w-8 h-8 text-primary" />
               </div>
-              <h3 className="font-semibold text-foreground">Build your Dream Wardrobe</h3>
+              <h3 className="font-semibold text-foreground">Build your Wishlist</h3>
               <p className="text-xs text-muted-foreground mt-1 max-w-[220px]">
                 Browse thousands of items from our library and try them on.
               </p>

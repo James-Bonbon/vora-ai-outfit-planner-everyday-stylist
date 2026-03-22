@@ -16,7 +16,7 @@ const tiers = [
       "5 AI try-ons per month",
       "Unlimited wardrobe uploads",
       "Basic care guides",
-      "Dream list",
+      "Wishlist",
     ],
     cta: "Current Plan",
     disabled: true,

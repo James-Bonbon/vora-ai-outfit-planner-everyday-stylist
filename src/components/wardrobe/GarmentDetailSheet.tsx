@@ -391,7 +391,7 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
             className="w-full rounded-xl"
           >
             <Trash2 className="w-4 h-4 mr-2" />
-            {deleting ? "Removing..." : isDream ? "Remove from Dream List" : "Remove from Wardrobe"}
+            {deleting ? "Removing..." : isDream ? "Remove from Wishlist" : "Remove from Wardrobe"}
           </Button>
         </div>
       </SheetContent>

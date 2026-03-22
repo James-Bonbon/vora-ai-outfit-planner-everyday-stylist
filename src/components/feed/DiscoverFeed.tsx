@@ -72,7 +72,7 @@ export const DiscoverFeed = ({ layout = "full" }: DiscoverFeedProps) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dream-items"] });
-      toast.success("Saved to Dream Wardrobe");
+      toast.success("Saved to Wishlist");
     },
     onError: () => toast.error("Failed to save item"),
   });
