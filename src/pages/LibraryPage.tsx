@@ -102,7 +102,7 @@ const LibraryPage = () => {
         next.delete(item.id);
         return next;
       });
-      toast({ title: "Removed from Dream List" });
+      toast({ title: "Removed from Wishlist" });
     } else {
       const { error } = await supabase.from("dream_items").insert({
         user_id: user.id,
