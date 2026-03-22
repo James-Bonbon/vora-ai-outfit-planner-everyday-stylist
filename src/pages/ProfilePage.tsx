@@ -225,7 +225,7 @@ const ProfilePage = () => {
             <>
               <h3 className="font-semibold text-foreground">{displayName}</h3>
               <p className="text-xs text-primary font-medium capitalize">
-                {(profile?.subscription_tier || "free")} tier {profile?.subscription_tier !== "free" ? "✨" : ""}
+                {isAdmin ? "admin" : (profile?.subscription_tier || "free")} tier {(isAdmin || (profile?.subscription_tier && profile.subscription_tier !== "free")) ? "✨" : ""}
               </p>
             </>
           )}
@@ -274,7 +274,7 @@ const ProfilePage = () => {
                       className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
                         isSelected
                           ? "bg-[#2c4c3b] text-white shadow-sm"
-                          : "bg-[#f4f6f0] text-[#1a1a1a] hover:bg-[#e9ece4]"
+                          : "bg-card text-foreground border border-border"
                       }`}
                     >
                       {shape}
