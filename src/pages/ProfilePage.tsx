@@ -274,7 +274,7 @@ const ProfilePage = () => {
                       className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
                         isSelected
                           ? "bg-[#2c4c3b] text-white shadow-sm"
-                          : "bg-[#f4f6f0] text-[#1a1a1a] hover:bg-[#e9ece4]"
+                          : "bg-card text-foreground border border-border"
                       }`}
                     >
                       {shape}
