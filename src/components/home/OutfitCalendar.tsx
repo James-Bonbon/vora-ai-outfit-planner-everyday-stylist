@@ -289,7 +289,7 @@ const OutfitCalendar = () => {
         <div>
           <h3 className="text-lg font-bold text-foreground font-outfit">Unlock Your Daily Stylist</h3>
           <p className="text-sm text-muted-foreground mt-1">
-            Add at least 7 Tops and 3 Bottoms to your Wardrobe or Dream List to activate the Outfit Calendar.
+            Add at least 7 Tops and 3 Bottoms to your Wardrobe or Wishlist to activate the Outfit Calendar.
           </p>
         </div>
         <div className="space-y-3 max-w-[260px] mx-auto">

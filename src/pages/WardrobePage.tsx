@@ -200,7 +200,7 @@ const WardrobePage = () => {
               activeTab === tab ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground"
             }`}
           >
-            {tab === "closet" ? "My Closet" : tab === "lookbook" ? "Lookbook" : "Dream List"}
+            {tab === "closet" ? "My Closet" : tab === "lookbook" ? "Lookbook" : "Wishlist"}
           </button>
         ))}
       </div>
@@ -275,20 +275,20 @@ const WardrobePage = () => {
       {/* Lookbook Tab */}
       {activeTab === "lookbook" && <LookbookTab items={items} imageUrls={imageUrls} />}
 
-      {/* Dream List Tab */}
+      {/* Wishlist Tab */}
       {activeTab === "dream" && (
         <>
           {isDreamLoading ? (
             <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground gap-3">
               <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-              <p className="text-sm font-medium">Loading dream list...</p>
+              <p className="text-sm font-medium">Loading wishlist...</p>
             </div>
           ) : dreamItems.length === 0 ? (
             <GlassCard className="flex flex-col items-center justify-center py-16 text-center">
               <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
                 <Library className="w-8 h-8 text-primary" />
               </div>
-              <h3 className="font-semibold text-foreground">Build your Dream Wardrobe</h3>
+              <h3 className="font-semibold text-foreground">Build your Wishlist</h3>
               <p className="text-xs text-muted-foreground mt-1 max-w-[220px]">
                 Browse thousands of items from our library and try them on.
               </p>

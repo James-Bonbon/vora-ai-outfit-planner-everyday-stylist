@@ -429,6 +429,7 @@ export type Database = {
           subscription_tier: string
           updated_at: string
           user_id: string
+          username: string | null
           weight_kg: number | null
         }
         Insert: {
@@ -449,6 +450,7 @@ export type Database = {
           subscription_tier?: string
           updated_at?: string
           user_id: string
+          username?: string | null
           weight_kg?: number | null
         }
         Update: {
@@ -469,6 +471,7 @@ export type Database = {
           subscription_tier?: string
           updated_at?: string
           user_id?: string
+          username?: string | null
           weight_kg?: number | null
         }
         Relationships: []

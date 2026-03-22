@@ -2,7 +2,7 @@ import { useState } from "react";
 import SafeImage from "@/components/ui/SafeImage";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import GlassCard from "@/components/GlassCard";
-import { User, Settings, Crown, LogOut, Pencil, X, Check, Ruler, Weight, Calendar, Users, Camera, Database, Loader2, Lock, Palette, ChevronLeft } from "lucide-react";
+import { User, AtSign, Settings, Crown, LogOut, Pencil, X, Check, Ruler, Weight, Calendar, Users, Camera, Database, Loader2, Lock, Palette, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,6 +26,7 @@ interface ProfileData {
   body_shape: string | null;
   subscription_tier: string | null;
   app_theme: string | null;
+  username: string | null;
 }
 
 
@@ -71,6 +72,8 @@ const ProfilePage = () => {
   const [editHeight, setEditHeight] = useState("");
   const [editWeight, setEditWeight] = useState("");
   const [editBodyShape, setEditBodyShape] = useState("");
+  const [editUsername, setEditUsername] = useState("");
+  const [usernameError, setUsernameError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [seeding, setSeeding] = useState(false);
 
@@ -81,6 +84,8 @@ const ProfilePage = () => {
     setEditHeight(profile?.height_cm?.toString() || "");
     setEditWeight(profile?.weight_kg?.toString() || "");
     setEditBodyShape(profile?.body_shape || "");
+    setEditUsername(profile?.username || "");
+    setUsernameError(null);
     setEditing(true);
   };
 
@@ -107,9 +112,24 @@ const ProfilePage = () => {
     setEditSelfiePreview(previewUrl);
   };
 
+  const validateUsername = (value: string): string | null => {
+    if (!value) return null;
+    if (value !== value.toLowerCase()) return "Username must be lowercase";
+    if (/\s/.test(value)) return "Username cannot contain spaces";
+    if (!/^[a-z0-9._]*$/.test(value)) return "Only letters, numbers, dots, and underscores";
+    if (value.length < 3) return "At least 3 characters";
+    if (value.length > 30) return "Max 30 characters";
+    return null;
+  };
+
   const handleSave = async () => {
     if (!user || !editName.trim()) {
       toast.error("Name is required.");
+      return;
+    }
+    const uError = validateUsername(editUsername);
+    if (editUsername && uError) {
+      setUsernameError(uError);
       return;
     }
     setSaving(true);
@@ -137,9 +157,7 @@ const ProfilePage = () => {
         selfiePublicUrl = publicUrlData.publicUrl;
       }
 
-      const { error } = await supabase
-        .from("profiles")
-        .update({
+      const updatePayload: Record<string, any> = {
           display_name: editName.trim(),
           date_of_birth: editDob || null,
           sex: editSex || null,
@@ -147,7 +165,12 @@ const ProfilePage = () => {
           weight_kg: editWeight ? Number(editWeight) : null,
           selfie_url: selfiePublicUrl,
           body_shape: editBodyShape || null,
-        })
+          username: editUsername.trim() || null,
+        };
+
+      const { error } = await supabase
+        .from("profiles")
+        .update(updatePayload)
         .eq("user_id", user.id);
       if (error) throw error;
       toast.success("Profile updated!");
@@ -220,10 +243,31 @@ const ProfilePage = () => {
         </div>
         <div className="flex-1">
           {editing ? (
-            <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Your name" className="rounded-xl bg-card" />
+            <div className="space-y-2">
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Your name" className="rounded-xl bg-card" />
+              <div>
+                <div className="relative">
+                  <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                  <Input
+                    value={editUsername}
+                    onChange={(e) => {
+                      const val = e.target.value.toLowerCase().replace(/\s/g, "");
+                      setEditUsername(val);
+                      setUsernameError(validateUsername(val));
+                    }}
+                    placeholder="username"
+                    className="rounded-xl bg-card pl-8 text-sm"
+                  />
+                </div>
+                {usernameError && <p className="text-[11px] text-destructive mt-1">{usernameError}</p>}
+              </div>
+            </div>
           ) : (
             <>
               <h3 className="font-semibold text-foreground">{displayName}</h3>
+              {profile?.username && (
+                <p className="text-xs text-muted-foreground">@{profile.username}</p>
+              )}
               <p className="text-xs text-primary font-medium capitalize">
                 {isAdmin ? "admin" : (profile?.subscription_tier || "free")} tier {(isAdmin || (profile?.subscription_tier && profile.subscription_tier !== "free")) ? "✨" : ""}
               </p>
