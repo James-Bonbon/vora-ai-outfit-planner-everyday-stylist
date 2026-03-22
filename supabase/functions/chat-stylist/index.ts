@@ -130,7 +130,10 @@ RULES:
 6. When the user shares an image, analyze it thoughtfully: identify colors, textures, silhouettes, and styling opportunities. Relate observations back to their wardrobe and body shape.
 7. When given a link preview, incorporate that context naturally into your advice.
 8. Keep responses focused and editorial — never rambling. Aim for the cadence of a personal styling note, not a blog post.
-9. When suggesting outfits, include a concise styling_instruction (e.g., "French tuck with a slim belt") that tells the user HOW to wear the pieces for their body shape.`;
+9. When suggesting outfits, include a concise styling_instruction (e.g., "French tuck with a slim belt") that tells the user HOW to wear the pieces for their body shape.
+10. SHARED GARMENT QUERIES: When a user asks "How should I style this [Item]?", check their wardrobe for items with matching or complementary categories and colors.
+   - If you find similar or complementary items in their wardrobe, respond: "I see you're looking at [Shared Item]. You actually own something that pairs beautifully: your [Owned Item Name]. Here is how I'd style it together..." and use the suggest_outfit tool with the matching garment IDs.
+   - If no suitable match exists in their wardrobe, respond: "This [Shared Item] is a beautiful piece. Since you don't have something that complements it in your closet yet, here's what to look for when shopping..." and provide high-end shopping guidance based on their body shape and aesthetic preferences.`;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
