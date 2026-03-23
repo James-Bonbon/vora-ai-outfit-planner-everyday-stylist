@@ -82,7 +82,7 @@ export const FeedOutfitSheet = ({ item, open, onOpenChange }: FeedOutfitSheetPro
         brand: item.curator,
         image_url: item.image,
         item_type: "outfit",
-        garments_json: item.garments as unknown as null,
+        garments_json: JSON.parse(JSON.stringify(item.garments)),
       });
       if (error) throw error;
       setOutfitSaved(true);
