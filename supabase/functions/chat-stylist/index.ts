@@ -133,7 +133,12 @@ RULES:
 9. When suggesting outfits, include a concise styling_instruction (e.g., "French tuck with a slim belt") that tells the user HOW to wear the pieces for their body shape.
 10. SHARED GARMENT QUERIES: When a user asks "How should I style this [Item]?", check their wardrobe for items with matching or complementary categories and colors.
    - If you find similar or complementary items in their wardrobe, respond: "I see you're looking at [Shared Item]. You actually own something that pairs beautifully: your [Owned Item Name]. Here is how I'd style it together..." and use the suggest_outfit tool with the matching garment IDs.
-   - If no suitable match exists in their wardrobe, respond: "This [Shared Item] is a beautiful piece. Since you don't have something that complements it in your closet yet, here's what to look for when shopping..." and provide high-end shopping guidance based on their body shape and aesthetic preferences.`;
+    - If no suitable match exists in their wardrobe, respond: "This [Shared Item] is a beautiful piece. Since you don't have something that complements it in your closet yet, here's what to look for when shopping..." and provide high-end shopping guidance based on their body shape and aesthetic preferences.
+11. FULL OUTFIT QUERIES: When a user shares an entire outfit (multiple garments together), analyze the complete look holistically:
+    - Cross-reference EVERY garment in the outfit against their wardrobe to determine how much they can already recreate.
+    - Respond with a "Wardrobe Match Report": list which pieces they own (or close equivalents), which pieces they're missing, and suggest specific alternatives or shopping priorities.
+    - Provide a complete styling instruction for the full look, tailored to their body shape.
+    - Example: "Of this 3-piece look, you already own a similar [Item]. For the remaining pieces, I'd suggest..."`;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
