@@ -9,66 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FeedOutfitSheet } from "./FeedOutfitSheet";
-
-interface DiscoverFeedProps {
-  layout?: "compact" | "full";
-}
-
-export interface FeedItem {
-  id: string;
-  title: string;
-  curator: string;
-  username: string;
-  image: string;
-  tags: string[];
-  likes: number;
-  garments: { name: string; category: string; brand: string }[];
-}
-
-const FEED_ITEMS: FeedItem[] = [
-  {
-    id: "1",
-    title: "Weekend in the City",
-    curator: "VORA Editorial",
-    username: "@kaelie_styles",
-    image: "https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&q=80&w=800",
-    tags: ["Minimalist", "Autumn", "Neutral"],
-    likes: 124,
-    garments: [
-      { name: "Oversized Wool Blazer", category: "Outerwear", brand: "COS" },
-      { name: "Silk Camisole", category: "Tops", brand: "Aritzia" },
-      { name: "High-Waist Trousers", category: "Bottoms", brand: "Massimo Dutti" },
-    ],
-  },
-  {
-    id: "2",
-    title: "Office to Evening",
-    curator: "Studio Collection",
-    username: "@minimalist_edit",
-    image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=800",
-    tags: ["Tailored", "Monochrome"],
-    likes: 89,
-    garments: [
-      { name: "Structured Midi Skirt", category: "Bottoms", brand: "Theory" },
-      { name: "Cashmere Turtleneck", category: "Tops", brand: "Everlane" },
-      { name: "Pointed Leather Mules", category: "Shoes", brand: "Mango" },
-    ],
-  },
-  {
-    id: "3",
-    title: "Sunday Coffee Run",
-    curator: "VORA Editorial",
-    username: "@studio_vora",
-    image: "https://images.unsplash.com/photo-1434389678369-182cb1bc8e56?auto=format&fit=crop&q=80&w=800",
-    tags: ["Casual", "Knitwear"],
-    likes: 210,
-    garments: [
-      { name: "Chunky Knit Cardigan", category: "Outerwear", brand: "& Other Stories" },
-      { name: "Wide-Leg Linen Pants", category: "Bottoms", brand: "Uniqlo" },
-      { name: "Canvas Sneakers", category: "Shoes", brand: "Veja" },
-    ],
-  },
-];
+import { FEED_ITEMS } from "@/data/mockFeedData";
+export type { FeedItem } from "@/data/mockFeedData";
 
 export const DiscoverFeed = ({ layout = "full" }: DiscoverFeedProps) => {
   const { user } = useAuth();
