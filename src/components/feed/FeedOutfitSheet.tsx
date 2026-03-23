@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import type { FeedItem } from "./DiscoverFeed";
+import type { FeedItem } from "@/data/mockFeedData";
 
 interface FeedOutfitSheetProps {
   item: FeedItem | null;
