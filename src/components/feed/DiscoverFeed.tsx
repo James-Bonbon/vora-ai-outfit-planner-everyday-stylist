@@ -9,8 +9,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FeedOutfitSheet } from "./FeedOutfitSheet";
-import { FEED_ITEMS } from "@/data/mockFeedData";
+import { FEED_ITEMS, type FeedItem } from "@/data/mockFeedData";
 export type { FeedItem } from "@/data/mockFeedData";
+
+interface DiscoverFeedProps {
+  layout?: "compact" | "full";
+}
 
 export const DiscoverFeed = ({ layout = "full" }: DiscoverFeedProps) => {
   const { user } = useAuth();
