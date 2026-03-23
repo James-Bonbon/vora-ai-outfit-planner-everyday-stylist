@@ -184,8 +184,10 @@ export type Database = {
           brand: string | null
           catalog_item_id: string | null
           created_at: string
+          garments_json: Json | null
           id: string
           image_url: string
+          item_type: string
           name: string | null
           price: number | null
           user_id: string
@@ -194,8 +196,10 @@ export type Database = {
           brand?: string | null
           catalog_item_id?: string | null
           created_at?: string
+          garments_json?: Json | null
           id?: string
           image_url: string
+          item_type?: string
           name?: string | null
           price?: number | null
           user_id: string
@@ -204,8 +208,10 @@ export type Database = {
           brand?: string | null
           catalog_item_id?: string | null
           created_at?: string
+          garments_json?: Json | null
           id?: string
           image_url?: string
+          item_type?: string
           name?: string | null
           price?: number | null
           user_id?: string
