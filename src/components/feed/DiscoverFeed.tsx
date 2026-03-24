@@ -9,8 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FeedOutfitSheet } from "./FeedOutfitSheet";
-import { FEED_ITEMS, type FeedItem } from "@/data/mockFeedData";
-export type { FeedItem } from "@/data/mockFeedData";
+import { FEED_ITEMS, type OutfitPost } from "@/data/mockFeedData";
+export type { OutfitPost } from "@/data/mockFeedData";
 
 interface DiscoverFeedProps {
   layout?: "compact" | "full";
@@ -20,17 +20,14 @@ export const DiscoverFeed = ({ layout = "full" }: DiscoverFeedProps) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Local like state
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>(
-    () => Object.fromEntries(FEED_ITEMS.map((i) => [i.id, i.likes]))
+    () => Object.fromEntries(FEED_ITEMS.map((i) => [i.id, i.likesCount]))
   );
 
-  // Garment detail sheet
-  const [selectedFeedItem, setSelectedFeedItem] = useState<FeedItem | null>(null);
+  const [selectedFeedItem, setSelectedFeedItem] = useState<OutfitPost | null>(null);
   const [outfitSheetOpen, setOutfitSheetOpen] = useState(false);
 
-  // Fetch saved wishlist items for bookmark state
   const { data: dreamItems = [] } = useQuery({
     queryKey: ["dream-items", user?.id],
     queryFn: async () => {
@@ -47,11 +44,11 @@ export const DiscoverFeed = ({ layout = "full" }: DiscoverFeedProps) => {
   const savedImageUrls = new Set(dreamItems.map((d) => d.image_url));
 
   const saveMutation = useMutation({
-    mutationFn: async (item: FeedItem) => {
+    mutationFn: async (item: OutfitPost) => {
       const { error } = await supabase.from("dream_items").insert({
         user_id: user!.id,
-        name: item.title,
-        image_url: item.image,
+        name: item.description,
+        image_url: item.main_image_url,
       });
       if (error) throw error;
     },
@@ -80,10 +77,10 @@ export const DiscoverFeed = ({ layout = "full" }: DiscoverFeedProps) => {
 
   const displayItems = layout === "compact" ? FEED_ITEMS.slice(0, 1) : FEED_ITEMS;
 
-  const toggleSave = (item: FeedItem) => {
+  const toggleSave = (item: OutfitPost) => {
     if (!user) { toast.error("Sign in to save items"); return; }
-    if (savedImageUrls.has(item.image)) {
-      removeMutation.mutate(item.image);
+    if (savedImageUrls.has(item.main_image_url)) {
+      removeMutation.mutate(item.main_image_url);
     } else {
       saveMutation.mutate(item);
     }
@@ -119,7 +116,7 @@ export const DiscoverFeed = ({ layout = "full" }: DiscoverFeedProps) => {
       {/* Feed Cards */}
       <div className="space-y-4">
         {displayItems.map((item) => {
-          const isSaved = savedImageUrls.has(item.image);
+          const isSaved = savedImageUrls.has(item.main_image_url);
           const isCompact = layout === "compact";
           const isLiked = likedIds.has(item.id);
 
@@ -130,21 +127,27 @@ export const DiscoverFeed = ({ layout = "full" }: DiscoverFeedProps) => {
                 isCompact ? "border border-[hsl(90_8%_89%)] shadow-sm" : ""
               }`}
             >
-              {/* Image — clickable to open garment view */}
+              {/* Image with gradient overlay */}
               <div
-                className="aspect-[4/5] bg-muted relative cursor-pointer"
+                className="aspect-[4/5] bg-muted relative cursor-pointer overflow-hidden rounded-t-2xl"
                 onClick={() => {
                   setSelectedFeedItem(item);
                   setOutfitSheetOpen(true);
                 }}
               >
                 <SafeImage
-                  src={item.image}
-                  alt={item.title}
+                  src={item.main_image_url}
+                  alt={item.description}
                   aspectRatio=""
                   wrapperClassName="w-full h-full"
                   loading="lazy"
                 />
+                {/* Dark gradient overlay for username legibility */}
+                <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 via-black/20 to-transparent pointer-events-none" />
+                {/* Username on image */}
+                <span className="absolute bottom-3 left-3.5 text-white text-[13px] font-semibold tracking-wide drop-shadow-sm">
+                  {item.username}
+                </span>
                 {isCompact && (
                   <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-[hsl(150_28%_23%)] text-white">
                     Featured Look
@@ -154,18 +157,10 @@ export const DiscoverFeed = ({ layout = "full" }: DiscoverFeedProps) => {
 
               {/* Content */}
               <div className="p-3.5 space-y-2.5">
-                {/* Username */}
-                <p className="text-[11px] font-semibold text-muted-foreground tracking-wide">
-                  {item.username}
-                </p>
-
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-foreground font-outfit truncate">
-                      {item.title}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      {item.curator}
+                      {item.description}
                     </p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
@@ -203,17 +198,6 @@ export const DiscoverFeed = ({ layout = "full" }: DiscoverFeedProps) => {
                 <p className="text-[10px] font-semibold text-muted-foreground">
                   {likeCounts[item.id] || 0} likes
                 </p>
-
-                <div className="flex flex-wrap gap-1.5">
-                  {item.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground bg-muted px-2.5 py-1 rounded-full"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
               </div>
             </GlassCard>
           );
@@ -232,7 +216,7 @@ export const DiscoverFeed = ({ layout = "full" }: DiscoverFeedProps) => {
         </div>
       )}
 
-      {/* Garment detail sheet */}
+      {/* Outfit detail sheet */}
       <FeedOutfitSheet
         item={selectedFeedItem}
         open={outfitSheetOpen}

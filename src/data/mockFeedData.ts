@@ -1,522 +1,425 @@
-export interface FeedGarment {
-  name: string;
-  category: string;
-  brand: string;
-  image_url: string;
-}
+/* ── Strict Type Definitions ──────────────────────────────── */
 
-export interface FeedItem {
+export interface Garment {
   id: string;
-  title: string;
-  curator: string;
-  username: string;
-  image: string;
-  tags: string[];
-  likes: number;
-  garments: FeedGarment[];
+  category: "OUT" | "TOP" | "BOT" | "SHOE" | "ACC";
+  name: string;
+  brand: string;
+  flat_lay_image_url: string;
 }
 
-/* ── 30 unique street-style / editorial outfit images ──────── */
-const OUTFIT_IMAGES = [
-  "https://images.unsplash.com/photo-1581044777550-4cfa60707998?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1485968579580-b6d095142e6e?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1469334031218-e382a71b716b?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1487222477894-8943e31ef7b2?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1502716119720-b23a1e3b3c42?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1434389678369-182cb1bc8e56?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1475180098004-ca77a66827be?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1492707892479-7bc8d5a4ee93?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1495385794356-15371f348c31?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1551803091-e20673f15770?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1550614000-4895a10e1bfd?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1548142813-c348350df52b?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1512310604669-443f26c35f52?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=80&w=800",
-];
+export interface OutfitPost {
+  id: string;
+  username: string;
+  main_image_url: string;
+  description: string;
+  likesCount: number;
+  isLiked: boolean;
+  outfit_breakdown: Garment[];
+}
 
-/* ── Flat-lay / isolated garment product images ──────────── */
-const FL = {
-  blazer: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?auto=format&fit=crop&q=80&w=400",
-  camisole: "https://images.unsplash.com/photo-1564257631407-4deb1f99d992?auto=format&fit=crop&q=80&w=400",
-  trousers: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&q=80&w=400",
-  skirt: "https://images.unsplash.com/photo-1583496661160-fb5886a0aeae?auto=format&fit=crop&q=80&w=400",
-  turtleneck: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?auto=format&fit=crop&q=80&w=400",
-  mules: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&q=80&w=400",
-  cardigan: "https://images.unsplash.com/photo-1620799139507-2a76f79a2f4d?auto=format&fit=crop&q=80&w=400",
-  linenpants: "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&q=80&w=400",
-  sneakers: "https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&q=80&w=400",
-  dress: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&q=80&w=400",
-  clutch: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&q=80&w=400",
-  heels: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&q=80&w=400",
-  linenshirt: "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&q=80&w=400",
-  slides: "https://images.unsplash.com/photo-1603487742131-4160ec999306?auto=format&fit=crop&q=80&w=400",
-  coat: "https://images.unsplash.com/photo-1544022613-e87ca75a784a?auto=format&fit=crop&q=80&w=400",
-  boots: "https://images.unsplash.com/photo-1608256246200-53e635b5b65f?auto=format&fit=crop&q=80&w=400",
-  jacket: "https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&q=80&w=400",
-  tanktop: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&q=80&w=400",
-  blouse: "https://images.unsplash.com/photo-1598554747436-c9293d6a588f?auto=format&fit=crop&q=80&w=400",
-  jeans: "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&q=80&w=400",
-  belt: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&q=80&w=400",
-  loafers: "https://images.unsplash.com/photo-1614252369475-531eba835eb1?auto=format&fit=crop&q=80&w=400",
-  slipdress: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&q=80&w=400",
-  wrap: "https://images.unsplash.com/photo-1620799139507-2a76f79a2f4d?auto=format&fit=crop&q=80&w=400",
-  bracelet: "https://images.unsplash.com/photo-1611591437281-460bfbe1220a?auto=format&fit=crop&q=80&w=400",
-  trench: "https://images.unsplash.com/photo-1544022613-e87ca75a784a?auto=format&fit=crop&q=80&w=400",
-  sweater: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?auto=format&fit=crop&q=80&w=400",
-  polo: "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&q=80&w=400",
-  balletflats: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&q=80&w=400",
-  hat: "https://images.unsplash.com/photo-1521369909029-2afed882baee?auto=format&fit=crop&q=80&w=400",
-  sandals: "https://images.unsplash.com/photo-1603487742131-4160ec999306?auto=format&fit=crop&q=80&w=400",
-  cargo: "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&q=80&w=400",
-  puffer: "https://images.unsplash.com/photo-1544022613-e87ca75a784a?auto=format&fit=crop&q=80&w=400",
-  hoodie: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&q=80&w=400",
-  shorts: "https://images.unsplash.com/photo-1591195853828-11db59a44f6b?auto=format&fit=crop&q=80&w=400",
-  espadrilles: "https://images.unsplash.com/photo-1603487742131-4160ec999306?auto=format&fit=crop&q=80&w=400",
-  hoops: "https://images.unsplash.com/photo-1611591437281-460bfbe1220a?auto=format&fit=crop&q=80&w=400",
-  pumps: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&q=80&w=400",
-  bag: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&q=80&w=400",
-};
+/* ── 10 Vision-Curated Outfits ───────────────────────────── */
 
-export const FEED_ITEMS: FeedItem[] = [
+export const FEED_ITEMS: OutfitPost[] = [
+  /* ─── 1 · Female · Camel Coat Street Style ─────────────── */
   {
-    id: "1",
-    title: "Weekend in the City",
-    curator: "VORA Editorial",
-    username: "@kaelie_styles",
-    image: OUTFIT_IMAGES[0],
-    tags: ["Minimalist", "Autumn", "Neutral"],
-    likes: 124,
-    garments: [
-      { name: "Oversized Wool Blazer", category: "Outerwear", brand: "COS", image_url: FL.blazer },
-      { name: "Silk Camisole", category: "Tops", brand: "Aritzia", image_url: FL.camisole },
-      { name: "High-Waist Trousers", category: "Bottoms", brand: "Massimo Dutti", image_url: FL.trousers },
-    ],
-  },
-  {
-    id: "2",
-    title: "Office to Evening",
-    curator: "Studio Collection",
+    id: "f1",
     username: "@minimal_edit",
-    image: OUTFIT_IMAGES[1],
-    tags: ["Tailored", "Monochrome"],
-    likes: 89,
-    garments: [
-      { name: "Structured Midi Skirt", category: "Bottoms", brand: "Theory", image_url: FL.skirt },
-      { name: "Cashmere Turtleneck", category: "Tops", brand: "Everlane", image_url: FL.turtleneck },
-      { name: "Pointed Leather Mules", category: "Shoes", brand: "Mango", image_url: FL.mules },
+    main_image_url:
+      "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&q=80&w=800",
+    description: "Camel coat season. Layered neutrals in Brooklyn.",
+    likesCount: 312,
+    isLiked: false,
+    outfit_breakdown: [
+      {
+        id: "f1-g1",
+        category: "OUT",
+        name: "Belted Camel Coat",
+        brand: "Totême",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        id: "f1-g2",
+        category: "TOP",
+        name: "Cream Ribbed Turtleneck",
+        brand: "The Row",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1576566588028-4147f3842f27?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        id: "f1-g3",
+        category: "BOT",
+        name: "Wide-Leg Tailored Trousers",
+        brand: "COS",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        id: "f1-g4",
+        category: "SHOE",
+        name: "Leather Chelsea Boots",
+        brand: "Lemaire",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1638247025967-b4e38f787b76?auto=format&fit=crop&q=80&w=400",
+      },
     ],
   },
+
+  /* ─── 2 · Male · Navy Overcoat Editorial ───────────────── */
   {
-    id: "3",
-    title: "Sunday Coffee Run",
-    curator: "VORA Editorial",
+    id: "m1",
+    username: "@ny_neutrals",
+    main_image_url:
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=800",
+    description: "Navy layers for the commute. Less is more.",
+    likesCount: 245,
+    isLiked: false,
+    outfit_breakdown: [
+      {
+        id: "m1-g1",
+        category: "OUT",
+        name: "Navy Wool Overcoat",
+        brand: "Jil Sander",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1544022613-e87ca75a784a?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        id: "m1-g2",
+        category: "TOP",
+        name: "White Cotton Crew Tee",
+        brand: "COS",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        id: "m1-g3",
+        category: "BOT",
+        name: "Charcoal Slim Trousers",
+        brand: "Lemaire",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&q=80&w=400",
+      },
+    ],
+  },
+
+  /* ─── 3 · Female · All-Black Editorial ─────────────────── */
+  {
+    id: "f2",
+    username: "@the_curated_wardrobe",
+    main_image_url:
+      "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&q=80&w=800",
+    description: "Head-to-toe black. The eternal uniform.",
+    likesCount: 487,
+    isLiked: false,
+    outfit_breakdown: [
+      {
+        id: "f2-g1",
+        category: "OUT",
+        name: "Structured Black Blazer",
+        brand: "The Row",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1592878904946-b3cd8ae243d0?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        id: "f2-g2",
+        category: "TOP",
+        name: "Black Silk Camisole",
+        brand: "Khaite",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1564584217132-2271feaeb3c5?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        id: "f2-g3",
+        category: "BOT",
+        name: "High-Waist Black Trousers",
+        brand: "Totême",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1506629082955-511b1aa562c8?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        id: "f2-g4",
+        category: "SHOE",
+        name: "Pointed Leather Mules",
+        brand: "COS",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&q=80&w=400",
+      },
+    ],
+  },
+
+  /* ─── 4 · Male · Earth Tone Casual ─────────────────────── */
+  {
+    id: "m2",
     username: "@studio_vora",
-    image: OUTFIT_IMAGES[2],
-    tags: ["Casual", "Knitwear"],
-    likes: 210,
-    garments: [
-      { name: "Chunky Knit Cardigan", category: "Outerwear", brand: "& Other Stories", image_url: FL.cardigan },
-      { name: "Wide-Leg Linen Pants", category: "Bottoms", brand: "Uniqlo", image_url: FL.linenpants },
-      { name: "Canvas Sneakers", category: "Shoes", brand: "Veja", image_url: FL.sneakers },
+    main_image_url:
+      "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=800",
+    description: "Earthy tones, structured silhouettes.",
+    likesCount: 198,
+    isLiked: false,
+    outfit_breakdown: [
+      {
+        id: "m2-g1",
+        category: "OUT",
+        name: "Olive Cotton Chore Jacket",
+        brand: "Lemaire",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        id: "m2-g2",
+        category: "TOP",
+        name: "Ecru Linen Shirt",
+        brand: "COS",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        id: "m2-g3",
+        category: "BOT",
+        name: "Tan Pleated Chinos",
+        brand: "Jil Sander",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1473966968600-fa801b869a1a?auto=format&fit=crop&q=80&w=400",
+      },
     ],
   },
+
+  /* ─── 5 · Female · White Dress Summer ──────────────────── */
   {
-    id: "4",
-    title: "Gallery Opening",
-    curator: "The Archive",
-    username: "@the_curated_wardrobe",
-    image: OUTFIT_IMAGES[3],
-    tags: ["Editorial", "Evening", "Sculptural"],
-    likes: 187,
-    garments: [
-      { name: "Draped Asymmetric Dress", category: "Dresses", brand: "Khaite", image_url: FL.dress },
-      { name: "Leather Clutch", category: "Accessories", brand: "Bottega Veneta", image_url: FL.clutch },
-      { name: "Strappy Heeled Sandals", category: "Shoes", brand: "The Row", image_url: FL.heels },
-    ],
-  },
-  {
-    id: "5",
-    title: "Coastal Morning Walk",
-    curator: "Seasonal Edit",
-    username: "@ny_neutrals",
-    image: OUTFIT_IMAGES[4],
-    tags: ["Linen", "Summer", "Effortless"],
-    likes: 156,
-    garments: [
-      { name: "Oversized Linen Shirt", category: "Tops", brand: "COS", image_url: FL.linenshirt },
-      { name: "Wide-Leg Linen Trousers", category: "Bottoms", brand: "Arket", image_url: FL.linenpants },
-      { name: "Woven Leather Slides", category: "Shoes", brand: "The Row", image_url: FL.slides },
-    ],
-  },
-  {
-    id: "6",
-    title: "Monochrome Power",
-    curator: "Guest Curator",
-    username: "@tonal_dressing",
-    image: OUTFIT_IMAGES[5],
-    tags: ["Monochrome", "Structured", "Bold"],
-    likes: 342,
-    garments: [
-      { name: "Double-Breasted Coat", category: "Outerwear", brand: "Max Mara", image_url: FL.coat },
-      { name: "Crepe Straight-Leg Trousers", category: "Bottoms", brand: "Totême", image_url: FL.trousers },
-      { name: "Pointed Leather Boots", category: "Shoes", brand: "Jil Sander", image_url: FL.boots },
-    ],
-  },
-  {
-    id: "7",
-    title: "Studio Session",
-    curator: "VORA Editorial",
-    username: "@soft_archive",
-    image: OUTFIT_IMAGES[6],
-    tags: ["Artistic", "Layers", "Neutral"],
-    likes: 98,
-    garments: [
-      { name: "Deconstructed Linen Jacket", category: "Outerwear", brand: "Lemaire", image_url: FL.jacket },
-      { name: "Ribbed Tank Top", category: "Tops", brand: "Skims", image_url: FL.tanktop },
-      { name: "Pleated Wide Trousers", category: "Bottoms", brand: "COS", image_url: FL.trousers },
-    ],
-  },
-  {
-    id: "8",
-    title: "Brunch at the Terrace",
-    curator: "Studio Collection",
-    username: "@ecru_daily",
-    image: OUTFIT_IMAGES[7],
-    tags: ["Casual", "Weekend", "Cream"],
-    likes: 273,
-    garments: [
-      { name: "Cotton Poplin Blouse", category: "Tops", brand: "Sézane", image_url: FL.blouse },
-      { name: "High-Rise Barrel Jeans", category: "Bottoms", brand: "Citizens of Humanity", image_url: FL.jeans },
-      { name: "Leather Belt", category: "Accessories", brand: "A.P.C.", image_url: FL.belt },
-      { name: "Suede Loafers", category: "Shoes", brand: "J.M. Weston", image_url: FL.loafers },
-    ],
-  },
-  {
-    id: "9",
-    title: "Evening in Milan",
-    curator: "The Archive",
-    username: "@quiet_luxe",
-    image: OUTFIT_IMAGES[8],
-    tags: ["Evening", "Italian", "Refined"],
-    likes: 415,
-    garments: [
-      { name: "Satin Slip Dress", category: "Dresses", brand: "Khaite", image_url: FL.slipdress },
-      { name: "Cashmere Wrap", category: "Outerwear", brand: "Brunello Cucinelli", image_url: FL.wrap },
-      { name: "Gold Cuff Bracelet", category: "Accessories", brand: "Tiffany & Co.", image_url: FL.bracelet },
-    ],
-  },
-  {
-    id: "10",
-    title: "Rainy Day Layers",
-    curator: "Seasonal Edit",
-    username: "@editorial_muse",
-    image: OUTFIT_IMAGES[9],
-    tags: ["Rainy", "Layers", "Autumn"],
-    likes: 167,
-    garments: [
-      { name: "Belted Trench Coat", category: "Outerwear", brand: "Burberry", image_url: FL.trench },
-      { name: "Merino Crew Neck", category: "Tops", brand: "Uniqlo", image_url: FL.sweater },
-      { name: "Tapered Wool Trousers", category: "Bottoms", brand: "AMI Paris", image_url: FL.trousers },
-      { name: "Chelsea Boots", category: "Shoes", brand: "Grenson", image_url: FL.boots },
-    ],
-  },
-  {
-    id: "11",
-    title: "Quiet Friday",
-    curator: "VORA Editorial",
-    username: "@minimal_edit",
-    image: OUTFIT_IMAGES[10],
-    tags: ["Relaxed", "Tonal", "Friday"],
-    likes: 201,
-    garments: [
-      { name: "Oversized Knit Polo", category: "Tops", brand: "COS", image_url: FL.polo },
-      { name: "Soft Pleat Trousers", category: "Bottoms", brand: "Auralee", image_url: FL.trousers },
-      { name: "Suede Mules", category: "Shoes", brand: "Mango", image_url: FL.mules },
-    ],
-  },
-  {
-    id: "12",
-    title: "Parisian Stroll",
-    curator: "Guest Curator",
+    id: "f3",
     username: "@kaelie_styles",
-    image: OUTFIT_IMAGES[11],
-    tags: ["Parisian", "Classic", "Effortless"],
-    likes: 309,
-    garments: [
-      { name: "Breton Stripe Top", category: "Tops", brand: "Saint James", image_url: FL.tanktop },
-      { name: "Cropped Straight Jeans", category: "Bottoms", brand: "A.P.C.", image_url: FL.jeans },
-      { name: "Ballet Flats", category: "Shoes", brand: "Repetto", image_url: FL.balletflats },
+    main_image_url:
+      "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=800",
+    description: "Summer whites. Effortless and elevated.",
+    likesCount: 523,
+    isLiked: false,
+    outfit_breakdown: [
+      {
+        id: "f3-g1",
+        category: "TOP",
+        name: "Draped White Midi Dress",
+        brand: "The Row",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        id: "f3-g2",
+        category: "SHOE",
+        name: "Strappy Leather Sandals",
+        brand: "Khaite",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1603487742131-4160ec999306?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        id: "f3-g3",
+        category: "ACC",
+        name: "Woven Straw Tote",
+        brand: "Totême",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?auto=format&fit=crop&q=80&w=400",
+      },
     ],
   },
+
+  /* ─── 6 · Male · Minimal Monochrome ────────────────────── */
   {
-    id: "13",
-    title: "Museum After-Hours",
-    curator: "The Archive",
-    username: "@the_curated_wardrobe",
-    image: OUTFIT_IMAGES[12],
-    tags: ["Cultural", "Sculptural", "Dark"],
-    likes: 178,
-    garments: [
-      { name: "Architectural Blazer", category: "Outerwear", brand: "Rick Owens", image_url: FL.blazer },
-      { name: "Jersey Mock Neck", category: "Tops", brand: "COS", image_url: FL.turtleneck },
-      { name: "Draped Midi Skirt", category: "Bottoms", brand: "Acne Studios", image_url: FL.skirt },
-    ],
-  },
-  {
-    id: "14",
-    title: "Mediterranean Ease",
-    curator: "Seasonal Edit",
-    username: "@ny_neutrals",
-    image: OUTFIT_IMAGES[13],
-    tags: ["Linen", "Summer", "Coastal"],
-    likes: 244,
-    garments: [
-      { name: "Camp Collar Shirt", category: "Tops", brand: "Orlebar Brown", image_url: FL.linenshirt },
-      { name: "Drawstring Linen Shorts", category: "Bottoms", brand: "Frescobol Carioca", image_url: FL.shorts },
-      { name: "Leather Espadrilles", category: "Shoes", brand: "Castañer", image_url: FL.espadrilles },
-    ],
-  },
-  {
-    id: "15",
-    title: "Après-Ski Elegance",
-    curator: "Studio Collection",
-    username: "@tonal_dressing",
-    image: OUTFIT_IMAGES[14],
-    tags: ["Winter", "Cozy", "Alpine"],
-    likes: 198,
-    garments: [
-      { name: "Cable-Knit Sweater", category: "Tops", brand: "Loro Piana", image_url: FL.sweater },
-      { name: "Wool-Blend Ski Pants", category: "Bottoms", brand: "Bogner", image_url: FL.trousers },
-      { name: "Shearling-Lined Boots", category: "Shoes", brand: "Moncler", image_url: FL.boots },
-    ],
-  },
-  {
-    id: "16",
-    title: "Boardroom Minimalism",
-    curator: "VORA Editorial",
-    username: "@soft_archive",
-    image: OUTFIT_IMAGES[15],
-    tags: ["Corporate", "Minimal", "Sharp"],
-    likes: 132,
-    garments: [
-      { name: "Single-Button Blazer", category: "Outerwear", brand: "The Row", image_url: FL.blazer },
-      { name: "Stretch Pencil Skirt", category: "Bottoms", brand: "Theory", image_url: FL.skirt },
-      { name: "Leather Pumps", category: "Shoes", brand: "Manolo Blahnik", image_url: FL.pumps },
-    ],
-  },
-  {
-    id: "17",
-    title: "Late Summer Garden",
-    curator: "Guest Curator",
-    username: "@ecru_daily",
-    image: OUTFIT_IMAGES[16],
-    tags: ["Floral", "Garden", "Romantic"],
-    likes: 289,
-    garments: [
-      { name: "Printed Midi Dress", category: "Dresses", brand: "Reformation", image_url: FL.dress },
-      { name: "Woven Straw Hat", category: "Accessories", brand: "Lack of Color", image_url: FL.hat },
-      { name: "Leather Sandals", category: "Shoes", brand: "Ancient Greek Sandals", image_url: FL.sandals },
-    ],
-  },
-  {
-    id: "18",
-    title: "Tokyo Neutrals",
-    curator: "The Archive",
-    username: "@quiet_luxe",
-    image: OUTFIT_IMAGES[17],
-    tags: ["Japanese", "Oversized", "Tonal"],
-    likes: 371,
-    garments: [
-      { name: "Oversized Cotton Coat", category: "Outerwear", brand: "Comme des Garçons", image_url: FL.coat },
-      { name: "Relaxed Fit Trousers", category: "Bottoms", brand: "Issey Miyake", image_url: FL.trousers },
-      { name: "Leather Derby Shoes", category: "Shoes", brand: "Hender Scheme", image_url: FL.loafers },
-    ],
-  },
-  {
-    id: "19",
-    title: "Market Day",
-    curator: "Seasonal Edit",
-    username: "@editorial_muse",
-    image: OUTFIT_IMAGES[18],
-    tags: ["Weekend", "Basket", "Earthy"],
-    likes: 143,
-    garments: [
-      { name: "Relaxed Linen Dress", category: "Dresses", brand: "Toast", image_url: FL.dress },
-      { name: "Woven Basket Bag", category: "Accessories", brand: "Loewe", image_url: FL.bag },
-      { name: "Flat Leather Sandals", category: "Shoes", brand: "K.Jacques", image_url: FL.sandals },
-    ],
-  },
-  {
-    id: "20",
-    title: "Midnight Velvet",
-    curator: "VORA Editorial",
+    id: "m3",
     username: "@minimal_edit",
-    image: OUTFIT_IMAGES[19],
-    tags: ["Evening", "Velvet", "Dramatic"],
-    likes: 456,
-    garments: [
-      { name: "Velvet Blazer", category: "Outerwear", brand: "Saint Laurent", image_url: FL.blazer },
-      { name: "Silk Camisole", category: "Tops", brand: "La Perla", image_url: FL.camisole },
-      { name: "Straight-Leg Tuxedo Pants", category: "Bottoms", brand: "Celine", image_url: FL.trousers },
-      { name: "Satin Pointed Pumps", category: "Shoes", brand: "Jimmy Choo", image_url: FL.pumps },
+    main_image_url:
+      "https://images.unsplash.com/photo-1480429370612-2cd0c2f04cca?auto=format&fit=crop&q=80&w=800",
+    description: "Monochrome. Clean lines, zero noise.",
+    likesCount: 167,
+    isLiked: false,
+    outfit_breakdown: [
+      {
+        id: "m3-g1",
+        category: "TOP",
+        name: "Black Merino Crew Knit",
+        brand: "Jil Sander",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1434389677669-e08b4cda3a76?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        id: "m3-g2",
+        category: "BOT",
+        name: "Black Straight-Leg Jeans",
+        brand: "Totême",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1542272604-787c3835535d?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        id: "m3-g3",
+        category: "SHOE",
+        name: "Black Leather Derbies",
+        brand: "Lemaire",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1614252369475-531eba835eb1?auto=format&fit=crop&q=80&w=400",
+      },
     ],
   },
+
+  /* ─── 7 · Female · Trench Coat Classic ─────────────────── */
   {
-    id: "21",
-    title: "Scandinavian Winter",
-    curator: "Studio Collection",
-    username: "@kaelie_styles",
-    image: OUTFIT_IMAGES[20],
-    tags: ["Nordic", "Winter", "Functional"],
-    likes: 221,
-    garments: [
-      { name: "Padded Puffer Vest", category: "Outerwear", brand: "Arket", image_url: FL.puffer },
-      { name: "Merino Hoodie", category: "Tops", brand: "Norse Projects", image_url: FL.hoodie },
-      { name: "Insulated Wool Pants", category: "Bottoms", brand: "Arc'teryx Veilance", image_url: FL.trousers },
-    ],
-  },
-  {
-    id: "22",
-    title: "Riviera Lunch",
-    curator: "Guest Curator",
-    username: "@the_curated_wardrobe",
-    image: OUTFIT_IMAGES[21],
-    tags: ["Riviera", "Linen", "Sun"],
-    likes: 334,
-    garments: [
-      { name: "Oversized Linen Blazer", category: "Outerwear", brand: "Jacquemus", image_url: FL.blazer },
-      { name: "Cropped Knit Top", category: "Tops", brand: "Nanushka", image_url: FL.tanktop },
-      { name: "Palazzo Trousers", category: "Bottoms", brand: "Cult Gaia", image_url: FL.linenpants },
-    ],
-  },
-  {
-    id: "23",
-    title: "Urban Utility",
-    curator: "The Archive",
+    id: "f4",
     username: "@ny_neutrals",
-    image: OUTFIT_IMAGES[22],
-    tags: ["Utility", "Cargo", "Streetwear"],
-    likes: 175,
-    garments: [
-      { name: "Cotton Field Jacket", category: "Outerwear", brand: "Barbour", image_url: FL.jacket },
-      { name: "Oversized Pocket Tee", category: "Tops", brand: "Carhartt WIP", image_url: FL.tanktop },
-      { name: "Cargo Pants", category: "Bottoms", brand: "Stone Island", image_url: FL.cargo },
-      { name: "Trail Sneakers", category: "Shoes", brand: "Salomon", image_url: FL.sneakers },
+    main_image_url:
+      "https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&q=80&w=800",
+    description: "The perfect trench. Timeless Parisian energy.",
+    likesCount: 401,
+    isLiked: false,
+    outfit_breakdown: [
+      {
+        id: "f4-g1",
+        category: "OUT",
+        name: "Classic Beige Trench Coat",
+        brand: "Totême",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        id: "f4-g2",
+        category: "TOP",
+        name: "Ivory Silk Blouse",
+        brand: "The Row",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1598554747436-c9293d6a588f?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        id: "f4-g3",
+        category: "BOT",
+        name: "Navy Tailored Skirt",
+        brand: "COS",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        id: "f4-g4",
+        category: "SHOE",
+        name: "Nude Leather Pumps",
+        brand: "Khaite",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&q=80&w=400",
+      },
     ],
   },
+
+  /* ─── 8 · Male · Smart Casual Layering ─────────────────── */
   {
-    id: "24",
-    title: "Silk & Sage",
-    curator: "VORA Editorial",
-    username: "@tonal_dressing",
-    image: OUTFIT_IMAGES[23],
-    tags: ["Tonal", "Green", "Fluid"],
-    likes: 267,
-    garments: [
-      { name: "Silk Wrap Blouse", category: "Tops", brand: "Vince", image_url: FL.blouse },
-      { name: "High-Waist Wide Trousers", category: "Bottoms", brand: "Totême", image_url: FL.trousers },
-      { name: "Minimalist Gold Hoops", category: "Accessories", brand: "Mejuri", image_url: FL.hoops },
+    id: "m4",
+    username: "@the_curated_wardrobe",
+    main_image_url:
+      "https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?auto=format&fit=crop&q=80&w=800",
+    description: "Smart casual done right. Weekend to dinner.",
+    likesCount: 289,
+    isLiked: false,
+    outfit_breakdown: [
+      {
+        id: "m4-g1",
+        category: "OUT",
+        name: "Grey Cashmere Cardigan",
+        brand: "The Row",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        id: "m4-g2",
+        category: "TOP",
+        name: "Light Blue Oxford Shirt",
+        brand: "COS",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        id: "m4-g3",
+        category: "BOT",
+        name: "Navy Wool Trousers",
+        brand: "Jil Sander",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        id: "m4-g4",
+        category: "SHOE",
+        name: "Brown Suede Loafers",
+        brand: "Lemaire",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1614252369475-531eba835eb1?auto=format&fit=crop&q=80&w=400",
+      },
     ],
   },
+
+  /* ─── 9 · Female · Scandi Minimalism ───────────────────── */
   {
-    id: "25",
-    title: "Concrete & Cashmere",
-    curator: "Seasonal Edit",
-    username: "@soft_archive",
-    image: OUTFIT_IMAGES[24],
-    tags: ["Urban", "Cashmere", "Grey"],
-    likes: 192,
-    garments: [
-      { name: "Cashmere Crewneck", category: "Tops", brand: "Brunello Cucinelli", image_url: FL.sweater },
-      { name: "Tailored Grey Trousers", category: "Bottoms", brand: "Zegna", image_url: FL.trousers },
-      { name: "White Leather Sneakers", category: "Shoes", brand: "Common Projects", image_url: FL.sneakers },
+    id: "f5",
+    username: "@studio_vora",
+    main_image_url:
+      "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&q=80&w=800",
+    description: "Scandinavian restraint. Texture over colour.",
+    likesCount: 356,
+    isLiked: false,
+    outfit_breakdown: [
+      {
+        id: "f5-g1",
+        category: "OUT",
+        name: "Oatmeal Wool Coat",
+        brand: "Totême",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        id: "f5-g2",
+        category: "TOP",
+        name: "Grey Cashmere Rollneck",
+        brand: "The Row",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1576566588028-4147f3842f27?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        id: "f5-g3",
+        category: "BOT",
+        name: "Cream Wide-Leg Trousers",
+        brand: "Lemaire",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&q=80&w=400",
+      },
     ],
   },
+
+  /* ─── 10 · Male · Weekend Minimal ──────────────────────── */
   {
-    id: "26",
-    title: "Desert Rose",
-    curator: "Guest Curator",
-    username: "@ecru_daily",
-    image: OUTFIT_IMAGES[25],
-    tags: ["Desert", "Terracotta", "Warm"],
-    likes: 308,
-    garments: [
-      { name: "Linen Duster Coat", category: "Outerwear", brand: "COS", image_url: FL.coat },
-      { name: "Ribbed Cotton Tank", category: "Tops", brand: "Baserange", image_url: FL.tanktop },
-      { name: "Straight-Leg Chinos", category: "Bottoms", brand: "Massimo Dutti", image_url: FL.trousers },
-    ],
-  },
-  {
-    id: "27",
-    title: "Noir Atelier",
-    curator: "The Archive",
-    username: "@quiet_luxe",
-    image: OUTFIT_IMAGES[26],
-    tags: ["All-Black", "Avant-Garde", "Sleek"],
-    likes: 423,
-    garments: [
-      { name: "Sculpted Shoulder Coat", category: "Outerwear", brand: "Alexander McQueen", image_url: FL.coat },
-      { name: "Jersey Turtleneck", category: "Tops", brand: "Wolford", image_url: FL.turtleneck },
-      { name: "Leather Leggings", category: "Bottoms", brand: "Helmut Lang", image_url: FL.trousers },
-      { name: "Platform Ankle Boots", category: "Shoes", brand: "Ann Demeulemeester", image_url: FL.boots },
-    ],
-  },
-  {
-    id: "28",
-    title: "Spring Awakening",
-    curator: "VORA Editorial",
-    username: "@editorial_muse",
-    image: OUTFIT_IMAGES[27],
-    tags: ["Spring", "Pastel", "Fresh"],
-    likes: 234,
-    garments: [
-      { name: "Cropped Tweed Jacket", category: "Outerwear", brand: "Sandro", image_url: FL.jacket },
-      { name: "Silk Shell Top", category: "Tops", brand: "Equipment", image_url: FL.camisole },
-      { name: "Pleated Midi Skirt", category: "Bottoms", brand: "Max Mara", image_url: FL.skirt },
-    ],
-  },
-  {
-    id: "29",
-    title: "Bookshop Saturday",
-    curator: "Studio Collection",
-    username: "@minimal_edit",
-    image: OUTFIT_IMAGES[28],
-    tags: ["Intellectual", "Cozy", "Weekend"],
-    likes: 156,
-    garments: [
-      { name: "Shawl Collar Cardigan", category: "Outerwear", brand: "Margaret Howell", image_url: FL.cardigan },
-      { name: "Oxford Button-Down", category: "Tops", brand: "Drake's", image_url: FL.linenshirt },
-      { name: "Corduroy Trousers", category: "Bottoms", brand: "De Bonne Facture", image_url: FL.trousers },
-    ],
-  },
-  {
-    id: "30",
-    title: "Golden Hour",
-    curator: "Seasonal Edit",
+    id: "m5",
     username: "@kaelie_styles",
-    image: OUTFIT_IMAGES[29],
-    tags: ["Sunset", "Golden", "Romantic"],
-    likes: 387,
-    garments: [
-      { name: "Flowing Maxi Dress", category: "Dresses", brand: "Ulla Johnson", image_url: FL.dress },
-      { name: "Woven Leather Belt", category: "Accessories", brand: "Isabel Marant", image_url: FL.belt },
-      { name: "Strappy Heeled Sandals", category: "Shoes", brand: "Aquazzura", image_url: FL.heels },
+    main_image_url:
+      "https://images.unsplash.com/photo-1487222477894-8943e31ef7b2?auto=format&fit=crop&q=80&w=800",
+    description: "Off-duty ease. Weekend errands, still sharp.",
+    likesCount: 134,
+    isLiked: false,
+    outfit_breakdown: [
+      {
+        id: "m5-g1",
+        category: "TOP",
+        name: "Stone Relaxed-Fit Tee",
+        brand: "COS",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        id: "m5-g2",
+        category: "BOT",
+        name: "Washed Khaki Chinos",
+        brand: "Jil Sander",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1473966968600-fa801b869a1a?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        id: "m5-g3",
+        category: "SHOE",
+        name: "White Minimalist Sneakers",
+        brand: "COS",
+        flat_lay_image_url:
+          "https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&q=80&w=400",
+      },
     ],
   },
 ];
