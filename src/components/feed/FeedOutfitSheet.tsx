@@ -169,10 +169,23 @@ export const FeedOutfitSheet = ({ item, open, onOpenChange }: FeedOutfitSheetPro
           {item.garments.map((garment, idx) => (
             <div key={idx} className="rounded-xl bg-card border border-border overflow-hidden">
               <div className="flex items-center gap-3 p-3">
-                <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                  <span className="text-[10px] text-muted-foreground font-medium">
-                    {garment.category.slice(0, 3).toUpperCase()}
-                  </span>
+                <div className="w-12 h-12 rounded-lg bg-muted overflow-hidden shrink-0">
+                  {garment.image_url ? (
+                    <img
+                      src={garment.image_url}
+                      alt={garment.name}
+                      className="w-full h-full object-cover rounded-lg"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        target.style.display = "none";
+                        target.parentElement!.innerHTML = `<span class="flex items-center justify-center w-full h-full text-[10px] text-muted-foreground font-medium">${garment.category.slice(0, 3).toUpperCase()}</span>`;
+                      }}
+                    />
+                  ) : (
+                    <span className="flex items-center justify-center w-full h-full text-[10px] text-muted-foreground font-medium">
+                      {garment.category.slice(0, 3).toUpperCase()}
+                    </span>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground truncate">{garment.name}</p>
