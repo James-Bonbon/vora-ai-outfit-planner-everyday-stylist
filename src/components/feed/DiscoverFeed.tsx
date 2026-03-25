@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bookmark, Sparkles, Heart, ArrowRight } from "lucide-react";
+import { Bookmark, Sparkles, Heart, ArrowRight, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 import SafeImage from "@/components/ui/SafeImage";
 import GlassCard from "@/components/GlassCard";
@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FeedOutfitSheet } from "./FeedOutfitSheet";
+import { UploadOutfitModal } from "./UploadOutfitModal";
 import { FEED_ITEMS, type OutfitPost } from "@/data/mockFeedData";
 export type { OutfitPost } from "@/data/mockFeedData";
 
@@ -19,6 +20,9 @@ interface DiscoverFeedProps {
 export const DiscoverFeed = ({ layout = "full" }: DiscoverFeedProps) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  const [userPosts, setUserPosts] = useState<OutfitPost[]>([]);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>(
@@ -75,7 +79,13 @@ export const DiscoverFeed = ({ layout = "full" }: DiscoverFeedProps) => {
     onError: () => toast.error("Failed to remove item"),
   });
 
-  const displayItems = layout === "compact" ? FEED_ITEMS.slice(0, 1) : FEED_ITEMS;
+  const allItems = [...userPosts, ...FEED_ITEMS];
+  const displayItems = layout === "compact" ? allItems.slice(0, 1) : allItems;
+
+  const handlePublishOutfit = (post: OutfitPost) => {
+    setUserPosts((prev) => [post, ...prev]);
+    setLikeCounts((c) => ({ ...c, [post.id]: 0 }));
+  };
 
   const toggleSave = (item: OutfitPost) => {
     if (!user) { toast.error("Sign in to save items"); return; }
@@ -221,6 +231,24 @@ export const DiscoverFeed = ({ layout = "full" }: DiscoverFeedProps) => {
         item={selectedFeedItem}
         open={outfitSheetOpen}
         onOpenChange={setOutfitSheetOpen}
+      />
+
+      {/* FAB for upload */}
+      {layout === "full" && (
+        <button
+          onClick={() => setUploadOpen(true)}
+          className="fixed bottom-24 right-5 z-40 w-12 h-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+        >
+          <Plus className="w-5 h-5" />
+        </button>
+      )}
+
+      {/* Upload Modal */}
+      <UploadOutfitModal
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        onPublish={handlePublishOutfit}
+        username={user?.user_metadata?.username || user?.email?.split("@")[0] ? `@${user?.email?.split("@")[0]}` : "@you"}
       />
     </div>
   );
