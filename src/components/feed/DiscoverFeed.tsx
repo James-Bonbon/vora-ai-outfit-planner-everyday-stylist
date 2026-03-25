@@ -232,6 +232,24 @@ export const DiscoverFeed = ({ layout = "full" }: DiscoverFeedProps) => {
         open={outfitSheetOpen}
         onOpenChange={setOutfitSheetOpen}
       />
+
+      {/* FAB for upload */}
+      {layout === "full" && (
+        <button
+          onClick={() => setUploadOpen(true)}
+          className="fixed bottom-24 right-5 z-40 w-12 h-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+        >
+          <Plus className="w-5 h-5" />
+        </button>
+      )}
+
+      {/* Upload Modal */}
+      <UploadOutfitModal
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        onPublish={handlePublishOutfit}
+        username={user?.user_metadata?.username || user?.email?.split("@")[0] ? `@${user?.email?.split("@")[0]}` : "@you"}
+      />
     </div>
   );
 };
