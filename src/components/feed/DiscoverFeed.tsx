@@ -21,6 +21,9 @@ export const DiscoverFeed = ({ layout = "full" }: DiscoverFeedProps) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
+  const [userPosts, setUserPosts] = useState<OutfitPost[]>([]);
+  const [uploadOpen, setUploadOpen] = useState(false);
+
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>(
     () => Object.fromEntries(FEED_ITEMS.map((i) => [i.id, i.likesCount]))
