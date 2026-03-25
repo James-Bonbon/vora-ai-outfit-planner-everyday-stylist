@@ -74,6 +74,27 @@ serve(async (req) => {
       );
     }
 
+    // Validate selfieUrl is a fetchable URL (not a relative path or ID)
+    const isValidUrl = (url: string) =>
+      typeof url === "string" && (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:image"));
+
+    if (!isValidUrl(selfieUrl)) {
+      console.error("Invalid selfieUrl received:", selfieUrl?.substring?.(0, 100));
+      return new Response(
+        JSON.stringify({ error: "Invalid selfie image. Please re-upload your selfie or use a different model." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const invalidGarmentUrls = garmentUrls.filter((u: string) => !isValidUrl(u));
+    if (invalidGarmentUrls.length > 0) {
+      console.error("Invalid garment URLs:", invalidGarmentUrls.map((u: string) => u?.substring?.(0, 80)));
+      return new Response(
+        JSON.stringify({ error: `${invalidGarmentUrls.length} garment image(s) could not be resolved. Please try again.` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Fetch user's body_shape from profile
     const { data: profileData } = await supabaseUser
       .from("profiles")

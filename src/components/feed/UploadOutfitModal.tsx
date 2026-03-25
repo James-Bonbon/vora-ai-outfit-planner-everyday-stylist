@@ -201,7 +201,7 @@ export const UploadOutfitModal = ({ open, onClose, onPublish, username }: Upload
             </button>
           </div>
         )}
-        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
+        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} onClick={(e) => (e.currentTarget.value = '')} />
 
         {/* Description */}
         <div className="space-y-1.5">
