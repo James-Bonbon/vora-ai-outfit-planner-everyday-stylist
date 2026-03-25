@@ -79,7 +79,13 @@ export const DiscoverFeed = ({ layout = "full" }: DiscoverFeedProps) => {
     onError: () => toast.error("Failed to remove item"),
   });
 
-  const displayItems = layout === "compact" ? FEED_ITEMS.slice(0, 1) : FEED_ITEMS;
+  const allItems = [...userPosts, ...FEED_ITEMS];
+  const displayItems = layout === "compact" ? allItems.slice(0, 1) : allItems;
+
+  const handlePublishOutfit = (post: OutfitPost) => {
+    setUserPosts((prev) => [post, ...prev]);
+    setLikeCounts((c) => ({ ...c, [post.id]: 0 }));
+  };
 
   const toggleSave = (item: OutfitPost) => {
     if (!user) { toast.error("Sign in to save items"); return; }
