@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bookmark, Sparkles, Heart, ArrowRight } from "lucide-react";
+import { Bookmark, Sparkles, Heart, ArrowRight, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 import SafeImage from "@/components/ui/SafeImage";
 import GlassCard from "@/components/GlassCard";
@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FeedOutfitSheet } from "./FeedOutfitSheet";
+import { UploadOutfitModal } from "./UploadOutfitModal";
 import { FEED_ITEMS, type OutfitPost } from "@/data/mockFeedData";
 export type { OutfitPost } from "@/data/mockFeedData";
 
