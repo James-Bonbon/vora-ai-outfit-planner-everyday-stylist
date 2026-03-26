@@ -285,11 +285,11 @@ export const UploadOutfitModal = ({ open, onClose, onPublish, username }: Upload
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-3 border-t border-border/50">
+      <div className="px-4 py-3 pb-6 border-t border-border/50 bg-background">
         <Button
           onClick={handlePublish}
           disabled={isPublishing || !imagePreview || !description.trim() || garments.length === 0}
-          className="w-full h-11 rounded-xl text-sm font-semibold"
+          className="w-full h-12 rounded-xl text-sm font-semibold"
         >
           {isPublishing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
           Publish to Feed
