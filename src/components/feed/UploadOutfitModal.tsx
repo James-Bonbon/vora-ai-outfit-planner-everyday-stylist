@@ -136,23 +136,51 @@ export const UploadOutfitModal = ({ open, onClose, onPublish, username }: Upload
 
     setIsPublishing(true);
     try {
-      const post: OutfitPost = {
-        id: `user-${Date.now()}`,
-        username: username || "@you",
-        main_image_url: imagePreview,
-        description: description.trim(),
-        likesCount: 0,
-        isLiked: false,
-        outfit_breakdown: garments.map((g) => ({
-          ...g,
-          name: g.name || "Unnamed Item",
-          brand: g.brand || "Unbranded",
-        })),
-      };
-      onPublish(post);
-      toast.success("Outfit published to VORA.");
+      // 1. Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { toast.error("Sign in to publish."); return; }
+
+      // 2. Upload image to feed_images bucket
+      let publicUrl = imagePreview;
+      if (imageFile) {
+        const ext = imageFile.name.split(".").pop() || "jpg";
+        const path = `${user.id}/${Date.now()}.${ext}`;
+        const { error: uploadErr } = await supabase.storage.from("feed_images").upload(path, imageFile, { contentType: imageFile.type });
+        if (uploadErr) throw uploadErr;
+        const { data: urlData } = supabase.storage.from("feed_images").getPublicUrl(path);
+        publicUrl = urlData.publicUrl;
+      }
+
+      // 3. Insert into feed_posts
+      const breakdown = garments.map((g) => ({
+        ...g,
+        name: g.name || "Unnamed Item",
+        brand: g.brand || "Unbranded",
+      }));
+
+      const { data: inserted, error: insertErr } = await supabase
+        .from("feed_posts")
+        .insert({
+          user_id: user.id,
+          image_url: publicUrl,
+          description: description.trim(),
+          outfit_breakdown: breakdown,
+          status: "pending",
+        })
+        .select("id")
+        .single();
+      if (insertErr) throw insertErr;
+
+      toast.success("Outfit submitted! It will appear in Explore after a quick AI safety review.");
       handleClose();
-    } catch {
+
+      // 4. Trigger async moderation (fire-and-forget)
+      supabase.functions.invoke("moderate-feed-post", {
+        body: { postId: inserted.id, imageUrl: publicUrl },
+      }).catch((err) => console.error("Moderation trigger error:", err));
+
+    } catch (err: any) {
+      console.error("Publish error:", err);
       toast.error("Failed to publish. Try again.");
     } finally {
       setIsPublishing(false);

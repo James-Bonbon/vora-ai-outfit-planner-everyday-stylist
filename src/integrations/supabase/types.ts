@@ -218,6 +218,44 @@ export type Database = {
         }
         Relationships: []
       }
+      feed_posts: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          image_url: string
+          outfit_breakdown: Json | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          id?: string
+          image_url: string
+          outfit_breakdown?: Json | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          image_url?: string
+          outfit_breakdown?: Json | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_posts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       generated_looks_cache: {
         Row: {
           created_at: string
