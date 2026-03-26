@@ -162,7 +162,7 @@ export const UploadOutfitModal = ({ open, onClose, onPublish, username }: Upload
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col animate-in fade-in duration-200 pb-safe">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
         <button onClick={handleClose} className="p-1.5 rounded-full hover:bg-muted transition-colors">
