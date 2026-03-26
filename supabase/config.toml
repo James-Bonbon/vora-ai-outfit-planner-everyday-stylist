@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.chat-stylist]
 verify_jwt = false
+
+[functions.moderate-feed-post]
+verify_jwt = false
