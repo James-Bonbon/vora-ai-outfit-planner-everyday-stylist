@@ -269,7 +269,8 @@ const OutfitCalendar = () => {
   );
 
   /* ---- Build day slots ---- */
-  const maxDays = subscriptionTier === "pro" ? 7 : 3;
+  const hasProAccess = subscriptionTier === "pro" || isAdmin;
+  const maxDays = hasProAccess ? 7 : 3;
 
   const days = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
