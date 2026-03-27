@@ -62,6 +62,7 @@ const OutfitCalendar = () => {
   const [garments, setGarments] = useState<Record<string, GarmentSnapshot>>({});
   const [garmentPool, setGarmentPool] = useState<GarmentSnapshot[]>([]);
   const [subscriptionTier, setSubscriptionTier] = useState("free");
+  const [isAdmin, setIsAdmin] = useState(false);
   const [editingDate, setEditingDate] = useState<string | null>(null);
   const [editingSlotIndex, setEditingSlotIndex] = useState<number>(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -72,9 +73,10 @@ const OutfitCalendar = () => {
     if (!user) return;
     setLoading(true);
 
-    const [profileRes, closetRes] = await Promise.all([
+    const [profileRes, closetRes, roleRes] = await Promise.all([
       supabase.from("profiles").select("subscription_tier").eq("user_id", user.id).maybeSingle(),
       supabase.from("closet_items").select("id, name, image_url, category, created_at, is_in_laundry").eq("user_id", user.id),
+      supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle(),
     ]);
 
     if (profileRes.data) {
