@@ -115,8 +115,9 @@ CLOTHING ACCURACY (Secondary Priority):
 - The clothing must look naturally worn with realistic fit, draping, and shadow interaction based on their body shape.
 
 SCENE & CONTEXT:
-- Clean, minimal background (soft studio or neutral setting).
+- The background MUST be a plain, consistent beige studio backdrop. Do not generate environmental details, rooms, or complex settings.
 - Professional fashion photography lighting.
+- CRITICAL: Retain the exact hair color, hairstyle, and facial features of the reference subject. Only replace the clothing.
 ${occasion ? `- Style the overall outfit mood to suit a "${occasion}" occasion.` : ""}
 ${weather ? `- The weather is ${weather}. Layer appropriately.` : ""}
 ${bodyShape ? `- The user has a ${bodyShape.replace(/_/g, " ")} body type. Ensure the fit and silhouette flatter this shape.` : ""}

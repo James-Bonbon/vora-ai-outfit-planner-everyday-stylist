@@ -11,6 +11,7 @@ export interface Garment {
 export interface OutfitPost {
   id: string;
   username: string;
+  avatar_url?: string;
   main_image_url: string;
   description: string;
   likesCount: number;

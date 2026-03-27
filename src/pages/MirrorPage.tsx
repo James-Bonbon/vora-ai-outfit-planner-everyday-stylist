@@ -357,8 +357,10 @@ const MirrorPage = () => {
         status: "approved",
         outfit_breakdown: selectedLook.garment_ids
           ? selectedLook.garment_ids.map((id: string) => {
-              const g = lookGarments.find((g) => g.id === id);
-              return g ? { id: g.id, name: g.name, category: g.category } : { id };
+              const g = lookGarments.find((lg) => lg.id === id);
+              return g
+                ? { id: g.id, name: g.name || "Unnamed", category: g.category || "TOP", brand: g.brand || "", color: g.color || "" }
+                : { id };
             })
           : [],
       } as any);
