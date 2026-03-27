@@ -532,22 +532,17 @@ const ProfilePage = () => {
         </GlassCard>
       )}
 
-      {/* Support */}
+      {/* Support & Menu */}
       <div className="space-y-2">
         <p className="text-[10px] uppercase tracking-widest text-muted-foreground px-1 font-medium">Support</p>
         <GlassCard className="flex items-center gap-3 p-4 cursor-pointer" onClick={() => setFeedbackOpen(true)}>
           <MessageSquare className="w-5 h-5 text-muted-foreground" />
           <span className="text-sm font-medium text-foreground">Help & Feedback</span>
         </GlassCard>
-      </div>
-
-      {/* Menu */}
-      <div className="space-y-2">
         <GlassCard className="flex items-center gap-3 p-4 cursor-pointer" onClick={() => navigate("/settings")}>
           <Settings className="w-5 h-5 text-muted-foreground" />
           <span className="text-sm font-medium text-foreground">Settings</span>
         </GlassCard>
-
         <GlassCard className="flex items-center gap-3 p-4 cursor-pointer" onClick={handleSignOut}>
           <LogOut className="w-5 h-5 text-destructive" />
           <span className="text-sm font-medium text-destructive">Sign Out</span>
