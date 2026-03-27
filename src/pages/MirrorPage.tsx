@@ -23,7 +23,11 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { StylistChat } from "@/components/chat/StylistChat";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
+import { useQueryClient } from "@tanstack/react-query";
+import { getSignedUrl } from "@/utils/urlCache";
 import { toast } from "sonner";
 import {
   useClosetItems,
@@ -53,6 +57,11 @@ const MirrorPage = () => {
   const [desiredLook, setDesiredLook] = useState("");
   const [chatOpen, setChatOpen] = useState(false);
   const [useVoraModel, setUseVoraModel] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [shareCaption, setShareCaption] = useState("");
+  const [isSharing, setIsSharing] = useState(false);
+  const [sharedLookIds, setSharedLookIds] = useState<Set<string>>(new Set());
+  const queryClient = useQueryClient();
 
   // Data queries
   const { data: selfieUrl } = useSelfieUrl();
