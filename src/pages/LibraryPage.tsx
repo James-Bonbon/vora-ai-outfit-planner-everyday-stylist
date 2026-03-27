@@ -5,8 +5,9 @@ import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { SafeImage } from "@/components/ui/SafeImage";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 
 interface TrendingItem {
@@ -24,6 +25,7 @@ const CATEGORIES = ["All", "Tops", "Bottoms", "Outerwear", "Shoes"] as const;
 const LibraryPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [items, setItems] = useState<TrendingItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,37 +89,48 @@ const LibraryPage = () => {
   }, [items, activeCategory, searchQuery]);
 
   const toggleDream = async (item: TrendingItem) => {
-    if (!user) return;
+    if (!user) { toast.error("Sign in to save items"); return; }
     const isDreamed = dreamIds.has(item.id);
     setSavingId(item.id);
 
+    // Optimistic update
     if (isDreamed) {
-      await supabase
-        .from("dream_items")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("catalog_item_id", item.id);
-      setDreamIds((prev) => {
-        const next = new Set(prev);
-        next.delete(item.id);
-        return next;
-      });
-      toast({ title: "Removed from Wishlist" });
+      setDreamIds((prev) => { const next = new Set(prev); next.delete(item.id); return next; });
     } else {
-      const { error } = await supabase.from("dream_items").insert({
-        user_id: user.id,
-        image_url: item.image_url || "",
-        name: item.title,
-        brand: item.brand,
-        catalog_item_id: item.id,
-      });
-      if (error) {
-        console.error("Wishlist Insert Error:", error);
-        toast({ title: "Failed to save to Wishlist", variant: "destructive" });
+      setDreamIds((prev) => new Set(prev).add(item.id));
+    }
+
+    try {
+      if (isDreamed) {
+        const { error } = await supabase
+          .from("dream_items")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("catalog_item_id", item.id);
+        if (error) throw error;
+        toast.success("Removed from Wishlist");
       } else {
-        setDreamIds((prev) => new Set(prev).add(item.id));
-        toast({ title: "Added to Wishlist! ✨" });
+        const { error } = await supabase.from("dream_items").insert({
+          user_id: user.id,
+          image_url: item.image_url || "",
+          name: item.title,
+          brand: item.brand,
+          catalog_item_id: item.id,
+        });
+        if (error) throw error;
+        toast.success("Added to Wishlist! ✨");
       }
+      // Invalidate the Wishlist tab's query so it picks up the change
+      queryClient.invalidateQueries({ queryKey: ["dream"] });
+    } catch (err: any) {
+      console.error("Wishlist toggle error:", err);
+      // Revert optimistic update
+      if (isDreamed) {
+        setDreamIds((prev) => new Set(prev).add(item.id));
+      } else {
+        setDreamIds((prev) => { const next = new Set(prev); next.delete(item.id); return next; });
+      }
+      toast.error("Failed to update Wishlist");
     }
     setSavingId(null);
   };
