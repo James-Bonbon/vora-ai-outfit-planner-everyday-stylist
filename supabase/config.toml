@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.moderate-feed-post]
 verify_jwt = false
+
+[functions.delete-user-account]
+verify_jwt = false
