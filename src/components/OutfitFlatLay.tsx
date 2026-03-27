@@ -42,7 +42,7 @@ export const OutfitFlatLay: React.FC<OutfitFlatLayProps> = ({
             <div
               key={garment.id}
               className={cn(
-                "aspect-[3/4] rounded-xl overflow-hidden flex items-center justify-center p-3",
+                "aspect-[3/4] rounded-xl overflow-hidden flex items-center justify-center p-3 bg-white border border-black/10",
                 garments.length === 3 && index === 0 && "col-span-2 aspect-[4/3]",
               )}
             >
