@@ -290,14 +290,14 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
                         return (
                           <div
                             key={gId}
-                            className="rounded-xl border border-[#e5e7df] overflow-hidden bg-[#f5f2e9]"
+                            className="rounded-xl border border-black/5 dark:border-white/10 overflow-hidden bg-black/5 dark:bg-white/10"
                           >
                             {url && (
                               <div className="relative aspect-[4/5] w-full p-1.5 flex items-center justify-center">
                                 <img
                                   src={url}
                                   alt={garment.name || "Garment"}
-                                  className="max-h-full max-w-full drop-shadow-md"
+                                  className="max-h-full max-w-full mix-blend-multiply dark:mix-blend-normal drop-shadow-md rounded-md"
                                 />
                               </div>
                             )}

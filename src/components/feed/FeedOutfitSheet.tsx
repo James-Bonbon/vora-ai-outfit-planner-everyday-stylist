@@ -150,12 +150,12 @@ export const FeedOutfitSheet = ({ item, open, onOpenChange }: FeedOutfitSheetPro
             <div key={garment.id} className="rounded-xl bg-card border border-border overflow-hidden">
               <div className="flex items-center gap-3 p-3">
                 {/* Flat-lay thumbnail */}
-                <div className="w-16 h-16 flex-shrink-0 rounded-md overflow-hidden bg-secondary">
+                <div className="w-16 h-16 flex-shrink-0 rounded-md overflow-hidden bg-black/5 dark:bg-white/10 border border-black/5 dark:border-white/10">
                   {garment.flat_lay_image_url ? (
                     <img
                       src={garment.flat_lay_image_url}
                       alt={garment.name}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain mix-blend-multiply dark:mix-blend-normal rounded-md"
                       onError={(e) => {
                         const target = e.currentTarget;
                         target.style.display = "none";
