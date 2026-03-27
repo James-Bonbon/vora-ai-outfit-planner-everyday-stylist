@@ -532,6 +532,15 @@ const ProfilePage = () => {
         </GlassCard>
       )}
 
+      {/* Support */}
+      <div className="space-y-2">
+        <p className="text-[10px] uppercase tracking-widest text-muted-foreground px-1 font-medium">Support</p>
+        <GlassCard className="flex items-center gap-3 p-4 cursor-pointer" onClick={() => setFeedbackOpen(true)}>
+          <MessageSquare className="w-5 h-5 text-muted-foreground" />
+          <span className="text-sm font-medium text-foreground">Help & Feedback</span>
+        </GlassCard>
+      </div>
+
       {/* Menu */}
       <div className="space-y-2">
         <GlassCard className="flex items-center gap-3 p-4 cursor-pointer" onClick={() => navigate("/settings")}>
@@ -544,6 +553,86 @@ const ProfilePage = () => {
           <span className="text-sm font-medium text-destructive">Sign Out</span>
         </GlassCard>
       </div>
+
+      {/* Danger Zone */}
+      <div className="space-y-2 pb-4">
+        <p className="text-[10px] uppercase tracking-widest text-muted-foreground px-1 font-medium">Danger Zone</p>
+        <GlassCard className="flex items-center gap-3 p-4 cursor-pointer" onClick={() => setDeleteDialogOpen(true)}>
+          <Trash2 className="w-5 h-5 text-destructive/70" />
+          <span className="text-sm font-medium text-destructive/70">Delete Account</span>
+        </GlassCard>
+      </div>
+
+      {/* Feedback Modal */}
+      <Dialog open={feedbackOpen} onOpenChange={setFeedbackOpen}>
+        <DialogContent className="rounded-2xl max-w-[360px]">
+          <DialogHeader>
+            <DialogTitle>Help & Feedback</DialogTitle>
+            <DialogDescription>Let us know how we can improve.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs text-muted-foreground">Issue Type</Label>
+              <select
+                value={feedbackType}
+                onChange={(e) => setFeedbackType(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="bug">Bug Report</option>
+                <option value="feature">Feature Request</option>
+                <option value="question">Question</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Message</Label>
+              <Textarea
+                value={feedbackMessage}
+                onChange={(e) => setFeedbackMessage(e.target.value)}
+                placeholder="Describe your issue or idea…"
+                className="mt-1 rounded-xl bg-card min-h-[100px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleSubmitFeedback} disabled={isSubmitting || !feedbackMessage.trim()} className="w-full rounded-xl">
+              {isSubmitting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Sending...</> : "Send Feedback"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Account Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="rounded-2xl max-w-[360px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Your Account</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action is <strong>permanent and irreversible</strong>. All your wardrobe items, looks, outfits, and personal data will be permanently erased.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">Type <strong>DELETE</strong> to confirm</Label>
+            <Input
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="DELETE"
+              className="rounded-xl bg-card"
+            />
+          </div>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
+            <Button
+              variant="destructive"
+              onClick={handleDeleteAccount}
+              disabled={deleteConfirmText !== "DELETE" || isDeleting}
+              className="w-full rounded-xl"
+            >
+              {isDeleting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Deleting...</> : "Permanently Delete Account"}
+            </Button>
+            <AlertDialogCancel className="w-full rounded-xl mt-0">Cancel</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {rawImageSrc && (
         <AvatarCropperModal
