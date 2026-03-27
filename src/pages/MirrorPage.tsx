@@ -341,6 +341,41 @@ const MirrorPage = () => {
     setDesiredLook("");
   };
 
+  const handleShareToFeed = async () => {
+    if (!selectedLook || !user) return;
+    setIsSharing(true);
+    try {
+      // Get a public/signed URL for the look image
+      const imageUrl = await getSignedUrl("looks", selectedLook.image_path);
+      if (!imageUrl) throw new Error("Could not get image URL");
+
+      const { error } = await supabase.from("feed_posts").insert({
+        user_id: user.id,
+        image_url: imageUrl,
+        description: shareCaption.trim() || "AI Styled Look ✨",
+        is_vton: true,
+        status: "approved",
+        outfit_breakdown: selectedLook.garment_ids
+          ? selectedLook.garment_ids.map((id: string) => {
+              const g = lookGarments.find((g) => g.id === id);
+              return g ? { id: g.id, name: g.name, category: g.category } : { id };
+            })
+          : [],
+      } as any);
+      if (error) throw error;
+
+      setSharedLookIds((prev) => new Set(prev).add(selectedLook.id));
+      setShareModalOpen(false);
+      setShareCaption("");
+      queryClient.invalidateQueries({ queryKey: ["feed-posts"] });
+      toast.success("Look shared to the global feed!");
+    } catch (err: any) {
+      toast.error("Failed to share", { description: err.message });
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
   // Empty state
   const isClosetLoading = !closetData && !items.length;
 
