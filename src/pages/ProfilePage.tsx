@@ -2,10 +2,11 @@ import { useState } from "react";
 import SafeImage from "@/components/ui/SafeImage";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import GlassCard from "@/components/GlassCard";
-import { User, AtSign, Settings, Crown, LogOut, Pencil, X, Check, Ruler, Weight, Calendar, Users, Camera, Database, Loader2, Lock, Palette, ChevronLeft } from "lucide-react";
+import { User, AtSign, Settings, Crown, LogOut, Pencil, X, Check, Ruler, Weight, Calendar, Users, Camera, Database, Loader2, Lock, Palette, ChevronLeft, MessageSquare, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -14,6 +15,9 @@ import { applyTheme } from "@/components/ThemeProvider";
 import { BODY_SHAPES, toDbValue, toDisplayLabel } from "@/constants/bodyShapes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AvatarCropperModal } from "@/components/AvatarCropperModal";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from "@/components/ui/alert-dialog";
+import { clearUrlCache } from "@/utils/urlCache";
 
 interface ProfileData {
   display_name: string | null;
@@ -76,6 +80,58 @@ const ProfilePage = () => {
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [seeding, setSeeding] = useState(false);
+
+  // Feedback modal state
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackType, setFeedbackType] = useState("bug");
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Delete account state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleSubmitFeedback = async () => {
+    if (!user || !feedbackMessage.trim()) {
+      toast.error("Please enter a message.");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.from("user_feedback").insert({
+        user_id: user.id,
+        type: feedbackType,
+        message: feedbackMessage.trim(),
+      });
+      if (error) throw error;
+      toast.success("Feedback sent — thank you!");
+      setFeedbackOpen(false);
+      setFeedbackMessage("");
+      setFeedbackType("bug");
+    } catch {
+      toast.error("Failed to send feedback.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user || deleteConfirmText !== "DELETE") return;
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase.functions.invoke("delete-user-account");
+      if (error) throw error;
+      clearUrlCache();
+      await supabase.auth.signOut();
+      toast.success("Your account has been successfully deleted.");
+      navigate("/", { replace: true });
+    } catch {
+      toast.error("Failed to delete account. Please try again.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const startEditing = () => {
     setEditName(profile?.display_name || "");
