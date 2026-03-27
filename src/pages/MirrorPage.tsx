@@ -329,9 +329,15 @@ const MirrorPage = () => {
   };
 
   const handleDeleteLook = (look: SavedLook) => {
-    deleteMutation.mutate(look, {
-      onSuccess: () => setSelectedLook(null),
+    // Optimistic: clear detail view immediately
+    setSelectedLook(null);
+    // Remove shared tracking
+    setSharedLookIds((prev) => {
+      const next = new Set(prev);
+      next.delete(look.id);
+      return next;
     });
+    deleteMutation.mutate(look);
   };
 
   const handleTryAnother = () => {
