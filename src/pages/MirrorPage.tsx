@@ -573,35 +573,38 @@ const MirrorPage = () => {
             </GlassCard>
           ) : (
             <div className="grid grid-cols-2 gap-3">
-              {looks.map((look) => (
-                <GlassCard
-                  key={look.id}
-                  className="p-0 overflow-hidden cursor-pointer flex flex-col"
-                  onClick={() => setSelectedLook(look)}
-                >
-                  <div className="aspect-[3/4] bg-card w-full relative">
-                    <SafeImage
-                      src={lookUrls[look.id]}
-                      alt="Saved look"
-                      wrapperClassName="absolute inset-0 w-full h-full"
-                      className="w-full h-full object-cover object-top"
-                      aspectRatio=""
-                      loading="lazy"
-                    />
-                    {look.is_public && (
-                      <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-primary/90 flex items-center justify-center shadow-sm">
-                        <Globe className="w-3.5 h-3.5 text-primary-foreground" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-2.5 bg-card/50">
-                    {look.occasion && <span className="text-[10px] font-medium text-primary">{look.occasion}</span>}
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                      {new Date(look.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                    </p>
-                  </div>
-                </GlassCard>
-              ))}
+              {looks.map((look) => {
+                if (!look || !lookUrls[look.id]) return null;
+                return (
+                  <GlassCard
+                    key={look.id}
+                    className="p-0 overflow-hidden cursor-pointer flex flex-col"
+                    onClick={() => setSelectedLook(look)}
+                  >
+                    <div className="aspect-[3/4] bg-card w-full relative">
+                      <SafeImage
+                        src={lookUrls[look.id]}
+                        alt="Saved look"
+                        wrapperClassName="absolute inset-0 w-full h-full"
+                        className="w-full h-full object-cover object-top"
+                        aspectRatio=""
+                        loading="lazy"
+                      />
+                      {look.is_public && (
+                        <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-primary/90 flex items-center justify-center shadow-sm">
+                          <Globe className="w-3.5 h-3.5 text-primary-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-2.5 bg-card/50">
+                      {look.occasion && <span className="text-[10px] font-medium text-primary">{look.occasion}</span>}
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {new Date(look.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                      </p>
+                    </div>
+                  </GlassCard>
+                );
+              })}
             </div>
           )}
         </>
