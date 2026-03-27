@@ -438,7 +438,7 @@ const OutfitCalendar = () => {
                           slotGarments.slice(0, 2).map((g) => (
                             <div
                               key={g.id}
-                              className="w-[52px] h-[64px] rounded-lg overflow-hidden bg-black/5 dark:bg-white/10 border border-black/5 dark:border-white/10 p-1 flex items-center justify-center"
+                              className="w-[52px] h-[64px] rounded-lg overflow-hidden bg-product-bg p-1 flex items-center justify-center mix-blend-multiply"
                             >
                               <SafeImage
                                 src={g.image_url}

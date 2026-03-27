@@ -244,20 +244,20 @@ const WardrobePage = () => {
               {filtered.map((item) => (
                 <div
                   key={item.id}
-                  className="bg-black/5 dark:bg-white/10 rounded-2xl overflow-hidden shadow-sm border border-black/5 dark:border-white/10 cursor-pointer"
+                  className="bg-product-bg rounded-2xl overflow-hidden shadow-sm border border-border cursor-pointer"
                   onClick={() => {
                     setSelectedItem({ ...item, source: "closet" });
                     setDetailOpen(true);
                   }}
                 >
-                  <div className="aspect-square w-full flex items-center justify-center bg-black/5 dark:bg-white/10 p-2">
+                  <div className="aspect-square w-full flex items-center justify-center bg-product-bg p-2">
                     <SafeImage
                       src={imageUrls[item.id]}
                       alt={item.name || "Garment"}
                       wrapperClassName="w-full h-full"
                       aspectRatio=""
                       fit="contain"
-                      className="mix-blend-multiply dark:mix-blend-normal drop-shadow-[0px_10px_15px_rgba(0,0,0,0.1)]"
+                      className="drop-shadow-[0px_10px_15px_rgba(0,0,0,0.1)]"
                       loading="lazy"
                     />
                   </div>
@@ -302,13 +302,13 @@ const WardrobePage = () => {
               {dreamItems.map((item) => (
                 <div
                   key={item.id}
-                  className="bg-black/5 dark:bg-white/10 rounded-2xl overflow-hidden shadow-sm border border-black/5 dark:border-white/10 cursor-pointer"
+                  className="bg-product-bg rounded-2xl overflow-hidden shadow-sm border border-border cursor-pointer"
                   onClick={() => {
                     setSelectedItem({ ...item, source: "dream" });
                     setDetailOpen(true);
                   }}
                 >
-                  <div className="aspect-square w-full flex items-center justify-center bg-black/5 dark:bg-white/10 p-2">
+                  <div className="aspect-square w-full flex items-center justify-center bg-product-bg p-2">
                     <SafeImage
                       src={item.image_url}
                       alt={item.name || "Dream item"}
