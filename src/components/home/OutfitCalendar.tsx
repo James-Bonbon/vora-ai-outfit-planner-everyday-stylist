@@ -82,6 +82,7 @@ const OutfitCalendar = () => {
     if (profileRes.data) {
       setSubscriptionTier(profileRes.data.subscription_tier || "free");
     }
+    setIsAdmin(!!roleRes.data);
 
     const pool: GarmentSnapshot[] = [];
 
