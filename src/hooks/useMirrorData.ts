@@ -292,15 +292,37 @@ export function useDeleteLookMutation() {
 
   return useMutation({
     mutationFn: async (look: SavedLook) => {
+      // 1. Storage cleanup
       await supabase.storage.from("looks").remove([look.image_path]);
+
+      // 2. Hard delete the look row
       const { error } = await supabase.from("looks").delete().eq("id", look.id);
       if (error) throw error;
+
+      // 3. Cascade: remove any feed_posts that reference this image
+      const { data: signedData } = await supabase.storage
+        .from("looks")
+        .createSignedUrl(look.image_path, 10);
+      // Delete by image_path pattern — feed_posts store the signed URL or path
+      await supabase
+        .from("feed_posts")
+        .delete()
+        .like("image_url", `%${look.image_path}%`);
+
+      // 4. Purge the generated_looks_cache so re-generation works
+      // The cache entry references image_path
+      await supabase
+        .from("generated_looks_cache")
+        .delete()
+        .eq("image_path", look.image_path);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["saved-looks"] });
+      queryClient.invalidateQueries({ queryKey: ["feed-posts"] });
       toast.success("Look deleted");
     },
     onError: (e) => {
+      queryClient.invalidateQueries({ queryKey: ["saved-looks"] });
       toast.error("Delete failed", { description: e.message });
     },
   });
