@@ -12,6 +12,7 @@ export interface FeedPostRow {
   outfit_breakdown: any[];
   status: string;
   created_at: string;
+  is_vton?: boolean;
 }
 
 function rowToOutfitPost(row: FeedPostRow): OutfitPost & { status: string } {
@@ -24,6 +25,7 @@ function rowToOutfitPost(row: FeedPostRow): OutfitPost & { status: string } {
     isLiked: false,
     outfit_breakdown: Array.isArray(row.outfit_breakdown) ? row.outfit_breakdown : [],
     status: row.status,
+    is_vton: row.is_vton ?? false,
   };
 }
 

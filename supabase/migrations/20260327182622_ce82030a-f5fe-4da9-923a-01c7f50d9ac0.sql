@@ -1,0 +1,1 @@
+ALTER TABLE public.feed_posts ADD COLUMN IF NOT EXISTS is_vton boolean NOT NULL DEFAULT false;

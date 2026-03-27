@@ -224,6 +224,7 @@ export type Database = {
           description: string
           id: string
           image_url: string
+          is_vton: boolean
           outfit_breakdown: Json | null
           status: string
           user_id: string
@@ -233,6 +234,7 @@ export type Database = {
           description?: string
           id?: string
           image_url: string
+          is_vton?: boolean
           outfit_breakdown?: Json | null
           status?: string
           user_id: string
@@ -242,6 +244,7 @@ export type Database = {
           description?: string
           id?: string
           image_url?: string
+          is_vton?: boolean
           outfit_breakdown?: Json | null
           status?: string
           user_id?: string

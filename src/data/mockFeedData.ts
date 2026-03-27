@@ -16,6 +16,7 @@ export interface OutfitPost {
   likesCount: number;
   isLiked: boolean;
   outfit_breakdown: Garment[];
+  is_vton?: boolean;
 }
 
 /* ── 10 Vision-Curated Outfits ───────────────────────────── */

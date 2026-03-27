@@ -154,6 +154,13 @@ export const DiscoverFeed = ({ layout = "full" }: DiscoverFeedProps) => {
                 />
                 {/* Dark gradient overlay for username legibility */}
                 <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 via-black/20 to-transparent pointer-events-none" />
+                {/* AI Styled badge */}
+                {(item as any).is_vton && (
+                  <span className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-black/40 text-white backdrop-blur-md border border-white/10">
+                    <Sparkles className="w-3 h-3" />
+                    AI Styled
+                  </span>
+                )}
                 {/* Username on image */}
                 <span className="absolute bottom-3 left-3.5 text-white text-[13px] font-semibold tracking-wide drop-shadow-sm">
                   {item.username}

@@ -23,7 +23,11 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { StylistChat } from "@/components/chat/StylistChat";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
+import { useQueryClient } from "@tanstack/react-query";
+import { getSignedUrl } from "@/utils/urlCache";
 import { toast } from "sonner";
 import {
   useClosetItems,
@@ -53,6 +57,11 @@ const MirrorPage = () => {
   const [desiredLook, setDesiredLook] = useState("");
   const [chatOpen, setChatOpen] = useState(false);
   const [useVoraModel, setUseVoraModel] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [shareCaption, setShareCaption] = useState("");
+  const [isSharing, setIsSharing] = useState(false);
+  const [sharedLookIds, setSharedLookIds] = useState<Set<string>>(new Set());
+  const queryClient = useQueryClient();
 
   // Data queries
   const { data: selfieUrl } = useSelfieUrl();
@@ -332,6 +341,41 @@ const MirrorPage = () => {
     setDesiredLook("");
   };
 
+  const handleShareToFeed = async () => {
+    if (!selectedLook || !user) return;
+    setIsSharing(true);
+    try {
+      // Get a public/signed URL for the look image
+      const imageUrl = await getSignedUrl("looks", selectedLook.image_path);
+      if (!imageUrl) throw new Error("Could not get image URL");
+
+      const { error } = await supabase.from("feed_posts").insert({
+        user_id: user.id,
+        image_url: imageUrl,
+        description: shareCaption.trim() || "AI Styled Look ✨",
+        is_vton: true,
+        status: "approved",
+        outfit_breakdown: selectedLook.garment_ids
+          ? selectedLook.garment_ids.map((id: string) => {
+              const g = lookGarments.find((g) => g.id === id);
+              return g ? { id: g.id, name: g.name, category: g.category } : { id };
+            })
+          : [],
+      } as any);
+      if (error) throw error;
+
+      setSharedLookIds((prev) => new Set(prev).add(selectedLook.id));
+      setShareModalOpen(false);
+      setShareCaption("");
+      queryClient.invalidateQueries({ queryKey: ["feed-posts"] });
+      toast.success("Look shared to the global feed!");
+    } catch (err: any) {
+      toast.error("Failed to share", { description: err.message });
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
   // Empty state
   const isClosetLoading = !closetData && !items.length;
 
@@ -444,28 +488,28 @@ const MirrorPage = () => {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <Button
-                    variant={selectedLook.is_public ? "default" : "secondary"}
-                    size="sm"
-                    className="rounded-xl gap-1.5"
-                    disabled={publishMutation.isPending}
-                    onClick={() => {
-                      publishMutation.mutate({
-                        lookId: selectedLook.id,
-                        isPublic: !selectedLook.is_public,
-                      });
-                      setSelectedLook({ ...selectedLook, is_public: !selectedLook.is_public });
-                    }}
-                  >
-                    {publishMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : selectedLook.is_public ? (
-                      <Globe className="w-4 h-4" />
-                    ) : (
-                      <Lock className="w-4 h-4" />
-                    )}
-                    {selectedLook.is_public ? "Public" : "Make Public"}
-                  </Button>
+                  {(() => {
+                    const alreadyShared = sharedLookIds.has(selectedLook.id);
+                    return (
+                      <Button
+                        variant={alreadyShared ? "default" : "secondary"}
+                        size="sm"
+                        className="rounded-xl gap-1.5"
+                        disabled={alreadyShared}
+                        onClick={() => {
+                          setShareCaption("");
+                          setShareModalOpen(true);
+                        }}
+                      >
+                        {alreadyShared ? (
+                          <Check className="w-4 h-4" />
+                        ) : (
+                          <Globe className="w-4 h-4" />
+                        )}
+                        {alreadyShared ? "Shared to Feed" : "Share to Feed"}
+                      </Button>
+                    );
+                  })()}
                   <Button
                     variant="destructive"
                     size="sm"
@@ -555,7 +599,47 @@ const MirrorPage = () => {
         </>
       )}
 
-      {/* ========== TRY-ON TAB ========== */}
+      {/* ========== SHARE TO FEED MODAL ========== */}
+      <Dialog open={shareModalOpen} onOpenChange={setShareModalOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-outfit">Publish to Feed</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedLook && (
+              <div className="aspect-[3/4] w-full max-h-[280px] rounded-xl overflow-hidden bg-muted">
+                <SafeImage
+                  src={lookUrls[selectedLook.id]}
+                  alt="Look preview"
+                  wrapperClassName="w-full h-full"
+                  className="w-full h-full object-cover object-top"
+                  aspectRatio=""
+                />
+              </div>
+            )}
+            <Textarea
+              placeholder="Add a caption…"
+              value={shareCaption}
+              onChange={(e) => setShareCaption(e.target.value)}
+              className="rounded-xl resize-none border-border bg-card text-sm"
+              rows={3}
+            />
+            <Button
+              className="w-full rounded-xl gap-2"
+              disabled={isSharing}
+              onClick={handleShareToFeed}
+            >
+              {isSharing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Globe className="w-4 h-4" />
+              )}
+              {isSharing ? "Posting…" : "Post"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {tab === "tryon" && (
         <>
           {/* Result display */}
