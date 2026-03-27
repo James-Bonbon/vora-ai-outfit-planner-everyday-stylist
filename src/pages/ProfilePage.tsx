@@ -317,7 +317,7 @@ const ProfilePage = () => {
                       onClick={() => setEditBodyShape(dbVal)}
                       className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
                         isSelected
-                          ? "bg-[#2c4c3b] text-white shadow-sm"
+                          ? "bg-primary text-primary-foreground shadow-sm"
                           : "bg-card text-foreground border border-border"
                       }`}
                     >
