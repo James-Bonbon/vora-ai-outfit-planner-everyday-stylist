@@ -334,7 +334,7 @@ const OutfitCalendar = () => {
 
   const todaySlot = days[0];
   const visibleUpcoming = days.slice(1, maxDays);
-  const showLockedCard = subscriptionTier !== "pro";
+  const showLockedCard = !hasProAccess;
 
   const todayGarments = getItemsForDate(todaySlot.date, todaySlot.entry);
   const WeatherIconComp = WEATHER_ICON[todaySlot.entry?.weather_label || "neutral"] || Cloud;
