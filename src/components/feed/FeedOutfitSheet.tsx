@@ -150,7 +150,7 @@ export const FeedOutfitSheet = ({ item, open, onOpenChange }: FeedOutfitSheetPro
             <div key={garment.id} className="rounded-xl bg-card border border-border overflow-hidden">
               <div className="flex items-center gap-3 p-3">
                 {/* Flat-lay thumbnail */}
-                <div className="w-16 h-16 flex-shrink-0 rounded-md overflow-hidden bg-secondary">
+                <div className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-neutral-700 flex items-center justify-center">
                   {garment.flat_lay_image_url ? (
                     <img
                       src={garment.flat_lay_image_url}
@@ -159,11 +159,16 @@ export const FeedOutfitSheet = ({ item, open, onOpenChange }: FeedOutfitSheetPro
                       onError={(e) => {
                         const target = e.currentTarget;
                         target.style.display = "none";
-                        target.parentElement!.innerHTML = `<span class="flex items-center justify-center w-full h-full text-[10px] text-muted-foreground font-medium">${garment.category}</span>`;
+                        if (target.parentElement) {
+                          const fallback = document.createElement("span");
+                          fallback.className = "flex items-center justify-center w-full h-full text-[10px] text-neutral-300 font-semibold uppercase tracking-wider";
+                          fallback.textContent = garment.category;
+                          target.parentElement.appendChild(fallback);
+                        }
                       }}
                     />
                   ) : (
-                    <span className="flex items-center justify-center w-full h-full text-[10px] text-muted-foreground font-medium">
+                    <span className="flex items-center justify-center w-full h-full text-[10px] text-neutral-300 font-semibold uppercase tracking-wider">
                       {garment.category}
                     </span>
                   )}

@@ -16,9 +16,11 @@ export interface FeedPostRow {
 }
 
 function rowToOutfitPost(row: FeedPostRow): OutfitPost & { status: string } {
+  const profile = (row as any).profiles as { username?: string; avatar_url?: string } | null;
   return {
     id: row.id,
-    username: "@user",
+    username: profile?.username ? `@${profile.username}` : "@user",
+    avatar_url: profile?.avatar_url ?? undefined,
     main_image_url: row.image_url,
     description: row.description,
     likesCount: 0,
@@ -36,7 +38,7 @@ export function useExplorePosts() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("feed_posts")
-        .select("*")
+        .select("*, profiles(username, avatar_url)")
         .eq("status", "approved")
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -53,7 +55,7 @@ export function useMyPosts() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("feed_posts")
-        .select("*")
+        .select("*, profiles(username, avatar_url)")
         .eq("user_id", user!.id)
         .order("created_at", { ascending: false });
       if (error) throw error;

@@ -27,7 +27,19 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Ask AI to moderate the image
+    // Check if this is a non-VTON post that needs auto-breakdown
+    const { data: postRow } = await supabaseAdmin
+      .from("feed_posts")
+      .select("is_vton, outfit_breakdown")
+      .eq("id", postId)
+      .maybeSingle();
+
+    const needsBreakdown =
+      postRow &&
+      !postRow.is_vton &&
+      (!postRow.outfit_breakdown || (Array.isArray(postRow.outfit_breakdown) && postRow.outfit_breakdown.length === 0));
+
+    // Step 1: Moderate the image
     const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -64,7 +76,6 @@ serve(async (req) => {
       console.error("AI moderation error:", aiResp.status, errText);
 
       if (aiResp.status === 429 || aiResp.status === 402) {
-        // On rate limit or credits issue, auto-approve to not block the user
         await supabaseAdmin.from("feed_posts").update({ status: "approved" }).eq("id", postId);
         return new Response(JSON.stringify({ status: "approved", reason: "auto-approved (rate limit)" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -77,7 +88,61 @@ serve(async (req) => {
     const verdict = (aiData.choices?.[0]?.message?.content || "").trim().toUpperCase();
     const newStatus = verdict.includes("APPROVED") ? "approved" : "rejected";
 
-    await supabaseAdmin.from("feed_posts").update({ status: newStatus }).eq("id", postId);
+    const updatePayload: Record<string, unknown> = { status: newStatus };
+
+    // Step 2: Auto-breakdown for direct uploads (non-VTON, approved, empty breakdown)
+    if (needsBreakdown && newStatus === "approved") {
+      try {
+        const breakdownResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash-lite",
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You are a fashion garment analyzer. Analyze the outfit in the image. Return ONLY a valid JSON array of garments worn (Tops, Bottoms, Shoes). EXCLUDE all accessories, jewelry, bags, or hats. For each garment, provide: name (string), category (one of: TOP, BOT, SHOE, OUT), color (string). Set image_url to null. Example: [{\"name\":\"White Linen Shirt\",\"category\":\"TOP\",\"color\":\"white\",\"image_url\":null}]",
+              },
+              {
+                role: "user",
+                content: [
+                  { type: "image_url", image_url: { url: imageUrl } },
+                  { type: "text", text: "Analyze this outfit. Return the JSON array only, no markdown." },
+                ],
+              },
+            ],
+          }),
+        });
+
+        if (breakdownResp.ok) {
+          const breakdownData = await breakdownResp.json();
+          const rawText = (breakdownData.choices?.[0]?.message?.content || "").trim();
+          // Extract JSON array from response
+          const jsonMatch = rawText.match(/\[[\s\S]*\]/);
+          if (jsonMatch) {
+            const garments = JSON.parse(jsonMatch[0]);
+            if (Array.isArray(garments) && garments.length > 0) {
+              updatePayload.outfit_breakdown = garments.map((g: any, i: number) => ({
+                id: `auto-${postId.slice(0, 8)}-${i}`,
+                name: g.name || "Unknown",
+                category: g.category || "TOP",
+                color: g.color || "",
+                brand: g.brand || "",
+                flat_lay_image_url: g.image_url || null,
+              }));
+            }
+          }
+        }
+      } catch (breakdownErr) {
+        console.error("Auto-breakdown error (non-fatal):", breakdownErr);
+      }
+    }
+
+    await supabaseAdmin.from("feed_posts").update(updatePayload).eq("id", postId);
 
     return new Response(JSON.stringify({ status: newStatus }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
