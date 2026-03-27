@@ -62,6 +62,7 @@ const OutfitCalendar = () => {
   const [garments, setGarments] = useState<Record<string, GarmentSnapshot>>({});
   const [garmentPool, setGarmentPool] = useState<GarmentSnapshot[]>([]);
   const [subscriptionTier, setSubscriptionTier] = useState("free");
+  const [isAdmin, setIsAdmin] = useState(false);
   const [editingDate, setEditingDate] = useState<string | null>(null);
   const [editingSlotIndex, setEditingSlotIndex] = useState<number>(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -72,14 +73,16 @@ const OutfitCalendar = () => {
     if (!user) return;
     setLoading(true);
 
-    const [profileRes, closetRes] = await Promise.all([
+    const [profileRes, closetRes, roleRes] = await Promise.all([
       supabase.from("profiles").select("subscription_tier").eq("user_id", user.id).maybeSingle(),
       supabase.from("closet_items").select("id, name, image_url, category, created_at, is_in_laundry").eq("user_id", user.id),
+      supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle(),
     ]);
 
     if (profileRes.data) {
       setSubscriptionTier(profileRes.data.subscription_tier || "free");
     }
+    setIsAdmin(!!roleRes.data);
 
     const pool: GarmentSnapshot[] = [];
 
@@ -266,7 +269,8 @@ const OutfitCalendar = () => {
   );
 
   /* ---- Build day slots ---- */
-  const maxDays = subscriptionTier === "pro" ? 7 : 3;
+  const hasProAccess = subscriptionTier === "pro" || isAdmin;
+  const maxDays = hasProAccess ? 7 : 3;
 
   const days = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
@@ -330,7 +334,7 @@ const OutfitCalendar = () => {
 
   const todaySlot = days[0];
   const visibleUpcoming = days.slice(1, maxDays);
-  const showLockedCard = subscriptionTier !== "pro";
+  const showLockedCard = !hasProAccess;
 
   const todayGarments = getItemsForDate(todaySlot.date, todaySlot.entry);
   const WeatherIconComp = WEATHER_ICON[todaySlot.entry?.weather_label || "neutral"] || Cloud;

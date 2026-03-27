@@ -5,66 +5,107 @@ import { Button } from "@/components/ui/button";
 import GlassCard from "@/components/GlassCard";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-
-const tiers = [
-  {
-    name: "Free",
-    price: "$0",
-    period: "forever",
-    description: "Get started with the basics",
-    features: [
-      "5 AI try-ons per month",
-      "Unlimited wardrobe uploads",
-      "Basic care guides",
-      "Wishlist",
-    ],
-    cta: "Current Plan",
-    disabled: true,
-    icon: Sparkles,
-    accent: false,
-  },
-  {
-    name: "Plus",
-    price: "$12",
-    yearlyPrice: "$120/yr",
-    period: "/month",
-    description: "For the style-conscious",
-    features: [
-      "30 AI try-ons per month",
-      "AI stain removal guides",
-      "Outfit calendar planning",
-      "Priority generation",
-    ],
-    cta: "Upgrade to Plus",
-    disabled: false,
-    icon: Zap,
-    accent: true,
-  },
-  {
-    name: "Pro",
-    price: "$20",
-    yearlyPrice: "$200/yr",
-    period: "/month",
-    description: "Unlimited style power",
-    features: [
-      "Unlimited AI try-ons",
-      "Advanced body-shape styling",
-      "Custom style prompts",
-      "Early access to new features",
-    ],
-    cta: "Upgrade to Pro",
-    disabled: false,
-    icon: Crown,
-    accent: false,
-  },
-];
+import { getCurrencySymbol } from "@/utils/getCurrencySymbol";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 const SubscriptionPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
+  const currency = getCurrencySymbol();
+
+  const { data } = useQuery({
+    queryKey: ["subscription-access", user?.id],
+    enabled: !!user,
+    staleTime: 1000 * 60 * 30,
+    queryFn: async () => {
+      const [profileRes, roleRes] = await Promise.all([
+        supabase.from("profiles").select("subscription_tier").eq("user_id", user!.id).maybeSingle(),
+        supabase.from("user_roles").select("role").eq("user_id", user!.id).eq("role", "admin").maybeSingle(),
+      ]);
+      const tier = profileRes.data?.subscription_tier || "free";
+      const isAdmin = !!roleRes.data;
+      const hasProAccess = tier === "pro" || isAdmin;
+      return { tier, isAdmin, hasProAccess };
+    },
+  });
+
+  const hasProAccess = data?.hasProAccess || false;
+  const isAdmin = data?.isAdmin || false;
+  const currentTier = data?.tier || "free";
+
+  const tiers = [
+    {
+      name: "Free",
+      price: `${currency}0`,
+      period: "forever",
+      description: "Get started with the basics",
+      features: [
+        "5 AI try-ons per month",
+        "Unlimited wardrobe uploads",
+        "Basic care guides",
+        "Wishlist",
+      ],
+      monthlyAmount: 0,
+      icon: Sparkles,
+      accent: false,
+    },
+    {
+      name: "Plus",
+      monthlyAmount: 12,
+      price: `${currency}12`,
+      yearlyPrice: `${currency}120/yr`,
+      period: "/month",
+      description: "For the style-conscious",
+      features: [
+        "30 AI try-ons per month",
+        "AI stain removal guides",
+        "Outfit calendar planning",
+        "Priority generation",
+      ],
+      icon: Zap,
+      accent: true,
+    },
+    {
+      name: "Pro",
+      monthlyAmount: 20,
+      price: `${currency}20`,
+      yearlyPrice: `${currency}200/yr`,
+      period: "/month",
+      description: "Unlimited style power",
+      features: [
+        "Unlimited AI try-ons",
+        "Advanced body-shape styling",
+        "Custom style prompts",
+        "Early access to new features",
+      ],
+      icon: Crown,
+      accent: false,
+    },
+  ];
 
   const handleUpgrade = (tierName: string) => {
     toast.info(`${tierName} upgrade coming soon! We'll notify you when payments are live.`);
+  };
+
+  const getCtaLabel = (tierName: string) => {
+    const tierLower = tierName.toLowerCase();
+    if (tierLower === "free" && currentTier === "free" && !hasProAccess) return "Current Plan";
+    if (hasProAccess && (tierLower === "plus" || tierLower === "pro")) {
+      return isAdmin ? "Admin Access" : "Current Plan";
+    }
+    if (currentTier === tierLower) return "Current Plan";
+    return `Upgrade to ${tierName}`;
+  };
+
+  const isDisabled = (tierName: string) => {
+    const tierLower = tierName.toLowerCase();
+    if (tierLower === "free" && currentTier === "free" && !hasProAccess) return true;
+    if (hasProAccess && (tierLower === "plus" || tierLower === "pro")) return true;
+    if (currentTier === tierLower) return true;
+    return false;
   };
 
   return (
@@ -116,6 +157,8 @@ const SubscriptionPage = () => {
         <div className="space-y-4">
           {tiers.map((tier, i) => {
             const Icon = tier.icon;
+            const ctaLabel = getCtaLabel(tier.name);
+            const disabled = isDisabled(tier.name);
             return (
               <motion.div
                 key={tier.name}
@@ -147,7 +190,7 @@ const SubscriptionPage = () => {
                     <div className="text-right">
                       <span className="text-2xl font-extrabold text-foreground font-outfit">
                         {billingCycle === "yearly" && tier.yearlyPrice
-                          ? `$${Math.round(parseInt(tier.price.replace("$", "")) * 10 / 12)}`
+                          ? `${currency}${Math.round((tier.monthlyAmount * 10) / 12)}`
                           : tier.price}
                       </span>
                       <span className="text-xs text-muted-foreground">{tier.period}</span>
@@ -164,12 +207,12 @@ const SubscriptionPage = () => {
                   </div>
 
                   <Button
-                    className={`w-full rounded-xl ${tier.accent ? "" : ""}`}
-                    variant={tier.disabled ? "outline" : "default"}
-                    disabled={tier.disabled}
+                    className="w-full rounded-xl"
+                    variant={disabled ? "outline" : "default"}
+                    disabled={disabled}
                     onClick={() => handleUpgrade(tier.name)}
                   >
-                    {tier.cta}
+                    {ctaLabel}
                   </Button>
                 </GlassCard>
               </motion.div>
