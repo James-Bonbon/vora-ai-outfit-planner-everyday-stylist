@@ -299,12 +299,24 @@ const MirrorPage = () => {
       return;
     }
 
-    saveMutation.mutate({
-      imagePath,
-      occasion,
-      garmentIds: Array.from(selectedIds),
-      bodyShape: bodyShape ?? null,
-    });
+    saveMutation.mutate(
+      {
+        imagePath,
+        occasion,
+        garmentIds: Array.from(selectedIds),
+        bodyShape: bodyShape ?? null,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Look saved to your wardrobe.");
+          tryOnMutation.reset();
+          setSelectedIds(new Set());
+          setOccasion(null);
+          setDesiredLook("");
+          setTab("gallery");
+        },
+      },
+    );
   };
 
   const handleDeleteLook = (look: SavedLook) => {
@@ -315,6 +327,9 @@ const MirrorPage = () => {
 
   const handleTryAnother = () => {
     tryOnMutation.reset();
+    setSelectedIds(new Set());
+    setOccasion(null);
+    setDesiredLook("");
   };
 
   // Empty state

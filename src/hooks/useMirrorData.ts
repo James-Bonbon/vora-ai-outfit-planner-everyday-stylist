@@ -259,7 +259,6 @@ export function useSaveLookMutation() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["saved-looks"] });
-      toast.success("Look saved! View it in your gallery.");
     },
     onError: (e) => {
       toast.error("Save failed", { description: e.message });
