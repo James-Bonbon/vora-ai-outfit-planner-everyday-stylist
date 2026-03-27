@@ -599,7 +599,47 @@ const MirrorPage = () => {
         </>
       )}
 
-      {/* ========== TRY-ON TAB ========== */}
+      {/* ========== SHARE TO FEED MODAL ========== */}
+      <Dialog open={shareModalOpen} onOpenChange={setShareModalOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-outfit">Publish to Feed</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedLook && (
+              <div className="aspect-[3/4] w-full max-h-[280px] rounded-xl overflow-hidden bg-muted">
+                <SafeImage
+                  src={lookUrls[selectedLook.id]}
+                  alt="Look preview"
+                  wrapperClassName="w-full h-full"
+                  className="w-full h-full object-cover object-top"
+                  aspectRatio=""
+                />
+              </div>
+            )}
+            <Textarea
+              placeholder="Add a caption…"
+              value={shareCaption}
+              onChange={(e) => setShareCaption(e.target.value)}
+              className="rounded-xl resize-none border-border bg-card text-sm"
+              rows={3}
+            />
+            <Button
+              className="w-full rounded-xl gap-2"
+              disabled={isSharing}
+              onClick={handleShareToFeed}
+            >
+              {isSharing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Globe className="w-4 h-4" />
+              )}
+              {isSharing ? "Posting…" : "Post"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {tab === "tryon" && (
         <>
           {/* Result display */}
