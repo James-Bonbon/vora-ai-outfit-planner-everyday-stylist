@@ -359,7 +359,7 @@ const MirrorPage = () => {
           ? selectedLook.garment_ids.map((id: string) => {
               const g = lookGarments.find((lg) => lg.id === id);
               return g
-                ? { id: g.id, name: g.name || "Unnamed", category: g.category || "TOP", brand: g.brand || "", image_url: g.image_url || "" }
+                ? { id: g.id, name: g.name || "Unnamed", category: g.category || "TOP", brand: g.brand || "", color: g.color || "" }
                 : { id };
             })
           : [],
