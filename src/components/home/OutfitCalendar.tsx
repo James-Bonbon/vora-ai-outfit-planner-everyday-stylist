@@ -26,6 +26,14 @@ import {
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
+interface CalendarEvent {
+  id: string;
+  title: string;
+  start_time: string;
+  end_time: string;
+  location?: string;
+}
+
 interface CalendarEntry {
   id: string;
   date: string;
@@ -34,6 +42,7 @@ interface CalendarEntry {
   weather_label: string | null;
   occasion: string | null;
   status: string;
+  calendar_events?: CalendarEvent[];
 }
 
 interface GarmentSnapshot extends StylingItem {}
