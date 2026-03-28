@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Trash2, FileText, Shield, Loader2 } from "lucide-react";
+import { ArrowLeft, Trash2, FileText, Shield, Loader2, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import GlassCard from "@/components/GlassCard";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
   AlertDialogAction,
