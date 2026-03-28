@@ -588,6 +588,48 @@ export type Database = {
         }
         Relationships: []
       }
+      user_calendar_events: {
+        Row: {
+          created_at: string
+          description: string | null
+          end_time: string
+          external_event_id: string
+          id: string
+          is_all_day: boolean
+          location: string | null
+          provider: string | null
+          start_time: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          end_time: string
+          external_event_id: string
+          id?: string
+          is_all_day?: boolean
+          location?: string | null
+          provider?: string | null
+          start_time: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          end_time?: string
+          external_event_id?: string
+          id?: string
+          is_all_day?: boolean
+          location?: string | null
+          provider?: string | null
+          start_time?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_feedback: {
         Row: {
           created_at: string

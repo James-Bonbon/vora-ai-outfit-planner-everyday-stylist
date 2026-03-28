@@ -26,6 +26,14 @@ import {
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
+interface CalendarEvent {
+  id: string;
+  title: string;
+  start_time: string;
+  end_time: string;
+  location?: string;
+}
+
 interface CalendarEntry {
   id: string;
   date: string;
@@ -34,6 +42,7 @@ interface CalendarEntry {
   weather_label: string | null;
   occasion: string | null;
   status: string;
+  calendar_events?: CalendarEvent[];
 }
 
 interface GarmentSnapshot extends StylingItem {}
@@ -59,6 +68,7 @@ const OutfitCalendar = () => {
   const navigate = useNavigate();
   const { weather, loading: weatherLoading } = useWeather();
   const [entries, setEntries] = useState<CalendarEntry[]>([]);
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [garments, setGarments] = useState<Record<string, GarmentSnapshot>>({});
   const [garmentPool, setGarmentPool] = useState<GarmentSnapshot[]>([]);
   const [subscriptionTier, setSubscriptionTier] = useState("free");
@@ -124,15 +134,25 @@ const OutfitCalendar = () => {
     const today = format(new Date(), "yyyy-MM-dd");
     const end = format(addDays(new Date(), 6), "yyyy-MM-dd");
 
-    const { data } = await supabase
-      .from("outfit_calendar")
-      .select("*")
-      .eq("user_id", user.id)
-      .gte("date", today)
-      .lte("date", end)
-      .order("date");
+    const [outfitRes, eventsRes] = await Promise.all([
+      supabase
+        .from("outfit_calendar")
+        .select("*")
+        .eq("user_id", user.id)
+        .gte("date", today)
+        .lte("date", end)
+        .order("date"),
+      supabase
+        .from("user_calendar_events")
+        .select("id, title, start_time, end_time, location")
+        .eq("user_id", user.id)
+        .gte("start_time", today + "T00:00:00Z")
+        .lte("start_time", end + "T23:59:59Z")
+        .order("start_time"),
+    ]);
 
-    if (data) setEntries(data as CalendarEntry[]);
+    if (outfitRes.data) setEntries(outfitRes.data as CalendarEntry[]);
+    if (eventsRes.data) setCalendarEvents(eventsRes.data as CalendarEvent[]);
   }, [user]);
 
   /* ---- Resolve garment images (with signed URLs) ---- */
@@ -277,9 +297,10 @@ const OutfitCalendar = () => {
       const date = addDays(new Date(), i);
       const dateStr = format(date, "yyyy-MM-dd");
       const entry = entries.find((e) => e.date === dateStr);
-      return { date, dateStr, entry, isToday: isToday(date) };
+      const dayEvents = calendarEvents.filter((ev) => ev.start_time.startsWith(dateStr));
+      return { date, dateStr, entry, isToday: isToday(date), calendarEvents: dayEvents };
     });
-  }, [entries]);
+  }, [entries, calendarEvents]);
 
   /* ---- LOCKED STATE: Not enough items ---- */
   if (!loading && !meetsThreshold) {
@@ -339,7 +360,9 @@ const OutfitCalendar = () => {
   const todayGarments = getItemsForDate(todaySlot.date, todaySlot.entry);
   const WeatherIconComp = WEATHER_ICON[todaySlot.entry?.weather_label || "neutral"] || Cloud;
   const tempDisplay = todaySlot.entry?.weather_temp ? `${Math.round(todaySlot.entry.weather_temp)}°F` : "";
-  const todayOccasion = todaySlot.entry?.occasion || (isWeekend(todaySlot.date) ? "Casual" : "Smart Casual");
+  const todayOccasion = todaySlot.calendarEvents.length > 0
+    ? todaySlot.calendarEvents[0].title
+    : todaySlot.entry?.occasion || (isWeekend(todaySlot.date) ? "Casual" : "Smart Casual");
 
   return (
     <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
@@ -423,7 +446,9 @@ const OutfitCalendar = () => {
             <CarouselContent className="-ml-2">
               {visibleUpcoming.map((slot) => {
                 const slotGarments = getItemsForDate(slot.date, slot.entry);
-                const occasion = slot.entry?.occasion || (isWeekend(slot.date) ? "Casual" : "Office");
+                const occasion = slot.calendarEvents.length > 0
+                  ? slot.calendarEvents[0].title
+                  : slot.entry?.occasion || (isWeekend(slot.date) ? "Casual" : "Office");
 
                 return (
                   <CarouselItem key={slot.dateStr} className="pl-2 basis-[55%] sm:basis-[42%]">

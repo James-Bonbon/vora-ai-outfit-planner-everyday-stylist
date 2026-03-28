@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Trash2, FileText, Shield, Loader2 } from "lucide-react";
+import { ArrowLeft, Trash2, FileText, Shield, Loader2, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import GlassCard from "@/components/GlassCard";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -72,6 +73,27 @@ const SettingsPage = () => {
             <span className="text-sm font-medium text-foreground">Privacy Policy</span>
           </button>
         </GlassCard>
+
+        {/* Integrations */}
+        <div>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+            Integrations
+          </h3>
+          <GlassCard className="p-0">
+            <div className="flex items-center justify-between p-4 min-h-[52px]">
+              <div className="flex items-center gap-3">
+                <CalendarDays className="w-5 h-5 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">Google Calendar</span>
+              </div>
+              <Switch
+                checked={false}
+                onCheckedChange={() => {
+                  toast.info("Calendar integration requires OAuth configuration. Coming soon.");
+                }}
+              />
+            </div>
+          </GlassCard>
+        </div>
 
         {/* Danger Zone */}
         <div className="pt-4">
