@@ -13,6 +13,10 @@ import {
   AlertTriangle,
   ChevronRight,
   ShoppingBag,
+  Send,
+  ExternalLink,
+  Droplets,
+  ShieldAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,6 +52,24 @@ interface RoutineData {
   am_routine: RoutineStep[];
   pm_routine: RoutineStep[];
   gaps: GapItem[];
+}
+
+interface ShoppingProduct {
+  title: string;
+  imageUrl: string;
+  link: string;
+  price?: string;
+  source?: string;
+}
+
+interface ShoppingGroup {
+  term: string;
+  products: ShoppingProduct[];
+}
+
+interface AdviceResult {
+  message: string;
+  shopping: ShoppingGroup[];
 }
 
 const STEP_LABELS: Record<string, string> = {
