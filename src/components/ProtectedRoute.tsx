@@ -15,11 +15,12 @@ const ProtectedRoute = ({ children, skipOnboarding = false }: { children: React.
     }
     supabase
       .from("profiles")
-      .select("onboarding_complete")
+      .select("onboarding_complete, username, selfie_url")
       .eq("user_id", user.id)
       .maybeSingle()
       .then(({ data }) => {
-        setOnboardingComplete(data?.onboarding_complete ?? false);
+        const complete = data?.onboarding_complete === true && !!data?.username && !!data?.selfie_url;
+        setOnboardingComplete(complete);
         setOnboardingChecked(true);
       });
   }, [user, skipOnboarding]);
