@@ -721,6 +721,17 @@ const BeautyPage = () => {
           </Sheet>
         </>
       )}
+
+      {/* Medical Disclaimer */}
+      <div className="pt-4 pb-20 text-center px-4">
+        <div className="flex items-center justify-center gap-1.5 mb-1">
+          <ShieldAlert className="w-3 h-3 text-muted-foreground/60" />
+          <span className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">Disclaimer</span>
+        </div>
+        <p className="text-[10px] text-muted-foreground/50 leading-relaxed max-w-[320px] mx-auto">
+          VORA AI provides generic cosmetic suggestions. Always patch-test new ingredients and consult a dermatologist for medical skin conditions.
+        </p>
+      </div>
     </div>
   );
 };
