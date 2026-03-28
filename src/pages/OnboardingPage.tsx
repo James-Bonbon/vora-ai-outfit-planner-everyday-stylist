@@ -144,7 +144,7 @@ const OnboardingPage = () => {
   const usernameHint = () => {
     switch (usernameStatus) {
       case "checking": return <span className="flex items-center gap-1 text-muted-foreground"><Loader2 className="w-3 h-3 animate-spin" /> Checking…</span>;
-      case "available": return <span className="flex items-center gap-1 text-emerald-500"><Check className="w-3 h-3" /> Available</span>;
+      case "available": return <span className="flex items-center gap-1 text-primary"><Check className="w-3 h-3" /> Available</span>;
       case "taken": return <span className="flex items-center gap-1 text-destructive"><X className="w-3 h-3" /> Taken</span>;
       case "invalid": return <span className="text-destructive">3-30 chars, lowercase, numbers, dots, underscores only</span>;
       default: return null;
