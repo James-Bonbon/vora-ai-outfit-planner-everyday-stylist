@@ -360,7 +360,9 @@ const OutfitCalendar = () => {
   const todayGarments = getItemsForDate(todaySlot.date, todaySlot.entry);
   const WeatherIconComp = WEATHER_ICON[todaySlot.entry?.weather_label || "neutral"] || Cloud;
   const tempDisplay = todaySlot.entry?.weather_temp ? `${Math.round(todaySlot.entry.weather_temp)}°F` : "";
-  const todayOccasion = todaySlot.entry?.occasion || (isWeekend(todaySlot.date) ? "Casual" : "Smart Casual");
+  const todayOccasion = todaySlot.calendarEvents.length > 0
+    ? todaySlot.calendarEvents[0].title
+    : todaySlot.entry?.occasion || (isWeekend(todaySlot.date) ? "Casual" : "Smart Casual");
 
   return (
     <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
@@ -444,7 +446,9 @@ const OutfitCalendar = () => {
             <CarouselContent className="-ml-2">
               {visibleUpcoming.map((slot) => {
                 const slotGarments = getItemsForDate(slot.date, slot.entry);
-                const occasion = slot.entry?.occasion || (isWeekend(slot.date) ? "Casual" : "Office");
+                const occasion = slot.calendarEvents.length > 0
+                  ? slot.calendarEvents[0].title
+                  : slot.entry?.occasion || (isWeekend(slot.date) ? "Casual" : "Office");
 
                 return (
                   <CarouselItem key={slot.dateStr} className="pl-2 basis-[55%] sm:basis-[42%]">
