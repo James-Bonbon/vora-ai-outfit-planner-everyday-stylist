@@ -285,6 +285,34 @@ const BeautyPage = () => {
     }
   };
 
+  const handleAskAdvice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adviceQuery.trim() || adviceLoading) return;
+    setAdviceLoading(true);
+    setAdviceResult(null);
+    setShoppingImgErrors(new Set());
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-beauty-advice", {
+        body: {
+          query: adviceQuery.trim(),
+          products: products.map((p) => ({
+            name: p.name,
+            product_type: p.product_type,
+            ingredients: p.ingredients,
+          })),
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setAdviceResult(data as AdviceResult);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Failed to get advice");
+    } finally {
+      setAdviceLoading(false);
+    }
+  };
+
   return (
     <div className="pt-6 space-y-5">
       <div className="flex items-center justify-between h-10">
@@ -305,26 +333,135 @@ const BeautyPage = () => {
       <div className="flex gap-2">
         <button
           onClick={() => setTab("shelf")}
-          className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors min-h-[44px] ${
+          className={`flex-1 py-2.5 rounded-xl text-xs font-medium transition-colors min-h-[44px] ${
             tab === "shelf" ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground"
           }`}
         >
-          <HeartPulse className="w-4 h-4 inline mr-1.5 -mt-0.5" />
-          My Shelf
+          <HeartPulse className="w-3.5 h-3.5 inline mr-1 -mt-0.5" />
+          Shelf
         </button>
         <button
           onClick={() => setTab("browse")}
-          className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors min-h-[44px] ${
+          className={`flex-1 py-2.5 rounded-xl text-xs font-medium transition-colors min-h-[44px] ${
             tab === "browse" ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground"
           }`}
         >
-          <ShoppingBag className="w-4 h-4 inline mr-1.5 -mt-0.5" />
+          <ShoppingBag className="w-3.5 h-3.5 inline mr-1 -mt-0.5" />
           Browse
+        </button>
+        <button
+          onClick={() => setTab("advice")}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-medium transition-colors min-h-[44px] ${
+            tab === "advice" ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground"
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5 inline mr-1 -mt-0.5" />
+          Advice
         </button>
       </div>
 
       {/* Browse Tab */}
       {tab === "browse" && <ProductLibrary onAddToShelf={handleAddFromBrowse} addingProduct={addingBrowseProduct} />}
+
+      {/* Advice Tab */}
+      {tab === "advice" && (
+        <div className="space-y-4">
+          <form onSubmit={handleAskAdvice} className="flex gap-2">
+            <input
+              type="text"
+              placeholder="e.g. My skin is dry and flaky…"
+              value={adviceQuery}
+              onChange={(e) => setAdviceQuery(e.target.value)}
+              className="flex-1 h-10 rounded-xl bg-card border border-border px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            <Button type="submit" size="sm" className="rounded-xl h-10 px-4" disabled={adviceLoading}>
+              {adviceLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            </Button>
+          </form>
+
+          {adviceLoading && (
+            <div className="flex flex-col items-center py-16 gap-3">
+              <Loader2 className="w-8 h-8 text-primary animate-spin" />
+              <p className="text-sm text-muted-foreground">Analysing your concern…</p>
+            </div>
+          )}
+
+          {adviceResult && (
+            <div className="space-y-5">
+              {/* AI Message */}
+              <GlassCard className="p-4">
+                <div className="flex items-start gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                    <Sparkles className="w-3.5 h-3.5 text-primary" />
+                  </div>
+                  <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{adviceResult.message}</p>
+                </div>
+              </GlassCard>
+
+              {/* Digital Shelf — Shopping Results */}
+              {adviceResult.shopping.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Recommended Products (UK)</h3>
+                  {adviceResult.shopping.map((group) => (
+                    <div key={group.term} className="space-y-2">
+                      <p className="text-xs font-medium text-foreground">{group.term}</p>
+                      {group.products.length === 0 ? (
+                        <p className="text-[10px] text-muted-foreground">No results found for this term.</p>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          {group.products.map((product, idx) => {
+                            const key = `${group.term}-${idx}`;
+                            return (
+                              <a
+                                key={key}
+                                href={product.link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block rounded-xl border border-border bg-card overflow-hidden hover:border-primary/30 transition-colors"
+                              >
+                                <div className="aspect-square bg-muted flex items-center justify-center">
+                                  {!shoppingImgErrors.has(key) && product.imageUrl ? (
+                                    <img
+                                      src={product.imageUrl}
+                                      alt={product.title}
+                                      className="w-full h-full object-contain p-2"
+                                      loading="lazy"
+                                      onError={() => setShoppingImgErrors((prev) => new Set(prev).add(key))}
+                                    />
+                                  ) : (
+                                    <Droplets className="w-8 h-8 text-muted-foreground/20" />
+                                  )}
+                                </div>
+                                <div className="p-2.5 space-y-1">
+                                  <p className="text-[10px] text-muted-foreground truncate">{product.source}</p>
+                                  <p className="text-xs font-medium text-foreground line-clamp-2 leading-tight">{product.title}</p>
+                                  <div className="flex items-center justify-between pt-0.5">
+                                    {product.price && <span className="text-xs font-bold text-primary">{product.price}</span>}
+                                    <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                                  </div>
+                                </div>
+                              </a>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {!adviceLoading && !adviceResult && (
+            <GlassCard className="flex flex-col items-center justify-center py-14 text-center">
+              <Sparkles className="w-10 h-10 text-primary/20 mb-3" />
+              <p className="text-sm text-muted-foreground max-w-[240px]">
+                Ask about skincare concerns, ingredient compatibility, or routine gaps.
+              </p>
+            </GlassCard>
+          )}
+        </div>
+      )}
 
       {/* Shelf Tab */}
       {tab === "shelf" && (
