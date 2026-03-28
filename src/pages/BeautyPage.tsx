@@ -92,8 +92,12 @@ const BeautyPage = () => {
   const [routineOpen, setRoutineOpen] = useState(false);
   const [routineData, setRoutineData] = useState<RoutineData | null>(null);
   const [buildingRoutine, setBuildingRoutine] = useState(false);
-  const [tab, setTab] = useState<"shelf" | "browse">("shelf");
+  const [tab, setTab] = useState<"shelf" | "browse" | "advice">("shelf");
   const [addingBrowseProduct, setAddingBrowseProduct] = useState<string | null>(null);
+  const [adviceQuery, setAdviceQuery] = useState("");
+  const [adviceLoading, setAdviceLoading] = useState(false);
+  const [adviceResult, setAdviceResult] = useState<AdviceResult | null>(null);
+  const [shoppingImgErrors, setShoppingImgErrors] = useState<Set<string>>(new Set());
 
   const fetchProducts = useCallback(async () => {
     if (!user) return;
