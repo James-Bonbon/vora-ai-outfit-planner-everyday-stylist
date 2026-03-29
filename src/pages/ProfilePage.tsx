@@ -290,12 +290,6 @@ const ProfilePage = () => {
               <User className="w-8 h-8 text-muted-foreground" />
             </AvatarFallback>
           </Avatar>
-          {editing && (
-            <label className="absolute -bottom-1 -right-1 w-7 h-7 bg-primary rounded-full flex items-center justify-center cursor-pointer shadow-lg">
-              <Camera className="w-3.5 h-3.5 text-primary-foreground" />
-              <input type="file" accept="image/*" className="hidden" onChange={handleSelfieChange} />
-            </label>
-          )}
         </div>
         <div className="flex-1">
           {editing ? (
