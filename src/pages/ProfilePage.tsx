@@ -317,13 +317,23 @@ const ProfilePage = () => {
                 </div>
                 {usernameError && <p className="text-[11px] text-destructive mt-1">{usernameError}</p>}
               </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-xl text-xs w-full"
+                onClick={() => document.getElementById("selfie-upload-input")?.click()}
+              >
+                <Camera className="w-3.5 h-3.5 mr-1.5" /> Update VTON Selfie
+              </Button>
+              <input id="selfie-upload-input" type="file" accept="image/*" className="hidden" onChange={handleSelfieChange} />
             </div>
           ) : (
             <>
               <h3 className="font-semibold text-foreground">{displayName}</h3>
-              {profile?.username && (
-                <p className="text-xs text-muted-foreground">@{profile.username}</p>
-              )}
+              <p className="text-xs text-muted-foreground">
+                {profile?.username ? `@${profile.username}` : "No username set"}
+              </p>
               <p className="text-xs text-primary font-medium capitalize">
                 {isAdmin ? "admin" : (profile?.subscription_tier || "free")} tier {(isAdmin || (profile?.subscription_tier && profile.subscription_tier !== "free")) ? "✨" : ""}
               </p>

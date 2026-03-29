@@ -80,6 +80,7 @@ const STEP_LABELS: Record<string, string> = {
   "5-Protect": "Protect",
 };
 
+/* HMR refresh */
 const BeautyPage = () => {
   const { user } = useAuth();
   const [products, setProducts] = useState<BeautyProduct[]>([]);
