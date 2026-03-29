@@ -55,9 +55,34 @@ Only include steps where user has products. In gaps, list any missing critical s
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "{}";
-    const cleanContent = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    const routine = JSON.parse(cleanContent);
+    const content = data.choices?.[0]?.message?.content || "";
+    
+    if (!content || content.trim().length === 0) {
+      throw new Error("AI returned empty response");
+    }
+
+    // Robust JSON extraction
+    let cleaned = content.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+    const jsonStart = cleaned.search(/[\{\[]/);
+    const jsonEnd = cleaned.lastIndexOf(jsonStart !== -1 && cleaned[jsonStart] === '[' ? ']' : '}');
+    
+    if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) {
+      throw new Error("No valid JSON found in AI response");
+    }
+    
+    cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+    
+    let routine;
+    try {
+      routine = JSON.parse(cleaned);
+    } catch (_e) {
+      // Fix trailing commas and control chars
+      cleaned = cleaned
+        .replace(/,\s*}/g, "}")
+        .replace(/,\s*]/g, "]")
+        .replace(/[\x00-\x1F\x7F]/g, "");
+      routine = JSON.parse(cleaned);
+    }
 
     return new Response(JSON.stringify(routine), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
