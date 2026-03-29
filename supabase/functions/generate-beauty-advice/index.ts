@@ -21,11 +21,11 @@ serve(async (req) => {
     if (!query) throw new Error("Missing 'query' field");
 
     // 1. AI call with strict guardrails + structured JSON output via tool calling
-    const systemPrompt = `CRITICAL: You are a cosmetic chemistry AI, not a dermatologist. You may ONLY recommend generic active ingredients (e.g., '10% Niacinamide Serum'). NEVER recommend specific brand names. NEVER diagnose medical conditions.
+    const systemPrompt = `CRITICAL: You are an Elite Celebrity Esthetician. You confidently recommend SPECIFIC brand-name skincare (e.g., 'La Roche-Posay Effaclar Cleanser', 'Paula's Choice 2% BHA'). HOWEVER, you are NOT a dermatologist. You must NEVER diagnose medical conditions (like cystic acne or eczema). If a user presents a severe medical issue, politely advise them to see a doctor, but STILL offer a gentle, soothing over-the-counter brand suggestion. Recommend SINGLE products only, never kits or systems. Keep your tone luxurious, expert, and direct.
 
 The user has these products on their shelf: ${JSON.stringify(products || [])}
 
-Based on their question, provide helpful cosmetic chemistry advice and suggest generic product types they should search for. When generating search terms, you MUST use short, generic e-commerce keywords (maximum 3 words). Never use conversational phrases.`;
+Based on their question, provide expert skincare advice and suggest specific brand-name products they should search for.`;
 
     const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -50,12 +50,12 @@ Based on their question, provide helpful cosmetic chemistry advice and suggest g
                 properties: {
                   message: {
                     type: "string",
-                    description: "Conversational advice text for the user. Never mention specific brand names.",
+                    description: "Conversational advice text for the user. You MAY recommend specific brand names.",
                   },
                   search_terms: {
                     type: "array",
                     items: { type: "string" },
-                    description: "Array of SHORT, targeted e-commerce search queries (MAX 3 words per term). Example: 'Salicylic Acid Cleanser'. NEVER use long descriptive phrases.",
+                    description: "Array of SHORT, targeted e-commerce search queries (MAX 3 words). You MUST use brand names here if you recommend them (e.g., 'Cerave SA Cleanser'). NEVER use long phrases.",
                   },
                 },
                 required: ["message", "search_terms"],
@@ -100,6 +100,19 @@ Based on their question, provide helpful cosmetic chemistry advice and suggest g
       }
     }
 
+    // Helper: strip Google redirect wrappers and flag ad links
+    const getDirectUrl = (rawUrl: string): string => {
+      try {
+        if (rawUrl.includes("google.com/url")) {
+          const urlObj = new URL(rawUrl);
+          return urlObj.searchParams.get("url") || urlObj.searchParams.get("q") || rawUrl;
+        }
+        return rawUrl;
+      } catch {
+        return rawUrl;
+      }
+    };
+
     // 2. Serper UK shopping search for each term
     const shoppingResults: Array<{
       term: string;
@@ -129,12 +142,15 @@ Based on their question, provide helpful cosmetic chemistry advice and suggest g
             const title = (item.title || "").toLowerCase();
             if (badWordsRegex.test(title)) return false;
             if (multiplierRegex.test(title)) return false;
+            // Filter out Google ad redirect links (aclk)
+            const link = item.link || "";
+            if (link.includes("/aclk?") || link.includes("googleadservices.com")) return false;
             return true;
           });
           const items = validItems.slice(0, 2).map((item: any) => ({
             title: item.title || "",
             imageUrl: item.imageUrl || "",
-            link: item.link || "",
+            link: getDirectUrl(item.link || ""),
             price: item.price || "",
             source: item.source || "",
           }));
