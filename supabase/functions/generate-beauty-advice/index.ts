@@ -25,7 +25,7 @@ serve(async (req) => {
 
 The user has these products on their shelf: ${JSON.stringify(products || [])}
 
-Based on their question, provide helpful cosmetic chemistry advice and suggest generic product types they should search for.`;
+Based on their question, provide helpful cosmetic chemistry advice and suggest generic product types they should search for. When generating search terms, you MUST use short, generic e-commerce keywords (maximum 3 words). Never use conversational phrases.`;
 
     const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -55,7 +55,7 @@ Based on their question, provide helpful cosmetic chemistry advice and suggest g
                   search_terms: {
                     type: "array",
                     items: { type: "string" },
-                    description: "Array of generic product names to search, e.g. '10% Niacinamide Serum', 'Mineral SPF 50'. Max 3 terms.",
+                    description: "Array of SHORT, targeted e-commerce search queries (MAX 3 words per term). Example: 'Salicylic Acid Cleanser'. NEVER use long descriptive phrases.",
                   },
                 },
                 required: ["message", "search_terms"],
@@ -123,7 +123,12 @@ Based on their question, provide helpful cosmetic chemistry advice and suggest g
 
         if (serperResp.ok) {
           const serperData = await serperResp.json();
-          const items = (serperData.shopping || []).slice(0, 2).map((item: any) => ({
+          const badWordsRegex = /\b(set|kit|bundle|pack|multipack|routine|collection|duo|trio|gift)\b/i;
+          const validItems = (serperData.shopping || []).filter((item: any) => {
+            const title = item.title || "";
+            return !badWordsRegex.test(title);
+          });
+          const items = validItems.slice(0, 2).map((item: any) => ({
             title: item.title || "",
             imageUrl: item.imageUrl || "",
             link: item.link || "",
