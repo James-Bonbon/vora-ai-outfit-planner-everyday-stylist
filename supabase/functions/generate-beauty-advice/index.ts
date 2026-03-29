@@ -115,18 +115,21 @@ Based on their question, provide helpful cosmetic chemistry advice and suggest g
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            q: `${term} -bundle -set -kit -pack -multipack`,
+            q: `${term} -bundle -set -kit -pack -multipack -system -duo -trio`,
             gl: "gb",
-            num: 4,
+            num: 20,
           }),
         });
 
         if (serperResp.ok) {
           const serperData = await serperResp.json();
-          const badWordsRegex = /\b(set|kit|bundle|pack|multipack|routine|collection|duo|trio|gift)\b/i;
+          const badWordsRegex = /\b(set|kit|bundle|pack|multipack|routine|collection|duo|trio|gift|system|essentials|travel|mini|step|to go)\b/i;
+          const multiplierRegex = /\b(\d+x|\d+\s*pack|\d+\s*pcs|\d+\s*pieces|-step)\b/i;
           const validItems = (serperData.shopping || []).filter((item: any) => {
-            const title = item.title || "";
-            return !badWordsRegex.test(title);
+            const title = (item.title || "").toLowerCase();
+            if (badWordsRegex.test(title)) return false;
+            if (multiplierRegex.test(title)) return false;
+            return true;
           });
           const items = validItems.slice(0, 2).map((item: any) => ({
             title: item.title || "",
