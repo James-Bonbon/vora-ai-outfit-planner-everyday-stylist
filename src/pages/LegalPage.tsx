@@ -217,6 +217,12 @@ const LegalPage = () => {
                 </AccordionItem>
               ))}
             </Accordion>
+            <div className="mt-6 p-4 glass-card rounded-xl">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                If you have any questions about these terms, or wish to exercise your right to data deletion under GDPR, please contact us at{" "}
+                <a href="mailto:vora.support@gmail.com" className="font-semibold text-primary underline">vora.support@gmail.com</a>.
+              </p>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
