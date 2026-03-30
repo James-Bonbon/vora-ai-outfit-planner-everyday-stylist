@@ -569,6 +569,12 @@ const ProfilePage = () => {
             <DialogTitle>Help & Feedback</DialogTitle>
             <DialogDescription>Let us know how we can improve.</DialogDescription>
           </DialogHeader>
+          <p className="text-sm text-muted-foreground bg-secondary/50 rounded-lg p-3">
+            Need immediate assistance or want to request account deletion? Email us directly at{" "}
+            <a href="mailto:vora.support@gmail.com" className="font-semibold text-primary underline">
+              vora.support@gmail.com
+            </a>
+          </p>
           <div className="space-y-3">
             <div>
               <Label className="text-xs text-muted-foreground">Issue Type</Label>
