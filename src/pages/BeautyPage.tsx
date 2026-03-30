@@ -98,10 +98,11 @@ const BeautyPage = () => {
   const [buildingRoutine, setBuildingRoutine] = useState(false);
   const [tab, setTab] = useState<"shelf" | "browse" | "advice">("shelf");
   const [addingBrowseProduct, setAddingBrowseProduct] = useState<string | null>(null);
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [adviceQuery, setAdviceQuery] = useState("");
   const [adviceLoading, setAdviceLoading] = useState(false);
-  const [adviceResult, setAdviceResult] = useState<AdviceResult | null>(null);
   const [shoppingImgErrors, setShoppingImgErrors] = useState<Set<string>>(new Set());
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   const fetchProducts = useCallback(async () => {
     if (!user) return;
