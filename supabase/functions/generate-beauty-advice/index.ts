@@ -136,8 +136,9 @@ Based on their question, provide expert skincare advice and suggest specific bra
 
         if (serperResp.ok) {
           const serperData = await serperResp.json();
-          const badWordsRegex = /\b(set|kit|bundle|pack|multipack|routine|collection|duo|trio|gift|system|essentials|travel|mini|step|to go)\b/i;
-          const multiplierRegex = /\b(\d+x|\d+\s*pack|\d+\s*pcs|\d+\s*pieces|-step)\b/i;
+          // Removed "duo" to allow legitimate products like Effaclar Duo. Added twin/double.
+          const badWordsRegex = /\b(set|kit|bundle|pack|multipack|routine|collection|trio|gift|system|essentials|travel|mini|step|to go|twin|double)\b/i;
+          const multiplierRegex = /\b(\d+x|2x|3x|\d+\s*pack|\d+\s*pcs|\d+\s*pieces|-step)\b/i;
           const validItems = (serperData.shopping || []).filter((item: any) => {
             const title = (item.title || "").toLowerCase();
             if (badWordsRegex.test(title)) return false;
