@@ -68,9 +68,11 @@ interface ShoppingGroup {
   products: ShoppingProduct[];
 }
 
-interface AdviceResult {
-  message: string;
-  shopping: ShoppingGroup[];
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+  shopping?: ShoppingGroup[];
+  quickReplies?: string[];
 }
 
 const STEP_LABELS: Record<string, string> = {
