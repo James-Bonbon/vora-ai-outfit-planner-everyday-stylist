@@ -17,15 +17,27 @@ serve(async (req) => {
     const SERPER_API_KEY = Deno.env.get("SERPER_API_KEY");
     if (!SERPER_API_KEY) throw new Error("SERPER_API_KEY is not configured");
 
-    const { query, products } = await req.json();
-    if (!query) throw new Error("Missing 'query' field");
+    const body = await req.json();
+    // Support both legacy single-query and new chat-history format
+    const messages: Array<{ role: string; content: string }> = body.messages || [];
+    if (body.query && messages.length === 0) {
+      messages.push({ role: "user", content: body.query });
+    }
+    if (messages.length === 0) throw new Error("Missing 'messages' or 'query' field");
 
-    // 1. AI call with strict guardrails + structured JSON output via tool calling
-    const systemPrompt = `CRITICAL: You are an Elite Celebrity Esthetician. You confidently recommend SPECIFIC brand-name skincare (e.g., 'La Roche-Posay Effaclar Cleanser', 'Paula's Choice 2% BHA'). HOWEVER, you are NOT a dermatologist. You must NEVER diagnose medical conditions (like cystic acne or eczema). If a user presents a severe medical issue, politely advise them to see a doctor, but STILL offer a gentle, soothing over-the-counter brand suggestion. Recommend SINGLE products only, never kits or systems. Keep your tone luxurious, expert, and direct.
+    const products = body.products;
+
+    const systemPrompt = `You are an Elite Clinical Esthetician and Cosmetic Chemist. You must explain the precise MECHANISM OF ACTION for every chemical/ingredient you recommend using professional, clinical terminology (e.g., lipophilic, keratinolytic, trans-epidermal water loss, tyrosinase inhibition). Provide deep, scientific context so the user understands exactly how the molecule interacts with their skin biology. End your response with an engaging question to investigate their routine further. NEVER diagnose medical conditions. If a user presents a severe medical issue, politely advise them to see a doctor, but STILL offer a gentle, soothing over-the-counter brand suggestion. Recommend SINGLE products only, never kits or systems.
 
 The user has these products on their shelf: ${JSON.stringify(products || [])}
 
 Based on their question, provide expert skincare advice and suggest specific brand-name products they should search for.`;
+
+    // Build messages payload: system + full chat history
+    const aiMessages = [
+      { role: "system", content: systemPrompt },
+      ...messages.map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content })),
+    ];
 
     const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -35,30 +47,32 @@ Based on their question, provide expert skincare advice and suggest specific bra
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: query },
-        ],
+        messages: aiMessages,
         tools: [
           {
             type: "function",
             function: {
               name: "beauty_advice",
-              description: "Return beauty advice with search terms for product recommendations",
+              description: "Return beauty advice with search terms and quick reply suggestions",
               parameters: {
                 type: "object",
                 properties: {
                   message: {
                     type: "string",
-                    description: "Conversational advice text for the user. You MAY recommend specific brand names.",
+                    description: "Conversational advice text for the user. You MAY recommend specific brand names. Use clinical terminology to explain mechanism of action.",
                   },
                   search_terms: {
                     type: "array",
                     items: { type: "string" },
                     description: "Array of SHORT, targeted e-commerce search queries (MAX 3 words). You MUST use brand names here if you recommend them (e.g., 'Cerave SA Cleanser'). NEVER use long phrases.",
                   },
+                  quick_replies: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "2 to 3 short, highly contextual quick replies (max 4-5 words each) the user can tap to answer your follow-up question.",
+                  },
                 },
-                required: ["message", "search_terms"],
+                required: ["message", "search_terms", "quick_replies"],
                 additionalProperties: false,
               },
             },
@@ -89,12 +103,14 @@ Based on their question, provide expert skincare advice and suggest specific bra
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
     let message = "I can help with cosmetic chemistry questions. Please try again.";
     let searchTerms: string[] = [];
+    let quickReplies: string[] = [];
 
     if (toolCall?.function?.arguments) {
       try {
         const parsed = JSON.parse(toolCall.function.arguments);
         message = parsed.message || message;
         searchTerms = Array.isArray(parsed.search_terms) ? parsed.search_terms.slice(0, 3) : [];
+        quickReplies = Array.isArray(parsed.quick_replies) ? parsed.quick_replies.slice(0, 3) : [];
       } catch {
         console.error("Failed to parse tool call arguments");
       }
@@ -113,7 +129,7 @@ Based on their question, provide expert skincare advice and suggest specific bra
       }
     };
 
-    // 2. Serper UK shopping search for each term
+    // Serper UK shopping search for each term
     const shoppingResults: Array<{
       term: string;
       products: Array<{ title: string; imageUrl: string; link: string; price?: string; source?: string }>;
@@ -136,14 +152,12 @@ Based on their question, provide expert skincare advice and suggest specific bra
 
         if (serperResp.ok) {
           const serperData = await serperResp.json();
-          // Removed "duo" to allow legitimate products like Effaclar Duo. Added twin/double.
           const badWordsRegex = /\b(set|kit|bundle|pack|multipack|routine|collection|trio|gift|system|essentials|travel|mini|step|to go|twin|double)\b/i;
           const multiplierRegex = /\b(\d+x|2x|3x|\d+\s*pack|\d+\s*pcs|\d+\s*pieces|-step)\b/i;
           const validItems = (serperData.shopping || []).filter((item: any) => {
             const title = (item.title || "").toLowerCase();
             if (badWordsRegex.test(title)) return false;
             if (multiplierRegex.test(title)) return false;
-            // Filter out Google ad redirect links (aclk)
             const link = item.link || "";
             if (link.includes("/aclk?") || link.includes("googleadservices.com")) return false;
             return true;
@@ -167,7 +181,7 @@ Based on their question, provide expert skincare advice and suggest specific bra
     }
 
     return new Response(
-      JSON.stringify({ message, shopping: shoppingResults }),
+      JSON.stringify({ message, shopping: shoppingResults, quick_replies: quickReplies }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {
