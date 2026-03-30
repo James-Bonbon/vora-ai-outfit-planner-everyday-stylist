@@ -290,16 +290,31 @@ const BeautyPage = () => {
     }
   };
 
-  const handleAskAdvice = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!adviceQuery.trim() || adviceLoading) return;
+  // Auto-scroll chat
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatHistory, adviceLoading]);
+
+  const handleSendAdvice = async (text?: string) => {
+    const msg = (text || adviceQuery).trim();
+    if (!msg || adviceLoading) return;
+
+    const userMessage: ChatMessage = { role: "user", content: msg };
+    setChatHistory((prev) => [...prev, userMessage]);
+    setAdviceQuery("");
     setAdviceLoading(true);
-    setAdviceResult(null);
     setShoppingImgErrors(new Set());
+
     try {
+      // Build messages array for the backend (full history + new message)
+      const historyForApi = [...chatHistory, userMessage].map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
       const { data, error } = await supabase.functions.invoke("generate-beauty-advice", {
         body: {
-          query: adviceQuery.trim(),
+          messages: historyForApi,
           products: products.map((p) => ({
             name: p.name,
             product_type: p.product_type,
@@ -309,13 +324,25 @@ const BeautyPage = () => {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      setAdviceResult(data as AdviceResult);
+
+      const assistantMessage: ChatMessage = {
+        role: "assistant",
+        content: data.message,
+        shopping: data.shopping || [],
+        quickReplies: data.quick_replies || [],
+      };
+      setChatHistory((prev) => [...prev, assistantMessage]);
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Failed to get advice");
     } finally {
       setAdviceLoading(false);
     }
+  };
+
+  const handleAdviceSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleSendAdvice();
   };
 
   return (
