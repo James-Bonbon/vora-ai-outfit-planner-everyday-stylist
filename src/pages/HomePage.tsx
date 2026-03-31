@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import GlassCard from "@/components/GlassCard";
 import SafeImage from "@/components/ui/SafeImage";
-import { CalendarDays, DoorOpen, ExternalLink, HeartPulse, User } from "lucide-react";
+import { CalendarDays, DoorOpen, ExternalLink, HeartPulse } from "lucide-react";
 import { useWeather } from "@/hooks/useWeather";
 import { WeatherWidget } from "@/components/WeatherWidget";
 import { supabase } from "@/integrations/supabase/client";
