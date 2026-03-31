@@ -350,7 +350,7 @@ const HomePage = () => {
           </div>
           <div>
             <h3 className="font-semibold text-foreground text-sm font-outfit">Beauty</h3>
-            <p className="text-xs text-muted-foreground">{beautyCount} Items</p>
+            <p className="text-xs text-muted-foreground">{userStats?.beautyCount || 0} Items</p>
           </div>
         </GlassCard>
       </div>
