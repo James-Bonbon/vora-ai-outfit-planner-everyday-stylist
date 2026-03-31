@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { addDays, format, isToday, getDay } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
 import { Snowflake, Sun, Cloud, CloudRain, RefreshCw, Pencil, Lock, ShirtIcon, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SafeImage from "@/components/ui/SafeImage";
@@ -76,84 +77,50 @@ const OutfitCalendar = () => {
   const [editingDate, setEditingDate] = useState<string | null>(null);
   const [editingSlotIndex, setEditingSlotIndex] = useState<number>(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
 
-  /* ---- Fetch profile tier + closet items + dream items ---- */
-  const fetchBootstrap = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
+  /* ---- Cached data fetch (React Query hydration pattern) ---- */
+  const { data: cachedData, isLoading } = useQuery({
+    queryKey: ['outfit-calendar-data', user?.id],
+    enabled: !!user,
+    staleTime: 1000 * 60 * 5,
+    queryFn: async () => {
+      const today = format(new Date(), "yyyy-MM-dd");
+      const end = format(addDays(new Date(), 6), "yyyy-MM-dd");
 
-    const [profileRes, closetRes, roleRes] = await Promise.all([
-      supabase.from("profiles").select("subscription_tier").eq("user_id", user.id).maybeSingle(),
-      supabase.from("closet_items").select("id, name, image_url, category, created_at, is_in_laundry").eq("user_id", user.id),
-      supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle(),
-    ]);
+      const [profileRes, closetRes, roleRes, outfitRes, eventsRes] = await Promise.all([
+        supabase.from("profiles").select("subscription_tier").eq("user_id", user!.id).maybeSingle(),
+        supabase.from("closet_items").select("id, name, image_url, category, created_at, is_in_laundry").eq("user_id", user!.id),
+        supabase.from("user_roles").select("role").eq("user_id", user!.id).eq("role", "admin").maybeSingle(),
+        supabase.from("outfit_calendar").select("*").eq("user_id", user!.id).gte("date", today).lte("date", end).order("date"),
+        supabase.from("user_calendar_events").select("id, title, start_time, end_time, location").eq("user_id", user!.id).gte("start_time", today + "T00:00:00Z").lte("start_time", end + "T23:59:59Z").order("start_time"),
+      ]);
 
-    if (profileRes.data) {
-      setSubscriptionTier(profileRes.data.subscription_tier || "free");
-    }
-    setIsAdmin(!!roleRes.data);
-
-    const pool: GarmentSnapshot[] = [];
-
-    // Sign closet item URLs (only owned items belong in the calendar)
-    if (closetRes.data && closetRes.data.length > 0) {
-      const paths = closetRes.data.map((item) => item.image_url).filter(Boolean);
-      let urlMap: Record<string, string> = {};
-
-      if (paths.length > 0) {
-        const { data: urlData } = await supabase.storage
-          .from("garments")
-          .createSignedUrls(paths, 3600);
-        if (urlData) {
-          urlData.forEach((u, index) => {
-            if (u.signedUrl) urlMap[closetRes.data![index].image_url] = u.signedUrl;
-          });
+      const pool: GarmentSnapshot[] = [];
+      if (closetRes.data && closetRes.data.length > 0) {
+        const paths = closetRes.data.map((item) => item.image_url).filter(Boolean);
+        let urlMap: Record<string, string> = {};
+        if (paths.length > 0) {
+          const { data: urlData } = await supabase.storage.from("garments").createSignedUrls(paths, 3600);
+          if (urlData) {
+            urlData.forEach((u, index) => {
+              if (u.signedUrl) urlMap[closetRes.data![index].image_url] = u.signedUrl;
+            });
+          }
         }
+        pool.push(...closetRes.data.map((item) => ({
+          id: item.id, name: item.name, image_url: urlMap[item.image_url] || item.image_url, category: item.category, created_at: item.created_at, is_in_laundry: item.is_in_laundry, source: "closet" as const,
+        })));
       }
 
-      const withUrls = closetRes.data.map((item) => ({
-        id: item.id,
-        name: item.name,
-        image_url: urlMap[item.image_url] || item.image_url,
-        category: item.category,
-        created_at: item.created_at,
-        is_in_laundry: item.is_in_laundry,
-        source: "closet" as const,
-      }));
-      pool.push(...withUrls);
+      return {
+        subscriptionTier: profileRes.data?.subscription_tier || "free",
+        isAdmin: !!roleRes.data,
+        garmentPool: pool,
+        entries: outfitRes.data as CalendarEntry[] || [],
+        calendarEvents: eventsRes.data as CalendarEvent[] || [],
+      };
     }
-
-    setGarmentPool(pool);
-    setLoading(false);
-  }, [user]);
-
-  /* ---- Fetch calendar entries ---- */
-  const fetchCalendar = useCallback(async () => {
-    if (!user) return;
-    const today = format(new Date(), "yyyy-MM-dd");
-    const end = format(addDays(new Date(), 6), "yyyy-MM-dd");
-
-    const [outfitRes, eventsRes] = await Promise.all([
-      supabase
-        .from("outfit_calendar")
-        .select("*")
-        .eq("user_id", user.id)
-        .gte("date", today)
-        .lte("date", end)
-        .order("date"),
-      supabase
-        .from("user_calendar_events")
-        .select("id, title, start_time, end_time, location")
-        .eq("user_id", user.id)
-        .gte("start_time", today + "T00:00:00Z")
-        .lte("start_time", end + "T23:59:59Z")
-        .order("start_time"),
-    ]);
-
-    if (outfitRes.data) setEntries(outfitRes.data as CalendarEntry[]);
-    if (eventsRes.data) setCalendarEvents(eventsRes.data as CalendarEvent[]);
-  }, [user]);
+  });
 
   /* ---- Resolve garment images (with signed URLs) ---- */
   useEffect(() => {
@@ -177,10 +144,16 @@ const OutfitCalendar = () => {
     })();
   }, [entries, garments]);
 
+  /* ---- Hydrate local state from cached data ---- */
   useEffect(() => {
-    fetchBootstrap();
-    fetchCalendar();
-  }, [fetchBootstrap, fetchCalendar]);
+    if (cachedData) {
+      setSubscriptionTier(cachedData.subscriptionTier);
+      setIsAdmin(cachedData.isAdmin);
+      setGarmentPool(cachedData.garmentPool);
+      setEntries(cachedData.entries);
+      setCalendarEvents(cachedData.calendarEvents);
+    }
+  }, [cachedData]);
 
   /* ---- Pool counts & threshold (via styling engine) ---- */
   const { topsCount, bottomsCount, meetsThreshold } = useMemo(
@@ -303,7 +276,7 @@ const OutfitCalendar = () => {
   }, [entries, calendarEvents]);
 
   /* ---- LOCKED STATE: Not enough items ---- */
-  if (!loading && !meetsThreshold) {
+  if (!isLoading && !meetsThreshold) {
     return (
       <GlassCard className="p-6 text-center space-y-4">
         <div className="flex justify-center">
@@ -345,7 +318,7 @@ const OutfitCalendar = () => {
     );
   }
 
-  if (loading) {
+  if (isLoading && garmentPool.length === 0) {
     return (
       <GlassCard className="p-6 text-center">
         <p className="text-sm text-muted-foreground">Loading calendar…</p>
