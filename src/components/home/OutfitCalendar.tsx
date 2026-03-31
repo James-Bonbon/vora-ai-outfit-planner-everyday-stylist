@@ -318,7 +318,7 @@ const OutfitCalendar = () => {
     );
   }
 
-  if (loading) {
+  if (isLoading && garmentPool.length === 0) {
     return (
       <GlassCard className="p-6 text-center">
         <p className="text-sm text-muted-foreground">Loading calendar…</p>
