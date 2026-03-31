@@ -144,10 +144,16 @@ const OutfitCalendar = () => {
     })();
   }, [entries, garments]);
 
+  /* ---- Hydrate local state from cached data ---- */
   useEffect(() => {
-    fetchBootstrap();
-    fetchCalendar();
-  }, [fetchBootstrap, fetchCalendar]);
+    if (cachedData) {
+      setSubscriptionTier(cachedData.subscriptionTier);
+      setIsAdmin(cachedData.isAdmin);
+      setGarmentPool(cachedData.garmentPool);
+      setEntries(cachedData.entries);
+      setCalendarEvents(cachedData.calendarEvents);
+    }
+  }, [cachedData]);
 
   /* ---- Pool counts & threshold (via styling engine) ---- */
   const { topsCount, bottomsCount, meetsThreshold } = useMemo(
