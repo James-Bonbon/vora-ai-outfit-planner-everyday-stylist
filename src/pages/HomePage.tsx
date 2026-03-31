@@ -340,7 +340,7 @@ const HomePage = () => {
           </div>
           <div>
             <h3 className="font-semibold text-foreground text-sm font-outfit">Wardrobe</h3>
-            <p className="text-xs text-muted-foreground">{closetCount} Items</p>
+            <p className="text-xs text-muted-foreground">{userStats?.closetCount || 0} Items</p>
           </div>
         </GlassCard>
 
