@@ -395,84 +395,66 @@ const BeautyPage = () => {
       {/* Browse Tab */}
       {tab === "browse" && <ProductLibrary onAddToShelf={handleAddFromBrowse} addingProduct={addingBrowseProduct} />}
 
-      {/* Advice Tab */}
+      {/* Advice Tab (Chat UI) */}
       {tab === "advice" && (
-        <div className="flex flex-col" style={{ maxHeight: "calc(100vh - 220px)" }}>
-          {/* Chat Messages */}
-          <div className="flex-1 overflow-y-auto space-y-3 pr-1 mb-3" style={{ maxHeight: "50vh" }}>
+        <div className="flex flex-col h-[calc(100vh-280px)] min-h-[400px]">
+          {/* Chat History Area */}
+          <div className="flex-1 overflow-y-auto space-y-4 pr-2 pb-4 scrollbar-none">
             {chatHistory.length === 0 && !adviceLoading && (
-              <GlassCard className="flex flex-col items-center justify-center py-14 text-center">
+              <GlassCard className="flex flex-col items-center justify-center py-14 text-center mt-4">
                 <Sparkles className="w-10 h-10 text-primary/20 mb-3" />
                 <p className="text-sm text-muted-foreground max-w-[240px]">
-                  Ask about skincare concerns, ingredient compatibility, or routine gaps.
+                  Ask about clinical skincare concerns, formulations, or routine gaps.
                 </p>
               </GlassCard>
             )}
-
             {chatHistory.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div
-                  className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
+                  className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                     msg.role === "user"
-                      ? "bg-primary text-primary-foreground rounded-br-md"
-                      : "bg-card border border-border rounded-bl-md"
+                      ? "bg-primary text-primary-foreground rounded-br-sm shadow-sm"
+                      : "bg-card border border-border rounded-bl-sm shadow-sm"
                   }`}
                 >
                   {msg.role === "assistant" && (
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      <Sparkles className="w-3 h-3 text-primary" />
-                      <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">Clinical Esthetician</span>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Sparkles className="w-3.5 h-3.5 text-primary" />
+                      <span className="text-[10px] font-bold text-primary uppercase tracking-wider">Clinical Esthetician</span>
                     </div>
                   )}
                   <p className="whitespace-pre-wrap">{msg.content}</p>
-
-                  {/* Shopping results inside assistant bubble */}
+                  {/* Shopping Grid inside Assistant Bubble */}
                   {msg.shopping && msg.shopping.length > 0 && (
-                    <div className="mt-3 space-y-3 pt-3 border-t border-border">
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Recommended Products (UK)</p>
+                    <div className="mt-4 pt-4 border-t border-border/50 space-y-3">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Recommended Formulations</p>
                       {msg.shopping.map((group) => (
-                        <div key={group.term} className="space-y-1.5">
-                          <p className="text-[10px] font-medium text-foreground">{group.term}</p>
-                          {group.products.length === 0 ? (
-                            <p className="text-[10px] text-muted-foreground">No results found.</p>
-                          ) : (
-                            <div className="grid grid-cols-2 gap-1.5">
-                              {group.products.map((product, idx) => {
-                                const key = `${i}-${group.term}-${idx}`;
-                                return (
-                                  <a
-                                    key={key}
-                                    href={product.link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="block rounded-xl border border-border bg-background overflow-hidden hover:border-primary/30 transition-colors"
-                                  >
-                                    <div className="aspect-square bg-muted flex items-center justify-center">
-                                      {!shoppingImgErrors.has(key) && product.imageUrl ? (
-                                        <img
-                                          src={product.imageUrl}
-                                          alt={product.title}
-                                          className="w-full h-full object-contain p-1.5"
-                                          loading="lazy"
-                                          onError={() => setShoppingImgErrors((prev) => new Set(prev).add(key))}
-                                        />
-                                      ) : (
-                                        <Droplets className="w-6 h-6 text-muted-foreground/20" />
-                                      )}
-                                    </div>
-                                    <div className="p-2 space-y-0.5">
-                                      <p className="text-[10px] text-muted-foreground truncate">{product.source}</p>
-                                      <p className="text-[10px] font-medium text-foreground line-clamp-2 leading-tight">{product.title}</p>
-                                      <div className="flex items-center justify-between">
-                                        {product.price && <span className="text-[10px] font-bold text-primary">{product.price}</span>}
-                                        <ExternalLink className="w-2.5 h-2.5 text-muted-foreground" />
-                                      </div>
-                                    </div>
-                                  </a>
-                                );
-                              })}
-                            </div>
-                          )}
+                        <div key={group.term} className="space-y-2">
+                          <p className="text-xs font-medium text-foreground">{group.term}</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {group.products.map((product, idx) => (
+                              <a
+                                key={`${i}-${group.term}-${idx}`}
+                                href={product.link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block rounded-xl border border-border bg-background overflow-hidden hover:border-primary/40 transition-all"
+                              >
+                                <div className="aspect-square bg-white flex items-center justify-center p-2">
+                                  {product.imageUrl ? (
+                                    <img src={product.imageUrl} alt={product.title} className="w-full h-full object-contain" />
+                                  ) : (
+                                    <Droplets className="w-6 h-6 text-muted-foreground/20" />
+                                  )}
+                                </div>
+                                <div className="p-2 space-y-1 bg-card">
+                                  <p className="text-[9px] text-muted-foreground truncate">{product.source}</p>
+                                  <p className="text-[10px] font-semibold text-foreground line-clamp-2 leading-tight">{product.title}</p>
+                                  <p className="text-[11px] font-bold text-primary">{product.price || "Check Price"}</p>
+                                </div>
+                              </a>
+                            ))}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -480,52 +462,51 @@ const BeautyPage = () => {
                 </div>
               </div>
             ))}
-
             {adviceLoading && (
               <div className="flex justify-start">
-                <div className="bg-card border border-border rounded-2xl rounded-bl-md px-4 py-3 flex items-center gap-2">
+                <div className="bg-card border border-border rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-2 shadow-sm">
                   <Loader2 className="w-4 h-4 text-primary animate-spin" />
-                  <span className="text-sm text-muted-foreground">Analysing…</span>
+                  <span className="text-xs font-medium text-muted-foreground">Analysing formulation...</span>
                 </div>
               </div>
             )}
-
             <div ref={chatEndRef} />
           </div>
-
-          {/* Quick Replies */}
-          {chatHistory.length > 0 && (() => {
-            const lastAssistant = [...chatHistory].reverse().find((m) => m.role === "assistant");
-            if (!lastAssistant?.quickReplies?.length) return null;
-            return (
-              <div className="flex gap-2 overflow-x-auto pb-2 mb-2 scrollbar-none">
-                {lastAssistant.quickReplies.map((qr, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleSendAdvice(qr)}
-                    disabled={adviceLoading}
-                    className="shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border border-primary/30 text-primary bg-primary/5 hover:bg-primary/10 transition-colors disabled:opacity-50 whitespace-nowrap"
-                  >
-                    {qr}
-                  </button>
-                ))}
-              </div>
-            );
-          })()}
-
-          {/* Input */}
-          <form onSubmit={handleAdviceSubmit} className="flex gap-2">
-            <input
-              type="text"
-              placeholder="e.g. My skin is dry and flaky…"
-              value={adviceQuery}
-              onChange={(e) => setAdviceQuery(e.target.value)}
-              className="flex-1 h-10 rounded-xl bg-card border border-border px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-            <Button type="submit" size="sm" className="rounded-xl h-10 px-4" disabled={adviceLoading}>
-              {adviceLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            </Button>
-          </form>
+          {/* Fixed Bottom Input Area */}
+          <div className="pt-2">
+            {/* Quick Replies */}
+            {chatHistory.length > 0 && (() => {
+              const lastAssistant = [...chatHistory].reverse().find((m) => m.role === "assistant");
+              if (!lastAssistant?.quickReplies?.length) return null;
+              return (
+                <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-none">
+                  {lastAssistant.quickReplies.map((qr, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleSendAdvice(qr)}
+                      disabled={adviceLoading}
+                      className="shrink-0 px-4 py-2 rounded-full text-xs font-semibold border border-primary/20 text-primary bg-primary/5 hover:bg-primary/10 transition-colors disabled:opacity-50"
+                    >
+                      {qr}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
+            {/* Input Form */}
+            <form onSubmit={handleAdviceSubmit} className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Message your clinical esthetician..."
+                value={adviceQuery}
+                onChange={(e) => setAdviceQuery(e.target.value)}
+                className="flex-1 h-12 rounded-2xl bg-card border border-border px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 shadow-sm"
+              />
+              <Button type="submit" size="icon" className="rounded-2xl h-12 w-12 shrink-0 shadow-sm" disabled={adviceLoading}>
+                {adviceLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+              </Button>
+            </form>
+          </div>
         </div>
       )}
 
