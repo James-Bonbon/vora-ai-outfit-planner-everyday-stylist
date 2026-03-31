@@ -243,6 +243,25 @@ const ProfilePage = () => {
     }
   };
 
+  const handleConnectCalendar = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          scopes: 'https://www.googleapis.com/auth/calendar.readonly',
+          redirectTo: window.location.origin + "/profile",
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
+        }
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      toast.error(err.message || "Failed to connect to Google Calendar.");
+    }
+  };
+
   const handleSignOut = async () => {
     await signOut();
     navigate("/", { replace: true });
