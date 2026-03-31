@@ -2,7 +2,7 @@ import { useState } from "react";
 import SafeImage from "@/components/ui/SafeImage";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import GlassCard from "@/components/GlassCard";
-import { User, AtSign, Settings, Crown, LogOut, Pencil, X, Check, Ruler, Weight, Calendar, Users, Camera, Database, Loader2, Lock, Palette, ChevronLeft, MessageSquare, Trash2 } from "lucide-react";
+import { User, AtSign, Settings, Crown, LogOut, Pencil, X, Check, Ruler, Weight, Calendar, Users, Camera, Database, Loader2, Lock, Palette, ChevronLeft, MessageSquare, Trash2, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -240,6 +240,25 @@ const ProfilePage = () => {
       toast.error("Failed to update profile.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleConnectCalendar = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          scopes: 'https://www.googleapis.com/auth/calendar.readonly',
+          redirectTo: window.location.origin + "/profile",
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
+        }
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      toast.error(err.message || "Failed to connect to Google Calendar.");
     }
   };
 
@@ -490,6 +509,29 @@ const ProfilePage = () => {
               </button>
             );
           })}
+        </div>
+      </GlassCard>
+
+      {/* Integrations */}
+      <GlassCard className="p-5 space-y-4">
+        <h3 className="text-sm font-semibold text-foreground font-outfit flex items-center gap-2">
+          <CalendarDays className="w-4 h-4 text-primary" /> Integrations
+        </h3>
+        <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-card">
+          <div>
+            <p className="text-sm font-medium text-foreground">Google Calendar</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5 max-w-[200px]">
+              Allow VORA to securely read upcoming events to proactively plan your outfits.
+            </p>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="rounded-xl text-xs bg-background hover:bg-muted"
+            onClick={handleConnectCalendar}
+          >
+            Connect
+          </Button>
         </div>
       </GlassCard>
 
