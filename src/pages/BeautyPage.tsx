@@ -397,7 +397,7 @@ const BeautyPage = () => {
 
       {/* Advice Tab (Chat UI) */}
       {tab === "advice" && (
-        <div className="flex flex-col h-[calc(100vh-280px)] min-h-[400px]">
+        <div className="flex flex-col h-[calc(100vh-220px)] min-h-[400px]">
           {/* Chat History Area */}
           <div className="flex-1 overflow-y-auto space-y-4 pr-2 pb-4 scrollbar-none">
             {chatHistory.length === 0 && !adviceLoading && (
@@ -473,7 +473,7 @@ const BeautyPage = () => {
             <div ref={chatEndRef} />
           </div>
           {/* Fixed Bottom Input Area */}
-          <div className="pt-2">
+          <div className="pt-3 mt-auto border-t border-border/50 bg-background/95 pb-2">
             {/* Quick Replies */}
             {chatHistory.length > 0 && (() => {
               const lastAssistant = [...chatHistory].reverse().find((m) => m.role === "assistant");
