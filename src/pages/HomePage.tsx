@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import GlassCard from "@/components/GlassCard";
 import SafeImage from "@/components/ui/SafeImage";
 import { CalendarDays, DoorOpen, ExternalLink, HeartPulse, User } from "lucide-react";
@@ -288,27 +287,29 @@ const HomePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [closetCount, setClosetCount] = useState(0);
+  const [beautyCount, setBeautyCount] = useState(0);
+  const [userSex, setUserSex] = useState<string | null>(null);
+  
   const { weather, loading: weatherLoading } = useWeather();
 
-  const { data: userStats } = useQuery({
-    queryKey: ['user-stats', user?.id],
-    enabled: !!user,
-    staleTime: 1000 * 60 * 5,
-    queryFn: async () => {
-      const [{ count: wardrobeCount }, { count: beautyItemCount }, { data: profileData }] = await Promise.all([
-        supabase.from("closet_items").select("id", { count: "exact", head: true }).eq("user_id", user!.id),
-        supabase.from("beauty_products").select("id", { count: "exact", head: true }).eq("user_id", user!.id),
-        supabase.from("profiles").select("sex").eq("user_id", user!.id).maybeSingle(),
-      ]);
-      return {
-        closetCount: wardrobeCount || 0,
-        beautyCount: beautyItemCount || 0,
-        userSex: profileData?.sex || null,
-      };
-    },
-  });
+  const fetchCounts = useCallback(async () => {
+    if (!user) return;
+    const [{ count: wardrobeCount }, { count: beautyItemCount }, { data: profileData }] = await Promise.all([
+      supabase.from("closet_items").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+      supabase.from("beauty_products").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+      supabase.from("profiles").select("sex").eq("user_id", user.id).maybeSingle(),
+    ]);
+    if (wardrobeCount !== null) setClosetCount(wardrobeCount);
+    if (beautyItemCount !== null) setBeautyCount(beautyItemCount);
+    if (profileData?.sex) setUserSex(profileData.sex);
+  }, [user]);
 
-  const trendingItems = getDailyItems(userStats?.userSex === "male" ? TRENDING_MALE : TRENDING_FEMALE, 8);
+  useEffect(() => {
+    fetchCounts();
+  }, [fetchCounts]);
+
+  const trendingItems = getDailyItems(userSex === "male" ? TRENDING_MALE : TRENDING_FEMALE, 8);
 
   return (
     <div className="pt-6 space-y-5 pb-4">
@@ -340,7 +341,7 @@ const HomePage = () => {
           </div>
           <div>
             <h3 className="font-semibold text-foreground text-sm font-outfit">Wardrobe</h3>
-            <p className="text-xs text-muted-foreground">{userStats?.closetCount || 0} Items</p>
+            <p className="text-xs text-muted-foreground">{closetCount} Items</p>
           </div>
         </GlassCard>
 
@@ -350,7 +351,7 @@ const HomePage = () => {
           </div>
           <div>
             <h3 className="font-semibold text-foreground text-sm font-outfit">Beauty</h3>
-            <p className="text-xs text-muted-foreground">{userStats?.beautyCount || 0} Items</p>
+            <p className="text-xs text-muted-foreground">{beautyCount} Items</p>
           </div>
         </GlassCard>
       </div>
