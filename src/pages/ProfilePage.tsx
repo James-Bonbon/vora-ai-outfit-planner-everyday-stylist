@@ -512,6 +512,29 @@ const ProfilePage = () => {
         </div>
       </GlassCard>
 
+      {/* Integrations */}
+      <GlassCard className="p-5 space-y-4">
+        <h3 className="text-sm font-semibold text-foreground font-outfit flex items-center gap-2">
+          <CalendarDays className="w-4 h-4 text-primary" /> Integrations
+        </h3>
+        <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-card">
+          <div>
+            <p className="text-sm font-medium text-foreground">Google Calendar</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5 max-w-[200px]">
+              Allow VORA to securely read upcoming events to proactively plan your outfits.
+            </p>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="rounded-xl text-xs bg-background hover:bg-muted"
+            onClick={handleConnectCalendar}
+          >
+            Connect
+          </Button>
+        </div>
+      </GlassCard>
+
       {/* Pro Card */}
       <GlassCard className="p-5 cursor-pointer" glowOnHover onClick={() => navigate("/subscription")}>
         <div className="flex items-center gap-3 mb-3">
