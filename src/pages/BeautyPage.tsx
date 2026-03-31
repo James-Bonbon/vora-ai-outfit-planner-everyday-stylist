@@ -397,7 +397,7 @@ const BeautyPage = () => {
 
       {/* Advice Tab (Chat UI) */}
       {tab === "advice" && (
-        <div className="flex flex-col h-[calc(100vh-280px)] min-h-[400px]">
+        <div className="flex flex-col h-[calc(100vh-220px)] min-h-[400px]">
           {/* Chat History Area */}
           <div className="flex-1 overflow-y-auto space-y-4 pr-2 pb-4 scrollbar-none">
             {chatHistory.length === 0 && !adviceLoading && (
