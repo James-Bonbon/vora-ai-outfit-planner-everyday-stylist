@@ -473,7 +473,7 @@ const BeautyPage = () => {
             <div ref={chatEndRef} />
           </div>
           {/* Fixed Bottom Input Area */}
-          <div className="pt-2">
+          <div className="pt-3 mt-auto border-t border-border/50 bg-background/95 pb-2">
             {/* Quick Replies */}
             {chatHistory.length > 0 && (() => {
               const lastAssistant = [...chatHistory].reverse().find((m) => m.role === "assistant");
