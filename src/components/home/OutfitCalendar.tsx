@@ -276,7 +276,7 @@ const OutfitCalendar = () => {
   }, [entries, calendarEvents]);
 
   /* ---- LOCKED STATE: Not enough items ---- */
-  if (!loading && !meetsThreshold) {
+  if (!isLoading && !meetsThreshold) {
     return (
       <GlassCard className="p-6 text-center space-y-4">
         <div className="flex justify-center">
