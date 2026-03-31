@@ -288,29 +288,24 @@ const HomePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [closetCount, setClosetCount] = useState(0);
-  const [beautyCount, setBeautyCount] = useState(0);
-  const [userSex, setUserSex] = useState<string | null>(null);
   
   const { weather, loading: weatherLoading } = useWeather();
 
-  const fetchCounts = useCallback(async () => {
-    if (!user) return;
-    const [{ count: wardrobeCount }, { count: beautyItemCount }, { data: profileData }] = await Promise.all([
-      supabase.from("closet_items").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-      supabase.from("beauty_products").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-      supabase.from("profiles").select("sex").eq("user_id", user.id).maybeSingle(),
-    ]);
-    if (wardrobeCount !== null) setClosetCount(wardrobeCount);
-    if (beautyItemCount !== null) setBeautyCount(beautyItemCount);
-    if (profileData?.sex) setUserSex(profileData.sex);
-  }, [user]);
+  const { data: userStats } = useQuery({
+    queryKey: ['user-stats', user?.id],
+    enabled: !!user,
+    staleTime: 1000 * 60 * 5,
+    queryFn: async () => {
+      const [{ count: w }, { count: b }, { data: p }] = await Promise.all([
+        supabase.from("closet_items").select("id", { count: "exact", head: true }).eq("user_id", user!.id),
+        supabase.from("beauty_products").select("id", { count: "exact", head: true }).eq("user_id", user!.id),
+        supabase.from("profiles").select("sex").eq("user_id", user!.id).maybeSingle(),
+      ]);
+      return { closetCount: w || 0, beautyCount: b || 0, userSex: p?.sex || null };
+    }
+  });
 
-  useEffect(() => {
-    fetchCounts();
-  }, [fetchCounts]);
-
-  const trendingItems = getDailyItems(userSex === "male" ? TRENDING_MALE : TRENDING_FEMALE, 8);
+  const trendingItems = getDailyItems(userStats?.userSex === "male" ? TRENDING_MALE : TRENDING_FEMALE, 8);
 
   return (
     <div className="pt-6 space-y-5 pb-4">
