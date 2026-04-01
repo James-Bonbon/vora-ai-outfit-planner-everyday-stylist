@@ -75,7 +75,7 @@ CRITICAL: You MUST return a valid JSON ARRAY [ { ... }, { ... } ]. Do not wrap i
           },
         ],
       };
-      body[tokenParam] = 300;
+      body[tokenParam] = 1500;
 
       const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
