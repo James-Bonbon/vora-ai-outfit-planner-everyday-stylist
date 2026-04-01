@@ -287,7 +287,7 @@ const HomePage = () => {
   const { user } = useAuth();
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   
-  const { weather, loading: weatherLoading } = useWeather();
+  
 
   const { data: userStats } = useQuery({
     queryKey: ['user-stats', user?.id],
