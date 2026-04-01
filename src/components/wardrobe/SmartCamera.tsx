@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import Webcam from "react-webcam";
+import { useQuery } from "@tanstack/react-query";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { X, RotateCcw, Loader2, Sparkles, Trash2 } from "lucide-react";
@@ -8,29 +9,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { cropToBoundingBox } from "@/utils/imageProcessing";
+import GlassCard from "@/components/GlassCard";
 // Lazy-loaded to avoid WASM pre-bundling timeout
 const loadRemoveBackground = () =>
   import("@imgly/background-removal").then((m) => m.removeBackground);
-
-export interface AnalyzedItem {
-  imageFile: File;
-  preview: string;
-  name: string;
-  category: string;
-  color: string;
-  material: string;
-  brand: string;
-  /** Whether the image has a transparent background (bg removed). */
-  hasTransparentBg: boolean;
-}
-
-interface SmartCameraProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onAnalyzed: (data: AnalyzedItem[]) => void;
-}
-
-const MAX_ITEMS = 20;
 
 const SmartCamera = ({ open, onOpenChange, onAnalyzed }: SmartCameraProps) => {
   const { user } = useAuth();
