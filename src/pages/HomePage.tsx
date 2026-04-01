@@ -4,8 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import GlassCard from "@/components/GlassCard";
 import SafeImage from "@/components/ui/SafeImage";
 import { CalendarDays, DoorOpen, ExternalLink, HeartPulse } from "lucide-react";
-import { useWeather } from "@/hooks/useWeather";
-import { WeatherWidget } from "@/components/WeatherWidget";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import OutfitCalendar from "@/components/home/OutfitCalendar";
@@ -289,7 +287,7 @@ const HomePage = () => {
   const { user } = useAuth();
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   
-  const { weather, loading: weatherLoading } = useWeather();
+  
 
   const { data: userStats } = useQuery({
     queryKey: ['user-stats', user?.id],
@@ -313,7 +311,7 @@ const HomePage = () => {
       <div className="flex items-center justify-between h-10">
         <h1 className="text-2xl font-bold text-foreground font-outfit">Outfit Calendar</h1>
         <div className="flex items-center gap-2">
-          <WeatherWidget weather={weather} loading={weatherLoading} />
+          
           <button
             onClick={() => setIsCalendarOpen(true)}
             className="w-9 h-9 flex items-center justify-center rounded-full bg-secondary border border-border hover:bg-muted text-muted-foreground transition-colors shrink-0"
