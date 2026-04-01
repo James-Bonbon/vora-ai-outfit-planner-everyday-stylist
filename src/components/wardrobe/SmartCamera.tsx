@@ -259,7 +259,7 @@ const SmartCamera = ({ open, onOpenChange, onAnalyzed }: SmartCameraProps) => {
                   <div className="w-12 h-12" />
                 )}
               </div>
-              <button onClick={handleCapture} disabled={analyzing || capturedImages.length >= MAX_ITEMS} className="w-[72px] h-[72px] rounded-full border-4 border-white flex items-center justify-center disabled:opacity-40">
+              <button onClick={handleCapture} disabled={analyzing || capturedImages.length >= maxPhotos} className="w-[72px] h-[72px] rounded-full border-4 border-white flex items-center justify-center disabled:opacity-40">
                 <div className="w-14 h-14 rounded-full bg-white" />
               </button>
               <div className="w-12 h-12" />
