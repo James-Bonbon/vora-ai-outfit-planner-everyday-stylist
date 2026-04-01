@@ -14,6 +14,23 @@ import GlassCard from "@/components/GlassCard";
 const loadRemoveBackground = () =>
   import("@imgly/background-removal").then((m) => m.removeBackground);
 
+export interface AnalyzedItem {
+  imageFile: File;
+  preview: string;
+  name: string;
+  category: string;
+  color: string;
+  material: string;
+  brand: string;
+  hasTransparentBg: boolean;
+}
+
+interface SmartCameraProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onAnalyzed: (data: AnalyzedItem[]) => void;
+}
+
 const SmartCamera = ({ open, onOpenChange, onAnalyzed }: SmartCameraProps) => {
   const { user } = useAuth();
   const webcamRef = useRef<Webcam>(null);
@@ -21,6 +38,25 @@ const SmartCamera = ({ open, onOpenChange, onAnalyzed }: SmartCameraProps) => {
   const [analyzing, setAnalyzing] = useState(false);
   const [progressInfo, setProgressInfo] = useState({ current: 0, total: 0, step: "" });
   const [facingMode, setFacingMode] = useState<"user" | "environment">("environment");
+
+  const { data: accessData } = useQuery({
+    queryKey: ['user-access', user?.id],
+    enabled: !!user,
+    staleTime: 1000 * 60 * 5,
+    queryFn: async () => {
+      const [profileRes, roleRes] = await Promise.all([
+        supabase.from("profiles").select("subscription_tier").eq("user_id", user!.id).maybeSingle(),
+        supabase.from("user_roles").select("role").eq("user_id", user!.id).eq("role", "admin").maybeSingle()
+      ]);
+      return {
+        tier: profileRes.data?.subscription_tier || 'free',
+        isAdmin: !!roleRes.data
+      };
+    }
+  });
+
+  const hasProAccess = accessData?.tier === 'pro' || accessData?.isAdmin;
+  const maxPhotos = (accessData?.tier === 'free' && !accessData?.isAdmin) ? 2 : 20;
 
   const compressImage = useCallback((dataUrl: string): Promise<{ blob: Blob; preview: string }> => {
     return new Promise((resolve) => {
