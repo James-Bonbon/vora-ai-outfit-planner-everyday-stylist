@@ -79,13 +79,13 @@ const SmartCamera = ({ open, onOpenChange, onAnalyzed }: SmartCameraProps) => {
   }, []);
 
   const handleCapture = useCallback(() => {
-    if (capturedImages.length >= MAX_ITEMS) {
-      toast.info(`Maximum ${MAX_ITEMS} items reached`);
+    if (capturedImages.length >= maxPhotos) {
+      toast.info(`Maximum ${maxPhotos} photos reached for your tier.`);
       return;
     }
     const shot = webcamRef.current?.getScreenshot();
     if (shot) setCapturedImages((prev) => [...prev, shot]);
-  }, [capturedImages.length]);
+  }, [capturedImages.length, maxPhotos]);
 
   const handleAnalyze = useCallback(async () => {
     if (capturedImages.length === 0 || !user) return;
