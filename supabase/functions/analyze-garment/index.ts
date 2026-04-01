@@ -39,11 +39,20 @@ serve(async (req) => {
     const mime = imageUrl.includes(".png") ? "image/png" : "image/jpeg";
 
     // AI Vision Analysis — metadata only
-    const prompt = `Identify this clothing item. Return a JSON object with 'category' (one of "Tops", "Bottoms", "Shoes", "Accessories", "Outerwear"), 'color' (the primary color), 'material' (if visually obvious, else null), and 'name' (a brief description like "Navy Polo Shirt").
+    const prompt = `You are an expert fashion AI and computer vision surveyor. The user has uploaded an image that may contain a SINGLE clothing item, or MULTIPLE clothing items laid out with space between them. 
 
-CRUCIAL BRAND INSTRUCTION: Look closely for a brand logo, text, or neck tag in the image. If you are highly confident you recognize the brand, return it in the 'brand' field. If you cannot clearly see the brand or are unsure, you MUST return null for the 'brand' field. Do not guess or hallucinate brands.
+Analyze the image and return a JSON ARRAY of objects (one object for every distinct clothing item you see). 
 
-Return ONLY valid JSON, no markdown, no code fences.`;
+For EACH item, provide:
+- 'category': (one of "Tops", "Bottoms", "Shoes", "Accessories", "Outerwear")
+- 'color': (primary color)
+- 'material': (if obvious, else null)
+- 'name': (brief description, e.g., "Navy Polo Shirt")
+- 'brand': (ONLY if you clearly see a logo or neck tag, otherwise null. Do not hallucinate.)
+- 'boundingBox': { "ymin": number, "xmin": number, "ymax": number, "xmax": number } 
+  (Provide the relative coordinates from 0.0 to 1.0 representing the box around this specific item. For example, if an item is in the top left quadrant, it might be ymin: 0.0, xmin: 0.0, ymax: 0.5, xmax: 0.5)
+
+CRITICAL: You MUST return a valid JSON ARRAY [ { ... }, { ... } ]. Do not wrap it in markdown or code fences.`;
 
     const attempts = [
       { model: "google/gemini-3-flash-preview", tokenParam: "max_tokens" },
@@ -66,7 +75,7 @@ Return ONLY valid JSON, no markdown, no code fences.`;
           },
         ],
       };
-      body[tokenParam] = 300;
+      body[tokenParam] = 1500;
 
       const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -79,11 +88,20 @@ Return ONLY valid JSON, no markdown, no code fences.`;
 
       if (response.ok) {
         const data = await response.json();
-        const content = data.choices?.[0]?.message?.content || "{}";
+        const content = data.choices?.[0]?.message?.content || "[]";
         const clean = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-        const tags = JSON.parse(clean);
+        
+        let tagsArray;
+        try {
+          tagsArray = JSON.parse(clean);
+          if (!Array.isArray(tagsArray)) {
+            tagsArray = [tagsArray];
+          }
+        } catch (_parseError) {
+          throw new Error("Failed to parse AI JSON array response");
+        }
 
-        return new Response(JSON.stringify(tags), {
+        return new Response(JSON.stringify(tagsArray), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
