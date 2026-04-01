@@ -88,11 +88,20 @@ CRITICAL: You MUST return a valid JSON ARRAY [ { ... }, { ... } ]. Do not wrap i
 
       if (response.ok) {
         const data = await response.json();
-        const content = data.choices?.[0]?.message?.content || "{}";
+        const content = data.choices?.[0]?.message?.content || "[]";
         const clean = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-        const tags = JSON.parse(clean);
+        
+        let tagsArray;
+        try {
+          tagsArray = JSON.parse(clean);
+          if (!Array.isArray(tagsArray)) {
+            tagsArray = [tagsArray];
+          }
+        } catch (_parseError) {
+          throw new Error("Failed to parse AI JSON array response");
+        }
 
-        return new Response(JSON.stringify(tags), {
+        return new Response(JSON.stringify(tagsArray), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
