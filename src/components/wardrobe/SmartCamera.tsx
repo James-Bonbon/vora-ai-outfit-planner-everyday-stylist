@@ -202,7 +202,7 @@ const SmartCamera = ({ open, onOpenChange, onAnalyzed }: SmartCameraProps) => {
             </Button>
             {capturedImages.length > 0 && !analyzing && (
               <div className="bg-primary text-primary-foreground px-3 py-1.5 rounded-full text-xs font-semibold">
-                {capturedImages.length} / {MAX_ITEMS} items
+                {capturedImages.length} / {maxPhotos} items
               </div>
             )}
             {!analyzing && (
