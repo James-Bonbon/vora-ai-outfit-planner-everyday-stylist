@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Trash2, FileText, Shield, Loader2, CalendarDays } from "lucide-react";
+import { ArrowLeft, Trash2, FileText, Shield, Loader2, CalendarDays, CheckCircle2, RefreshCw, Link } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import GlassCard from "@/components/GlassCard";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -23,6 +24,48 @@ const SettingsPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [deleting, setDeleting] = useState(false);
+  const [isConnecting, setIsConnecting] = useState<'google' | 'apple' | null>(null);
+  const [appleUrl, setAppleUrl] = useState("");
+  const [isGoogleConnected, setIsGoogleConnected] = useState(false);
+  const [isAppleConnected, setIsAppleConnected] = useState(false);
+
+  const handleGoogleConnect = async () => {
+    setIsConnecting('google');
+    try {
+      const { error } = await supabase.auth.linkIdentity({
+        provider: 'google',
+        options: {
+          scopes: 'https://www.googleapis.com/auth/calendar.readonly',
+        }
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      toast.error(err.message || "Failed to connect Google Calendar");
+      setIsConnecting(null);
+    }
+  };
+
+  const handleAppleConnect = async () => {
+    if (!appleUrl.includes("webcal://") && !appleUrl.startsWith("http")) {
+      toast.error("Please enter a valid iCloud Calendar URL (must start with webcal:// or https://)");
+      return;
+    }
+    setIsConnecting('apple');
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ apple_calendar_url: appleUrl } as any)
+        .eq('user_id', user!.id);
+      if (error) throw error;
+      setIsAppleConnected(true);
+      toast.success("Apple Calendar successfully linked!");
+      setAppleUrl("");
+    } catch (err: any) {
+      toast.error("Failed to save Apple Calendar link");
+    } finally {
+      setIsConnecting(null);
+    }
+  };
 
   const handleDeleteAccount = async () => {
     setDeleting(true);
@@ -74,23 +117,85 @@ const SettingsPage = () => {
           </button>
         </GlassCard>
 
-        {/* Integrations */}
+        {/* Connected Calendars */}
         <div>
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-            Integrations
+            Connected Calendars
           </h3>
-          <GlassCard className="p-0">
-            <div className="flex items-center justify-between p-4 min-h-[52px]">
-              <div className="flex items-center gap-3">
-                <CalendarDays className="w-5 h-5 text-muted-foreground" />
-                <span className="text-sm font-medium text-foreground">Google Calendar</span>
+          <GlassCard className="p-0 divide-y divide-border">
+            {/* Google Calendar */}
+            <div className="p-4 space-y-2">
+              <div className="flex items-center justify-between min-h-[44px]">
+                <div className="flex items-center gap-3">
+                  <CalendarDays className="w-5 h-5 text-muted-foreground" />
+                  <span className="text-sm font-medium text-foreground">Google Calendar</span>
+                </div>
+                {isGoogleConnected ? (
+                  <div className="flex items-center gap-1.5 text-xs text-green-500 font-medium">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Connected
+                  </div>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-lg text-xs gap-1.5"
+                    disabled={isConnecting === 'google'}
+                    onClick={handleGoogleConnect}
+                  >
+                    {isConnecting === 'google' ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Link className="w-3.5 h-3.5" />
+                    )}
+                    Connect
+                  </Button>
+                )}
               </div>
-              <Switch
-                checked={false}
-                onCheckedChange={() => {
-                  toast.info("Calendar integration requires OAuth configuration. Coming soon.");
-                }}
-              />
+              <p className="text-xs text-muted-foreground">
+                Sync your Google Calendar so your AI stylist can suggest outfits based on upcoming events.
+              </p>
+            </div>
+
+            {/* Apple / iCloud Calendar */}
+            <div className="p-4 space-y-3">
+              <div className="flex items-center justify-between min-h-[44px]">
+                <div className="flex items-center gap-3">
+                  <CalendarDays className="w-5 h-5 text-muted-foreground" />
+                  <span className="text-sm font-medium text-foreground">Apple Calendar</span>
+                </div>
+                {isAppleConnected && (
+                  <div className="flex items-center gap-1.5 text-xs text-green-500 font-medium">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Linked
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Paste your iCloud Calendar sharing URL below. Go to iCloud.com → Calendar → Share → Public Calendar → Copy Link.
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="webcal://p123-caldav.icloud.com/..."
+                  value={appleUrl}
+                  onChange={(e) => setAppleUrl(e.target.value)}
+                  className="text-xs h-9 rounded-lg"
+                />
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="rounded-lg text-xs shrink-0 gap-1.5"
+                  disabled={!appleUrl || isConnecting === 'apple'}
+                  onClick={handleAppleConnect}
+                >
+                  {isConnecting === 'apple' ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  )}
+                  Link
+                </Button>
+              </div>
             </div>
           </GlassCard>
         </div>

@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN apple_calendar_url text DEFAULT NULL;

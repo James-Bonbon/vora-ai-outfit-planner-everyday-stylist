@@ -460,6 +460,7 @@ export type Database = {
       profiles: {
         Row: {
           app_theme: string
+          apple_calendar_url: string | null
           avatar_url: string | null
           biometric_consent: boolean
           body_shape: string | null
@@ -481,6 +482,7 @@ export type Database = {
         }
         Insert: {
           app_theme?: string
+          apple_calendar_url?: string | null
           avatar_url?: string | null
           biometric_consent?: boolean
           body_shape?: string | null
@@ -502,6 +504,7 @@ export type Database = {
         }
         Update: {
           app_theme?: string
+          apple_calendar_url?: string | null
           avatar_url?: string | null
           biometric_consent?: boolean
           body_shape?: string | null
