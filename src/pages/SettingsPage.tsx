@@ -24,6 +24,48 @@ const SettingsPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [deleting, setDeleting] = useState(false);
+  const [isConnecting, setIsConnecting] = useState<'google' | 'apple' | null>(null);
+  const [appleUrl, setAppleUrl] = useState("");
+  const [isGoogleConnected, setIsGoogleConnected] = useState(false);
+  const [isAppleConnected, setIsAppleConnected] = useState(false);
+
+  const handleGoogleConnect = async () => {
+    setIsConnecting('google');
+    try {
+      const { error } = await supabase.auth.linkIdentity({
+        provider: 'google',
+        options: {
+          scopes: 'https://www.googleapis.com/auth/calendar.readonly',
+        }
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      toast.error(err.message || "Failed to connect Google Calendar");
+      setIsConnecting(null);
+    }
+  };
+
+  const handleAppleConnect = async () => {
+    if (!appleUrl.includes("webcal://") && !appleUrl.startsWith("http")) {
+      toast.error("Please enter a valid iCloud Calendar URL (must start with webcal:// or https://)");
+      return;
+    }
+    setIsConnecting('apple');
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ apple_calendar_url: appleUrl } as any)
+        .eq('user_id', user!.id);
+      if (error) throw error;
+      setIsAppleConnected(true);
+      toast.success("Apple Calendar successfully linked!");
+      setAppleUrl("");
+    } catch (err: any) {
+      toast.error("Failed to save Apple Calendar link");
+    } finally {
+      setIsConnecting(null);
+    }
+  };
 
   const handleDeleteAccount = async () => {
     setDeleting(true);
