@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.generate-beauty-advice]
 verify_jwt = false
+
+[functions.sync-calendars]
+verify_jwt = false
