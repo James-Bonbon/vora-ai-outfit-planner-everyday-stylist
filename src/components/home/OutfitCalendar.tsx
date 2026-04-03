@@ -427,7 +427,7 @@ const OutfitCalendar = () => {
           <Carousel opts={{ align: "start", dragFree: true }} className="w-full">
             <CarouselContent className="-ml-2">
               {visibleUpcoming.map((slot) => {
-                const slotGarments = getItemsForDate(slot.date, slot.entry);
+                const slotGarments = getItemsForDate(slot.date, slot.entry, slot.calendarEvents);
                 const occasion = slot.calendarEvents.length > 0
                   ? slot.calendarEvents[0].title
                   : slot.entry?.occasion || (isWeekend(slot.date) ? "Casual" : "Office");
