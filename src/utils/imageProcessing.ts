@@ -103,3 +103,62 @@ export async function cropToBoundingBox(
     );
   });
 }
+
+export const sliceImageByBoundingBoxes = async (
+  imageFile: File,
+  boxes: BoundingBox[]
+): Promise<CroppedGarment[]> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(imageFile);
+
+    img.onload = async () => {
+      URL.revokeObjectURL(objectUrl);
+      const croppedItems: CroppedGarment[] = [];
+
+      for (const box of boxes) {
+        const paddingX = (box.xmax - box.xmin) * 0.05;
+        const paddingY = (box.ymax - box.ymin) * 0.05;
+
+        const safeXmin = Math.max(0, box.xmin - paddingX);
+        const safeYmin = Math.max(0, box.ymin - paddingY);
+        const safeXmax = Math.min(1, box.xmax + paddingX);
+        const safeYmax = Math.min(1, box.ymax + paddingY);
+
+        const startX = safeXmin * img.width;
+        const startY = safeYmin * img.height;
+        const cropWidth = (safeXmax - safeXmin) * img.width;
+        const cropHeight = (safeYmax - safeYmin) * img.height;
+
+        const canvas = document.createElement("canvas");
+        canvas.width = cropWidth;
+        canvas.height = cropHeight;
+        const ctx = canvas.getContext("2d");
+
+        if (!ctx) {
+          reject(new Error("Failed to get canvas context"));
+          return;
+        }
+
+        ctx.drawImage(img, startX, startY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+
+        const blob = await new Promise<Blob | null>((resolveBlob) => {
+          canvas.toBlob((b) => resolveBlob(b), "image/png");
+        });
+
+        if (blob) {
+          croppedItems.push({ blob, category: box.category });
+        }
+      }
+
+      resolve(croppedItems);
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Failed to load image for cropping"));
+    };
+
+    img.src = objectUrl;
+  });
+};
