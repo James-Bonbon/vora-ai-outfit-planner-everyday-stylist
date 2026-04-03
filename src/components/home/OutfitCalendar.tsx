@@ -339,7 +339,7 @@ const OutfitCalendar = () => {
   const visibleUpcoming = days.slice(1, maxDays);
   const showLockedCard = !hasProAccess;
 
-  const todayGarments = getItemsForDate(todaySlot.date, todaySlot.entry);
+  const todayGarments = getItemsForDate(todaySlot.date, todaySlot.entry, todaySlot.calendarEvents);
   const WeatherIconComp = WEATHER_ICON[todaySlot.entry?.weather_label || "neutral"] || Cloud;
   const tempDisplay = todaySlot.entry?.weather_temp ? `${Math.round(todaySlot.entry.weather_temp)}°F` : "";
   const todayOccasion = todaySlot.calendarEvents.length > 0
