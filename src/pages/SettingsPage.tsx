@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Trash2, FileText, Shield, Loader2, CalendarDays, CheckCircle2, RefreshCw, Link } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +24,9 @@ import { toast } from "sonner";
 const SettingsPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [deleting, setDeleting] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [isConnecting, setIsConnecting] = useState<'google' | 'apple' | null>(null);
   const [appleUrl, setAppleUrl] = useState("");
   const [isGoogleConnected, setIsGoogleConnected] = useState(false);
@@ -64,6 +67,25 @@ const SettingsPage = () => {
       toast.error("Failed to save Apple Calendar link");
     } finally {
       setIsConnecting(null);
+    }
+  };
+
+  const handleSyncCalendars = async () => {
+    if (!user?.id) return;
+    setIsSyncing(true);
+    try {
+      const { error } = await supabase.functions.invoke("sync-calendars", {
+        body: { user_id: user.id }
+      });
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
+      await queryClient.invalidateQueries({ queryKey: ["outfit-calendar"] });
+      toast.success("Calendars synced successfully! Your AI now has your schedule.");
+    } catch (err: any) {
+      console.error("Sync error:", err);
+      toast.error("Failed to sync calendars. Check your connection.");
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -119,9 +141,21 @@ const SettingsPage = () => {
 
         {/* ===== Integrations Section ===== */}
         <div className="mt-8 space-y-3">
-          <div>
-            <h3 className="text-lg font-bold text-foreground font-outfit">Integrations</h3>
-            <p className="text-xs text-muted-foreground">Sync your schedule for smarter AI outfit recommendations.</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-foreground font-outfit">Integrations</h3>
+              <p className="text-xs text-muted-foreground">Sync your schedule for smarter AI outfit recommendations.</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl text-xs px-4 gap-1.5"
+              onClick={handleSyncCalendars}
+              disabled={isSyncing}
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+              {isSyncing ? 'Syncing...' : 'Sync Now'}
+            </Button>
           </div>
 
           <GlassCard className="p-4 flex flex-col gap-5">
