@@ -67,6 +67,9 @@ export function dayOfYear(date: Date): number {
 
 // ─── Occasion-aware helpers ─────────────────────────────────────────
 
+/** Warm-layer regex for weather filtering */
+const WARM_LAYER_RE = /\b(coat|jacket|sweater|hoodie|cardigan|parka|puffer|fleece)\b/i;
+
 const ATHLETIC_RE = /\b(gym|workout|training|fitness|run|yoga|exercise|sport)\b/i;
 const FORMAL_RE = /\b(meeting|work|office|client|pitch|interview|presentation|conference|business)\b/i;
 
