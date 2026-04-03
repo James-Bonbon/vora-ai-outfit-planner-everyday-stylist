@@ -197,9 +197,13 @@ const OutfitCalendar = () => {
       const newCount = (swapCounts[dateStr] || 0) + 1;
       setSwapCounts((prev) => ({ ...prev, [dateStr]: newCount }));
 
-      // Generate the swapped outfit to update garments map & entries
       const date = new Date(dateStr + "T00:00");
-      const swapped = generateSwappedOutfit(garmentPool, date, newCount, weather?.temp ?? null);
+
+      // Calculate occasion inside the swap
+      const dayEvents = calendarEvents.filter((ev) => ev.start_time.startsWith(dateStr));
+      const occasion = dayEvents.length > 0 ? dayEvents[0].title : (isWeekend(date) ? "Casual" : "Smart Casual");
+
+      const swapped = generateSwappedOutfit(garmentPool, date, newCount, weather?.temp ?? null, occasion);
       if (swapped.length === 0) return;
 
       const map = { ...garments };
@@ -209,7 +213,7 @@ const OutfitCalendar = () => {
       setEntries((prev) => {
         const existing = prev.find((e) => e.date === dateStr);
         if (existing) {
-          return prev.map((e) => (e.date === dateStr ? { ...e, garment_ids: swapped.map((g) => g.id) } : e));
+          return prev.map((e) => (e.date === dateStr ? { ...e, garment_ids: swapped.map((g) => g.id), occasion } : e));
         }
         return [
           ...prev,
@@ -217,15 +221,15 @@ const OutfitCalendar = () => {
             id: crypto.randomUUID(),
             date: dateStr,
             garment_ids: swapped.map((g) => g.id),
-            weather_temp: null,
-            weather_label: null,
-            occasion: null,
+            weather_temp: weather?.temp ?? null,
+            weather_label: weather?.label ?? null,
+            occasion,
             status: "suggested",
           },
         ];
       });
     },
-    [garments, garmentPool, meetsThreshold, swapCounts],
+    [garments, garmentPool, meetsThreshold, swapCounts, weather, calendarEvents],
   );
 
   /* ---- Edit: assign specific item ---- */
