@@ -24,7 +24,9 @@ import { toast } from "sonner";
 const SettingsPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [deleting, setDeleting] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [isConnecting, setIsConnecting] = useState<'google' | 'apple' | null>(null);
   const [appleUrl, setAppleUrl] = useState("");
   const [isGoogleConnected, setIsGoogleConnected] = useState(false);
