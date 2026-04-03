@@ -1,3 +1,16 @@
+export interface BoundingBox {
+  category: string;
+  ymin: number;
+  xmin: number;
+  ymax: number;
+  xmax: number;
+}
+
+export interface CroppedGarment {
+  blob: Blob;
+  category: string;
+}
+
 /**
  * Scans an image for non-transparent pixels and crops to their bounding box,
  * removing excess transparent padding around garments.
