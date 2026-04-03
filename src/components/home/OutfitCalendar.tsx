@@ -166,7 +166,7 @@ const OutfitCalendar = () => {
 
   /* ---- Get contextual items for a date ---- */
   const getItemsForDate = useCallback(
-    (date: Date, entry?: CalendarEntry): GarmentSnapshot[] => {
+    (date: Date, entry?: CalendarEntry, dailyEvents?: CalendarEvent[]): GarmentSnapshot[] => {
       if (entry && entry.garment_ids && entry.garment_ids.length > 0) {
         return entry.garment_ids.map((id) => garments[id]).filter(Boolean);
       }
@@ -176,11 +176,16 @@ const OutfitCalendar = () => {
       const swapOffset = swapCounts[dateStr] || 0;
       const temp = weather?.temp ?? null;
 
+      // Determine occasion from synced calendar
+      const occasion = dailyEvents && dailyEvents.length > 0
+        ? dailyEvents[0].title
+        : entry?.occasion || (isWeekend(date) ? "Casual" : "Smart Casual");
+
       if (swapOffset > 0) {
-        return generateSwappedOutfit(garmentPool, date, swapOffset, temp) as GarmentSnapshot[];
+        return generateSwappedOutfit(garmentPool, date, swapOffset, temp, occasion) as GarmentSnapshot[];
       }
 
-      return generateSmartOutfit(garmentPool, date, temp) as GarmentSnapshot[];
+      return generateSmartOutfit(garmentPool, date, temp, occasion) as GarmentSnapshot[];
     },
     [garments, garmentPool, meetsThreshold, swapCounts, weather],
   );
