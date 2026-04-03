@@ -141,9 +141,21 @@ const SettingsPage = () => {
 
         {/* ===== Integrations Section ===== */}
         <div className="mt-8 space-y-3">
-          <div>
-            <h3 className="text-lg font-bold text-foreground font-outfit">Integrations</h3>
-            <p className="text-xs text-muted-foreground">Sync your schedule for smarter AI outfit recommendations.</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-foreground font-outfit">Integrations</h3>
+              <p className="text-xs text-muted-foreground">Sync your schedule for smarter AI outfit recommendations.</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl text-xs px-4 gap-1.5"
+              onClick={handleSyncCalendars}
+              disabled={isSyncing}
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+              {isSyncing ? 'Syncing...' : 'Sync Now'}
+            </Button>
           </div>
 
           <GlassCard className="p-4 flex flex-col gap-5">
