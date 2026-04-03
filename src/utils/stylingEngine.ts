@@ -65,21 +65,23 @@ export function dayOfYear(date: Date): number {
   return Math.floor(diff / 86_400_000);
 }
 
-// ─── Main Styling Engine ────────────────────────────────────────────────
+// ─── Occasion-aware helpers ─────────────────────────────────────────
 
-/** Warm-layer regex for weather filtering */
-const WARM_LAYER_RE = /\b(coat|jacket|sweater|hoodie|cardigan|parka|puffer|fleece)\b/i;
+const ATHLETIC_RE = /\b(gym|workout|training|fitness|run|yoga|exercise|sport)\b/i;
+const FORMAL_RE = /\b(meeting|work|office|client|pitch|interview|presentation|conference|business)\b/i;
 
 /**
  * Unified outfit generation core.
  * Deterministically flips between Dress and Top+Bottom formulas
  * so users with dresses still get varied combinations.
+ * Now occasion-aware: prioritises formulas based on schedule context.
  */
 function generateOutfitCore(
   allItems: StylingItem[],
   date: Date,
   swapCount: number,
   tempC?: number | null,
+  occasion?: string | null,
 ): StylingItem[] {
   const available = allItems.filter((i) => !i.is_in_laundry);
 
@@ -103,39 +105,63 @@ function generateOutfitCore(
   const isWarmLayer = (item: StylingItem) =>
     WARM_LAYER_RE.test(item.category || "") || WARM_LAYER_RE.test(item.name || "");
 
-  const canMakeDress = dresses.length > 0;
-  const canMakeTopBottom = tops.length > 0 && bottoms.length > 0;
+  // Occasion-aware filtering: deprioritise athletic items for formal, and vice-versa
+  const occasionStr = occasion || "";
+  const isFormal = FORMAL_RE.test(occasionStr);
+  const isAthletic = ATHLETIC_RE.test(occasionStr);
+
+  const filterByOccasion = (items: StylingItem[]): StylingItem[] => {
+    if (!isFormal && !isAthletic) return items;
+    if (isFormal) {
+      // Deprioritise athletic/casual items for formal occasions
+      const formal = items.filter((i) => !ATHLETIC_RE.test(i.category || "") && !ATHLETIC_RE.test(i.name || ""));
+      return formal.length > 0 ? formal : items;
+    }
+    if (isAthletic) {
+      // Prefer athletic items for gym/workout
+      const athletic = items.filter((i) => ATHLETIC_RE.test(i.category || "") || ATHLETIC_RE.test(i.name || ""));
+      return athletic.length > 0 ? athletic : items;
+    }
+    return items;
+  };
+
+  const filteredTopsOccasion = filterByOccasion(tops);
+  const filteredBottomsOccasion = filterByOccasion(bottoms);
+  const filteredDresses = filterByOccasion(dresses);
+
+  const canMakeDress = filteredDresses.length > 0;
+  const canMakeTopBottom = filteredTopsOccasion.length > 0 && filteredBottomsOccasion.length > 0;
 
   if (!canMakeDress && !canMakeTopBottom) return [];
 
-  // Coin flip using seeded hash based on date + swapCount
+  // For formal occasions, prefer Top+Bottom (blazer-friendly) over dresses
   const formulaSeed = (baseDay * 10) + swapCount;
   const randFormula = seededRandom(formulaSeed);
 
   let useDressFormula = false;
   if (canMakeDress && canMakeTopBottom) {
-    useDressFormula = randFormula > 0.5;
+    useDressFormula = isFormal ? randFormula > 0.7 : randFormula > 0.5;
   } else if (canMakeDress) {
     useDressFormula = true;
   }
 
   // FORMULA A: DRESS + OUTERWEAR
   if (useDressFormula) {
-    const selectedDress = pickByHash(dresses, baseDay, 0, swapCount)!;
+    const selectedDress = pickByHash(filteredDresses, baseDay, 0, swapCount)!;
     if (tempC != null && tempC > 22) return [selectedDress];
     const selectedCoat = pickByHash(outerwear, baseDay, 1, swapCount);
     return selectedCoat ? [selectedDress, selectedCoat] : [selectedDress];
   }
 
   // FORMULA B: TOP + BOTTOM (+ OUTERWEAR)
-  let filteredTops = tops;
+  let finalTops = filteredTopsOccasion;
   if (tempC != null && tempC > 22) {
-    const lightTops = tops.filter((t) => !isWarmLayer(t));
-    if (lightTops.length > 0) filteredTops = lightTops;
+    const lightTops = finalTops.filter((t) => !isWarmLayer(t));
+    if (lightTops.length > 0) finalTops = lightTops;
   }
 
-  const selectedTop = pickByHash(filteredTops, baseDay, 0, swapCount)!;
-  const selectedBottom = pickByHash(bottoms, baseDay, 1, swapCount)!;
+  const selectedTop = pickByHash(finalTops, baseDay, 0, swapCount)!;
+  const selectedBottom = pickByHash(filteredBottomsOccasion, baseDay, 1, swapCount)!;
   const outfit: StylingItem[] = [selectedTop, selectedBottom];
 
   if (tempC != null && tempC < 15 && outerwear.length > 0) {
@@ -153,8 +179,9 @@ export function generateSmartOutfit(
   allItems: StylingItem[],
   date: Date,
   tempC?: number | null,
+  occasion?: string | null,
 ): StylingItem[] {
-  return generateOutfitCore(allItems, date, 0, tempC);
+  return generateOutfitCore(allItems, date, 0, tempC, occasion);
 }
 
 /**
@@ -165,8 +192,9 @@ export function generateSwappedOutfit(
   date: Date,
   swapCount: number,
   tempC?: number | null,
+  occasion?: string | null,
 ): StylingItem[] {
-  return generateOutfitCore(allItems, date, swapCount, tempC);
+  return generateOutfitCore(allItems, date, swapCount, tempC, occasion);
 }
 
 // ─── Threshold check ────────────────────────────────────────────────────

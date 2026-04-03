@@ -519,7 +519,7 @@ const OutfitCalendar = () => {
         {/* Slot selector */}
         {editingDate && (
           <div className="flex justify-center gap-2 mb-4 px-4">
-            {getItemsForDate(new Date(editingDate + "T00:00")).map((g, idx) => (
+            {getItemsForDate(new Date(editingDate + "T00:00"), undefined, calendarEvents.filter(ev => ev.start_time.startsWith(editingDate))).map((g, idx) => (
               <Button
                 key={idx}
                 variant={editingSlotIndex === idx ? "default" : "outline"}
