@@ -222,7 +222,7 @@ const OutfitCalendar = () => {
             date: dateStr,
             garment_ids: swapped.map((g) => g.id),
             weather_temp: weather?.temp ?? null,
-            weather_label: weather?.label ?? null,
+            weather_label: null,
             occasion,
             status: "suggested",
           },
