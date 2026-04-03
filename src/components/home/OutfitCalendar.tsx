@@ -166,7 +166,7 @@ const OutfitCalendar = () => {
 
   /* ---- Get contextual items for a date ---- */
   const getItemsForDate = useCallback(
-    (date: Date, entry?: CalendarEntry): GarmentSnapshot[] => {
+    (date: Date, entry?: CalendarEntry, dailyEvents?: CalendarEvent[]): GarmentSnapshot[] => {
       if (entry && entry.garment_ids && entry.garment_ids.length > 0) {
         return entry.garment_ids.map((id) => garments[id]).filter(Boolean);
       }
@@ -176,11 +176,16 @@ const OutfitCalendar = () => {
       const swapOffset = swapCounts[dateStr] || 0;
       const temp = weather?.temp ?? null;
 
+      // Determine occasion from synced calendar
+      const occasion = dailyEvents && dailyEvents.length > 0
+        ? dailyEvents[0].title
+        : entry?.occasion || (isWeekend(date) ? "Casual" : "Smart Casual");
+
       if (swapOffset > 0) {
-        return generateSwappedOutfit(garmentPool, date, swapOffset, temp) as GarmentSnapshot[];
+        return generateSwappedOutfit(garmentPool, date, swapOffset, temp, occasion) as GarmentSnapshot[];
       }
 
-      return generateSmartOutfit(garmentPool, date, temp) as GarmentSnapshot[];
+      return generateSmartOutfit(garmentPool, date, temp, occasion) as GarmentSnapshot[];
     },
     [garments, garmentPool, meetsThreshold, swapCounts, weather],
   );
@@ -192,9 +197,13 @@ const OutfitCalendar = () => {
       const newCount = (swapCounts[dateStr] || 0) + 1;
       setSwapCounts((prev) => ({ ...prev, [dateStr]: newCount }));
 
-      // Generate the swapped outfit to update garments map & entries
       const date = new Date(dateStr + "T00:00");
-      const swapped = generateSwappedOutfit(garmentPool, date, newCount, weather?.temp ?? null);
+
+      // Calculate occasion inside the swap
+      const dayEvents = calendarEvents.filter((ev) => ev.start_time.startsWith(dateStr));
+      const occasion = dayEvents.length > 0 ? dayEvents[0].title : (isWeekend(date) ? "Casual" : "Smart Casual");
+
+      const swapped = generateSwappedOutfit(garmentPool, date, newCount, weather?.temp ?? null, occasion);
       if (swapped.length === 0) return;
 
       const map = { ...garments };
@@ -204,7 +213,7 @@ const OutfitCalendar = () => {
       setEntries((prev) => {
         const existing = prev.find((e) => e.date === dateStr);
         if (existing) {
-          return prev.map((e) => (e.date === dateStr ? { ...e, garment_ids: swapped.map((g) => g.id) } : e));
+          return prev.map((e) => (e.date === dateStr ? { ...e, garment_ids: swapped.map((g) => g.id), occasion } : e));
         }
         return [
           ...prev,
@@ -212,15 +221,15 @@ const OutfitCalendar = () => {
             id: crypto.randomUUID(),
             date: dateStr,
             garment_ids: swapped.map((g) => g.id),
-            weather_temp: null,
+            weather_temp: weather?.temp ?? null,
             weather_label: null,
-            occasion: null,
+            occasion,
             status: "suggested",
           },
         ];
       });
     },
-    [garments, garmentPool, meetsThreshold, swapCounts],
+    [garments, garmentPool, meetsThreshold, swapCounts, weather, calendarEvents],
   );
 
   /* ---- Edit: assign specific item ---- */
@@ -330,7 +339,7 @@ const OutfitCalendar = () => {
   const visibleUpcoming = days.slice(1, maxDays);
   const showLockedCard = !hasProAccess;
 
-  const todayGarments = getItemsForDate(todaySlot.date, todaySlot.entry);
+  const todayGarments = getItemsForDate(todaySlot.date, todaySlot.entry, todaySlot.calendarEvents);
   const WeatherIconComp = WEATHER_ICON[todaySlot.entry?.weather_label || "neutral"] || Cloud;
   const tempDisplay = todaySlot.entry?.weather_temp ? `${Math.round(todaySlot.entry.weather_temp)}°F` : "";
   const todayOccasion = todaySlot.calendarEvents.length > 0
@@ -418,7 +427,7 @@ const OutfitCalendar = () => {
           <Carousel opts={{ align: "start", dragFree: true }} className="w-full">
             <CarouselContent className="-ml-2">
               {visibleUpcoming.map((slot) => {
-                const slotGarments = getItemsForDate(slot.date, slot.entry);
+                const slotGarments = getItemsForDate(slot.date, slot.entry, slot.calendarEvents);
                 const occasion = slot.calendarEvents.length > 0
                   ? slot.calendarEvents[0].title
                   : slot.entry?.occasion || (isWeekend(slot.date) ? "Casual" : "Office");
@@ -510,7 +519,7 @@ const OutfitCalendar = () => {
         {/* Slot selector */}
         {editingDate && (
           <div className="flex justify-center gap-2 mb-4 px-4">
-            {getItemsForDate(new Date(editingDate + "T00:00")).map((g, idx) => (
+            {getItemsForDate(new Date(editingDate + "T00:00"), undefined, calendarEvents.filter(ev => ev.start_time.startsWith(editingDate))).map((g, idx) => (
               <Button
                 key={idx}
                 variant={editingSlotIndex === idx ? "default" : "outline"}
