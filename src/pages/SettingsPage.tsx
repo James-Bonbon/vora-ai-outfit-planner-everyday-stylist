@@ -70,6 +70,25 @@ const SettingsPage = () => {
     }
   };
 
+  const handleSyncCalendars = async () => {
+    if (!user?.id) return;
+    setIsSyncing(true);
+    try {
+      const { error } = await supabase.functions.invoke("sync-calendars", {
+        body: { user_id: user.id }
+      });
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
+      await queryClient.invalidateQueries({ queryKey: ["outfit-calendar"] });
+      toast.success("Calendars synced successfully! Your AI now has your schedule.");
+    } catch (err: any) {
+      console.error("Sync error:", err);
+      toast.error("Failed to sync calendars. Check your connection.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const handleDeleteAccount = async () => {
     setDeleting(true);
     try {
