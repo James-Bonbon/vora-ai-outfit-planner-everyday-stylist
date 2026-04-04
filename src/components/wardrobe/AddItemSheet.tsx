@@ -46,6 +46,9 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
   const [closetSvg, setClosetSvg] = useState<string | null>(null);
   const [showMapStep, setShowMapStep] = useState(false);
   const [savedItemId, setSavedItemId] = useState<string | null>(null);
+  const [isBatchMode, setIsBatchMode] = useState(false);
+  const [batchItems, setBatchItems] = useState<CroppedGarment[]>([]);
+  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
 
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
