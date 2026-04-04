@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.sync-calendars]
 verify_jwt = false
+
+[functions.detect-garments]
+verify_jwt = false
