@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Camera, Loader2, Sparkles, Search, RefreshCw, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { normalizeToPng } from "@/utils/imageProcessing";
+import { normalizeToPng, sliceImageByBoundingBoxes, BoundingBox, CroppedGarment } from "@/utils/imageProcessing";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { WardrobeMap } from "@/components/wardrobe/WardrobeMap";
@@ -46,6 +46,9 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
   const [closetSvg, setClosetSvg] = useState<string | null>(null);
   const [showMapStep, setShowMapStep] = useState(false);
   const [savedItemId, setSavedItemId] = useState<string | null>(null);
+  const [isBatchMode, setIsBatchMode] = useState(false);
+  const [batchItems, setBatchItems] = useState<CroppedGarment[]>([]);
+  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
 
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
@@ -71,6 +74,9 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
     setStorageZoneId(null);
     setShowMapStep(false);
     setSavedItemId(null);
+    setIsBatchMode(false);
+    setBatchItems([]);
+    setBatchProgress({ current: 0, total: 0 });
   };
 
   const imageBase64Ref = useRef<string | null>(null);
@@ -78,9 +84,10 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
+
+    resetForm();
     setFile(f);
 
-    // Show raw preview immediately
     const rawPreview = await new Promise<string>((res) => {
       const r = new FileReader();
       r.onload = (ev) => res(ev.target?.result as string);
@@ -88,26 +95,87 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
     });
     setPreview(rawPreview);
 
-    // Step 1: AI flat-lay generation + background removal via Edge Function
     setIsProcessingAI(true);
-    let finalBlob: Blob = f;
-    let bgRemoved = false;
-    try {
-      const normalizedBlob = await normalizeToPng(f);
-      const normalizedFile = new File([normalizedBlob], "normalized.png", { type: "image/png" });
 
+    try {
+      // 1. Get Base64 for the Surveyor
+      const normalizedBlob = await normalizeToPng(f);
+      const base64 = await new Promise<string>((resolve) => {
+        const b64Reader = new FileReader();
+        b64Reader.onload = (ev) => resolve((ev.target?.result as string).split(",")[1]);
+        b64Reader.readAsDataURL(normalizedBlob);
+      });
+      imageBase64Ref.current = base64;
+
+      // 2. Call the Traffic Cop (Surveyor)
+      const { data: detectData, error: detectError } = await supabase.functions.invoke("detect-garments", {
+        body: { imageBase64: base64, mimeType: "image/png" },
+      });
+
+      if (detectError) throw detectError;
+      const boxes: BoundingBox[] = detectData || [];
+
+      // 3. Routing Logic
+      if (boxes.length > 1) {
+        // --- BATCH FLOW ---
+        setIsBatchMode(true);
+        setBatchProgress({ current: 0, total: boxes.length });
+
+        const slicedGarments = await sliceImageByBoundingBoxes(f, boxes);
+        const processedBatch: CroppedGarment[] = [];
+
+        const { data: { session } } = await supabase.auth.getSession();
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+
+        for (let i = 0; i < slicedGarments.length; i++) {
+          setBatchProgress({ current: i + 1, total: boxes.length });
+          const item = slicedGarments[i];
+
+          const formData = new FormData();
+          const itemFile = new File([item.blob], `slice_${i}.png`, { type: "image/png" });
+          formData.append("image_file", itemFile);
+
+          try {
+            const response = await fetch(`${supabaseUrl}/functions/v1/process-garment`, {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${session?.access_token}` },
+              body: formData,
+            });
+
+            if (response.ok) {
+              const bgRemovedBlob = await response.blob();
+              processedBatch.push({ blob: bgRemovedBlob, category: item.category });
+            } else {
+              processedBatch.push(item);
+            }
+          } catch (err) {
+            processedBatch.push(item);
+          }
+        }
+
+        setBatchItems(processedBatch);
+        setIsProcessingAI(false);
+        toast.success(`Successfully processed ${processedBatch.length} items!`);
+        return; // Pause here until Phase 4 UI is built!
+      }
+
+      // --- SINGLE ITEM FLOW ---
+      setIsBatchMode(false);
+
+      // AI flat-lay generation + background removal
+      let finalBlob: Blob = f;
+      let bgRemoved = false;
+
+      const normalizedFile = new File([normalizedBlob], "normalized.png", { type: "image/png" });
       const formData = new FormData();
       formData.append("image_file", normalizedFile);
 
-      // Bypass supabase.functions.invoke to avoid binary response corruption
       const { data: { session } } = await supabase.auth.getSession();
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 
       const response = await fetch(`${supabaseUrl}/functions/v1/process-garment`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session?.access_token}`,
-        },
+        headers: { 'Authorization': `Bearer ${session?.access_token}` },
         body: formData,
       });
 
@@ -121,7 +189,6 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       }
 
       const safeBlob = await response.blob();
-
       if (safeBlob.size === 0) {
         throw new Error("AI returned an empty image.");
       }
@@ -145,22 +212,10 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       setIsProcessingAI(false);
     }
 
-    // Store base64 of the ORIGINAL image for AI tagging / product lookup
-    // (original has better context: colors, brand logos, fabric texture)
-    const normalizedForTagging = await normalizeToPng(f);
-    const base64 = await new Promise<string>((resolve) => {
-      const b64Reader = new FileReader();
-      b64Reader.onload = (ev) => {
-        const result = ev.target?.result as string;
-        resolve(result.split(",")[1]);
-      };
-      b64Reader.readAsDataURL(normalizedForTagging);
-    });
-    imageBase64Ref.current = base64;
-
     // Step 2: Auto-tag with AI
     setTagging(true);
     try {
+      const base64 = imageBase64Ref.current;
       const { data, error } = await supabase.functions.invoke("tag-garment", {
         body: { imageBase64: base64 },
       });
@@ -172,7 +227,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       if (data?.color) setColor(data.color);
       if (data?.material) setMaterial(data.material);
       if (data?.brand) setBrand(data.brand || "");
-      toast.success(bgRemoved ? "Background removed & AI tagged! ✨" : "AI tagged your item! ✨");
+      toast.success("AI tagged your item! ✨");
 
       if (data?.brand) {
         triggerProductLookup(base64, data.brand, data.name, data.category, data.color, data.material);
@@ -393,7 +448,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
                 <div className="absolute inset-0 bg-background/60 flex flex-col items-center justify-center gap-2 z-20">
                   <Loader2 className="w-8 h-8 text-primary animate-spin" />
                   <span className="text-sm font-medium text-foreground flex items-center gap-1">
-                    <Sparkles className="w-4 h-4 text-primary" /> {isProcessingAI ? "AI is generating your flat-lay…" : "AI is tagging..."}
+                    <Sparkles className="w-4 h-4 text-primary" /> {isProcessingAI ? (isBatchMode ? `Processing item ${batchProgress.current} of ${batchProgress.total}...` : "AI is generating your flat-lay…") : "AI is tagging..."}
                   </span>
                 </div>
               )}
@@ -476,8 +531,8 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
             )}
           </div>
 
-          <Button onClick={handleSave} disabled={!file || saving} className="w-full rounded-xl">
-            {saving ? "Saving..." : "Add to Wardrobe"}
+          <Button onClick={handleSave} disabled={!file || saving || isBatchMode} className="w-full rounded-xl">
+            {saving ? "Saving..." : isBatchMode ? "Batch Ready! (Awaiting Phase 4 UI)" : "Add to Wardrobe"}
           </Button>
         </div>
         )}
