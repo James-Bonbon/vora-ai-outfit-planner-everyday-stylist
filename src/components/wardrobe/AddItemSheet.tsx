@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Camera, Loader2, Sparkles, Search, RefreshCw, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { normalizeToPng } from "@/utils/imageProcessing";
+import { normalizeToPng, sliceImageByBoundingBoxes, BoundingBox, CroppedGarment } from "@/utils/imageProcessing";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { WardrobeMap } from "@/components/wardrobe/WardrobeMap";
