@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import VoraLogo from "@/components/VoraLogo";
 import { ChevronRight } from "lucide-react";
+import outfitCollage from "@/assets/outfit-collage.png";
 
 import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/useAuth";
@@ -95,7 +96,7 @@ const Landing = () => {
             <div className="flex items-center gap-4">
               <div className="w-[62%] flex-shrink-0">
                 <img
-                  src="outfit-collage.png"
+                  src={outfitCollage}
                   alt="Casual outfit: beige jacket, white tee, light blue jeans, white sneakers"
                   className="w-full h-full rounded-xl object-cover transition-transform"
                   loading="lazy"
