@@ -448,7 +448,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
                 <div className="absolute inset-0 bg-background/60 flex flex-col items-center justify-center gap-2 z-20">
                   <Loader2 className="w-8 h-8 text-primary animate-spin" />
                   <span className="text-sm font-medium text-foreground flex items-center gap-1">
-                    <Sparkles className="w-4 h-4 text-primary" /> {isProcessingAI ? "AI is generating your flat-lay…" : "AI is tagging..."}
+                    <Sparkles className="w-4 h-4 text-primary" /> {isProcessingAI ? (isBatchMode ? `Processing item ${batchProgress.current} of ${batchProgress.total}...` : "AI is generating your flat-lay…") : "AI is tagging..."}
                   </span>
                 </div>
               )}
