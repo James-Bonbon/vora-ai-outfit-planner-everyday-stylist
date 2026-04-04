@@ -531,8 +531,8 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
             )}
           </div>
 
-          <Button onClick={handleSave} disabled={!file || saving} className="w-full rounded-xl">
-            {saving ? "Saving..." : "Add to Wardrobe"}
+          <Button onClick={handleSave} disabled={!file || saving || isBatchMode} className="w-full rounded-xl">
+            {saving ? "Saving..." : isBatchMode ? "Batch Ready! (Awaiting Phase 4 UI)" : "Add to Wardrobe"}
           </Button>
         </div>
         )}
