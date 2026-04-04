@@ -74,6 +74,9 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
     setStorageZoneId(null);
     setShowMapStep(false);
     setSavedItemId(null);
+    setIsBatchMode(false);
+    setBatchItems([]);
+    setBatchProgress({ current: 0, total: 0 });
   };
 
   const imageBase64Ref = useRef<string | null>(null);
