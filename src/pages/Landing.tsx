@@ -95,7 +95,7 @@ const Landing = () => {
             <div className="flex items-center gap-4">
               <div className="w-[62%] flex-shrink-0">
                 <img
-                  src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=400"
+                  src="/outfit-collage.png"
                   alt="Casual outfit: beige jacket, white tee, light blue jeans, white sneakers"
                   className="w-full h-full rounded-xl object-cover transition-transform"
                   loading="lazy"
