@@ -528,79 +528,130 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
             </label>
           )}
 
-          {/* Form Fields */}
-          <div className="space-y-3">
-            <div>
-              <Label className="text-xs text-muted-foreground">Name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Navy Polo Shirt" className="mt-1 rounded-xl bg-card" />
-            </div>
-
-            <div>
-              <Label className="text-xs text-muted-foreground">Category</Label>
-              <div className="flex flex-wrap gap-2 mt-1">
-                {CATEGORIES.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setCategory(cat)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                      category === cat
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-card text-foreground border border-border"
-                    }`}
-                  >
-                    {cat}
-                  </button>
+          {/* Form Fields Routing */}
+          {isBatchMode && batchEdits.length > 0 ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-border">
+                <h3 className="text-sm font-bold font-outfit text-foreground">Review Batch Items</h3>
+                <span className="text-xs text-muted-foreground">{batchEdits.length} items</span>
+              </div>
+              
+              <div className="max-h-[40vh] overflow-y-auto space-y-4 pr-2">
+                {batchEdits.map((item, index) => (
+                  <div key={item.id} className="flex gap-4 p-3 rounded-2xl bg-card border border-border">
+                    <div className="w-20 h-24 shrink-0 rounded-xl bg-muted overflow-hidden flex items-center justify-center p-2">
+                      <img src={item.preview} alt={item.name} className="w-full h-full object-contain drop-shadow-md" />
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <div>
+                        <Label className="text-[10px] text-muted-foreground">Name</Label>
+                        <Input 
+                          value={item.name} 
+                          onChange={(e) => {
+                            const newEdits = [...batchEdits];
+                            newEdits[index].name = e.target.value;
+                            setBatchEdits(newEdits);
+                          }} 
+                          className="h-7 text-xs rounded-lg mt-0.5" 
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-[10px] text-muted-foreground">Category</Label>
+                        <select 
+                          value={item.category}
+                          onChange={(e) => {
+                            const newEdits = [...batchEdits];
+                            newEdits[index].category = e.target.value;
+                            setBatchEdits(newEdits);
+                          }}
+                          className="w-full h-7 text-xs rounded-lg bg-background border border-input px-2 mt-0.5 outline-none"
+                        >
+                          {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
-            </div>
 
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <Label className="text-xs text-muted-foreground">Color</Label>
-                <Input value={color} onChange={(e) => setColor(e.target.value)} placeholder="e.g. Navy Blue" className="mt-1 rounded-xl bg-card" />
-              </div>
-              <div className="flex-1">
-                <Label className="text-xs text-muted-foreground">Material</Label>
-                <Input value={material} onChange={(e) => setMaterial(e.target.value)} placeholder="e.g. Cotton" className="mt-1 rounded-xl bg-card" />
-              </div>
+              <Button onClick={handleBatchSave} disabled={saving} className="w-full rounded-xl mt-4">
+                {saving ? "Saving All..." : `Save ${batchEdits.length} Items to Wardrobe`}
+              </Button>
             </div>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs text-muted-foreground">Name</Label>
+                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Navy Polo Shirt" className="mt-1 rounded-xl bg-card" />
+              </div>
 
-            <div>
-              <Label className="text-xs text-muted-foreground">Brand</Label>
-              <div className="relative">
-                <Input
-                  value={brand}
-                  onChange={(e) => handleBrandChange(e.target.value)}
-                  placeholder="e.g. Ralph Lauren"
-                  className="mt-1 rounded-xl bg-card pr-10"
-                />
+              <div>
+                <Label className="text-xs text-muted-foreground">Category</Label>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {CATEGORIES.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setCategory(cat)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                        category === cat
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-card text-foreground border border-border"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <Label className="text-xs text-muted-foreground">Color</Label>
+                  <Input value={color} onChange={(e) => setColor(e.target.value)} placeholder="e.g. Navy Blue" className="mt-1 rounded-xl bg-card" />
+                </div>
+                <div className="flex-1">
+                  <Label className="text-xs text-muted-foreground">Material</Label>
+                  <Input value={material} onChange={(e) => setMaterial(e.target.value)} placeholder="e.g. Cotton" className="mt-1 rounded-xl bg-card" />
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-xs text-muted-foreground">Brand</Label>
+                <div className="relative">
+                  <Input
+                    value={brand}
+                    onChange={(e) => handleBrandChange(e.target.value)}
+                    placeholder="e.g. Ralph Lauren"
+                    className="mt-1 rounded-xl bg-card pr-10"
+                  />
+                  {lookingUp && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 mt-0.5">
+                      <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                    </div>
+                  )}
+                </div>
                 {lookingUp && (
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 mt-0.5">
-                    <Loader2 className="w-4 h-4 text-primary animate-spin" />
-                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
+                    <Search className="w-3 h-3" /> Searching product info...
+                  </p>
                 )}
               </div>
-              {lookingUp && (
-                <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
-                  <Search className="w-3 h-3" /> Searching product info...
-                </p>
+
+              {/* Care data preview */}
+              {careData?.care && (
+                <div className="bg-card rounded-2xl p-3 space-y-1.5 border border-primary/20">
+                  <p className="text-[10px] uppercase tracking-wider text-primary font-semibold flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" /> Care info loaded
+                  </p>
+                  <p className="text-xs text-muted-foreground">{careData.care.wash}</p>
+                </div>
               )}
+
+              <Button onClick={handleSave} disabled={!file || saving} className="w-full rounded-xl">
+                {saving ? "Saving..." : "Add to Wardrobe"}
+              </Button>
             </div>
-
-            {/* Care data preview */}
-            {careData?.care && (
-              <div className="bg-card rounded-2xl p-3 space-y-1.5 border border-primary/20">
-                <p className="text-[10px] uppercase tracking-wider text-primary font-semibold flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" /> Care info loaded
-                </p>
-                <p className="text-xs text-muted-foreground">{careData.care.wash}</p>
-              </div>
-            )}
-          </div>
-
-          <Button onClick={handleSave} disabled={!file || saving || isBatchMode} className="w-full rounded-xl">
-            {saving ? "Saving..." : isBatchMode ? "Batch Ready! (Awaiting Phase 4 UI)" : "Add to Wardrobe"}
-          </Button>
+          )}
         </div>
         )}
       </SheetContent>
