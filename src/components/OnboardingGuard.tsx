@@ -28,11 +28,11 @@ export const OnboardingGuard = ({ children }: { children: React.ReactNode }) => 
 
     if (user && profile) {
       const isCompleted = profile.onboarding_complete;
-      const isOnboardingRoute = location.pathname === "/onboarding" || location.pathname === "/cold-start";
+      const isOnboardingRoute = location.pathname === "/onboarding";
 
       if (!isCompleted && !isOnboardingRoute) {
         navigate("/onboarding", { replace: true });
-      } else if (isCompleted && location.pathname === "/cold-start") {
+      } else if (isCompleted && isOnboardingRoute) {
         navigate("/home", { replace: true });
       }
     }
