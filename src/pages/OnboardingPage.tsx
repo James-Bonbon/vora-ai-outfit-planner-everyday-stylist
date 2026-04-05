@@ -125,6 +125,7 @@ const OnboardingPage = () => {
           weight_kg: weightKg ? Number(weightKg) : null,
           body_shape: bodyShape || null,
           selfie_url: selfiePath,
+          style_preferences: preferences,
           onboarding_complete: true,
         })
         .eq("user_id", user.id);
@@ -133,6 +134,9 @@ const OnboardingPage = () => {
       Object.keys(sessionStorage).forEach((key) => {
         if (key.startsWith("vora_")) sessionStorage.removeItem(key);
       });
+
+      await queryClient.invalidateQueries({ queryKey: ["profile"] });
+      await queryClient.invalidateQueries({ queryKey: ["profile-data"] });
 
       toast.success("Welcome to VORA! 🎉");
       navigate("/home", { replace: true });
