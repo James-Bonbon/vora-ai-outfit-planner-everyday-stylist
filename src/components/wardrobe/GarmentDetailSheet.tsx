@@ -299,6 +299,41 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
                 <DetailRow label="Price" value={item.price != null ? `$${item.price}` : null} />
                 <DetailRow label="Added" value={new Date(item.created_at).toLocaleDateString()} />
               </>
+            ) : isEditing ? (
+              <div className="space-y-3 py-3">
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">Name</Label>
+                  <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-8 text-sm rounded-lg mt-0.5" />
+                </div>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">Category</Label>
+                  <select value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="w-full h-8 text-sm rounded-lg bg-background border border-input px-2 mt-0.5 outline-none">
+                    <option value="">Select...</option>
+                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">Color</Label>
+                  <Input value={editColor} onChange={(e) => setEditColor(e.target.value)} className="h-8 text-sm rounded-lg mt-0.5" />
+                </div>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">Material</Label>
+                  <Input value={editMaterial} onChange={(e) => setEditMaterial(e.target.value)} className="h-8 text-sm rounded-lg mt-0.5" />
+                </div>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">Brand</Label>
+                  <Input value={editBrand} onChange={(e) => setEditBrand(e.target.value)} className="h-8 text-sm rounded-lg mt-0.5" />
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <Button size="sm" className="flex-1 rounded-xl gap-1" onClick={handleUpdateItem} disabled={editSaving}>
+                    {editSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                    Save
+                  </Button>
+                  <Button size="sm" variant="outline" className="flex-1 rounded-xl gap-1" onClick={() => setIsEditing(false)}>
+                    <X className="w-3 h-3" /> Cancel
+                  </Button>
+                </div>
+              </div>
             ) : (
               <>
                 <DetailRow label="Category" value={closetItem!.category} />
@@ -309,6 +344,13 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
               </>
             )}
           </div>
+
+          {/* Edit button for closet items */}
+          {!isDream && !isEditing && (
+            <Button variant="outline" className="w-full rounded-xl gap-2" onClick={() => setIsEditing(true)}>
+              <Pencil className="w-4 h-4" /> Edit Details
+            </Button>
+          )}
 
           {/* Wardrobe Map Zone */}
           {!isDream && closetSvg && storageZoneId && (
