@@ -38,7 +38,8 @@ const App = () => (
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="/subscription" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
             <Route path="/onboarding" element={<ProtectedRoute skipOnboarding><OnboardingPage /></ProtectedRoute>} />
-            <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+            <Route path="/cold-start" element={<ProtectedRoute><ColdStartOnboarding /></ProtectedRoute>} />
+            <Route element={<ProtectedRoute><OnboardingGuard><AppLayout /></OnboardingGuard></ProtectedRoute>}>
               <Route path="/home" element={<HomePage />} />
               <Route path="/wardrobe" element={<WardrobePage />} />
               <Route path="/mirror" element={<MirrorPage />} />
