@@ -122,9 +122,12 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
     if (!item || isDream) return;
     setLaundryUpdating(true);
     try {
+      const payload = checked
+        ? { is_in_laundry: true, laundry_added_at: new Date().toISOString(), last_laundry_reminder_at: null }
+        : { is_in_laundry: false, laundry_added_at: null, last_laundry_reminder_at: null };
       const { error } = await supabase
         .from("closet_items")
-        .update({ is_in_laundry: checked })
+        .update(payload)
         .eq("id", item.id);
       if (error) throw error;
       setIsInLaundry(checked);
