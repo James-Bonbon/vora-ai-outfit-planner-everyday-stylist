@@ -1,7 +1,8 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, ChevronRight, ChevronLeft, AlertTriangle, LogOut, Check, X, Loader2 } from "lucide-react";
+import { Camera, ChevronRight, ChevronLeft, AlertTriangle, LogOut, Check, X, Loader2, Sparkles, Shirt, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +13,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 import { getBodyShapes } from "@/constants/bodyShapes";
+
+const VIBES = ["Casual", "Streetwear", "Smart Casual", "Minimalist"];
+const TOTAL_STEPS = 5;
 
 const MIN_AGE = 13;
 const USERNAME_REGEX = /^[a-z0-9._]{3,30}$/;
@@ -29,8 +33,10 @@ const getAge = (dob: string): number | null => {
 const OnboardingPage = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [preferences, setPreferences] = useState({ vibe: "Casual", fit: "Fitted", colors: "Neutral" });
 
   const [selfieFile, setSelfieFile] = useState<File | null>(null);
   const [selfiePreview, setSelfiePreview] = useState<string | null>(null);
@@ -119,6 +125,7 @@ const OnboardingPage = () => {
           weight_kg: weightKg ? Number(weightKg) : null,
           body_shape: bodyShape || null,
           selfie_url: selfiePath,
+          style_preferences: preferences,
           onboarding_complete: true,
         })
         .eq("user_id", user.id);
@@ -127,6 +134,9 @@ const OnboardingPage = () => {
       Object.keys(sessionStorage).forEach((key) => {
         if (key.startsWith("vora_")) sessionStorage.removeItem(key);
       });
+
+      await queryClient.invalidateQueries({ queryKey: ["profile"] });
+      await queryClient.invalidateQueries({ queryKey: ["profile-data"] });
 
       toast.success("Welcome to VORA! 🎉");
       navigate("/home", { replace: true });
@@ -256,12 +266,66 @@ const OnboardingPage = () => {
         </div>
       </div>
     </motion.div>,
+
+    // Step 3: Style Vibe Quiz
+    <motion.div key="vibe" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} className="space-y-6">
+      <div className="text-center">
+        <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+          <Sparkles className="w-7 h-7 text-primary" />
+        </div>
+        <h2 className="text-xl font-bold text-foreground font-outfit">What's Your Vibe?</h2>
+        <p className="text-sm text-muted-foreground mt-1">This helps your AI Stylist pull the right looks.</p>
+      </div>
+      <div className="space-y-3">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Everyday Style</p>
+        <div className="grid grid-cols-2 gap-2">
+          {VIBES.map((v) => (
+            <button
+              key={v}
+              onClick={() => setPreferences({ ...preferences, vibe: v })}
+              className={`py-3 rounded-xl text-sm font-medium transition-colors ${
+                preferences.vibe === v
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-card text-foreground border border-border hover:border-primary/50"
+              }`}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+      </div>
+    </motion.div>,
+
+    // Step 4: The Magic 5
+    <motion.div key="magic5" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} className="space-y-6">
+      <div className="text-center">
+        <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+          <Shirt className="w-7 h-7 text-primary" />
+        </div>
+        <h2 className="text-xl font-bold text-foreground font-outfit">The Magic 5</h2>
+        <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+          Your goal today is to scan your first 5 items into your Wardrobe so the AI has something to style!
+        </p>
+      </div>
+      <GlassCard className="p-6">
+        <div className="space-y-3">
+          <p className="text-sm text-foreground flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-primary shrink-0" /> Add 3 Tops
+          </p>
+          <p className="text-sm text-foreground flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-primary shrink-0" /> Add 2 Bottoms
+          </p>
+        </div>
+      </GlassCard>
+    </motion.div>,
   ];
+
+  const lastStep = TOTAL_STEPS - 1;
 
   return (
     <div className="min-h-screen bg-background flex flex-col px-6 py-8">
       <div className="flex gap-2 mb-8">
-        {[0, 1, 2].map((i) => (
+        {Array.from({ length: TOTAL_STEPS }, (_, i) => (
           <div key={i} className={`flex-1 h-1.5 rounded-full transition-colors ${i <= step ? "bg-primary" : "bg-secondary"}`} />
         ))}
       </div>
@@ -276,7 +340,7 @@ const OnboardingPage = () => {
             <ChevronLeft className="w-4 h-4" />
           </Button>
         )}
-        {step < 2 ? (
+        {step < lastStep ? (
           <Button
             onClick={() => { if (step === 1) checkUsername(); setStep(step + 1); }}
             disabled={(step === 0 && !canContinueStep0) || (step === 1 && !canContinueStep1)}
@@ -286,7 +350,7 @@ const OnboardingPage = () => {
           </Button>
         ) : (
           <Button onClick={handleComplete} disabled={saving} className="flex-1 rounded-xl">
-            {saving ? "Setting up..." : "Complete Setup ✨"}
+            {saving ? "Setting up..." : "Open My Wardrobe ✨"}
           </Button>
         )}
       </div>

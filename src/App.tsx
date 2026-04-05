@@ -17,7 +17,7 @@ import ProfilePage from "./pages/ProfilePage";
 import OnboardingPage from "./pages/OnboardingPage";
 import LibraryPage from "./pages/LibraryPage";
 import CommunityPage from "./pages/CommunityPage";
-import ColdStartOnboarding from "./pages/ColdStartOnboarding";
+
 
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -38,7 +38,7 @@ const App = () => (
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="/subscription" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
             <Route path="/onboarding" element={<ProtectedRoute skipOnboarding><OnboardingPage /></ProtectedRoute>} />
-            <Route path="/cold-start" element={<ProtectedRoute><ColdStartOnboarding /></ProtectedRoute>} />
+            
             <Route element={<ProtectedRoute><OnboardingGuard><AppLayout /></OnboardingGuard></ProtectedRoute>}>
               <Route path="/home" element={<HomePage />} />
               <Route path="/wardrobe" element={<WardrobePage />} />
