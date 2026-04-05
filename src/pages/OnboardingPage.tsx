@@ -266,12 +266,66 @@ const OnboardingPage = () => {
         </div>
       </div>
     </motion.div>,
+
+    // Step 3: Style Vibe Quiz
+    <motion.div key="vibe" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} className="space-y-6">
+      <div className="text-center">
+        <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+          <Sparkles className="w-7 h-7 text-primary" />
+        </div>
+        <h2 className="text-xl font-bold text-foreground font-outfit">What's Your Vibe?</h2>
+        <p className="text-sm text-muted-foreground mt-1">This helps your AI Stylist pull the right looks.</p>
+      </div>
+      <div className="space-y-3">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Everyday Style</p>
+        <div className="grid grid-cols-2 gap-2">
+          {VIBES.map((v) => (
+            <button
+              key={v}
+              onClick={() => setPreferences({ ...preferences, vibe: v })}
+              className={`py-3 rounded-xl text-sm font-medium transition-colors ${
+                preferences.vibe === v
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-card text-foreground border border-border hover:border-primary/50"
+              }`}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+      </div>
+    </motion.div>,
+
+    // Step 4: The Magic 5
+    <motion.div key="magic5" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} className="space-y-6">
+      <div className="text-center">
+        <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+          <Shirt className="w-7 h-7 text-primary" />
+        </div>
+        <h2 className="text-xl font-bold text-foreground font-outfit">The Magic 5</h2>
+        <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+          Your goal today is to scan your first 5 items into your Wardrobe so the AI has something to style!
+        </p>
+      </div>
+      <GlassCard className="p-6">
+        <div className="space-y-3">
+          <p className="text-sm text-foreground flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-primary shrink-0" /> Add 3 Tops
+          </p>
+          <p className="text-sm text-foreground flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-primary shrink-0" /> Add 2 Bottoms
+          </p>
+        </div>
+      </GlassCard>
+    </motion.div>,
   ];
+
+  const lastStep = TOTAL_STEPS - 1;
 
   return (
     <div className="min-h-screen bg-background flex flex-col px-6 py-8">
       <div className="flex gap-2 mb-8">
-        {[0, 1, 2].map((i) => (
+        {Array.from({ length: TOTAL_STEPS }, (_, i) => (
           <div key={i} className={`flex-1 h-1.5 rounded-full transition-colors ${i <= step ? "bg-primary" : "bg-secondary"}`} />
         ))}
       </div>
@@ -286,7 +340,7 @@ const OnboardingPage = () => {
             <ChevronLeft className="w-4 h-4" />
           </Button>
         )}
-        {step < 2 ? (
+        {step < lastStep ? (
           <Button
             onClick={() => { if (step === 1) checkUsername(); setStep(step + 1); }}
             disabled={(step === 0 && !canContinueStep0) || (step === 1 && !canContinueStep1)}
@@ -296,7 +350,7 @@ const OnboardingPage = () => {
           </Button>
         ) : (
           <Button onClick={handleComplete} disabled={saving} className="flex-1 rounded-xl">
-            {saving ? "Setting up..." : "Complete Setup ✨"}
+            {saving ? "Setting up..." : "Open My Wardrobe ✨"}
           </Button>
         )}
       </div>
