@@ -1,10 +1,11 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import SafeImage from "@/components/ui/SafeImage";
-import { Trash2, Droplets, SprayCan, Loader2, AlertTriangle, MapPin } from "lucide-react";
+import { Trash2, Droplets, SprayCan, Loader2, AlertTriangle, MapPin, Pencil, Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useEffect, useState, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -12,6 +13,7 @@ import type { GarmentDisplay } from "@/types/wardrobe";
 import { useAuth } from "@/hooks/useAuth";
 import { WardrobeMap } from "@/components/wardrobe/WardrobeMap";
 
+const CATEGORIES = ["Tops", "Bottoms", "Shoes", "Accessories", "Outerwear"];
 interface GarmentDetailSheetProps {
   item: GarmentDisplay | null;
   open: boolean;
@@ -60,6 +62,7 @@ const DetailRow = ({ label, value }: { label: string; value: string | null | und
 
 const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDetailSheetProps) => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [showCare, setShowCare] = useState(false);
@@ -71,6 +74,15 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
   const [laundryUpdating, setLaundryUpdating] = useState(false);
   const [closetSvg, setClosetSvg] = useState<string | null>(null);
   const [storageZoneId, setStorageZoneId] = useState<string | null>(null);
+
+  // Edit mode state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+  const [editColor, setEditColor] = useState("");
+  const [editMaterial, setEditMaterial] = useState("");
+  const [editBrand, setEditBrand] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
 
   const isDream = item?.source === "dream";
 
@@ -92,8 +104,19 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
     setShowStain(false);
     setStainResult(null);
     setStainType("");
+    setIsEditing(false);
     setIsInLaundry(!isDream ? (item as any).is_in_laundry ?? false : false);
     setStorageZoneId(!isDream ? (item as any).storage_zone_id ?? null : null);
+
+    // Populate edit fields
+    if (!isDream) {
+      const ci = item as any;
+      setEditName(ci.name || "");
+      setEditCategory(ci.category || "");
+      setEditColor(ci.color || "");
+      setEditMaterial(ci.material || "");
+      setEditBrand(ci.brand || "");
+    }
 
     if (isDream) {
       setImageUrl(item.image_url);
@@ -118,6 +141,41 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
       });
   }, [user, open]);
 
+  const invalidateCaches = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["closet"] });
+    await queryClient.invalidateQueries({ queryKey: ["closet-items"] });
+    await queryClient.invalidateQueries({ queryKey: ["outfit-calendar-data"] });
+  };
+
+  const handleUpdateItem = async () => {
+    if (!item || isDream) return;
+    setEditSaving(true);
+    try {
+      const { error } = await supabase
+        .from("closet_items")
+        .update({
+          name: editName || null,
+          category: editCategory || null,
+          color: editColor || null,
+          material: editMaterial || null,
+          brand: editBrand || null,
+        })
+        .eq("id", item.id);
+
+      if (error) throw error;
+
+      await invalidateCaches();
+      setIsEditing(false);
+      toast.success("Item updated!");
+      onDeleted(); // refresh parent
+    } catch (err) {
+      console.error("Edit error:", err);
+      toast.error("Failed to update item.");
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   const handleToggleLaundry = async (checked: boolean) => {
     if (!item || isDream) return;
     setLaundryUpdating(true);
@@ -132,7 +190,8 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
       if (error) throw error;
       setIsInLaundry(checked);
       toast.success(checked ? "Marked as in laundry" : "Back from laundry");
-      onDeleted(); // refresh list
+      await invalidateCaches();
+      onDeleted();
     } catch {
       toast.error("Failed to update laundry status");
     } finally {
@@ -142,21 +201,44 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
 
   const handleDelete = async () => {
     if (!item) return;
+    const confirmed = window.confirm("Are you sure you want to delete this item? This cannot be undone.");
+    if (!confirmed) return;
+
     setDeleting(true);
     try {
       if (isDream) {
         const { error } = await supabase.from("dream_items").delete().eq("id", item.id);
         if (error) throw error;
       } else {
-        await supabase.storage.from("garments").remove([item.image_url]);
+        // Extract relative storage path from potential signed URL
+        let storagePath = item.image_url;
+        if (storagePath && storagePath.includes("/garments/")) {
+          storagePath = storagePath.split("/garments/")[1].split("?")[0];
+        }
+
+        if (storagePath) {
+          const { error: storageError } = await supabase.storage
+            .from("garments")
+            .remove([storagePath]);
+          if (storageError) {
+            console.warn("Storage delete warning:", storageError);
+          }
+        }
+
         const { error } = await supabase.from("closet_items").delete().eq("id", item.id);
         if (error) throw error;
       }
+
+      await invalidateCaches();
+      if (isDream) {
+        await queryClient.invalidateQueries({ queryKey: ["dream"] });
+      }
+
       toast.success("Item removed");
       onOpenChange(false);
       onDeleted();
     } catch (err) {
-      console.error(err);
+      console.error("Delete error:", err);
       toast.error("Failed to delete item");
     } finally {
       setDeleting(false);
@@ -217,6 +299,41 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
                 <DetailRow label="Price" value={item.price != null ? `$${item.price}` : null} />
                 <DetailRow label="Added" value={new Date(item.created_at).toLocaleDateString()} />
               </>
+            ) : isEditing ? (
+              <div className="space-y-3 py-3">
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">Name</Label>
+                  <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-8 text-sm rounded-lg mt-0.5" />
+                </div>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">Category</Label>
+                  <select value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="w-full h-8 text-sm rounded-lg bg-background border border-input px-2 mt-0.5 outline-none">
+                    <option value="">Select...</option>
+                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">Color</Label>
+                  <Input value={editColor} onChange={(e) => setEditColor(e.target.value)} className="h-8 text-sm rounded-lg mt-0.5" />
+                </div>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">Material</Label>
+                  <Input value={editMaterial} onChange={(e) => setEditMaterial(e.target.value)} className="h-8 text-sm rounded-lg mt-0.5" />
+                </div>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">Brand</Label>
+                  <Input value={editBrand} onChange={(e) => setEditBrand(e.target.value)} className="h-8 text-sm rounded-lg mt-0.5" />
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <Button size="sm" className="flex-1 rounded-xl gap-1" onClick={handleUpdateItem} disabled={editSaving}>
+                    {editSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                    Save
+                  </Button>
+                  <Button size="sm" variant="outline" className="flex-1 rounded-xl gap-1" onClick={() => setIsEditing(false)}>
+                    <X className="w-3 h-3" /> Cancel
+                  </Button>
+                </div>
+              </div>
             ) : (
               <>
                 <DetailRow label="Category" value={closetItem!.category} />
@@ -227,6 +344,13 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
               </>
             )}
           </div>
+
+          {/* Edit button for closet items */}
+          {!isDream && !isEditing && (
+            <Button variant="outline" className="w-full rounded-xl gap-2" onClick={() => setIsEditing(true)}>
+              <Pencil className="w-4 h-4" /> Edit Details
+            </Button>
+          )}
 
           {/* Wardrobe Map Zone */}
           {!isDream && closetSvg && storageZoneId && (
