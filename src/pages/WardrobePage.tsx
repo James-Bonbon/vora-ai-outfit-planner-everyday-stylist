@@ -38,6 +38,9 @@ const WardrobePage = () => {
   const [selectedItem, setSelectedItem] = useState<GarmentDisplay | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
+  // Smart Laundry state
+  const [needsLaundryReview, setNeedsLaundryReview] = useState<ClosetItem[]>([]);
+
   // Wardrobe Map state
   const [mapOpen, setMapOpen] = useState(false);
   const [closetSvg, setClosetSvg] = useState<string | null>(null);
