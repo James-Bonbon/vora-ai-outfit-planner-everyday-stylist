@@ -143,6 +143,45 @@ const WardrobePage = () => {
   const imageUrls = closetData?.imageUrls ?? {};
   const filtered = activeCategory === "All" ? items : items.filter((i) => i.category === activeCategory);
 
+  // Smart Laundry: detect stale items (7+ days in laundry)
+  useEffect(() => {
+    if (!items.length) { setNeedsLaundryReview([]); return; }
+    const now = new Date();
+    const staleItems = items.filter((item: any) => {
+      if (!item.is_in_laundry || !item.laundry_added_at) return false;
+      const daysInLaundry = (now.getTime() - new Date(item.laundry_added_at).getTime()) / (1000 * 3600 * 24);
+      if (daysInLaundry < 7) return false;
+      if (!item.last_laundry_reminder_at) return true;
+      const daysSinceReminder = (now.getTime() - new Date(item.last_laundry_reminder_at).getTime()) / (1000 * 3600 * 24);
+      return daysSinceReminder >= 3;
+    });
+    setNeedsLaundryReview(staleItems);
+  }, [items]);
+
+  const handleToggleLaundry = async (item: ClosetItem, isNowDirty: boolean) => {
+    const payload = isNowDirty
+      ? { is_in_laundry: true, laundry_added_at: new Date().toISOString(), last_laundry_reminder_at: null }
+      : { is_in_laundry: false, laundry_added_at: null, last_laundry_reminder_at: null };
+    await supabase.from("closet_items").update(payload).eq("id", item.id);
+    handleRefresh();
+    toast.success(isNowDirty ? "Moved to laundry" : "Marked as clean");
+  };
+
+  const handleMarkAllClean = async (staleItems: ClosetItem[]) => {
+    const ids = staleItems.map((i) => i.id);
+    await supabase.from("closet_items").update({ is_in_laundry: false, laundry_added_at: null, last_laundry_reminder_at: null }).in("id", ids);
+    setNeedsLaundryReview([]);
+    handleRefresh();
+    toast.success("All items marked as clean!");
+  };
+
+  const handleSnoozeReminders = async (staleItems: ClosetItem[]) => {
+    const ids = staleItems.map((i) => i.id);
+    await supabase.from("closet_items").update({ last_laundry_reminder_at: new Date().toISOString() }).in("id", ids);
+    setNeedsLaundryReview([]);
+    toast.info("Snoozed for 3 days");
+  };
+
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ["closet"] });
     queryClient.invalidateQueries({ queryKey: ["closet-items"] });
