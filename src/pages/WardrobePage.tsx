@@ -251,6 +251,26 @@ const WardrobePage = () => {
       {/* My Closet Tab */}
       {activeTab === "closet" && (
         <>
+          {/* Smart Laundry Reminder Banner */}
+          {needsLaundryReview.length > 0 && (
+            <Alert className="rounded-2xl border-amber-500/30 bg-amber-50 dark:bg-amber-950/20">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertTitle className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                {needsLaundryReview.length} item{needsLaundryReview.length > 1 ? "s" : ""} stuck in laundry
+              </AlertTitle>
+              <AlertDescription className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                These have been in the wash for over a week.
+              </AlertDescription>
+              <div className="flex gap-2 mt-3">
+                <Button size="sm" variant="outline" className="rounded-xl text-xs h-8 border-amber-300" onClick={() => handleMarkAllClean(needsLaundryReview)}>
+                  Mark as Clean
+                </Button>
+                <Button size="sm" variant="ghost" className="rounded-xl text-xs h-8 text-muted-foreground" onClick={() => handleSnoozeReminders(needsLaundryReview)}>
+                  Still Washing – Snooze 3 days
+                </Button>
+              </div>
+            </Alert>
+          )}
           <div className="flex gap-2 overflow-x-auto no-scrollbar">
             {CATEGORIES.map((cat) => (
               <button
