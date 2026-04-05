@@ -1,7 +1,8 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, ChevronRight, ChevronLeft, AlertTriangle, LogOut, Check, X, Loader2 } from "lucide-react";
+import { Camera, ChevronRight, ChevronLeft, AlertTriangle, LogOut, Check, X, Loader2, Sparkles, Shirt, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +13,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 import { getBodyShapes } from "@/constants/bodyShapes";
+
+const VIBES = ["Casual", "Streetwear", "Smart Casual", "Minimalist"];
+const TOTAL_STEPS = 5;
 
 const MIN_AGE = 13;
 const USERNAME_REGEX = /^[a-z0-9._]{3,30}$/;
