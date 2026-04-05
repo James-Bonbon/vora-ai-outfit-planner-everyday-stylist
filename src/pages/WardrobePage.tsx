@@ -3,9 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import GlassCard from "@/components/GlassCard";
 import SafeImage from "@/components/ui/SafeImage";
-import { Plus, Library, Camera, Loader2 } from "lucide-react";
+import { Plus, Library, Camera, Loader2, WashingMachine, AlertTriangle } from "lucide-react";
 import CabinetIcon from "@/components/icons/CabinetIcon";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import AddItemSheet from "@/components/wardrobe/AddItemSheet";
@@ -36,6 +37,9 @@ const WardrobePage = () => {
   const [bulkQueue, setBulkQueue] = useState<AnalyzedItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<GarmentDisplay | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+
+  // Smart Laundry state
+  const [needsLaundryReview, setNeedsLaundryReview] = useState<ClosetItem[]>([]);
 
   // Wardrobe Map state
   const [mapOpen, setMapOpen] = useState(false);
@@ -139,6 +143,45 @@ const WardrobePage = () => {
   const imageUrls = closetData?.imageUrls ?? {};
   const filtered = activeCategory === "All" ? items : items.filter((i) => i.category === activeCategory);
 
+  // Smart Laundry: detect stale items (7+ days in laundry)
+  useEffect(() => {
+    if (!items.length) { setNeedsLaundryReview([]); return; }
+    const now = new Date();
+    const staleItems = items.filter((item: any) => {
+      if (!item.is_in_laundry || !item.laundry_added_at) return false;
+      const daysInLaundry = (now.getTime() - new Date(item.laundry_added_at).getTime()) / (1000 * 3600 * 24);
+      if (daysInLaundry < 7) return false;
+      if (!item.last_laundry_reminder_at) return true;
+      const daysSinceReminder = (now.getTime() - new Date(item.last_laundry_reminder_at).getTime()) / (1000 * 3600 * 24);
+      return daysSinceReminder >= 3;
+    });
+    setNeedsLaundryReview(staleItems);
+  }, [items]);
+
+  const handleToggleLaundry = async (item: ClosetItem, isNowDirty: boolean) => {
+    const payload = isNowDirty
+      ? { is_in_laundry: true, laundry_added_at: new Date().toISOString(), last_laundry_reminder_at: null }
+      : { is_in_laundry: false, laundry_added_at: null, last_laundry_reminder_at: null };
+    await supabase.from("closet_items").update(payload).eq("id", item.id);
+    handleRefresh();
+    toast.success(isNowDirty ? "Moved to laundry" : "Marked as clean");
+  };
+
+  const handleMarkAllClean = async (staleItems: ClosetItem[]) => {
+    const ids = staleItems.map((i) => i.id);
+    await supabase.from("closet_items").update({ is_in_laundry: false, laundry_added_at: null, last_laundry_reminder_at: null }).in("id", ids);
+    setNeedsLaundryReview([]);
+    handleRefresh();
+    toast.success("All items marked as clean!");
+  };
+
+  const handleSnoozeReminders = async (staleItems: ClosetItem[]) => {
+    const ids = staleItems.map((i) => i.id);
+    await supabase.from("closet_items").update({ last_laundry_reminder_at: new Date().toISOString() }).in("id", ids);
+    setNeedsLaundryReview([]);
+    toast.info("Snoozed for 3 days");
+  };
+
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ["closet"] });
     queryClient.invalidateQueries({ queryKey: ["closet-items"] });
@@ -208,6 +251,26 @@ const WardrobePage = () => {
       {/* My Closet Tab */}
       {activeTab === "closet" && (
         <>
+          {/* Smart Laundry Reminder Banner */}
+          {needsLaundryReview.length > 0 && (
+            <Alert className="rounded-2xl border-amber-500/30 bg-amber-50 dark:bg-amber-950/20">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertTitle className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                {needsLaundryReview.length} item{needsLaundryReview.length > 1 ? "s" : ""} stuck in laundry
+              </AlertTitle>
+              <AlertDescription className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                These have been in the wash for over a week.
+              </AlertDescription>
+              <div className="flex gap-2 mt-3">
+                <Button size="sm" variant="outline" className="rounded-xl text-xs h-8 border-amber-300" onClick={() => handleMarkAllClean(needsLaundryReview)}>
+                  Mark as Clean
+                </Button>
+                <Button size="sm" variant="ghost" className="rounded-xl text-xs h-8 text-muted-foreground" onClick={() => handleSnoozeReminders(needsLaundryReview)}>
+                  Still Washing – Snooze 3 days
+                </Button>
+              </div>
+            </Alert>
+          )}
           <div className="flex gap-2 overflow-x-auto no-scrollbar">
             {CATEGORIES.map((cat) => (
               <button
@@ -244,12 +307,30 @@ const WardrobePage = () => {
               {filtered.map((item) => (
                 <div
                   key={item.id}
-                  className="bg-product-bg rounded-2xl overflow-hidden shadow-sm border border-border cursor-pointer"
+                  className={`bg-product-bg rounded-2xl overflow-hidden shadow-sm border border-border cursor-pointer relative ${
+                    item.is_in_laundry ? "opacity-60 grayscale" : ""
+                  }`}
                   onClick={() => {
                     setSelectedItem({ ...item, source: "closet" });
                     setDetailOpen(true);
                   }}
                 >
+                  {item.is_in_laundry && (
+                    <div className="absolute top-2 left-2 z-10 bg-amber-500/90 text-white text-[9px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <WashingMachine className="w-3 h-3" /> In Laundry
+                    </div>
+                  )}
+                  <button
+                    className={`absolute top-2 right-2 z-10 w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
+                      item.is_in_laundry ? "bg-primary text-primary-foreground" : "bg-muted/80 text-muted-foreground hover:bg-muted"
+                    }`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleLaundry(item, !item.is_in_laundry);
+                    }}
+                  >
+                    <WashingMachine className="w-3.5 h-3.5" />
+                  </button>
                   <div className="aspect-square w-full flex items-center justify-center bg-product-bg p-2">
                     <SafeImage
                       src={imageUrls[item.id]}
@@ -262,8 +343,8 @@ const WardrobePage = () => {
                     />
                   </div>
                   <div className="p-3">
-                    <p className="text-sm font-medium text-[#1a1a1a] truncate">{item.name || "Unnamed"}</p>
-                    {item.category && <span className="text-[10px] text-[#555]">{item.category}</span>}
+                    <p className="text-sm font-medium text-foreground truncate">{item.name || "Unnamed"}</p>
+                    {item.category && <span className="text-[10px] text-muted-foreground">{item.category}</span>}
                   </div>
                 </div>
               ))}

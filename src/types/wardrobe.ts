@@ -8,6 +8,8 @@ export interface ClosetItem {
   brand: string | null;
   notes: string | null;
   is_in_laundry: boolean;
+  laundry_added_at: string | null;
+  last_laundry_reminder_at: string | null;
   created_at: string;
 }
 

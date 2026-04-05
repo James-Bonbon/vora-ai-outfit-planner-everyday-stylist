@@ -140,6 +140,8 @@ export type Database = {
           id: string
           image_url: string
           is_in_laundry: boolean
+          last_laundry_reminder_at: string | null
+          laundry_added_at: string | null
           material: string | null
           name: string | null
           notes: string | null
@@ -155,6 +157,8 @@ export type Database = {
           id?: string
           image_url: string
           is_in_laundry?: boolean
+          last_laundry_reminder_at?: string | null
+          laundry_added_at?: string | null
           material?: string | null
           name?: string | null
           notes?: string | null
@@ -170,6 +174,8 @@ export type Database = {
           id?: string
           image_url?: string
           is_in_laundry?: boolean
+          last_laundry_reminder_at?: string | null
+          laundry_added_at?: string | null
           material?: string | null
           name?: string | null
           notes?: string | null
