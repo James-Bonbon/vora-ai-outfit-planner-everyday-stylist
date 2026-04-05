@@ -85,6 +85,13 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
     setSavedItemId(null);
     setIsBatchMode(false);
     setBatchItems([]);
+
+    // Destroy object URLs to prevent RAM leaks
+    batchEdits.forEach(item => {
+      if (item.preview) URL.revokeObjectURL(item.preview);
+    });
+    setBatchEdits([]);
+
     setBatchProgress({ current: 0, total: 0 });
   };
 
