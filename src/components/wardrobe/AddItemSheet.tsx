@@ -170,9 +170,19 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
         }
 
         setBatchItems(processedBatch);
+        
+        const editableItems: BatchEditItem[] = processedBatch.map((item, idx) => ({
+          id: idx,
+          blob: item.blob,
+          preview: URL.createObjectURL(item.blob),
+          category: item.category || "Tops",
+          name: `${item.category || 'Item'} ${idx + 1}`
+        }));
+        setBatchEdits(editableItems);
+        
         setIsProcessingAI(false);
-        toast.success(`Successfully processed ${processedBatch.length} items!`);
-        return; // Pause here until Phase 4 UI is built!
+        toast.success(`Successfully processed ${processedBatch.length} items! Review and save.`);
+        return;
       }
 
       // --- SINGLE ITEM FLOW ---
