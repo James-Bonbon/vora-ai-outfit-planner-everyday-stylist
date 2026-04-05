@@ -50,6 +50,15 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
   const [batchItems, setBatchItems] = useState<CroppedGarment[]>([]);
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
 
+  interface BatchEditItem {
+    id: number;
+    blob: Blob;
+    preview: string;
+    category: string;
+    name: string;
+  }
+  const [batchEdits, setBatchEdits] = useState<BatchEditItem[]>([]);
+
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
   const [color, setColor] = useState("");
