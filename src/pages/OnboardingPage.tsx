@@ -33,8 +33,10 @@ const getAge = (dob: string): number | null => {
 const OnboardingPage = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [preferences, setPreferences] = useState({ vibe: "Casual", fit: "Fitted", colors: "Neutral" });
 
   const [selfieFile, setSelfieFile] = useState<File | null>(null);
   const [selfiePreview, setSelfiePreview] = useState<string | null>(null);
