@@ -411,6 +411,47 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
     onItemAdded();
   };
 
+  const handleBatchSave = async () => {
+    if (!user || batchEdits.length === 0) return;
+    setSaving(true);
+
+    try {
+      const insertPayloads = [];
+
+      for (const item of batchEdits) {
+        const ext = "png"; 
+        const filePath = `${user.id}/${crypto.randomUUID()}.${ext}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from("garments")
+          .upload(filePath, item.blob, { contentType: "image/png" });
+
+        if (uploadError) throw uploadError;
+
+        insertPayloads.push({
+          user_id: user.id,
+          image_url: filePath,
+          name: item.name,
+          category: item.category,
+          storage_zone_id: storageZoneId || null,
+        });
+      }
+
+      const { error: dbError } = await supabase.from("closet_items").insert(insertPayloads);
+      if (dbError) throw dbError;
+
+      toast.success(`Added ${batchEdits.length} items to your wardrobe!`);
+      resetForm();
+      onOpenChange(false);
+      if (onItemAdded) onItemAdded();
+    } catch (err) {
+      console.error("Batch save error:", err);
+      toast.error("Failed to save batch items. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
