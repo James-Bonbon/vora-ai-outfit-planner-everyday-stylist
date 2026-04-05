@@ -62,6 +62,7 @@ const DetailRow = ({ label, value }: { label: string; value: string | null | und
 
 const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDetailSheetProps) => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [showCare, setShowCare] = useState(false);
@@ -73,6 +74,15 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
   const [laundryUpdating, setLaundryUpdating] = useState(false);
   const [closetSvg, setClosetSvg] = useState<string | null>(null);
   const [storageZoneId, setStorageZoneId] = useState<string | null>(null);
+
+  // Edit mode state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+  const [editColor, setEditColor] = useState("");
+  const [editMaterial, setEditMaterial] = useState("");
+  const [editBrand, setEditBrand] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
 
   const isDream = item?.source === "dream";
 
@@ -94,8 +104,19 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
     setShowStain(false);
     setStainResult(null);
     setStainType("");
+    setIsEditing(false);
     setIsInLaundry(!isDream ? (item as any).is_in_laundry ?? false : false);
     setStorageZoneId(!isDream ? (item as any).storage_zone_id ?? null : null);
+
+    // Populate edit fields
+    if (!isDream) {
+      const ci = item as any;
+      setEditName(ci.name || "");
+      setEditCategory(ci.category || "");
+      setEditColor(ci.color || "");
+      setEditMaterial(ci.material || "");
+      setEditBrand(ci.brand || "");
+    }
 
     if (isDream) {
       setImageUrl(item.image_url);
@@ -120,6 +141,41 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
       });
   }, [user, open]);
 
+  const invalidateCaches = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["closet"] });
+    await queryClient.invalidateQueries({ queryKey: ["closet-items"] });
+    await queryClient.invalidateQueries({ queryKey: ["outfit-calendar-data"] });
+  };
+
+  const handleUpdateItem = async () => {
+    if (!item || isDream) return;
+    setEditSaving(true);
+    try {
+      const { error } = await supabase
+        .from("closet_items")
+        .update({
+          name: editName || null,
+          category: editCategory || null,
+          color: editColor || null,
+          material: editMaterial || null,
+          brand: editBrand || null,
+        })
+        .eq("id", item.id);
+
+      if (error) throw error;
+
+      await invalidateCaches();
+      setIsEditing(false);
+      toast.success("Item updated!");
+      onDeleted(); // refresh parent
+    } catch (err) {
+      console.error("Edit error:", err);
+      toast.error("Failed to update item.");
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   const handleToggleLaundry = async (checked: boolean) => {
     if (!item || isDream) return;
     setLaundryUpdating(true);
@@ -134,7 +190,8 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
       if (error) throw error;
       setIsInLaundry(checked);
       toast.success(checked ? "Marked as in laundry" : "Back from laundry");
-      onDeleted(); // refresh list
+      await invalidateCaches();
+      onDeleted();
     } catch {
       toast.error("Failed to update laundry status");
     } finally {
@@ -144,21 +201,44 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
 
   const handleDelete = async () => {
     if (!item) return;
+    const confirmed = window.confirm("Are you sure you want to delete this item? This cannot be undone.");
+    if (!confirmed) return;
+
     setDeleting(true);
     try {
       if (isDream) {
         const { error } = await supabase.from("dream_items").delete().eq("id", item.id);
         if (error) throw error;
       } else {
-        await supabase.storage.from("garments").remove([item.image_url]);
+        // Extract relative storage path from potential signed URL
+        let storagePath = item.image_url;
+        if (storagePath && storagePath.includes("/garments/")) {
+          storagePath = storagePath.split("/garments/")[1].split("?")[0];
+        }
+
+        if (storagePath) {
+          const { error: storageError } = await supabase.storage
+            .from("garments")
+            .remove([storagePath]);
+          if (storageError) {
+            console.warn("Storage delete warning:", storageError);
+          }
+        }
+
         const { error } = await supabase.from("closet_items").delete().eq("id", item.id);
         if (error) throw error;
       }
+
+      await invalidateCaches();
+      if (isDream) {
+        await queryClient.invalidateQueries({ queryKey: ["dream"] });
+      }
+
       toast.success("Item removed");
       onOpenChange(false);
       onDeleted();
     } catch (err) {
-      console.error(err);
+      console.error("Delete error:", err);
       toast.error("Failed to delete item");
     } finally {
       setDeleting(false);
