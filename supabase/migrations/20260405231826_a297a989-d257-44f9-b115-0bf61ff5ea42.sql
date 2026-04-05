@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS style_preferences JSONB DEFAULT '{}'::jsonb;
