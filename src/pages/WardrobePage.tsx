@@ -307,12 +307,30 @@ const WardrobePage = () => {
               {filtered.map((item) => (
                 <div
                   key={item.id}
-                  className="bg-product-bg rounded-2xl overflow-hidden shadow-sm border border-border cursor-pointer"
+                  className={`bg-product-bg rounded-2xl overflow-hidden shadow-sm border border-border cursor-pointer relative ${
+                    item.is_in_laundry ? "opacity-60 grayscale" : ""
+                  }`}
                   onClick={() => {
                     setSelectedItem({ ...item, source: "closet" });
                     setDetailOpen(true);
                   }}
                 >
+                  {item.is_in_laundry && (
+                    <div className="absolute top-2 left-2 z-10 bg-amber-500/90 text-white text-[9px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <WashingMachine className="w-3 h-3" /> In Laundry
+                    </div>
+                  )}
+                  <button
+                    className={`absolute top-2 right-2 z-10 w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
+                      item.is_in_laundry ? "bg-primary text-primary-foreground" : "bg-muted/80 text-muted-foreground hover:bg-muted"
+                    }`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleLaundry(item, !item.is_in_laundry);
+                    }}
+                  >
+                    <WashingMachine className="w-3.5 h-3.5" />
+                  </button>
                   <div className="aspect-square w-full flex items-center justify-center bg-product-bg p-2">
                     <SafeImage
                       src={imageUrls[item.id]}
@@ -325,8 +343,8 @@ const WardrobePage = () => {
                     />
                   </div>
                   <div className="p-3">
-                    <p className="text-sm font-medium text-[#1a1a1a] truncate">{item.name || "Unnamed"}</p>
-                    {item.category && <span className="text-[10px] text-[#555]">{item.category}</span>}
+                    <p className="text-sm font-medium text-foreground truncate">{item.name || "Unnamed"}</p>
+                    {item.category && <span className="text-[10px] text-muted-foreground">{item.category}</span>}
                   </div>
                 </div>
               ))}
