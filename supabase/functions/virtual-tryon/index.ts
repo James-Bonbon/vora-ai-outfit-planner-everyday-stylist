@@ -7,7 +7,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-/** Generate a deterministic SHA-256 hash from userId + sorted garmentIds + bodyShape */
 async function computeInputHash(userId: string, garmentIds: string[], bodyShape?: string | null): Promise<string> {
   const sorted = [...garmentIds].sort();
   const input = `${userId}:${sorted.join(",")}:${bodyShape || "none"}`;
@@ -45,7 +44,7 @@ serve(async (req) => {
     }
     const userId = user.id;
 
-    const { selfieUrl, garmentUrls, garmentIds, occasion, desiredLook, weather, bodyShape: reqBodyShape, stylingInstruction } = await req.json();
+    const { selfieUrl, garmentUrls, garmentIds, occasion, styleVibe, bodyShape: reqBodyShape } = await req.json();
 
     if (!selfieUrl || !garmentUrls?.length || !garmentIds?.length) {
       return new Response(JSON.stringify({ error: "selfieUrl, garmentUrls, and garmentIds are required" }), {
@@ -54,10 +53,10 @@ serve(async (req) => {
     }
 
     const isValidUrl = (url: string) =>
-      typeof url === "string" && (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:image"));
+      typeof url === "string" && (url.startsWith("http://") || url.startsWith("https://"));
 
     if (!isValidUrl(selfieUrl)) {
-      return new Response(JSON.stringify({ error: "Invalid selfie image. Please re-upload your selfie or use a different model." }), {
+      return new Response(JSON.stringify({ error: "Invalid selfie URL. Please re-upload your selfie." }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -95,57 +94,43 @@ serve(async (req) => {
       });
     }
 
-    // Build prompt — send URLs directly instead of base64 to avoid memory issues
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
+    // --- Photoroom Virtual Model API ---
+    const photoroomKey = Deno.env.get("PHOTOROOM_API_KEY");
+    if (!photoroomKey) throw new Error("PHOTOROOM_API_KEY is missing from Supabase secrets");
 
-    const promptText = `CRITICAL OVERRIDE - IDENTITY PRESERVATION IS YOUR #1 PRIORITY.
-You are a precision Virtual Try-On engine. Your ONLY job is to change the user's clothing.
+    const formData = new FormData();
 
-ABSOLUTE RULES FOR THE HEAD, FACE, AND HAIR:
-1. DO NOT alter, repaint, or stylize the user's head, face, or hair under ANY circumstances.
-2. The hair color, hair style, hair length, and exact facial identity MUST remain 100% identical to the provided reference selfie.
-3. If the user has dark hair, it stays dark. If the hair is tied up, it stays tied up. Do not invent new hairstyles to match the outfit.
+    // Primary garment via URL (no blob download)
+    formData.append("imageUrl", garmentUrls[0]);
+    formData.append("removeBackground", "false");
+    formData.append("referenceBox", "originalImage");
 
-TASK:
-Generate a photorealistic full-body or three-quarter shot of this exact person wearing ALL the provided garments naturally.
+    // Virtual Model mode with custom selfie
+    formData.append("virtualModel.mode", "ai.auto");
+    formData.append("virtualModel.model.custom.imageUrl", selfieUrl);
 
-CLOTHING ACCURACY (Secondary Priority):
-- Reproduce EVERY garment detail with pixel-level fidelity: exact colors, patterns, textures, collars, and hemlines.
-- The clothing must look naturally worn with realistic fit, draping, and shadow interaction based on their body shape.
-
-SCENE & CONTEXT:
-- The background MUST be a plain, consistent beige studio backdrop. Do not generate environmental details, rooms, or complex settings.
-- Professional fashion photography lighting.
-- CRITICAL: Retain the exact hair color, hairstyle, and facial features of the reference subject. Only replace the clothing.
-${occasion ? `- Style the overall outfit mood to suit a "${occasion}" occasion.` : ""}
-${weather ? `- The weather is ${weather}. Layer appropriately.` : ""}
-${bodyShape ? `- The user has a ${bodyShape.replace(/_/g, " ")} body type. Ensure the fit and silhouette flatter this shape.` : ""}
-${stylingInstruction ? `- The garments MUST be styled exactly as follows: "${stylingInstruction}".` : ""}
-${desiredLook ? `- Incorporate this specific aesthetic: "${desiredLook}".` : ""}
-- NO watermarks, text, or logos.`;
-
-    const content: any[] = [
-      { type: "text", text: promptText },
-      { type: "image_url", image_url: { url: selfieUrl } },
-    ];
-
-    for (const gUrl of garmentUrls) {
-      content.push({ type: "image_url", image_url: { url: gUrl } });
+    // Additional garments for full outfits
+    if (garmentUrls.length > 1) {
+      for (let i = 1; i < garmentUrls.length; i++) {
+        formData.append(`virtualModel.additionalProductImages[${i - 1}].imageUrl`, garmentUrls[i]);
+      }
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Map style vibe to a scene preset
+    let scenePreset = "studio";
+    const vibe = (styleVibe || "").toLowerCase();
+    if (vibe.includes("street")) scenePreset = "street";
+    else if (vibe.includes("casual")) scenePreset = "cafe";
+    else if (vibe.includes("minimalist")) scenePreset = "concretestudio";
+    formData.append("virtualModel.scene.preset.name", scenePreset);
+
+    const response = await fetch("https://image-api.photoroom.com/v2/edit", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-pro-image-preview",
-        messages: [{ role: "user", content }],
-        modalities: ["image", "text"],
-      }),
+      headers: { "x-api-key": photoroomKey },
+      body: formData,
     });
+
+    const contentType = response.headers.get("content-type") || "";
 
     if (!response.ok) {
       if (response.status === 429) {
@@ -154,38 +139,29 @@ ${desiredLook ? `- Incorporate this specific aesthetic: "${desiredLook}".` : ""}
         });
       }
       if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds." }), {
+        return new Response(JSON.stringify({ error: "Photoroom credits exhausted. Please add funds." }), {
           status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const errText = await response.text();
-      console.error("AI gateway error:", response.status, errText);
-      throw new Error(`AI gateway error: ${response.status}`);
+      if (contentType.includes("application/json")) {
+        const errJson = await response.json();
+        console.error("Photoroom structured error:", errJson);
+        throw new Error(`Photoroom API Error: ${errJson.error || errJson.message || "Failed to generate try-on"}`);
+      } else {
+        const errText = await response.text();
+        console.error("Photoroom raw error:", response.status, errText);
+        throw new Error(`Photoroom API error: ${response.status}`);
+      }
     }
 
-    const responseText = await response.text();
-    let data;
-    try {
-      data = JSON.parse(responseText);
-    } catch {
-      console.error("Failed to parse AI response:", responseText.slice(0, 500));
-      return new Response(JSON.stringify({ error: "AI returned an invalid response. Please try again." }), {
-        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (!contentType.includes("image/")) {
+      throw new Error("Photoroom did not return a valid image.");
     }
 
-    const message = data.choices?.[0]?.message;
-    const imageBase64 = message?.images?.[0]?.image_url?.url;
-
-    if (!imageBase64) {
-      return new Response(JSON.stringify({ error: "AI could not generate the try-on image. Try different garments." }), {
-        status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const resultBuffer = await response.arrayBuffer();
+    const binaryData = new Uint8Array(resultBuffer);
 
     // Upload result to storage
-    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
-    const binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
     const filePath = `${userId}/${crypto.randomUUID()}.png`;
 
     const { error: uploadError } = await supabaseAdmin.storage
