@@ -34,7 +34,7 @@ export function useAuth() {
     });
 
     return () => subscription?.unsubscribe();
-  }, [navigate]);
+  }, []);
 
   const signOut = async () => {
     clearUrlCache();
