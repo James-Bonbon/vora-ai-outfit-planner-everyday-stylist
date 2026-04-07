@@ -64,4 +64,5 @@ export default defineConfig(({ mode }) => ({
       external: ["onnxruntime-web", "onnxruntime-web/webgpu"],
     },
   },
+  assetsInclude: ["**/*.wasm"],
 }));
