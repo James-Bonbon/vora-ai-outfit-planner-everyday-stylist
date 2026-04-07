@@ -20,7 +20,7 @@ export function useAuth() {
           setUser(session?.user ?? null);
 
           if (event === "SIGNED_IN" && window.location.pathname === "/") {
-            navigate("/home", { replace: true });
+            window.location.replace("/home");
           }
         }
         setLoading(false);
