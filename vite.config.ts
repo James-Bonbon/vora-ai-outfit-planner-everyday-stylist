@@ -56,6 +56,9 @@ export default defineConfig(({ mode }) => ({
     },
     dedupe: ["react", "react-dom", "react/jsx-runtime"],
   },
+  optimizeDeps: {
+    exclude: ["onnxruntime-web", "onnxruntime-web/webgpu"],
+  },
   build: {
     rollupOptions: {
       external: ["onnxruntime-web", "onnxruntime-web/webgpu"],
