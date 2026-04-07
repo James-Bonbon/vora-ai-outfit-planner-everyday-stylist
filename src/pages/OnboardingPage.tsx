@@ -137,9 +137,11 @@ const OnboardingPage = () => {
 
       await queryClient.invalidateQueries({ queryKey: ["profile"] });
       await queryClient.invalidateQueries({ queryKey: ["profile-data"] });
+      // Wait a tick so ProtectedRoute picks up the fresh profile before we land
+      await new Promise((r) => setTimeout(r, 300));
 
       toast.success("Welcome to VORA! 🎉");
-      navigate("/home", { replace: true });
+      navigate("/wardrobe", { replace: true });
     } catch (err) {
       console.error("Onboarding error:", err);
       toast.error("Something went wrong. Please try again.");
