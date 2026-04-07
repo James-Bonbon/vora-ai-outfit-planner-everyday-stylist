@@ -135,10 +135,9 @@ const OnboardingPage = () => {
         if (key.startsWith("vora_")) sessionStorage.removeItem(key);
       });
 
-      await queryClient.invalidateQueries({ queryKey: ["profile"] });
-      await queryClient.invalidateQueries({ queryKey: ["profile-data"] });
-      // Wait a tick so ProtectedRoute picks up the fresh profile before we land
-      await new Promise((r) => setTimeout(r, 300));
+      // Refetch (not just invalidate) so route guards see the updated profile
+      await queryClient.refetchQueries({ queryKey: ["profile"] });
+      await queryClient.refetchQueries({ queryKey: ["profile-data"] });
 
       toast.success("Welcome to VORA! 🎉");
       navigate("/wardrobe", { replace: true });
