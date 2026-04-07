@@ -2,11 +2,12 @@ import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, ChevronRight, ChevronLeft, AlertTriangle, LogOut, Check, X, Loader2, Sparkles, Shirt, CheckCircle2 } from "lucide-react";
+import { Camera, ChevronRight, ChevronLeft, AlertTriangle, LogOut, Check, X, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import GlassCard from "@/components/GlassCard";
+import Magic5Upload from "@/components/onboarding/Magic5Upload";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -84,7 +85,8 @@ const OnboardingPage = () => {
     }
   };
 
-  const handleComplete = async () => {
+  // Save profile data (steps 0-3) WITHOUT setting onboarding_complete
+  const handleSaveProfile = async () => {
     if (!user) return;
     if (isUnderage) { toast.error(`You must be at least ${MIN_AGE} years old to use VORA.`); return; }
     if (!username.trim() || !USERNAME_REGEX.test(username)) { toast.error("Please enter a valid username."); return; }
@@ -93,7 +95,6 @@ const OnboardingPage = () => {
 
     setSaving(true);
     try {
-      // Check username uniqueness one final time
       const { data: existing } = await supabase
         .from("profiles")
         .select("user_id")
@@ -126,23 +127,14 @@ const OnboardingPage = () => {
           body_shape: bodyShape || null,
           selfie_url: selfiePath,
           style_preferences: preferences,
-          onboarding_complete: true,
         })
         .eq("user_id", user.id);
       if (error) throw error;
 
-      Object.keys(sessionStorage).forEach((key) => {
-        if (key.startsWith("vora_")) sessionStorage.removeItem(key);
-      });
-
-      // Refetch (not just invalidate) so route guards see the updated profile
-      await queryClient.refetchQueries({ queryKey: ["profile"] });
-      await queryClient.refetchQueries({ queryKey: ["profile-data"] });
-
-      toast.success("Welcome to VORA! 🎉");
-      navigate("/wardrobe", { replace: true });
+      // Move to Magic 5 step
+      setStep(4);
     } catch (err) {
-      console.error("Onboarding error:", err);
+      console.error("Profile save error:", err);
       toast.error("Something went wrong. Please try again.");
     } finally {
       setSaving(false);
@@ -297,27 +289,13 @@ const OnboardingPage = () => {
       </div>
     </motion.div>,
 
-    // Step 4: The Magic 5
+    // Step 4: The Magic 5 — functional upload
     <motion.div key="magic5" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} className="space-y-6">
-      <div className="text-center">
-        <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
-          <Shirt className="w-7 h-7 text-primary" />
-        </div>
-        <h2 className="text-xl font-bold text-foreground font-outfit">The Magic 5</h2>
-        <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-          Your goal today is to scan your first 5 items into your Wardrobe so the AI has something to style!
-        </p>
-      </div>
-      <GlassCard className="p-6">
-        <div className="space-y-3">
-          <p className="text-sm text-foreground flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-primary shrink-0" /> Add 3 Tops
-          </p>
-          <p className="text-sm text-foreground flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-primary shrink-0" /> Add 2 Bottoms
-          </p>
-        </div>
-      </GlassCard>
+      <Magic5Upload onAllUploaded={() => {
+        Object.keys(sessionStorage).forEach((key) => {
+          if (key.startsWith("vora_")) sessionStorage.removeItem(key);
+        });
+      }} />
     </motion.div>,
   ];
 
