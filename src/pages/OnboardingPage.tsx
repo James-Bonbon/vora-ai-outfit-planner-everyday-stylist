@@ -313,26 +313,28 @@ const OnboardingPage = () => {
         <AnimatePresence mode="wait">{steps[step]}</AnimatePresence>
       </div>
 
-      <div className="flex gap-3 mt-8">
-        {step > 0 && (
-          <Button variant="outline" onClick={() => setStep(step - 1)} className="rounded-xl">
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-        )}
-        {step < lastStep ? (
-          <Button
-            onClick={() => { if (step === 1) checkUsername(); setStep(step + 1); }}
-            disabled={(step === 0 && !canContinueStep0) || (step === 1 && !canContinueStep1)}
-            className="flex-1 rounded-xl"
-          >
-            Continue <ChevronRight className="w-4 h-4" />
-          </Button>
-        ) : (
-          <Button onClick={handleComplete} disabled={saving} className="flex-1 rounded-xl">
-            {saving ? "Setting up..." : "Open My Wardrobe ✨"}
-          </Button>
-        )}
-      </div>
+      {step < lastStep && (
+        <div className="flex gap-3 mt-8">
+          {step > 0 && (
+            <Button variant="outline" onClick={() => setStep(step - 1)} className="rounded-xl">
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+          )}
+          {step < lastStep - 1 ? (
+            <Button
+              onClick={() => { if (step === 1) checkUsername(); setStep(step + 1); }}
+              disabled={(step === 0 && !canContinueStep0) || (step === 1 && !canContinueStep1)}
+              className="flex-1 rounded-xl"
+            >
+              Continue <ChevronRight className="w-4 h-4" />
+            </Button>
+          ) : (
+            <Button onClick={handleSaveProfile} disabled={saving} className="flex-1 rounded-xl">
+              {saving ? "Saving…" : "Continue to Magic 5"} <ChevronRight className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
+      )}
 
       <button
         onClick={signOut}
