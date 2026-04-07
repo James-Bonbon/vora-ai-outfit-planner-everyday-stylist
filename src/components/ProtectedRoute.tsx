@@ -37,10 +37,9 @@ const ProtectedRoute = ({
         const complete = data?.onboarding_complete === true && !!data?.username && !!data?.selfie_url;
         setOnboardingComplete(complete);
         setOnboardingChecked(true);
-      })
-      .catch((err) => {
+      }, (err) => {
         console.error("Profile fetch failed:", err);
-        setOnboardingChecked(true); // Don't hang forever on a network glitch
+        setOnboardingChecked(true);
       });
   }, [user, loading, skipOnboarding]);
 
