@@ -2,7 +2,8 @@ import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, ChevronRight, ChevronLeft, AlertTriangle, LogOut, Check, X, Loader2, Sparkles } from "lucide-react";
+import { Camera, ChevronRight, ChevronLeft, AlertTriangle, LogOut, Check, X, Loader2, Sparkles, ShieldCheck } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,6 +51,7 @@ const OnboardingPage = () => {
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
   const [isSkippingAvatar, setIsSkippingAvatar] = useState(false);
+  const [biometricConsent, setBiometricConsent] = useState(false);
 
   const [selfieFile, setSelfieFile] = useState<File | null>(null);
   const [selfiePreview, setSelfiePreview] = useState<string | null>(null);
@@ -182,6 +184,7 @@ const OnboardingPage = () => {
         gender: profileData.gender || 'female',
         body_shape: bodyShape || null,
         style_preferences: preferences,
+        biometric_consent: biometricConsent,
         onboarding_complete: true,
       };
 
@@ -210,7 +213,7 @@ const OnboardingPage = () => {
     }
   };
 
-  const canContinueStep0 = !!selfiePreview || isSkippingAvatar;
+  const canContinueStep0 = (!!selfiePreview && biometricConsent) || isSkippingAvatar;
   const canContinueStep1 = username.trim().length >= 3 && usernameStatus !== "taken" && usernameStatus !== "invalid" && !isUnderage;
 
   const bodyShapes = profileData.gender === "male" ? MALE_SHAPES : FEMALE_SHAPES;
@@ -282,6 +285,22 @@ const OnboardingPage = () => {
             </label>
           )}
         </GlassCard>
+      )}
+
+      {/* Biometric Consent — shown when photo is uploaded */}
+      {(selfiePreview || (imageSrc && !selfiePreview)) && !isSkippingAvatar && (
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-card border border-border">
+          <Checkbox
+            id="biometric-consent"
+            checked={biometricConsent}
+            onCheckedChange={(checked) => setBiometricConsent(checked === true)}
+            className="mt-0.5"
+          />
+          <label htmlFor="biometric-consent" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
+            <ShieldCheck className="w-3.5 h-3.5 inline mr-1 text-primary" />
+            I consent to my face being processed by AI for virtual try-on features.
+          </label>
+        </div>
       )}
 
       {!imageSrc && !selfiePreview && (
