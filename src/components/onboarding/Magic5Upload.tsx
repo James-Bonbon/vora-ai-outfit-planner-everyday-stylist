@@ -23,6 +23,8 @@ const SLOTS: SlotDef[] = [
 
 interface Magic5UploadProps {
   onAllUploaded: () => void;
+  profileData: { username: string; gender: string };
+  preferences: { vibe: string[]; fit: string; colors: string };
 }
 
 const Magic5Upload = ({ onAllUploaded }: Magic5UploadProps) => {
