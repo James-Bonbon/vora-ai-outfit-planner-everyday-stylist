@@ -25,6 +25,7 @@ interface ProfileData {
   selfie_url: string | null;
   date_of_birth: string | null;
   sex: string | null;
+  gender: string | null;
   height_cm: number | null;
   weight_kg: number | null;
   body_shape: string | null;
@@ -429,8 +430,8 @@ const ProfilePage = () => {
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-muted-foreground" />
               <div>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Sex</p>
-                <p className="text-sm font-medium text-foreground capitalize">{profile?.sex || "—"}</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Gender</p>
+                <p className="text-sm font-medium text-foreground capitalize">{profile?.gender || profile?.sex || "—"}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">

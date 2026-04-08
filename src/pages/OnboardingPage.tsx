@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import GlassCard from "@/components/GlassCard";
-import Magic5Upload from "@/components/onboarding/Magic5Upload";
 import Cropper from "react-easy-crop";
 import { getCroppedImg } from "@/utils/cropImage";
 
@@ -20,7 +19,7 @@ const FEMALE_SHAPES = ["Hourglass", "Pear", "Apple", "Rectangle", "Inverted Tria
 const MALE_SHAPES = ["Trapezoid", "Inverted Triangle", "Rectangle", "Triangle", "Oval"];
 
 const VIBES = ["Casual", "Streetwear", "Smart Casual", "Minimalist", "Vintage", "Athleisure", "Bohemian", "Preppy"];
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 4;
 
 const MIN_AGE = 13;
 const USERNAME_REGEX = /^[a-z0-9._]{3,30}$/;
@@ -136,16 +135,16 @@ const OnboardingPage = () => {
     });
   };
 
-  // Save profile data (steps 0-3) WITHOUT setting onboarding_complete
-  const handleSaveProfile = async () => {
+  // Final save: upload avatar + upsert full profile + complete onboarding
+  const finalizeOnboarding = async () => {
     if (!user) return;
     if (isUnderage) { toast.error(`You must be at least ${MIN_AGE} years old to use VORA.`); return; }
     if (!username.trim() || !USERNAME_REGEX.test(username)) { toast.error("Please enter a valid username."); return; }
     if (usernameStatus === "taken") { toast.error("That username is already taken."); return; }
-    if (!isSkippingAvatar && !selfieFile && !selfiePreview) { toast.error("Please upload a reference photo or skip."); return; }
 
     setSaving(true);
     try {
+      // Check username availability one final time
       const { data: existing } = await supabase
         .from("profiles")
         .select("user_id")
@@ -154,44 +153,58 @@ const OnboardingPage = () => {
         .maybeSingle();
       if (existing) { toast.error("That username was just taken. Please choose another."); setSaving(false); setUsernameStatus("taken"); return; }
 
-      let selfiePath: string | null = null;
+      // 1. Process and Upload the Selfie (if provided)
+      let finalAvatarUrl = null;
       if (!isSkippingAvatar && selfieFile) {
-        const fileExt = selfieFile.name.split(".").pop();
-        const filePath = `${user.id}/selfie_${Date.now()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage
-          .from("selfies")
-          .upload(filePath, selfieFile, { upsert: true });
-        if (uploadError) throw uploadError;
-        const { data: publicUrlData } = supabase.storage.from("selfies").getPublicUrl(filePath);
-        selfiePath = publicUrlData.publicUrl;
+        try {
+          const fileExt = selfieFile.name.split(".").pop();
+          const filePath = `${user.id}/selfie_${Date.now()}.${fileExt}`;
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('selfies')
+            .upload(filePath, selfieFile, { contentType: 'image/jpeg', upsert: true });
+          if (!uploadError && uploadData) {
+            const { data: publicUrlData } = supabase.storage.from('selfies').getPublicUrl(filePath);
+            finalAvatarUrl = publicUrlData.publicUrl;
+          }
+        } catch (imgErr) {
+          console.error("Failed to process/upload avatar:", imgErr);
+        }
       }
 
-      const updatePayload: Record<string, any> = {
+      // 2. Compile the FULL Profile Update Payload
+      const profileUpdatePayload: any = {
+        user_id: user.id,
         username: username.trim(),
         display_name: displayName.trim() || username.trim(),
         date_of_birth: dateOfBirth || null,
-        gender: profileData.gender,
         height_cm: heightCm ? Number(heightCm) : null,
         weight_kg: weightKg ? Number(weightKg) : null,
+        gender: profileData.gender || 'female',
         body_shape: bodyShape || null,
         style_preferences: preferences,
+        onboarding_complete: true,
       };
 
-      // Only update selfie_url if we have one
-      if (selfiePath) {
-        updatePayload.selfie_url = selfiePath;
+      if (finalAvatarUrl) {
+        profileUpdatePayload.selfie_url = finalAvatarUrl;
       }
 
-      const { error } = await supabase
+      // 3. UPSERT with explicit Conflict Targeting
+      const { error: profileError } = await supabase
         .from("profiles")
-        .upsert({ ...updatePayload, user_id: user.id }, { onConflict: 'user_id' });
-      if (error) throw error;
+        .upsert(profileUpdatePayload, { onConflict: 'user_id' });
 
-      // Move to Magic 5 step
-      setStep(4);
+      if (profileError) throw profileError;
+
+      // 4. UI Feedback & Hard Redirect
+      toast.success("Profile created! Welcome to VORA.", { duration: 3000 });
+
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 1500);
     } catch (err) {
-      console.error("Profile save error:", err);
-      toast.error("Something went wrong. Please try again.");
+      console.error("Onboarding finalization error:", err);
+      toast.error("Failed to save profile. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -418,18 +431,6 @@ const OnboardingPage = () => {
       </div>
     </motion.div>,
 
-    // Step 4: The Magic 5 — functional upload
-    <motion.div key="magic5" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} className="space-y-6">
-      <Magic5Upload
-        profileData={profileData}
-        preferences={preferences}
-        onAllUploaded={() => {
-          Object.keys(sessionStorage).forEach((key) => {
-            if (key.startsWith("vora_")) sessionStorage.removeItem(key);
-          });
-        }}
-      />
-    </motion.div>,
   ];
 
   const lastStep = TOTAL_STEPS - 1;
@@ -453,7 +454,7 @@ const OnboardingPage = () => {
               <ChevronLeft className="w-4 h-4" />
             </Button>
           )}
-          {step < lastStep - 1 ? (
+          {step < lastStep ? (
             <Button
               onClick={() => { if (step === 1) checkUsername(); setStep(step + 1); }}
               disabled={(step === 0 && !canContinueStep0) || (step === 1 && !canContinueStep1)}
@@ -462,8 +463,8 @@ const OnboardingPage = () => {
               Continue <ChevronRight className="w-4 h-4" />
             </Button>
           ) : (
-            <Button onClick={handleSaveProfile} disabled={saving} className="flex-1 rounded-xl">
-              {saving ? "Saving…" : "Continue to Magic 5"} <ChevronRight className="w-4 h-4" />
+            <Button onClick={finalizeOnboarding} disabled={saving} className="flex-1 rounded-xl">
+              {saving ? "Saving…" : "Complete Setup ✨"}
             </Button>
           )}
         </div>
