@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { removeBackground } from "@imgly/background-removal";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -22,50 +21,6 @@ const SLOTS: SlotDef[] = [
   { label: "Bottom 2", category: "Bottoms" },
 ];
 
-const STUDIO_BG = "#E5E5E5";
-const CANVAS_SIZE = 1024;
-
-function drawOnStudioCanvas(blob: Blob): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(blob);
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = CANVAS_SIZE;
-      canvas.height = CANVAS_SIZE;
-      const ctx = canvas.getContext("2d")!;
-
-      // Fill studio backdrop
-      ctx.fillStyle = STUDIO_BG;
-      ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-
-      // Fit image centered with padding
-      const pad = 40;
-      const maxW = CANVAS_SIZE - pad * 2;
-      const maxH = CANVAS_SIZE - pad * 2;
-      const scale = Math.min(maxW / img.width, maxH / img.height);
-      const w = img.width * scale;
-      const h = img.height * scale;
-      const x = (CANVAS_SIZE - w) / 2;
-      const y = (CANVAS_SIZE - h) / 2;
-
-      ctx.drawImage(img, x, y, w, h);
-      URL.revokeObjectURL(url);
-
-      canvas.toBlob(
-        (result) => (result ? resolve(result) : reject(new Error("Canvas export failed"))),
-        "image/jpeg",
-        0.9
-      );
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("Failed to load processed image"));
-    };
-    img.src = url;
-  });
-}
-
 interface Magic5UploadProps {
   onAllUploaded: () => void;
 }
@@ -78,8 +33,7 @@ const Magic5Upload = ({ onAllUploaded }: Magic5UploadProps) => {
   const [images, setImages] = useState<(File | null)[]>(Array(5).fill(null));
   const [previews, setPreviews] = useState<(string | null)[]>(Array(5).fill(null));
   const [processing, setProcessing] = useState(false);
-  const [processingIndex, setProcessingIndex] = useState(-1);
-  const [processingTotal, setProcessingTotal] = useState(0);
+  const [progressCount, setProgressCount] = useState(0);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const allFilled = images.every(Boolean);
@@ -97,7 +51,6 @@ const Magic5Upload = ({ onAllUploaded }: Magic5UploadProps) => {
     };
     reader.readAsDataURL(file);
     setImages((imgs) => { const n = [...imgs]; n[index] = file; return n; });
-    // Reset the input so re-selecting the same file works
     e.target.value = "";
   };
 
@@ -109,76 +62,94 @@ const Magic5Upload = ({ onAllUploaded }: Magic5UploadProps) => {
   const handleProcess = useCallback(async () => {
     if (!user || !allFilled) return;
     setProcessing(true);
-    setProcessingTotal(5);
+    setProgressCount(0);
 
     try {
-      const uploadedIds: string[] = [];
+      // Process all 5 images in parallel via the cloud edge function
+      const processedResults = await Promise.all(
+        images.map(async (file, i) => {
+          try {
+            // 1. Package as raw FormData (key must be "image_file" to match edge function)
+            const formData = new FormData();
+            formData.append("image_file", file!, "garment.jpg");
 
-      // Sequential processing — one at a time to avoid OOM
-      for (let i = 0; i < 5; i++) {
-        setProcessingIndex(i);
-        const file = images[i]!;
+            // 2. Invoke the process-garment edge function
+            const { data, error } = await supabase.functions.invoke("process-garment", {
+              body: formData,
+            });
 
-        // 1. Remove background
-        const removedBlob = await removeBackground(file, {
-          output: { format: "image/png" as any },
-        });
+            if (error) throw error;
 
-        // 2. Draw onto studio canvas
-        const studioBlob = await drawOnStudioCanvas(removedBlob);
+            // The edge function returns a raw PNG blob
+            const blob = data instanceof Blob ? data : new Blob([data], { type: "image/png" });
 
-        // 3. Upload to Supabase Storage
-        const filePath = `${user.id}/onboarding_${Date.now()}_${i}.jpg`;
-        const { error: uploadErr } = await supabase.storage
-          .from("garments")
-          .upload(filePath, studioBlob, { contentType: "image/jpeg", upsert: true });
-        if (uploadErr) throw uploadErr;
+            // 3. Upload processed image to Supabase Storage
+            const filePath = `${user.id}/onboarding_${Date.now()}_${i}.png`;
+            const { error: uploadErr } = await supabase.storage
+              .from("garments")
+              .upload(filePath, blob, { contentType: "image/png", upsert: true });
+            if (uploadErr) throw uploadErr;
 
-        // 4. Get signed URL (private bucket)
-        const { data: signedData, error: signedErr } = await supabase.storage
-          .from("garments")
-          .createSignedUrl(filePath, 60 * 60 * 24 * 365);
-        if (signedErr) throw signedErr;
+            // 4. Get signed URL
+            const { data: signedData, error: signedErr } = await supabase.storage
+              .from("garments")
+              .createSignedUrl(filePath, 60 * 60 * 24 * 365);
+            if (signedErr) throw signedErr;
 
-        const imageUrl = signedData.signedUrl;
+            setProgressCount((c) => c + 1);
 
-        // 5. Insert into closet_items
-        const { data: inserted, error: insertErr } = await supabase
-          .from("closet_items")
-          .insert({
-            user_id: user.id,
-            image_url: imageUrl,
-            category: SLOTS[i].category,
-            name: SLOTS[i].label,
-          })
-          .select("id")
-          .single();
-        if (insertErr) throw insertErr;
-        uploadedIds.push(inserted.id);
+            return {
+              user_id: user.id,
+              image_url: signedData.signedUrl,
+              name: SLOTS[i].label,
+              category: SLOTS[i].category,
+            };
+          } catch (err) {
+            console.error(`Failed to process ${SLOTS[i].label}:`, err);
+            setProgressCount((c) => c + 1);
+            return null;
+          }
+        })
+      );
+
+      const successfulPayloads = processedResults.filter(Boolean);
+
+      if (successfulPayloads.length === 0) {
+        throw new Error("All items failed to process. Please try again.");
       }
 
-      // 6. Mark onboarding complete
-      setProcessingIndex(-1);
+      // Bulk insert into closet_items
+      const { error: dbError } = await supabase
+        .from("closet_items")
+        .insert(successfulPayloads as any[]);
+      if (dbError) throw dbError;
+
+      // Mark onboarding complete
       const { error: profileErr } = await supabase
         .from("profiles")
         .update({ onboarding_complete: true })
         .eq("user_id", user.id);
       if (profileErr) throw profileErr;
 
-      // 7. Invalidate caches
+      // Invalidate caches
       await queryClient.refetchQueries({ queryKey: ["profile"] });
       await queryClient.refetchQueries({ queryKey: ["profile-data"] });
       await queryClient.invalidateQueries({ queryKey: ["closet"] });
 
-      toast.success("Your Magic 5 are ready! 🎉");
+      if (successfulPayloads.length < images.length) {
+        toast.warning(`Saved ${successfulPayloads.length} of ${images.length} items. Some failed.`);
+      } else {
+        toast.success("Your Magic 5 are ready! 🎉");
+      }
+
       onAllUploaded();
       navigate("/wardrobe", { replace: true });
     } catch (err: any) {
-      console.error("Magic 5 processing error:", err);
-      toast.error(err?.message || "Something went wrong. Please try again.");
+      console.error("Batch processing error:", err);
+      toast.error(err?.message || "Failed to save wardrobe. Please try again.");
     } finally {
       setProcessing(false);
-      setProcessingIndex(-1);
+      setProgressCount(0);
     }
   }, [user, images, allFilled, navigate, queryClient, onAllUploaded]);
 
@@ -190,19 +161,16 @@ const Magic5Upload = ({ onAllUploaded }: Magic5UploadProps) => {
         </div>
         <h2 className="text-xl font-bold text-foreground font-outfit">Processing Your Wardrobe</h2>
         <p className="text-sm text-muted-foreground">
-          {processingIndex >= 0
-            ? `Removing background — item ${processingIndex + 1} of ${processingTotal}…`
-            : "Saving your profile…"}
+          Cloud AI is removing backgrounds… {progressCount} of 5 done
         </p>
         <div className="flex items-center gap-2 justify-center mt-2 p-3 rounded-xl bg-destructive/10 text-destructive text-xs font-medium">
           <ShieldAlert className="w-4 h-4 shrink-0" />
           <span>Do not close this page.</span>
         </div>
-        {/* Progress bar */}
         <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
           <div
             className="bg-primary h-2 rounded-full transition-all duration-500"
-            style={{ width: `${((processingIndex + 1) / processingTotal) * 100}%` }}
+            style={{ width: `${(progressCount / 5) * 100}%` }}
           />
         </div>
       </div>
@@ -218,14 +186,12 @@ const Magic5Upload = ({ onAllUploaded }: Magic5UploadProps) => {
         </p>
       </div>
 
-      {/* Tops */}
       <div>
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">3 Tops</p>
         <div className="grid grid-cols-3 gap-3">
           {SLOTS.slice(0, 3).map((slot, i) => (
             <SlotCard
               key={i}
-              index={i}
               label={slot.label}
               preview={previews[i]}
               onPick={() => handlePick(i)}
@@ -237,7 +203,6 @@ const Magic5Upload = ({ onAllUploaded }: Magic5UploadProps) => {
         </div>
       </div>
 
-      {/* Bottoms */}
       <div>
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">2 Bottoms</p>
         <div className="grid grid-cols-3 gap-3">
@@ -246,7 +211,6 @@ const Magic5Upload = ({ onAllUploaded }: Magic5UploadProps) => {
             return (
               <SlotCard
                 key={idx}
-                index={idx}
                 label={slot.label}
                 preview={previews[idx]}
                 onPick={() => handlePick(idx)}
@@ -266,10 +230,9 @@ const Magic5Upload = ({ onAllUploaded }: Magic5UploadProps) => {
   );
 };
 
-/* ---- Slot Card sub-component ---- */
+/* ---- Slot Card ---- */
 
 interface SlotCardProps {
-  index: number;
   label: string;
   preview: string | null;
   onPick: () => void;
