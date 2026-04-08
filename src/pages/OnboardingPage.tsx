@@ -184,8 +184,7 @@ const OnboardingPage = () => {
 
       const { error } = await supabase
         .from("profiles")
-        .update(updatePayload)
-        .eq("user_id", user.id);
+        .upsert({ ...updatePayload, user_id: user.id }, { onConflict: 'user_id' });
       if (error) throw error;
 
       // Move to Magic 5 step
