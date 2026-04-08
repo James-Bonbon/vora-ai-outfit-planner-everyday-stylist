@@ -27,8 +27,6 @@ interface Magic5UploadProps {
 
 const Magic5Upload = ({ onAllUploaded, profileData, preferences }: Magic5UploadProps) => {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
   const [images, setImages] = useState<(File | null)[]>(Array(5).fill(null));
   const [previews, setPreviews] = useState<(string | null)[]>(Array(5).fill(null));
