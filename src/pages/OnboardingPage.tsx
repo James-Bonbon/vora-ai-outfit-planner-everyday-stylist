@@ -59,7 +59,7 @@ const OnboardingPage = () => {
   const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken" | "invalid">("idle");
   const [displayName, setDisplayName] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
-  const [sex, setSex] = useState("");
+  // sex state removed — gender is collected in Step 2 (Fit Profile) only
   const [heightCm, setHeightCm] = useState("");
   const [weightKg, setWeightKg] = useState("");
 
@@ -170,7 +170,7 @@ const OnboardingPage = () => {
         username: username.trim(),
         display_name: displayName.trim() || username.trim(),
         date_of_birth: dateOfBirth || null,
-        sex: sex || null,
+        gender: profileData.gender,
         height_cm: heightCm ? Number(heightCm) : null,
         weight_kg: weightKg ? Number(weightKg) : null,
         body_shape: bodyShape || null,
@@ -322,16 +322,6 @@ const OnboardingPage = () => {
               <span>You must be at least {MIN_AGE} years old to use VORA.</span>
             </div>
           )}
-        </div>
-        <div>
-          <Label className="text-xs text-muted-foreground">Sex</Label>
-          <div className="flex gap-2 mt-1">
-            {["Female", "Male", "Other"].map((s) => (
-              <button key={s} onClick={() => setSex(s.toLowerCase())} className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${sex === s.toLowerCase() ? "bg-primary text-primary-foreground" : "bg-card text-foreground border border-border"}`}>
-                {s}
-              </button>
-            ))}
-          </div>
         </div>
         <div className="flex gap-3">
           <div className="flex-1">
