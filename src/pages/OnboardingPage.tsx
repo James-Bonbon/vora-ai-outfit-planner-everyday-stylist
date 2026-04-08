@@ -447,7 +447,7 @@ const OnboardingPage = () => {
         <AnimatePresence mode="wait">{steps[step]}</AnimatePresence>
       </div>
 
-      {step < lastStep && (
+      {step <= lastStep && (
         <div className="flex gap-3 mt-8">
           {step > 0 && (
             <Button variant="outline" onClick={() => setStep(step - 1)} className="rounded-xl">
