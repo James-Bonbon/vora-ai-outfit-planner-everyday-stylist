@@ -158,7 +158,7 @@ const Magic5Upload = ({ onAllUploaded, profileData, preferences }: Magic5UploadP
       setProcessing(false);
       setProgressCount(0);
     }
-  }, [user, images, allFilled, navigate, queryClient, onAllUploaded]);
+  }, [user, images, allFilled, onAllUploaded, profileData, preferences]);
 
   if (processing) {
     return (
