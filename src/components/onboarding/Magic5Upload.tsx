@@ -124,17 +124,17 @@ const Magic5Upload = ({ onAllUploaded, profileData, preferences }: Magic5UploadP
         if (dbError) throw dbError;
       }
 
-      // 2. CRITICAL FIX: Commit ALL profile data and finalize onboarding
+      // 2. CRITICAL FIX: Upsert profile with onConflict to handle empty rows
       const { error: profileErr } = await supabase
         .from("profiles")
-        .update({
+        .upsert({
+          user_id: user.id,
           gender: profileData.gender || 'female',
           style_preferences: preferences,
           onboarding_complete: true,
-        })
-        .eq("user_id", user.id);
+        }, { onConflict: 'user_id' });
       if (profileErr) {
-        console.error("Failed to update profile status:", profileErr);
+        console.error("Failed to upsert profile status:", profileErr);
         throw new Error("Failed to finalize onboarding.");
       }
 
