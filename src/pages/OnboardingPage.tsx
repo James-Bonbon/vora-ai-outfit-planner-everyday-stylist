@@ -421,11 +421,15 @@ const OnboardingPage = () => {
 
     // Step 4: The Magic 5 — functional upload
     <motion.div key="magic5" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} className="space-y-6">
-      <Magic5Upload onAllUploaded={() => {
-        Object.keys(sessionStorage).forEach((key) => {
-          if (key.startsWith("vora_")) sessionStorage.removeItem(key);
-        });
-      }} />
+      <Magic5Upload
+        profileData={profileData}
+        preferences={preferences}
+        onAllUploaded={() => {
+          Object.keys(sessionStorage).forEach((key) => {
+            if (key.startsWith("vora_")) sessionStorage.removeItem(key);
+          });
+        }}
+      />
     </motion.div>,
   ];
 

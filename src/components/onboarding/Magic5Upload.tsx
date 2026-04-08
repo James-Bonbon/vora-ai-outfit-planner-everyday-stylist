@@ -27,7 +27,7 @@ interface Magic5UploadProps {
   preferences: { vibe: string[]; fit: string; colors: string };
 }
 
-const Magic5Upload = ({ onAllUploaded }: Magic5UploadProps) => {
+const Magic5Upload = ({ onAllUploaded, profileData, preferences }: Magic5UploadProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -120,32 +120,41 @@ const Magic5Upload = ({ onAllUploaded }: Magic5UploadProps) => {
         throw new Error("All items failed to process. Please try again.");
       }
 
-      // Bulk insert into closet_items
-      const { error: dbError } = await supabase
-        .from("closet_items")
-        .insert(successfulPayloads as any[]);
-      if (dbError) throw dbError;
+      // 1. Insert the garments (if any were successfully processed)
+      if (successfulPayloads.length > 0) {
+        const { error: dbError } = await supabase
+          .from("closet_items")
+          .insert(successfulPayloads as any[]);
+        if (dbError) throw dbError;
+      }
 
-      // Mark onboarding complete
+      // 2. CRITICAL FIX: Commit ALL profile data and finalize onboarding
       const { error: profileErr } = await supabase
         .from("profiles")
-        .update({ onboarding_complete: true })
+        .update({
+          gender: profileData.gender || 'female',
+          style_preferences: preferences,
+          onboarding_complete: true,
+        })
         .eq("user_id", user.id);
-      if (profileErr) throw profileErr;
+      if (profileErr) {
+        console.error("Failed to update profile status:", profileErr);
+        throw new Error("Failed to finalize onboarding.");
+      }
 
-      // Invalidate caches
-      await queryClient.refetchQueries({ queryKey: ["profile"] });
-      await queryClient.refetchQueries({ queryKey: ["profile-data"] });
-      await queryClient.invalidateQueries({ queryKey: ["closet"] });
-
-      if (successfulPayloads.length < images.length) {
-        toast.warning(`Saved ${successfulPayloads.length} of ${images.length} items. Some failed.`);
+      // 3. UI Feedback
+      if (successfulPayloads.length > 0 && successfulPayloads.length < images.length) {
+        toast.warning(`Saved ${successfulPayloads.length} items. Some failed to process.`);
       } else {
-        toast.success("Your Magic 5 are ready! 🎉");
+        toast.success("Magic 5 complete! Welcome to VORA.", { duration: 3000 });
       }
 
       onAllUploaded();
-      navigate("/wardrobe", { replace: true });
+
+      // 4. Cache-clearing redirect with delay so toast is readable
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 1500);
     } catch (err: any) {
       console.error("Batch processing error:", err);
       toast.error(err?.message || "Failed to save wardrobe. Please try again.");
