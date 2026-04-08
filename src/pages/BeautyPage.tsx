@@ -222,7 +222,7 @@ const BeautyPage = () => {
     setBuildingRoutine(true);
     setRoutineOpen(true);
     try {
-      const { data: profile } = await supabase.from("profiles").select("sex").eq("user_id", user!.id).maybeSingle();
+      const { data: profile } = await supabase.from("profiles").select("gender").eq("user_id", user!.id).maybeSingle();
 
       const { data, error } = await supabase.functions.invoke("build-routine", {
         body: {
