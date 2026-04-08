@@ -43,7 +43,7 @@ const ProfilePage = () => {
   const { data: profileData, isLoading } = useQuery({
     queryKey: ['profile', user?.id],
     enabled: !!user,
-    staleTime: 1000 * 60 * 30,
+    staleTime: 1000 * 60 * 2,
     queryFn: async () => {
       const [profileRes, roleRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("user_id", user!.id).single(),
@@ -137,7 +137,7 @@ const ProfilePage = () => {
   const startEditing = () => {
     setEditName(profile?.display_name || "");
     setEditDob(profile?.date_of_birth || "");
-    setEditSex(profile?.sex || "");
+    setEditSex(profile?.gender || "");
     setEditHeight(profile?.height_cm?.toString() || "");
     setEditWeight(profile?.weight_kg?.toString() || "");
     setEditBodyShape(profile?.body_shape || "");
@@ -217,7 +217,7 @@ const ProfilePage = () => {
       const updatePayload: Record<string, any> = {
           display_name: editName.trim(),
           date_of_birth: editDob || null,
-          sex: editSex || null,
+          gender: editSex || null,
           height_cm: editHeight ? Number(editHeight) : null,
           weight_kg: editWeight ? Number(editWeight) : null,
           selfie_url: selfiePublicUrl,
