@@ -116,12 +116,15 @@ serve(async (req) => {
       }
     }
 
-    // Map style vibe to a scene preset
+    // Map the user's style vibe (string or array) to a Photoroom scene preset
     let scenePreset = "studio";
-    const vibe = (styleVibe || "").toLowerCase();
-    if (vibe.includes("street")) scenePreset = "street";
-    else if (vibe.includes("casual")) scenePreset = "cafe";
-    else if (vibe.includes("minimalist")) scenePreset = "concretestudio";
+    const vibeData = styleVibe;
+    const vibeArray = Array.isArray(vibeData) ? vibeData : [vibeData || "Casual"];
+    const vibeString = vibeArray.join(" ").toLowerCase();
+
+    if (vibeString.includes("street") || vibeString.includes("athleisure")) scenePreset = "street";
+    else if (vibeString.includes("casual") || vibeString.includes("bohemian")) scenePreset = "cafe";
+    else if (vibeString.includes("minimalist") || vibeString.includes("preppy")) scenePreset = "concretestudio";
     formData.append("virtualModel.scene.preset.name", scenePreset);
 
     const response = await fetch("https://image-api.photoroom.com/v2/edit", {
