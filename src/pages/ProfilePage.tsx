@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import SafeImage from "@/components/ui/SafeImage";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import GlassCard from "@/components/GlassCard";
@@ -39,23 +39,17 @@ const ProfilePage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (user) {
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
-    }
-  }, [user, queryClient]);
-
   const { data: profileData, isLoading } = useQuery({
     queryKey: ['profile', user?.id],
     enabled: !!user,
-    staleTime: 0,
-    refetchOnMount: "always",
+    staleTime: 1000 * 60 * 2,
     queryFn: async () => {
       const [profileRes, roleRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("user_id", user!.id).single(),
         supabase.from("user_roles").select("role").eq("user_id", user!.id).eq("role", "admin").maybeSingle(),
       ]);
 
+      // Backward compatibility: expand legacy relative paths to full public URLs
       let finalSelfieUrl = profileRes.data?.selfie_url || null;
       if (finalSelfieUrl && !finalSelfieUrl.startsWith("http")) {
         finalSelfieUrl = supabase.storage.from("selfies").getPublicUrl(finalSelfieUrl).data.publicUrl;
