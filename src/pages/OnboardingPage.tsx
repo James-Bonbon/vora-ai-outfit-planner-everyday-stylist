@@ -6,16 +6,20 @@ import { Camera, ChevronRight, ChevronLeft, AlertTriangle, LogOut, Check, X, Loa
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import GlassCard from "@/components/GlassCard";
 import Magic5Upload from "@/components/onboarding/Magic5Upload";
+import Cropper from "react-easy-crop";
+import { getCroppedImg } from "@/utils/cropImage";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
-import { getBodyShapes } from "@/constants/bodyShapes";
+const FEMALE_SHAPES = ["Hourglass", "Pear", "Apple", "Rectangle", "Inverted Triangle"];
+const MALE_SHAPES = ["Trapezoid", "Inverted Triangle", "Rectangle", "Triangle", "Oval"];
 
-const VIBES = ["Casual", "Streetwear", "Smart Casual", "Minimalist"];
+const VIBES = ["Casual", "Streetwear", "Smart Casual", "Minimalist", "Vintage", "Athleisure", "Bohemian", "Preppy"];
 const TOTAL_STEPS = 5;
 
 const MIN_AGE = 13;
@@ -37,7 +41,16 @@ const OnboardingPage = () => {
   const queryClient = useQueryClient();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
-  const [preferences, setPreferences] = useState({ vibe: "Casual", fit: "Fitted", colors: "Neutral" });
+  const [preferences, setPreferences] = useState<{ vibe: string[]; fit: string; colors: string }>({ vibe: [], fit: "Fitted", colors: "Neutral" });
+
+  const [profileData, setProfileData] = useState({ username: "", gender: "female" });
+
+  // Cropper state
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
+  const [isSkippingAvatar, setIsSkippingAvatar] = useState(false);
 
   const [selfieFile, setSelfieFile] = useState<File | null>(null);
   const [selfiePreview, setSelfiePreview] = useState<string | null>(null);
@@ -78,11 +91,49 @@ const OnboardingPage = () => {
   const handleSelfieChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setSelfieFile(file);
       const reader = new FileReader();
-      reader.onload = (ev) => setSelfiePreview(ev.target?.result as string);
+      reader.onload = (ev) => {
+        setImageSrc(ev.target?.result as string);
+        setIsSkippingAvatar(false);
+      };
       reader.readAsDataURL(file);
     }
+  };
+
+  const onCropComplete = useCallback((_croppedArea: any, croppedAreaPixels: any) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
+
+  const handleSkipAvatar = () => {
+    setIsSkippingAvatar(true);
+    setImageSrc(null);
+    setSelfieFile(null);
+    setSelfiePreview(null);
+    setStep(1);
+  };
+
+  const handleConfirmCrop = async () => {
+    if (!imageSrc || !croppedAreaPixels) return;
+    try {
+      const croppedFile = await getCroppedImg(imageSrc, croppedAreaPixels, "selfie_crop.jpg");
+      setSelfieFile(croppedFile);
+      setSelfiePreview(URL.createObjectURL(croppedFile));
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to crop image. Please try again.");
+    }
+  };
+
+  const toggleVibe = (v: string) => {
+    setPreferences(prev => {
+      const isSelected = prev.vibe.includes(v);
+      if (isSelected) return { ...prev, vibe: prev.vibe.filter(i => i !== v) };
+      if (prev.vibe.length >= 3) {
+        toast.error("You can select up to 3 vibes.");
+        return prev;
+      }
+      return { ...prev, vibe: [...prev.vibe, v] };
+    });
   };
 
   // Save profile data (steps 0-3) WITHOUT setting onboarding_complete
@@ -91,7 +142,7 @@ const OnboardingPage = () => {
     if (isUnderage) { toast.error(`You must be at least ${MIN_AGE} years old to use VORA.`); return; }
     if (!username.trim() || !USERNAME_REGEX.test(username)) { toast.error("Please enter a valid username."); return; }
     if (usernameStatus === "taken") { toast.error("That username is already taken."); return; }
-    if (!selfieFile && !selfiePreview) { toast.error("Please upload a reference photo to continue."); return; }
+    if (!isSkippingAvatar && !selfieFile && !selfiePreview) { toast.error("Please upload a reference photo or skip."); return; }
 
     setSaving(true);
     try {
@@ -104,7 +155,7 @@ const OnboardingPage = () => {
       if (existing) { toast.error("That username was just taken. Please choose another."); setSaving(false); setUsernameStatus("taken"); return; }
 
       let selfiePath: string | null = null;
-      if (selfieFile) {
+      if (!isSkippingAvatar && selfieFile) {
         const fileExt = selfieFile.name.split(".").pop();
         const filePath = `${user.id}/selfie_${Date.now()}.${fileExt}`;
         const { error: uploadError } = await supabase.storage
@@ -115,19 +166,25 @@ const OnboardingPage = () => {
         selfiePath = publicUrlData.publicUrl;
       }
 
+      const updatePayload: Record<string, any> = {
+        username: username.trim(),
+        display_name: displayName.trim() || username.trim(),
+        date_of_birth: dateOfBirth || null,
+        sex: sex || null,
+        height_cm: heightCm ? Number(heightCm) : null,
+        weight_kg: weightKg ? Number(weightKg) : null,
+        body_shape: bodyShape || null,
+        style_preferences: preferences,
+      };
+
+      // Only update selfie_url if we have one
+      if (selfiePath) {
+        updatePayload.selfie_url = selfiePath;
+      }
+
       const { error } = await supabase
         .from("profiles")
-        .update({
-          username: username.trim(),
-          display_name: displayName.trim() || username.trim(),
-          date_of_birth: dateOfBirth || null,
-          sex: sex || null,
-          height_cm: heightCm ? Number(heightCm) : null,
-          weight_kg: weightKg ? Number(weightKg) : null,
-          body_shape: bodyShape || null,
-          selfie_url: selfiePath,
-          style_preferences: preferences,
-        })
+        .update(updatePayload)
         .eq("user_id", user.id);
       if (error) throw error;
 
@@ -141,8 +198,10 @@ const OnboardingPage = () => {
     }
   };
 
-  const canContinueStep0 = !!selfiePreview;
+  const canContinueStep0 = !!selfiePreview || isSkippingAvatar;
   const canContinueStep1 = username.trim().length >= 3 && usernameStatus !== "taken" && usernameStatus !== "invalid" && !isUnderage;
+
+  const bodyShapes = profileData.gender === "male" ? MALE_SHAPES : FEMALE_SHAPES;
 
   const usernameHint = () => {
     switch (usernameStatus) {
@@ -155,31 +214,76 @@ const OnboardingPage = () => {
   };
 
   const steps = [
-    // Step 0: Selfie (required)
+    // Step 0: Selfie with Cropper
     <motion.div key="selfie" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} className="space-y-6">
       <div className="text-center">
         <h2 className="text-xl font-bold text-foreground font-outfit">Your Reference Photo</h2>
         <p className="text-sm text-muted-foreground mt-1">Upload a clear, front-facing photo for the AI Stylist</p>
       </div>
-      <GlassCard className="flex flex-col items-center justify-center p-8 min-h-[260px]">
-        {selfiePreview ? (
-          <div className="relative">
-            <img src={selfiePreview} alt="Selfie preview" className="w-40 h-40 rounded-full object-cover border-4 border-primary/20" />
-            <label className="absolute bottom-0 right-0 w-10 h-10 bg-primary rounded-full flex items-center justify-center cursor-pointer shadow-lg">
-              <Camera className="w-5 h-5 text-primary-foreground" />
+
+      {imageSrc && !selfiePreview ? (
+        // Cropper mode
+        <div className="space-y-4">
+          <div className="relative w-full h-72 bg-muted rounded-xl overflow-hidden">
+            <Cropper
+              image={imageSrc}
+              crop={crop}
+              zoom={zoom}
+              aspect={1}
+              cropShape="round"
+              showGrid={false}
+              onCropChange={setCrop}
+              onZoomChange={setZoom}
+              onCropComplete={onCropComplete}
+            />
+          </div>
+          <div className="px-4">
+            <Slider min={1} max={3} step={0.1} value={[zoom]} onValueChange={(val) => setZoom(val[0])} />
+          </div>
+          <div className="flex gap-3">
+            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setImageSrc(null); }}>
+              Cancel
+            </Button>
+            <Button className="flex-1 rounded-xl" onClick={handleConfirmCrop}>
+              Confirm Crop
+            </Button>
+          </div>
+        </div>
+      ) : (
+        // Upload / Preview mode
+        <GlassCard className="flex flex-col items-center justify-center p-8 min-h-[260px]">
+          {selfiePreview ? (
+            <div className="relative">
+              <img src={selfiePreview} alt="Selfie preview" className="w-40 h-40 rounded-full object-cover border-4 border-primary/20" />
+              <label className="absolute bottom-0 right-0 w-10 h-10 bg-primary rounded-full flex items-center justify-center cursor-pointer shadow-lg">
+                <Camera className="w-5 h-5 text-primary-foreground" />
+                <input type="file" accept="image/*" className="hidden" onChange={handleSelfieChange} />
+              </label>
+            </div>
+          ) : (
+            <label className="flex flex-col items-center gap-3 cursor-pointer">
+              <div className="w-28 h-28 rounded-full bg-secondary flex items-center justify-center">
+                <Camera className="w-10 h-10 text-muted-foreground" />
+              </div>
+              <span className="text-sm font-medium text-primary">Tap to upload</span>
               <input type="file" accept="image/*" className="hidden" onChange={handleSelfieChange} />
             </label>
-          </div>
-        ) : (
-          <label className="flex flex-col items-center gap-3 cursor-pointer">
-            <div className="w-28 h-28 rounded-full bg-secondary flex items-center justify-center">
-              <Camera className="w-10 h-10 text-muted-foreground" />
-            </div>
-            <span className="text-sm font-medium text-primary">Tap to upload</span>
-            <input type="file" accept="image/*" className="hidden" onChange={handleSelfieChange} />
-          </label>
-        )}
-      </GlassCard>
+          )}
+        </GlassCard>
+      )}
+
+      {!imageSrc && !selfiePreview && (
+        <button
+          onClick={handleSkipAvatar}
+          className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
+        >
+          Skip for now (Use VORA Model)
+        </button>
+      )}
+
+      {isSkippingAvatar && (
+        <p className="text-center text-xs text-muted-foreground italic">Using default VORA model — you can add your photo later in Settings.</p>
+      )}
     </motion.div>,
 
     // Step 1: Username + Fit Profile
@@ -242,17 +346,46 @@ const OnboardingPage = () => {
       </div>
     </motion.div>,
 
-    // Step 2: Body Shape
+    // Step 2: Gender Toggle + Body Shape
     <motion.div key="shape" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} className="space-y-6">
       <div className="text-center">
         <h2 className="text-xl font-bold text-foreground font-outfit">Fit Profile</h2>
-        <p className="text-sm text-muted-foreground mt-1">Select the closest body shape</p>
+        <p className="text-sm text-muted-foreground mt-1">Select your gender and closest body shape</p>
       </div>
+
+      {/* Gender Toggle */}
+      <div>
+        <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wider">Gender</p>
+        <div className="flex gap-2">
+          {["female", "male"].map((g) => (
+            <button
+              key={g}
+              onClick={() => { setProfileData(prev => ({ ...prev, gender: g })); setBodyShape(""); }}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                profileData.gender === g ? "bg-primary text-primary-foreground" : "bg-card text-foreground border border-border"
+              }`}
+            >
+              {g.charAt(0).toUpperCase() + g.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Body Shapes - vertical column */}
       <div>
         <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wider">Body Shape</p>
-        <div className="flex gap-3">
-          {getBodyShapes(sex).map((shape) => (
-            <button key={shape} type="button" onClick={() => setBodyShape(shape)} className={`flex-1 py-3 rounded-xl text-sm font-medium transition-colors ${bodyShape === shape ? "bg-primary text-primary-foreground" : "bg-card text-foreground border border-border hover:border-primary/50"}`}>
+        <div className="flex flex-col gap-3">
+          {bodyShapes.map((shape) => (
+            <button
+              key={shape}
+              type="button"
+              onClick={() => setBodyShape(shape)}
+              className={`w-full py-3 px-4 rounded-xl text-sm font-medium text-left transition-colors ${
+                bodyShape === shape
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-card text-foreground border border-border hover:border-primary/50"
+              }`}
+            >
               {shape}
             </button>
           ))}
@@ -260,32 +393,39 @@ const OnboardingPage = () => {
       </div>
     </motion.div>,
 
-    // Step 3: Style Vibe Quiz
+    // Step 3: Style Vibe Quiz (multi-select, max 3)
     <motion.div key="vibe" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} className="space-y-6">
       <div className="text-center">
         <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
           <Sparkles className="w-7 h-7 text-primary" />
         </div>
         <h2 className="text-xl font-bold text-foreground font-outfit">What's Your Vibe?</h2>
-        <p className="text-sm text-muted-foreground mt-1">This helps your AI Stylist pull the right looks.</p>
+        <p className="text-sm text-muted-foreground mt-1">Pick up to 3 styles for your AI Stylist.</p>
       </div>
       <div className="space-y-3">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Everyday Style</p>
         <div className="grid grid-cols-2 gap-2">
-          {VIBES.map((v) => (
-            <button
-              key={v}
-              onClick={() => setPreferences({ ...preferences, vibe: v })}
-              className={`py-3 rounded-xl text-sm font-medium transition-colors ${
-                preferences.vibe === v
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-card text-foreground border border-border hover:border-primary/50"
-              }`}
-            >
-              {v}
-            </button>
-          ))}
+          {VIBES.map((v) => {
+            const isActive = preferences.vibe.includes(v);
+            return (
+              <button
+                key={v}
+                onClick={() => toggleVibe(v)}
+                className={`py-3 rounded-xl text-sm font-medium transition-all ${
+                  isActive
+                    ? "bg-primary text-primary-foreground ring-2 ring-primary/30"
+                    : "bg-card text-foreground border border-border hover:border-primary/50"
+                }`}
+              >
+                {isActive && <Check className="w-3.5 h-3.5 inline mr-1.5" />}
+                {v}
+              </button>
+            );
+          })}
         </div>
+        {preferences.vibe.length > 0 && (
+          <p className="text-xs text-muted-foreground text-center">{preferences.vibe.length}/3 selected</p>
+        )}
       </div>
     </motion.div>,
 
