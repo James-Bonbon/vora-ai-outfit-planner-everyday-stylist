@@ -474,6 +474,7 @@ export type Database = {
           created_at: string
           date_of_birth: string | null
           display_name: string | null
+          gender: string | null
           generations_used: number
           height_cm: number | null
           id: string
@@ -497,6 +498,7 @@ export type Database = {
           created_at?: string
           date_of_birth?: string | null
           display_name?: string | null
+          gender?: string | null
           generations_used?: number
           height_cm?: number | null
           id?: string
@@ -520,6 +522,7 @@ export type Database = {
           created_at?: string
           date_of_birth?: string | null
           display_name?: string | null
+          gender?: string | null
           generations_used?: number
           height_cm?: number | null
           id?: string
