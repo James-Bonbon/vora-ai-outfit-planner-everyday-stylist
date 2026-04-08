@@ -24,7 +24,6 @@ interface ProfileData {
   avatar_url: string | null;
   selfie_url: string | null;
   date_of_birth: string | null;
-  sex: string | null;
   gender: string | null;
   height_cm: number | null;
   weight_kg: number | null;
@@ -43,7 +42,7 @@ const ProfilePage = () => {
   const { data: profileData, isLoading } = useQuery({
     queryKey: ['profile', user?.id],
     enabled: !!user,
-    staleTime: 1000 * 60 * 30,
+    staleTime: 1000 * 60 * 2,
     queryFn: async () => {
       const [profileRes, roleRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("user_id", user!.id).single(),
@@ -137,7 +136,7 @@ const ProfilePage = () => {
   const startEditing = () => {
     setEditName(profile?.display_name || "");
     setEditDob(profile?.date_of_birth || "");
-    setEditSex(profile?.sex || "");
+    setEditSex(profile?.gender || "");
     setEditHeight(profile?.height_cm?.toString() || "");
     setEditWeight(profile?.weight_kg?.toString() || "");
     setEditBodyShape(profile?.body_shape || "");
@@ -217,7 +216,7 @@ const ProfilePage = () => {
       const updatePayload: Record<string, any> = {
           display_name: editName.trim(),
           date_of_birth: editDob || null,
-          sex: editSex || null,
+          gender: editSex || null,
           height_cm: editHeight ? Number(editHeight) : null,
           weight_kg: editWeight ? Number(editWeight) : null,
           selfie_url: selfiePublicUrl,
@@ -431,7 +430,7 @@ const ProfilePage = () => {
               <Users className="w-4 h-4 text-muted-foreground" />
               <div>
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Gender</p>
-                <p className="text-sm font-medium text-foreground capitalize">{profile?.gender || profile?.sex || "—"}</p>
+                <p className="text-sm font-medium text-foreground capitalize">{profile?.gender || "—"}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">

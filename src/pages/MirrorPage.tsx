@@ -87,7 +87,7 @@ const MirrorPage = () => {
 
   const voraModelUrl = supabase.storage
     .from('assets')
-    .getPublicUrl(profileData?.sex?.toLowerCase() === 'male' ? 'nickson.png' : 'kaelie.png')
+    .getPublicUrl(profileData?.gender?.toLowerCase() === 'male' ? 'nickson.png' : 'kaelie.png')
     .data.publicUrl;
 
   const activeImageUrl = useVoraModel ? voraModelUrl : selfieUrl;

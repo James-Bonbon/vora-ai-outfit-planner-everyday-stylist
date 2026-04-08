@@ -297,9 +297,9 @@ const HomePage = () => {
       const [{ count: w }, { count: b }, { data: p }] = await Promise.all([
         supabase.from("closet_items").select("id", { count: "exact", head: true }).eq("user_id", user!.id),
         supabase.from("beauty_products").select("id", { count: "exact", head: true }).eq("user_id", user!.id),
-        supabase.from("profiles").select("sex").eq("user_id", user!.id).maybeSingle(),
+        supabase.from("profiles").select("gender").eq("user_id", user!.id).maybeSingle(),
       ]);
-      return { closetCount: w || 0, beautyCount: b || 0, userSex: p?.sex || null };
+      return { closetCount: w || 0, beautyCount: b || 0, userSex: p?.gender || null };
     }
   });
 
