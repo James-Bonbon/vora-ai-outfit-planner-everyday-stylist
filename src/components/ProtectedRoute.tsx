@@ -34,7 +34,7 @@ const ProtectedRoute = ({
       .maybeSingle()
       .then(({ data, error }) => {
         if (error) console.error("Error fetching profile:", error);
-        const complete = data?.onboarding_complete === true && !!data?.username && !!data?.selfie_url;
+        const complete = data?.onboarding_complete === true && !!data?.username;
         setOnboardingComplete(complete);
         setOnboardingChecked(true);
       }, (err) => {
