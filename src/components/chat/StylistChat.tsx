@@ -119,7 +119,7 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
           userContext: {
             name: profile?.display_name,
             bodyShape: profile?.body_shape,
-            sex: profile?.sex,
+            sex: profile?.gender,
             height: profile?.height_cm,
             weight: profile?.weight_kg,
           },

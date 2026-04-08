@@ -48,7 +48,7 @@ export function useProfileData() {
       if (!user) return null;
       const { data, error } = await supabase
         .from("profiles")
-        .select("body_shape, sex, display_name, height_cm, weight_kg")
+        .select("body_shape, gender, display_name, height_cm, weight_kg")
         .eq("user_id", user.id)
         .maybeSingle();
       if (error) throw error;
