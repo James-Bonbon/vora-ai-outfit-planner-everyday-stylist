@@ -480,7 +480,6 @@ export type Database = {
           id: string
           onboarding_complete: boolean
           selfie_url: string | null
-          sex: string | null
           style_preferences: Json | null
           subscription_tier: string
           updated_at: string
@@ -504,7 +503,6 @@ export type Database = {
           id?: string
           onboarding_complete?: boolean
           selfie_url?: string | null
-          sex?: string | null
           style_preferences?: Json | null
           subscription_tier?: string
           updated_at?: string
@@ -528,7 +526,6 @@ export type Database = {
           id?: string
           onboarding_complete?: boolean
           selfie_url?: string | null
-          sex?: string | null
           style_preferences?: Json | null
           subscription_tier?: string
           updated_at?: string
