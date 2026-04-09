@@ -95,7 +95,7 @@ const privacyItems = [
     id: "third-party",
     title: "6. Third-Party Services",
     content:
-      "VORA uses the following third-party services: Google OAuth (authentication), Stripe (payment processing), Google Gemini AI (image and text processing), Fal.ai (Virtual Try-On processing), Kling AI (Video Catwalk generation), and Supabase (database and storage). Each service has its own privacy policy. We share only the minimum data necessary for each service to function.",
+      "VORA uses the following third-party services: Google OAuth (authentication), Stripe (payment processing), Google Gemini AI (image and text processing), Fal.ai (Virtual Try-On processing), Photoroom (Image processing and background removal), Kling AI (Video Catwalk generation), and Supabase (database and storage). Each service has its own privacy policy. We share only the minimum data necessary for each service to function.",
   },
   {
     id: "your-rights",
