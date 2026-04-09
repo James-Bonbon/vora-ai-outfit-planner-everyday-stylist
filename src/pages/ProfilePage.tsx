@@ -48,7 +48,7 @@ const ProfilePage = () => {
       // 1. Fetch exactly the columns we need to avoid select("*") schema traps
       const { data: pData, error: pError } = await supabase
         .from("profiles")
-        .select("id, user_id, display_name, username, selfie_url, date_of_birth, gender, height_cm, weight_kg, body_shape, subscription_tier, app_theme")
+        .select("id, user_id, display_name, username, avatar_url, selfie_url, date_of_birth, gender, height_cm, weight_kg, body_shape, subscription_tier, app_theme")
         .eq("user_id", user!.id)
         .maybeSingle();
 
