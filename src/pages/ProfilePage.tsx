@@ -16,8 +16,6 @@ import { BODY_SHAPES, toDbValue, toDisplayLabel } from "@/constants/bodyShapes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AvatarCropperModal } from "@/components/AvatarCropperModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from "@/components/ui/alert-dialog";
-import { clearUrlCache } from "@/utils/urlCache";
 
 interface ProfileData {
   display_name: string | null;
