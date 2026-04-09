@@ -42,24 +42,36 @@ const ProfilePage = () => {
   const { data: profileData, isLoading } = useQuery({
     queryKey: ['profile', user?.id],
     enabled: !!user,
-    staleTime: 1000 * 60 * 2,
+    staleTime: 0,
+    refetchOnMount: "always",
     queryFn: async () => {
-      const [profileRes, roleRes] = await Promise.all([
-        supabase.from("profiles").select("*").eq("user_id", user!.id).single(),
-        supabase.from("user_roles").select("role").eq("user_id", user!.id).eq("role", "admin").maybeSingle(),
-      ]);
+      const { data: pData, error: pError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", user!.id)
+        .maybeSingle();
 
-      // Backward compatibility: expand legacy relative paths to full public URLs
-      let finalSelfieUrl = profileRes.data?.selfie_url || null;
-      if (finalSelfieUrl && !finalSelfieUrl.startsWith("http")) {
-        finalSelfieUrl = supabase.storage.from("selfies").getPublicUrl(finalSelfieUrl).data.publicUrl;
+      if (pError) {
+        console.error("FATAL: Profile Fetch Error:", pError);
+        throw pError;
       }
 
-      const profileWithResolvedUrl = { ...profileRes.data, selfie_url: finalSelfieUrl } as ProfileData;
+      const { data: rData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user!.id)
+        .eq("role", "admin")
+        .maybeSingle();
+
+      let finalSelfieUrl = pData?.selfie_url || null;
+      if (finalSelfieUrl && !finalSelfieUrl.startsWith("http")) {
+        const { data } = supabase.storage.from("selfies").getPublicUrl(finalSelfieUrl);
+        finalSelfieUrl = data?.publicUrl || finalSelfieUrl;
+      }
 
       return {
-        profile: profileWithResolvedUrl,
-        isAdmin: !!roleRes.data,
+        profile: { ...pData, selfie_url: finalSelfieUrl } as ProfileData,
+        isAdmin: !!rData,
       };
     }
   });
