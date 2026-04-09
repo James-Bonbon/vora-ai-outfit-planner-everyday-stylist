@@ -384,10 +384,18 @@ const MirrorPage = () => {
     }
   };
 
-  // Empty state
-  const isClosetLoading = !closetData && !items.length;
+  // Empty state — default to locked until data resolves
+  const isClosetLoading = !closetData;
 
-  if (!isClosetLoading && !hasItems && tab === "tryon") {
+  if (isClosetLoading) {
+    return (
+      <div className="pt-6 flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!hasItems && tab === "tryon") {
     return (
       <div className="pt-6 space-y-5">
         <div className="flex items-center justify-between h-10">

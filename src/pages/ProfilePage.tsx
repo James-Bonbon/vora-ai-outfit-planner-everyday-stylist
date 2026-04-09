@@ -2,7 +2,7 @@ import { useState } from "react";
 import SafeImage from "@/components/ui/SafeImage";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import GlassCard from "@/components/GlassCard";
-import { User, AtSign, Settings, Crown, LogOut, Pencil, X, Check, Ruler, Weight, Calendar, Users, Camera, Database, Loader2, Lock, Palette, ChevronLeft, MessageSquare, Trash2, CalendarDays } from "lucide-react";
+import { User, AtSign, Settings, Crown, LogOut, Pencil, X, Check, Ruler, Weight, Calendar, Users, Camera, Database, Loader2, Lock, Palette, ChevronLeft, MessageSquare, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,8 +16,6 @@ import { BODY_SHAPES, toDbValue, toDisplayLabel } from "@/constants/bodyShapes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AvatarCropperModal } from "@/components/AvatarCropperModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from "@/components/ui/alert-dialog";
-import { clearUrlCache } from "@/utils/urlCache";
 
 interface ProfileData {
   display_name: string | null;
@@ -103,11 +101,6 @@ const ProfilePage = () => {
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Delete account state
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState("");
-  const [isDeleting, setIsDeleting] = useState(false);
-
   const handleSubmitFeedback = async () => {
     if (!user || !feedbackMessage.trim()) {
       toast.error("Please enter a message.");
@@ -129,23 +122,6 @@ const ProfilePage = () => {
       toast.error("Failed to send feedback.");
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleDeleteAccount = async () => {
-    if (!user || deleteConfirmText !== "DELETE") return;
-    setIsDeleting(true);
-    try {
-      const { error } = await supabase.functions.invoke("delete-user-account");
-      if (error) throw error;
-      clearUrlCache();
-      await supabase.auth.signOut();
-      toast.success("Your account has been successfully deleted.");
-      navigate("/", { replace: true });
-    } catch {
-      toast.error("Failed to delete account. Please try again.");
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -611,14 +587,6 @@ const ProfilePage = () => {
         </GlassCard>
       </div>
 
-      {/* Danger Zone */}
-      <div className="space-y-2 pb-4">
-        <p className="text-[10px] uppercase tracking-widest text-muted-foreground px-1 font-medium">Danger Zone</p>
-        <GlassCard className="flex items-center gap-3 p-4 cursor-pointer" onClick={() => setDeleteDialogOpen(true)}>
-          <Trash2 className="w-5 h-5 text-destructive/70" />
-          <span className="text-sm font-medium text-destructive/70">Delete Account</span>
-        </GlassCard>
-      </div>
 
       {/* Feedback Modal */}
       <Dialog open={feedbackOpen} onOpenChange={setFeedbackOpen}>
@@ -665,37 +633,6 @@ const ProfilePage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Account Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="rounded-2xl max-w-[360px]">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Your Account</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action is <strong>permanent and irreversible</strong>. All your wardrobe items, looks, outfits, and personal data will be permanently erased.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Type <strong>DELETE</strong> to confirm</Label>
-            <Input
-              value={deleteConfirmText}
-              onChange={(e) => setDeleteConfirmText(e.target.value)}
-              placeholder="DELETE"
-              className="rounded-xl bg-card"
-            />
-          </div>
-          <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
-            <Button
-              variant="destructive"
-              onClick={handleDeleteAccount}
-              disabled={deleteConfirmText !== "DELETE" || isDeleting}
-              className="w-full rounded-xl"
-            >
-              {isDeleting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Deleting...</> : "Permanently Delete Account"}
-            </Button>
-            <AlertDialogCancel className="w-full rounded-xl mt-0">Cancel</AlertDialogCancel>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {rawImageSrc && (
         <AvatarCropperModal
