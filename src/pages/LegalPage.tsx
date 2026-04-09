@@ -127,16 +127,16 @@ const LegalPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background px-4 pt-safe pb-10">
-      <div className="max-w-lg mx-auto pt-4">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+    <div className="min-h-screen bg-background px-4 pt-safe pb-10 print:p-0 print:bg-white print:overflow-visible print:h-auto">
+      <div className="max-w-lg mx-auto pt-4 print:max-w-none print:pt-0 print:overflow-visible print:h-auto">
+        {/* Header — hidden in print */}
+        <div className="flex items-center justify-between mb-6 print:hidden">
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
               size="icon"
               className="rounded-xl min-w-[44px] min-h-[44px]"
-              onClick={() => navigate("/")}
+              onClick={() => navigate(-1)}
             >
               <ArrowLeft className="w-5 h-5" />
             </Button>
@@ -154,7 +154,7 @@ const LegalPage = () => {
         </div>
 
         <Tabs defaultValue={defaultTab} className="w-full">
-          <TabsList className="w-full bg-secondary rounded-xl h-11">
+          <TabsList className="w-full bg-secondary rounded-xl h-11 print:hidden">
             <TabsTrigger
               value="terms"
               className="flex-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-sm font-medium"
@@ -169,7 +169,7 @@ const LegalPage = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="terms" className="mt-5">
+          <TabsContent value="terms" className="mt-5 print:block print:overflow-visible print:h-auto print:text-black">
             <p className="text-xs text-muted-foreground mb-4">
               Last updated: February 15, 2026
             </p>
@@ -197,7 +197,7 @@ const LegalPage = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="privacy" className="mt-5">
+          <TabsContent value="privacy" className="mt-5 print:block print:overflow-visible print:h-auto print:text-black">
             <p className="text-xs text-muted-foreground mb-4">
               Last updated: February 15, 2026
             </p>
