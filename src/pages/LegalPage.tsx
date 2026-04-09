@@ -127,7 +127,7 @@ const LegalPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background px-4 pt-safe pb-10 print:p-0 print:bg-white print:overflow-visible print:h-auto">
+    <div className="min-h-screen bg-background px-4 pt-safe pb-10 print:min-h-0 print:p-0 print:bg-white print:overflow-visible print:h-auto">
       <div className="max-w-lg mx-auto pt-4 print:max-w-none print:pt-0 print:overflow-visible print:h-auto">
         {/* Header — hidden in print */}
         <div className="flex items-center justify-between mb-6 print:hidden">
@@ -153,8 +153,8 @@ const LegalPage = () => {
           </Button>
         </div>
 
-        <Tabs defaultValue={defaultTab} className="w-full">
-          <TabsList className="w-full bg-secondary rounded-xl h-11 print:hidden">
+        <Tabs defaultValue={defaultTab} className="w-full print:hidden">
+          <TabsList className="w-full bg-secondary rounded-xl h-11">
             <TabsTrigger
               value="terms"
               className="flex-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-sm font-medium"
@@ -169,7 +169,7 @@ const LegalPage = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="terms" className="mt-5 print:block print:overflow-visible print:h-auto print:text-black">
+          <TabsContent value="terms" className="mt-5">
             <p className="text-xs text-muted-foreground mb-4">
               Last updated: February 15, 2026
             </p>
@@ -197,7 +197,7 @@ const LegalPage = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="privacy" className="mt-5 print:block print:overflow-visible print:h-auto print:text-black">
+          <TabsContent value="privacy" className="mt-5">
             <p className="text-xs text-muted-foreground mb-4">
               Last updated: February 15, 2026
             </p>
@@ -225,6 +225,37 @@ const LegalPage = () => {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* PRINT ONLY VIEW - Unrolled plain text for the printer */}
+        <div className="hidden print:block print:text-black print:overflow-visible print:h-auto">
+          <div className="mb-8">
+            <h2 className="text-xl font-bold mb-2">Terms of Service</h2>
+            <p className="text-xs text-gray-500 mb-4">Last updated: February 15, 2026</p>
+            {termsItems.map((item) => (
+              <div key={item.id} className="mb-4">
+                <h3 className="text-sm font-semibold mb-1">{item.title}</h3>
+                <p className="text-xs leading-relaxed">{item.content}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mb-8">
+            <h2 className="text-xl font-bold mb-2">Privacy Policy</h2>
+            <p className="text-xs text-gray-500 mb-4">Last updated: February 15, 2026</p>
+            {privacyItems.map((item) => (
+              <div key={item.id} className="mb-4">
+                <h3 className="text-sm font-semibold mb-1">{item.title}</h3>
+                <p className="text-xs leading-relaxed">{item.content}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="border-t pt-4">
+            <p className="text-xs leading-relaxed">
+              If you have any questions, please contact us at vora.support@gmail.com.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
