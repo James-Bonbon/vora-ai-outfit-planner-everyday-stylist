@@ -45,17 +45,20 @@ const ProfilePage = () => {
     staleTime: 0,
     refetchOnMount: "always",
     queryFn: async () => {
+      // 1. Fetch exactly the columns we need to avoid select("*") schema traps
       const { data: pData, error: pError } = await supabase
         .from("profiles")
-        .select("*")
+        .select("id, user_id, display_name, username, selfie_url, date_of_birth, gender, height_cm, weight_kg, body_shape, subscription_tier, app_theme")
         .eq("user_id", user!.id)
         .maybeSingle();
 
       if (pError) {
-        console.error("FATAL: Profile Fetch Error:", pError);
-        throw pError;
+        console.error("Profile Fetch Error (Handled safely):", pError);
+        // CRITICAL FIX: Do NOT throw an error. Return null to prevent the Error Boundary from kicking the user to /onboarding.
+        return { profile: null, isAdmin: false };
       }
 
+      // 2. Fetch Admin Role safely
       const { data: rData } = await supabase
         .from("user_roles")
         .select("role")
@@ -63,6 +66,7 @@ const ProfilePage = () => {
         .eq("role", "admin")
         .maybeSingle();
 
+      // 3. Resolve Avatar URL safely
       let finalSelfieUrl = pData?.selfie_url || null;
       if (finalSelfieUrl && !finalSelfieUrl.startsWith("http")) {
         const { data } = supabase.storage.from("selfies").getPublicUrl(finalSelfieUrl);
