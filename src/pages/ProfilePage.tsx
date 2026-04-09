@@ -102,6 +102,28 @@ const ProfilePage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmitFeedback = async () => {
+    if (!user || !feedbackMessage.trim()) {
+      toast.error("Please enter a message.");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.from("user_feedback").insert({
+        user_id: user.id,
+        type: feedbackType,
+        message: feedbackMessage.trim(),
+      });
+      if (error) throw error;
+      toast.success("Feedback sent — thank you!");
+      setFeedbackOpen(false);
+      setFeedbackMessage("");
+      setFeedbackType("bug");
+    } catch {
+      toast.error("Failed to send feedback.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const startEditing = () => {
     setEditName(profile?.display_name || "");
