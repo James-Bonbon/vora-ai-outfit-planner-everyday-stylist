@@ -627,16 +627,18 @@ const ProfilePage = () => {
         </div>
       </GlassCard>
 
-      {/* Pro Card */}
-      <GlassCard className="p-5 cursor-pointer" glowOnHover onClick={() => navigate("/subscription")}>
-        <div className="flex items-center gap-3 mb-3">
-          <Crown className="w-5 h-5 text-primary" />
-          <h3 className="font-bold text-primary text-sm">VORA Pro</h3>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Unlock unlimited AI try-ons, advanced styling, and more.
-        </p>
-      </GlassCard>
+      {/* Pro Card - hidden for admins */}
+      {!isAdmin && (
+        <GlassCard className="p-5 cursor-pointer" glowOnHover onClick={() => navigate("/subscription")}>
+          <div className="flex items-center gap-3 mb-3">
+            <Crown className="w-5 h-5 text-primary" />
+            <h3 className="font-bold text-primary text-sm">VORA Pro</h3>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Unlock unlimited AI try-ons, advanced styling, and more.
+          </p>
+        </GlassCard>
+      )}
 
       {/* Admin Tools */}
       {isAdmin && (
