@@ -101,6 +101,47 @@ const ProfilePage = () => {
   const [feedbackType, setFeedbackType] = useState("bug");
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    if (file.type.startsWith("video/")) {
+      if (file.size > 20 * 1024 * 1024) {
+        toast.error("Video exceeds 20MB limit.");
+        return;
+      }
+      setAttachmentFile(file);
+      setAttachmentPreview(null); // no thumbnail for video
+    } else if (file.type.startsWith("image/")) {
+      try {
+        const compressed = await imageCompression(file, {
+          maxSizeMB: 1,
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+        });
+        const compressedFile = new File([compressed], file.name, { type: compressed.type });
+        setAttachmentFile(compressedFile);
+        setAttachmentPreview(URL.createObjectURL(compressedFile));
+      } catch {
+        toast.error("Failed to process image.");
+        return;
+      }
+    } else {
+      toast.error("Only images and videos are supported.");
+      return;
+    }
+  };
+
+  const clearAttachment = () => {
+    if (attachmentPreview) URL.revokeObjectURL(attachmentPreview);
+    setAttachmentFile(null);
+    setAttachmentPreview(null);
+  };
 
   const handleSubmitFeedback = async () => {
     if (!user || !feedbackMessage.trim()) {
@@ -108,21 +149,42 @@ const ProfilePage = () => {
       return;
     }
     setIsSubmitting(true);
+    setIsUploading(!!attachmentFile);
     try {
+      let attachmentUrl: string | null = null;
+
+      if (attachmentFile) {
+        const filePath = `${user.id}/${Date.now()}-${attachmentFile.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from("feedback_attachments")
+          .upload(filePath, attachmentFile);
+        if (uploadError) {
+          toast.error("File upload failed.");
+          return;
+        }
+        const { data: { publicUrl } } = supabase.storage
+          .from("feedback_attachments")
+          .getPublicUrl(filePath);
+        attachmentUrl = publicUrl;
+      }
+
       const { error } = await supabase.from("user_feedback").insert({
         user_id: user.id,
         type: feedbackType,
         message: feedbackMessage.trim(),
+        attachment_url: attachmentUrl,
       });
       if (error) throw error;
       toast.success("Feedback sent — thank you!");
       setFeedbackOpen(false);
       setFeedbackMessage("");
       setFeedbackType("bug");
+      clearAttachment();
     } catch {
       toast.error("Failed to send feedback.");
     } finally {
       setIsSubmitting(false);
+      setIsUploading(false);
     }
   };
 
