@@ -654,7 +654,6 @@ const ProfilePage = () => {
           >
             <LayoutDashboard className="w-4 h-4 mr-2" /> Admin Dashboard
           </Button>
-          </h3>
           <Button
             variant="outline"
             size="sm"
