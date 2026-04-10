@@ -8,6 +8,7 @@ import Landing from "./pages/Landing";
 import LegalPage from "./pages/LegalPage";
 import SettingsPage from "./pages/SettingsPage";
 import SubscriptionPage from "./pages/SubscriptionPage";
+import AdminPage from "./pages/AdminPage";
 import AppLayout from "./components/AppLayout";
 import HomePage from "./pages/HomePage";
 import WardrobePage from "./pages/WardrobePage";
