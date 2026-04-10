@@ -76,7 +76,7 @@ const ProfilePage = () => {
 
       return {
         profile: { ...pData, selfie_url: finalSelfieUrl } as ProfileData,
-        isAdmin: !!rData,
+        isAdmin: !!rData || pData?.tier === 'admin',
       };
     }
   });
@@ -426,13 +426,22 @@ const ProfilePage = () => {
             </div>
           ) : (
             <>
-              <h3 className="font-semibold text-foreground">{displayName}</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-foreground">{displayName}</h3>
+                {isAdmin && (
+                  <Badge className="bg-gradient-to-r from-amber-500 to-yellow-400 text-white border-0 text-[10px] px-2 py-0.5 gap-1">
+                    <Shield className="w-3 h-3" /> Admin
+                  </Badge>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground">
                 {profile?.username ? `@${profile.username}` : "No username set"}
               </p>
-              <p className="text-xs text-primary font-medium capitalize">
-                {isAdmin ? "admin" : (profile?.subscription_tier || "free")} tier {(isAdmin || (profile?.subscription_tier && profile.subscription_tier !== "free")) ? "✨" : ""}
-              </p>
+              {!isAdmin && (
+                <p className="text-xs text-primary font-medium capitalize">
+                  {(profile?.subscription_tier || "free")} tier {(profile?.subscription_tier && profile.subscription_tier !== "free") ? "✨" : ""}
+                </p>
+              )}
             </>
           )}
         </div>
