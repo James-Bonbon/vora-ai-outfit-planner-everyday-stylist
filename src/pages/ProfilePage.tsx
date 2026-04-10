@@ -101,46 +101,69 @@ const ProfilePage = () => {
   const [feedbackType, setFeedbackType] = useState("bug");
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
-  const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<{url: string, type: string, name: string}[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const newFiles = Array.from(e.target.files || []);
     e.target.value = "";
-    if (!file) return;
+    if (!newFiles.length) return;
 
-    if (file.type.startsWith("video/")) {
-      if (file.size > 20 * 1024 * 1024) {
-        toast.error("Video exceeds 20MB limit.");
-        return;
-      }
-      setAttachmentFile(file);
-      setAttachmentPreview(null); // no thumbnail for video
-    } else if (file.type.startsWith("image/")) {
-      try {
-        const compressed = await imageCompression(file, {
-          maxSizeMB: 1,
-          maxWidthOrHeight: 1920,
-          useWebWorker: true,
-        });
-        const compressedFile = new File([compressed], file.name, { type: compressed.type });
-        setAttachmentFile(compressedFile);
-        setAttachmentPreview(URL.createObjectURL(compressedFile));
-      } catch {
-        toast.error("Failed to process image.");
-        return;
-      }
-    } else {
-      toast.error("Only images and videos are supported.");
+    if (attachments.length + newFiles.length > 3) {
+      toast.error("Maximum 3 files allowed.");
       return;
+    }
+
+    const validFiles: File[] = [];
+    const newPreviews: {url: string, type: string, name: string}[] = [];
+
+    for (const file of newFiles) {
+      if (file.type.startsWith("video/")) {
+        if (file.size > 20 * 1024 * 1024) {
+          toast.error(`${file.name} exceeds 20MB`);
+          continue;
+        }
+        validFiles.push(file);
+        newPreviews.push({ url: "", type: "video", name: file.name });
+      } else if (file.type.startsWith("image/")) {
+        try {
+          const compressed = await imageCompression(file, {
+            maxSizeMB: 1,
+            maxWidthOrHeight: 1920,
+            useWebWorker: true,
+          });
+          const compressedFile = new File([compressed], file.name, { type: compressed.type });
+          const previewUrl = URL.createObjectURL(compressedFile);
+          validFiles.push(compressedFile);
+          newPreviews.push({ url: previewUrl, type: "image", name: file.name });
+        } catch {
+          toast.error(`Failed to process ${file.name}`);
+        }
+      } else {
+        toast.error("Only images and videos are supported.");
+      }
+    }
+
+    if (validFiles.length > 0) {
+      setAttachments(prev => [...prev, ...validFiles]);
+      setPreviews(prev => [...prev, ...newPreviews]);
     }
   };
 
-  const clearAttachment = () => {
-    if (attachmentPreview) URL.revokeObjectURL(attachmentPreview);
-    setAttachmentFile(null);
-    setAttachmentPreview(null);
+  const removeAttachment = (index: number) => {
+    setPreviews(prev => {
+      const removed = prev[index];
+      if (removed?.url) URL.revokeObjectURL(removed.url);
+      return prev.filter((_, i) => i !== index);
+    });
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const clearAllAttachments = () => {
+    previews.forEach(p => { if (p.url) URL.revokeObjectURL(p.url); });
+    setAttachments([]);
+    setPreviews([]);
   };
 
   const handleSubmitFeedback = async () => {
@@ -149,37 +172,40 @@ const ProfilePage = () => {
       return;
     }
     setIsSubmitting(true);
-    setIsUploading(!!attachmentFile);
+    setIsUploading(attachments.length > 0);
     try {
-      let attachmentUrl: string | null = null;
+      let finalAttachmentUrl: string | null = null;
 
-      if (attachmentFile) {
-        const filePath = `${user.id}/${Date.now()}-${attachmentFile.name}`;
-        const { error: uploadError } = await supabase.storage
-          .from("feedback_attachments")
-          .upload(filePath, attachmentFile);
-        if (uploadError) {
-          toast.error("File upload failed.");
-          return;
-        }
-        const { data: { publicUrl } } = supabase.storage
-          .from("feedback_attachments")
-          .getPublicUrl(filePath);
-        attachmentUrl = publicUrl;
+      if (attachments.length > 0) {
+        const uploadedUrls = await Promise.all(
+          attachments.map(async (file) => {
+            const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const filePath = `${user.id}/${Date.now()}-${cleanFileName}`;
+            const { error: uploadError } = await supabase.storage
+              .from("feedback_attachments")
+              .upload(filePath, file);
+            if (uploadError) throw uploadError;
+            const { data } = supabase.storage
+              .from("feedback_attachments")
+              .getPublicUrl(filePath);
+            return data.publicUrl;
+          })
+        );
+        finalAttachmentUrl = uploadedUrls.join(', ');
       }
 
       const { error } = await supabase.from("user_feedback").insert({
         user_id: user.id,
         type: feedbackType,
         message: feedbackMessage.trim(),
-        attachment_url: attachmentUrl,
+        attachment_url: finalAttachmentUrl,
       });
       if (error) throw error;
       toast.success("Feedback sent — thank you!");
       setFeedbackOpen(false);
       setFeedbackMessage("");
       setFeedbackType("bug");
-      clearAttachment();
+      clearAllAttachments();
     } catch {
       toast.error("Failed to send feedback.");
     } finally {
@@ -689,22 +715,26 @@ const ProfilePage = () => {
             </div>
 
             {/* Attachment */}
-            <div>
-              <input id="feedback-attachment" type="file" accept="image/*,video/*" className="hidden" onChange={handleFileSelect} />
-              {attachmentFile ? (
-                <div className="flex items-center gap-2 p-2 rounded-xl border border-border bg-card">
-                  {attachmentPreview ? (
-                    <img src={attachmentPreview} alt="preview" className="w-10 h-10 rounded-lg object-cover" />
-                  ) : (
-                    <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-[10px] text-muted-foreground">VID</div>
-                  )}
-                  <span className="text-xs text-foreground truncate flex-1">{attachmentFile.name}</span>
-                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={clearAttachment}><X className="w-3.5 h-3.5" /></Button>
+            <div className="space-y-2">
+              <input id="feedback-attachment" type="file" accept="image/*,video/*" multiple className="hidden" onChange={handleFileSelect} />
+              <Button variant="outline" size="sm" className="w-full rounded-xl text-xs" onClick={() => document.getElementById("feedback-attachment")?.click()} disabled={attachments.length >= 3}>
+                <Paperclip className="w-3.5 h-3.5 mr-1.5" /> Attach Images or Videos
+              </Button>
+              <p className="text-xs text-muted-foreground text-center">Max 3 files. Videos limited to 20MB.</p>
+              {previews.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {previews.map((p, i) => (
+                    <div key={i} className="relative flex items-center gap-1.5 p-1.5 rounded-lg border border-border bg-card">
+                      {p.type === "image" && p.url ? (
+                        <img src={p.url} alt="preview" className="w-10 h-10 rounded-md object-cover" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center text-[10px] text-muted-foreground">VID</div>
+                      )}
+                      <span className="text-[10px] text-foreground truncate max-w-[60px]">{p.name}</span>
+                      <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={() => removeAttachment(i)}><X className="w-3 h-3" /></Button>
+                    </div>
+                  ))}
                 </div>
-              ) : (
-                <Button variant="outline" size="sm" className="w-full rounded-xl text-xs" onClick={() => document.getElementById("feedback-attachment")?.click()}>
-                  <Paperclip className="w-3.5 h-3.5 mr-1.5" /> Attach Image or Video
-                </Button>
               )}
             </div>
           </div>
