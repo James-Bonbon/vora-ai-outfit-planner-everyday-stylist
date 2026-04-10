@@ -687,10 +687,30 @@ const ProfilePage = () => {
                 className="mt-1 rounded-xl bg-card min-h-[100px]"
               />
             </div>
+
+            {/* Attachment */}
+            <div>
+              <input id="feedback-attachment" type="file" accept="image/*,video/*" className="hidden" onChange={handleFileSelect} />
+              {attachmentFile ? (
+                <div className="flex items-center gap-2 p-2 rounded-xl border border-border bg-card">
+                  {attachmentPreview ? (
+                    <img src={attachmentPreview} alt="preview" className="w-10 h-10 rounded-lg object-cover" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-[10px] text-muted-foreground">VID</div>
+                  )}
+                  <span className="text-xs text-foreground truncate flex-1">{attachmentFile.name}</span>
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={clearAttachment}><X className="w-3.5 h-3.5" /></Button>
+                </div>
+              ) : (
+                <Button variant="outline" size="sm" className="w-full rounded-xl text-xs" onClick={() => document.getElementById("feedback-attachment")?.click()}>
+                  <Paperclip className="w-3.5 h-3.5 mr-1.5" /> Attach Image or Video
+                </Button>
+              )}
+            </div>
           </div>
           <DialogFooter>
-            <Button onClick={handleSubmitFeedback} disabled={isSubmitting || !feedbackMessage.trim()} className="w-full rounded-xl">
-              {isSubmitting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Sending...</> : "Send Feedback"}
+            <Button onClick={handleSubmitFeedback} disabled={isSubmitting || isUploading || !feedbackMessage.trim()} className="w-full rounded-xl">
+              {isSubmitting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {isUploading ? "Uploading…" : "Sending..."}</> : "Send Feedback"}
             </Button>
           </DialogFooter>
         </DialogContent>
