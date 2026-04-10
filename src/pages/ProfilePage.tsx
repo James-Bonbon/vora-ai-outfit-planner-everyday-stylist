@@ -1,8 +1,9 @@
 import { useState } from "react";
+import imageCompression from "browser-image-compression";
 import SafeImage from "@/components/ui/SafeImage";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import GlassCard from "@/components/GlassCard";
-import { User, AtSign, Settings, Crown, LogOut, Pencil, X, Check, Ruler, Weight, Calendar, Users, Camera, Database, Loader2, Lock, Palette, ChevronLeft, MessageSquare, CalendarDays } from "lucide-react";
+import { User, AtSign, Settings, Crown, LogOut, Pencil, X, Check, Ruler, Weight, Calendar, Users, Camera, Database, Loader2, Lock, Palette, ChevronLeft, MessageSquare, CalendarDays, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -100,6 +101,47 @@ const ProfilePage = () => {
   const [feedbackType, setFeedbackType] = useState("bug");
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    if (file.type.startsWith("video/")) {
+      if (file.size > 20 * 1024 * 1024) {
+        toast.error("Video exceeds 20MB limit.");
+        return;
+      }
+      setAttachmentFile(file);
+      setAttachmentPreview(null); // no thumbnail for video
+    } else if (file.type.startsWith("image/")) {
+      try {
+        const compressed = await imageCompression(file, {
+          maxSizeMB: 1,
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+        });
+        const compressedFile = new File([compressed], file.name, { type: compressed.type });
+        setAttachmentFile(compressedFile);
+        setAttachmentPreview(URL.createObjectURL(compressedFile));
+      } catch {
+        toast.error("Failed to process image.");
+        return;
+      }
+    } else {
+      toast.error("Only images and videos are supported.");
+      return;
+    }
+  };
+
+  const clearAttachment = () => {
+    if (attachmentPreview) URL.revokeObjectURL(attachmentPreview);
+    setAttachmentFile(null);
+    setAttachmentPreview(null);
+  };
 
   const handleSubmitFeedback = async () => {
     if (!user || !feedbackMessage.trim()) {
@@ -107,21 +149,42 @@ const ProfilePage = () => {
       return;
     }
     setIsSubmitting(true);
+    setIsUploading(!!attachmentFile);
     try {
+      let attachmentUrl: string | null = null;
+
+      if (attachmentFile) {
+        const filePath = `${user.id}/${Date.now()}-${attachmentFile.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from("feedback_attachments")
+          .upload(filePath, attachmentFile);
+        if (uploadError) {
+          toast.error("File upload failed.");
+          return;
+        }
+        const { data: { publicUrl } } = supabase.storage
+          .from("feedback_attachments")
+          .getPublicUrl(filePath);
+        attachmentUrl = publicUrl;
+      }
+
       const { error } = await supabase.from("user_feedback").insert({
         user_id: user.id,
         type: feedbackType,
         message: feedbackMessage.trim(),
+        attachment_url: attachmentUrl,
       });
       if (error) throw error;
       toast.success("Feedback sent — thank you!");
       setFeedbackOpen(false);
       setFeedbackMessage("");
       setFeedbackType("bug");
+      clearAttachment();
     } catch {
       toast.error("Failed to send feedback.");
     } finally {
       setIsSubmitting(false);
+      setIsUploading(false);
     }
   };
 
@@ -624,10 +687,30 @@ const ProfilePage = () => {
                 className="mt-1 rounded-xl bg-card min-h-[100px]"
               />
             </div>
+
+            {/* Attachment */}
+            <div>
+              <input id="feedback-attachment" type="file" accept="image/*,video/*" className="hidden" onChange={handleFileSelect} />
+              {attachmentFile ? (
+                <div className="flex items-center gap-2 p-2 rounded-xl border border-border bg-card">
+                  {attachmentPreview ? (
+                    <img src={attachmentPreview} alt="preview" className="w-10 h-10 rounded-lg object-cover" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-[10px] text-muted-foreground">VID</div>
+                  )}
+                  <span className="text-xs text-foreground truncate flex-1">{attachmentFile.name}</span>
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={clearAttachment}><X className="w-3.5 h-3.5" /></Button>
+                </div>
+              ) : (
+                <Button variant="outline" size="sm" className="w-full rounded-xl text-xs" onClick={() => document.getElementById("feedback-attachment")?.click()}>
+                  <Paperclip className="w-3.5 h-3.5 mr-1.5" /> Attach Image or Video
+                </Button>
+              )}
+            </div>
           </div>
           <DialogFooter>
-            <Button onClick={handleSubmitFeedback} disabled={isSubmitting || !feedbackMessage.trim()} className="w-full rounded-xl">
-              {isSubmitting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Sending...</> : "Send Feedback"}
+            <Button onClick={handleSubmitFeedback} disabled={isSubmitting || isUploading || !feedbackMessage.trim()} className="w-full rounded-xl">
+              {isSubmitting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {isUploading ? "Uploading…" : "Sending..."}</> : "Send Feedback"}
             </Button>
           </DialogFooter>
         </DialogContent>
