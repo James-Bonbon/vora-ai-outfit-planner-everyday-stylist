@@ -3,7 +3,8 @@ import imageCompression from "browser-image-compression";
 import SafeImage from "@/components/ui/SafeImage";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import GlassCard from "@/components/GlassCard";
-import { User, AtSign, Settings, Crown, LogOut, Pencil, X, Check, Ruler, Weight, Calendar, Users, Camera, Database, Loader2, Lock, Palette, ChevronLeft, MessageSquare, CalendarDays, Paperclip } from "lucide-react";
+import { User, AtSign, Settings, Crown, LogOut, Pencil, X, Check, Ruler, Weight, Calendar, Users, Camera, Database, Loader2, Lock, Palette, ChevronLeft, MessageSquare, CalendarDays, Paperclip, Shield, LayoutDashboard } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +31,7 @@ interface ProfileData {
   subscription_tier: string | null;
   app_theme: string | null;
   username: string | null;
+  tier: string | null;
 }
 
 
@@ -47,7 +49,7 @@ const ProfilePage = () => {
       // 1. Fetch exactly the columns we need to avoid select("*") schema traps
       const { data: pData, error: pError } = await supabase
         .from("profiles")
-        .select("id, user_id, display_name, username, avatar_url, selfie_url, date_of_birth, gender, height_cm, weight_kg, body_shape, subscription_tier, app_theme")
+        .select("id, user_id, display_name, username, avatar_url, selfie_url, date_of_birth, gender, height_cm, weight_kg, body_shape, subscription_tier, app_theme, tier")
         .eq("user_id", user!.id)
         .maybeSingle();
 
@@ -74,7 +76,7 @@ const ProfilePage = () => {
 
       return {
         profile: { ...pData, selfie_url: finalSelfieUrl } as ProfileData,
-        isAdmin: !!rData,
+        isAdmin: !!rData || pData?.tier === 'admin',
       };
     }
   });
@@ -424,13 +426,22 @@ const ProfilePage = () => {
             </div>
           ) : (
             <>
-              <h3 className="font-semibold text-foreground">{displayName}</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-foreground">{displayName}</h3>
+                {isAdmin && (
+                  <Badge className="bg-gradient-to-r from-amber-500 to-yellow-400 text-white border-0 text-[10px] px-2 py-0.5 gap-1">
+                    <Shield className="w-3 h-3" /> Admin
+                  </Badge>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground">
                 {profile?.username ? `@${profile.username}` : "No username set"}
               </p>
-              <p className="text-xs text-primary font-medium capitalize">
-                {isAdmin ? "admin" : (profile?.subscription_tier || "free")} tier {(isAdmin || (profile?.subscription_tier && profile.subscription_tier !== "free")) ? "✨" : ""}
-              </p>
+              {!isAdmin && (
+                <p className="text-xs text-primary font-medium capitalize">
+                  {(profile?.subscription_tier || "free")} tier {(profile?.subscription_tier && profile.subscription_tier !== "free") ? "✨" : ""}
+                </p>
+              )}
             </>
           )}
         </div>
@@ -616,16 +627,18 @@ const ProfilePage = () => {
         </div>
       </GlassCard>
 
-      {/* Pro Card */}
-      <GlassCard className="p-5 cursor-pointer" glowOnHover onClick={() => navigate("/subscription")}>
-        <div className="flex items-center gap-3 mb-3">
-          <Crown className="w-5 h-5 text-primary" />
-          <h3 className="font-bold text-primary text-sm">VORA Pro</h3>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Unlock unlimited AI try-ons, advanced styling, and more.
-        </p>
-      </GlassCard>
+      {/* Pro Card - hidden for admins */}
+      {!isAdmin && (
+        <GlassCard className="p-5 cursor-pointer" glowOnHover onClick={() => navigate("/subscription")}>
+          <div className="flex items-center gap-3 mb-3">
+            <Crown className="w-5 h-5 text-primary" />
+            <h3 className="font-bold text-primary text-sm">VORA Pro</h3>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Unlock unlimited AI try-ons, advanced styling, and more.
+          </p>
+        </GlassCard>
+      )}
 
       {/* Admin Tools */}
       {isAdmin && (
@@ -633,6 +646,14 @@ const ProfilePage = () => {
           <h3 className="text-sm font-semibold text-muted-foreground font-outfit flex items-center gap-2">
             <Database className="w-4 h-4" /> Admin Tools
           </h3>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full rounded-xl"
+            onClick={() => navigate("/admin")}
+          >
+            <LayoutDashboard className="w-4 h-4 mr-2" /> Admin Dashboard
+          </Button>
           <Button
             variant="outline"
             size="sm"

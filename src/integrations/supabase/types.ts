@@ -482,6 +482,7 @@ export type Database = {
           selfie_url: string | null
           style_preferences: Json | null
           subscription_tier: string
+          tier: string | null
           updated_at: string
           user_id: string
           username: string | null
@@ -505,6 +506,7 @@ export type Database = {
           selfie_url?: string | null
           style_preferences?: Json | null
           subscription_tier?: string
+          tier?: string | null
           updated_at?: string
           user_id: string
           username?: string | null
@@ -528,6 +530,7 @@ export type Database = {
           selfie_url?: string | null
           style_preferences?: Json | null
           subscription_tier?: string
+          tier?: string | null
           updated_at?: string
           user_id?: string
           username?: string | null
