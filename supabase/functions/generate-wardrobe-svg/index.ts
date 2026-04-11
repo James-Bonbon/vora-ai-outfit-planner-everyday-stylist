@@ -6,31 +6,26 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  console.log("1. EDGE FUNCTION HIT! Method:", req.method);
+  console.log("1. REQUEST RECEIVED: Initializing AI Brain...");
 
   if (req.method === "OPTIONS") {
-    console.log("2. Handling CORS preflight.");
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
     const { imageBase64 } = await req.json();
-    console.log("3. Payload received. Base64 exists?", !!imageBase64);
-
-    if (!imageBase64) {
-      throw new Error("Missing imageBase64 data from frontend");
-    }
+    console.log("2. Payload received. Size Check:", imageBase64?.length || 0);
 
     const geminiKey = Deno.env.get("GEMINI_API_KEY");
-    console.log("4. Gemini Key retrieved from vault?", !!geminiKey);
+    if (!geminiKey) throw new Error("GEMINI_API_KEY is missing in Supabase Secrets!");
 
-    if (!geminiKey) {
-      throw new Error("GEMINI_API_KEY is missing in Supabase Secrets!");
-    }
+    // Construct the payload for Gemini 2.5 Pro
+    const prompt =
+      "You are a wardrobe layout mapper. Output ONLY raw SVG code. No markdown. Draw <rect> elements with these IDs: 'left_shelves', 'center_hanging_shirts', 'center_drawers', 'right_hanging_dresses', 'floor_storage'. Imagine this 1000x1000 canvas is a transparent glass sheet over the closet image. Map the physical boundaries accurately.";
 
-    console.log("5. Sending request to Gemini API...");
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent`,
+    console.log("3. Calling Gemini 2.5 Pro API...");
+    const response = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent",
       {
         method: "POST",
         headers: {
@@ -40,42 +35,38 @@ serve(async (req) => {
         body: JSON.stringify({
           contents: [
             {
-              parts: [
-                {
-                  text: `You output ONLY raw SVG code. No markdown. `<rect>` IDs: left_shelves, center_hanging_shirts, center_drawers, right_hanging_dresses, floor_storage. ViewBox 0 0 1000 1000.`,
-                },
-                { inline_data: { mime_type: "image/jpeg", data: imageBase64 } },
-              ],
+              parts: [{ text: prompt }, { inline_data: { mime_type: "image/jpeg", data: imageBase64 } }],
             },
           ],
-          generationConfig: { temperature: 0.1 },
+          generationConfig: {
+            temperature: 0.1, // Forces accuracy over creativity
+            topP: 0.95,
+            topK: 64,
+          },
         }),
       },
     );
 
-    console.log("6. Gemini API responded. Status:", geminiResponse.status);
-    const aiData = await geminiResponse.json();
+    const aiData = await response.json();
+    if (aiData.error) throw new Error("Gemini API Error: " + aiData.error.message);
 
-    if (aiData.error) {
-      console.error("7. GEMINI ERROR:", aiData.error);
-      throw new Error("Gemini API Error: " + aiData.error.message);
-    }
+    const rawSvg = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawSvg) throw new Error("AI returned empty content.");
 
-    let svgString = aiData.candidates[0].content.parts[0].text;
-    svgString = svgString
+    // Clean markdown and return pure SVG
+    const cleanSvg = rawSvg
       .replace(/```svg\n?/g, "")
       .replace(/```\n?/g, "")
       .trim();
+    console.log("4. SUCCESS: SVG generated. Length:", cleanSvg.length);
 
-    console.log("8. SVG generated successfully! Length:", svgString.length);
-
-    return new Response(JSON.stringify({ svg: svgString }), {
+    return new Response(JSON.stringify({ svg: cleanSvg }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
-  } catch (error) {
-    console.error("X. CRITICAL ERROR IN EDGE FUNCTION:", error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
+  } catch (err) {
+    console.error("CRITICAL ERROR:", err.message);
+    return new Response(JSON.stringify({ error: err.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 400,
     });
