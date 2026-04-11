@@ -455,13 +455,34 @@ const WardrobePage = () => {
 
       {/* Wardrobe Map Dialog */}
       <Dialog open={mapOpen} onOpenChange={setMapOpen}>
-        <DialogContent className="max-w-sm rounded-2xl [&>button]:relative [&>button]:z-[60] [&>button]:pointer-events-auto">
-          <DialogHeader>
-            <DialogTitle className="font-outfit">AI Wardrobe Map</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
+        <DialogContent className="max-w-4xl w-[90vw] h-[85vh] flex flex-col p-0 overflow-hidden bg-background [&>button]:hidden">
+          {/* Header */}
+          <div className="flex justify-between items-center p-4 border-b z-50 bg-background shrink-0">
+            <h2 className="text-xl font-semibold font-outfit">AI Wardrobe Map</h2>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative z-50"
+              onClick={() => setMapOpen(false)}
+            >
+              <span className="sr-only">Close</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </Button>
+          </div>
+
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto p-4 flex items-center justify-center bg-muted/20">
             {closetSvg ? (
-              <WardrobeMap svgString={closetSvg} />
+              <div className="relative w-full max-w-2xl mx-auto min-h-[50vh] rounded-xl overflow-hidden shadow-md bg-card">
+                <img
+                  src="/placeholder.svg"
+                  alt="Wardrobe"
+                  className="w-full h-auto block"
+                />
+                <div className="absolute inset-0 w-full h-full pointer-events-none">
+                  <WardrobeMap svgString={closetSvg} />
+                </div>
+              </div>
             ) : (
               <div className="text-center py-6">
                 <CabinetIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
@@ -470,6 +491,10 @@ const WardrobePage = () => {
                 </p>
               </div>
             )}
+          </div>
+
+          {/* Footer */}
+          <div className="p-4 border-t flex justify-between items-center bg-background z-50 shrink-0">
             <input
               ref={fileInputRef}
               type="file"
@@ -480,19 +505,22 @@ const WardrobePage = () => {
             <Button
               onClick={() => fileInputRef.current?.click()}
               disabled={generatingMap}
-              className="relative z-[60] w-full gap-2 rounded-xl pointer-events-auto"
-              variant={closetSvg ? "outline" : "default"}
+              variant="outline"
+              className="rounded-xl gap-2"
             >
               {generatingMap ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Analyzing your closet…
+                  Analyzing…
                 </>
               ) : closetSvg ? (
                 "Retake Photo"
               ) : (
                 "Take Closet Photo"
               )}
+            </Button>
+            <Button className="rounded-xl gap-2" disabled={!closetSvg}>
+              Save Closet
             </Button>
           </div>
         </DialogContent>
