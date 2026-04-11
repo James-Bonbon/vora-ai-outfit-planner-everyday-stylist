@@ -27,7 +27,7 @@ export const WardrobeMap: React.FC<WardrobeMapProps> = ({
     if (!svgElement) return;
 
     svgElement.style.width = "100%";
-    svgElement.style.height = "auto";
+    svgElement.style.height = "100%";
     svgElement.setAttribute("preserveAspectRatio", "xMidYMid meet");
 
     const paths = svgElement.querySelectorAll("path, rect, polygon, ellipse, circle");
