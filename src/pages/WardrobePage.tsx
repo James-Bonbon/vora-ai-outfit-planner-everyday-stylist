@@ -119,20 +119,51 @@ const WardrobePage = () => {
         };
         reader.readAsDataURL(normalizedBlob);
       });
-      const { data, error } = await supabase.functions.invoke("generate-wardrobe-svg", {
-        body: { imageBase64: base64 },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+
+      // DEBUG 1: Confirm base64 conversion
+      toast.info("1. Image converted, calling Supabase...");
+      console.log("Base64 length:", base64.length);
+
+      let data: any;
+      let error: any;
+      try {
+        const response = await supabase.functions.invoke("generate-wardrobe-svg", {
+          body: { imageBase64: base64 },
+        });
+        data = response.data;
+        error = response.error;
+
+        // DEBUG 3: Log raw response
+        console.log("Raw Supabase Response:", { data, error });
+      } catch (invokeErr: any) {
+        toast.error("Invoke threw: " + (invokeErr.message || JSON.stringify(invokeErr)));
+        throw invokeErr;
+      }
+
+      // DEBUG 4: Network-level error
+      if (error) {
+        toast.error("Edge Function Network Error: " + error.message);
+        throw error;
+      }
+
+      // DEBUG 5: Logic error from the function
+      if (data?.error) {
+        toast.error("Edge Function Logic Error: " + data.error);
+        throw new Error(data.error);
+      }
+
+      // DEBUG 6: Missing SVG
       if (data?.svg) {
         setClosetSvg(data.svg);
         toast.success("Wardrobe map generated! ✨");
       } else {
+        toast.error("API Success, but no SVG returned!");
         throw new Error("No SVG returned");
       }
     } catch (err: any) {
       console.error("Wardrobe map error:", err);
-      toast.error(err.message || "Failed to generate wardrobe map.");
+      // DEBUG 7: Catch block toast
+      toast.error("Catch Block: " + (err.message || JSON.stringify(err)));
     } finally {
       input.value = "";
       setGeneratingMap(false);
