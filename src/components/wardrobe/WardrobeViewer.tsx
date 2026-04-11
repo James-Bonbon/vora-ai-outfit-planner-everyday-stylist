@@ -10,6 +10,8 @@ interface WardrobeViewerProps {
   isSelectionMode?: boolean;
 }
 
+export const MOCK_SVG = `<svg viewBox="0 0 1000 1000" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><rect id="top_left" x="50" y="50" width="400" height="400" /><rect id="bottom_left" x="50" y="470" width="400" height="480" /><rect id="top_right" x="470" y="50" width="480" height="400" /><rect id="bottom_right" x="470" y="470" width="480" height="480" /></svg>`;
+
 const WardrobeViewer: React.FC<WardrobeViewerProps> = ({
   wardrobe,
   activeZoneId,
@@ -25,7 +27,7 @@ const WardrobeViewer: React.FC<WardrobeViewerProps> = ({
   if (!wardrobe.views.length) return null;
 
   return (
-    <div className="w-full max-w-sm mx-auto space-y-3">
+    <div className="w-full space-y-3">
       {/* View toggle tabs — only show if multiple views */}
       {wardrobe.views.length > 1 && (
         <Tabs value={activeViewId} onValueChange={setActiveViewId}>
@@ -41,19 +43,20 @@ const WardrobeViewer: React.FC<WardrobeViewerProps> = ({
 
       {/* Visual container — image + SVG overlay */}
       {activeView && (
-        <div className="relative w-full max-w-sm mx-auto rounded-xl overflow-hidden">
+        <div className="relative w-full max-w-2xl mx-auto min-h-[50vh] rounded-xl overflow-hidden shadow-md bg-card">
           <img
             src={activeView.imageUrl}
             alt={activeView.name}
             className="w-full h-auto block"
           />
-          <WardrobeMap
-            svgString={activeView.svgString}
-            activeZoneId={activeZoneId}
-            onZoneSelect={onZoneSelect}
-            isSelectionMode={isSelectionMode}
-            className="pointer-events-none"
-          />
+          <div className="absolute inset-0 w-full h-full pointer-events-none">
+            <WardrobeMap
+              svgString={activeView.svgString}
+              activeZoneId={activeZoneId}
+              onZoneSelect={onZoneSelect}
+              isSelectionMode={isSelectionMode}
+            />
+          </div>
         </div>
       )}
     </div>
