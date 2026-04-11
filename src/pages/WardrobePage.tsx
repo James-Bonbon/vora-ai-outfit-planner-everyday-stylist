@@ -43,7 +43,8 @@ const WardrobePage = () => {
 
   // Wardrobe Map state
   const [mapOpen, setMapOpen] = useState(false);
-  const [closetSvg, setClosetSvg] = useState<string | null>(null);
+  const MOCK_SVG = `<svg viewBox="0 0 1000 1000" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><rect id="top_left" x="50" y="50" width="400" height="400" /><rect id="bottom_left" x="50" y="470" width="400" height="480" /><rect id="top_right" x="470" y="50" width="480" height="400" /><rect id="bottom_right" x="470" y="470" width="480" height="480" /></svg>`;
+  const [closetSvg, setClosetSvg] = useState<string | null>(MOCK_SVG);
   const [generatingMap, setGeneratingMap] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
