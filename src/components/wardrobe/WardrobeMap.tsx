@@ -30,6 +30,7 @@ export const WardrobeMap: React.FC<WardrobeMapProps> = ({
     svgElement.style.height = "100%";
     svgElement.setAttribute("preserveAspectRatio", "none");
     svgElement.style.pointerEvents = "none";
+    svgElement.style.backgroundColor = "transparent";
 
     const paths = svgElement.querySelectorAll("path, rect, polygon, ellipse, circle");
 
@@ -40,6 +41,7 @@ export const WardrobeMap: React.FC<WardrobeMapProps> = ({
       if (!zoneId) {
         htmlEl.style.pointerEvents = "none";
         htmlEl.style.fill = "transparent";
+        htmlEl.style.backgroundColor = "transparent";
         htmlEl.style.stroke = "none";
         return;
       }
@@ -47,6 +49,7 @@ export const WardrobeMap: React.FC<WardrobeMapProps> = ({
       // Reset styles
       htmlEl.style.pointerEvents = "auto";
       htmlEl.style.fill = "transparent";
+      htmlEl.style.backgroundColor = "transparent";
       htmlEl.style.stroke = "hsl(var(--border))";
       htmlEl.style.strokeWidth = "2";
       htmlEl.style.transition = "all 0.3s ease";

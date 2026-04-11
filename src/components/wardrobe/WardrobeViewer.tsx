@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
+import { Grid, Server, Shirt, ShoppingBag, User } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WardrobeMap } from "./WardrobeMap";
 import type { Wardrobe } from "@/types/wardrobe";
@@ -10,7 +11,35 @@ interface WardrobeViewerProps {
   isSelectionMode?: boolean;
 }
 
-export const MOCK_SVG = `<svg viewBox="0 0 1000 1000" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><rect id="top_left" x="50" y="50" width="400" height="400" /><rect id="bottom_left" x="50" y="470" width="400" height="480" /><rect id="top_right" x="470" y="50" width="480" height="400" /><rect id="bottom_right" x="470" y="470" width="480" height="480" /></svg>`;
+type ZoneLabelId =
+  | "left_shelves"
+  | "center_hanging_shirts"
+  | "center_drawers"
+  | "right_hanging_dresses"
+  | "floor_storage";
+
+const ZONE_LABELS: Record<ZoneLabelId, { label: string; Icon: typeof Grid }> = {
+  left_shelves: {
+    label: "Left Shelving",
+    Icon: Grid,
+  },
+  center_hanging_shirts: {
+    label: "Center Hanging Shirts",
+    Icon: Shirt,
+  },
+  center_drawers: {
+    label: "Center Drawers",
+    Icon: Server,
+  },
+  right_hanging_dresses: {
+    label: "Right Hanging Dresses",
+    Icon: User,
+  },
+  floor_storage: {
+    label: "Floor Bags/Storage",
+    Icon: ShoppingBag,
+  },
+};
 
 const WardrobeViewer: React.FC<WardrobeViewerProps> = ({
   wardrobe,
@@ -23,6 +52,36 @@ const WardrobeViewer: React.FC<WardrobeViewerProps> = ({
   );
 
   const activeView = wardrobe.views.find((v) => v.id === activeViewId);
+
+  const zoneOverlays = useMemo(() => {
+    if (!activeView?.svgString || typeof DOMParser === "undefined") return [];
+
+    const doc = new DOMParser().parseFromString(activeView.svgString, "image/svg+xml");
+
+    return (Object.keys(ZONE_LABELS) as ZoneLabelId[]).flatMap((zoneId) => {
+      const rect = doc.querySelector(`rect[id="${zoneId}"]`);
+      if (!rect) return [];
+
+      const x = Number(rect.getAttribute("x"));
+      const y = Number(rect.getAttribute("y"));
+      const width = Number(rect.getAttribute("width"));
+      const height = Number(rect.getAttribute("height"));
+
+      if ([x, y, width, height].some((value) => Number.isNaN(value))) return [];
+
+      return [
+        {
+          id: zoneId,
+          label: ZONE_LABELS[zoneId].label,
+          Icon: ZONE_LABELS[zoneId].Icon,
+          left: `${x / 10}%`,
+          top: `${y / 10}%`,
+          width: `${width / 10}%`,
+          height: `${height / 10}%`,
+        },
+      ];
+    });
+  }, [activeView?.svgString]);
 
   if (!wardrobe.views.length) return null;
 
@@ -56,6 +115,18 @@ const WardrobeViewer: React.FC<WardrobeViewerProps> = ({
               onZoneSelect={onZoneSelect}
               isSelectionMode={isSelectionMode}
             />
+          </div>
+          <div className="absolute inset-0 pointer-events-none z-20">
+            {zoneOverlays.map(({ id, label, Icon, left, top, width, height }) => (
+              <div
+                key={id}
+                className="absolute flex flex-col items-center justify-center text-primary-foreground font-medium text-sm drop-shadow-md"
+                style={{ left, top, width, height }}
+              >
+                <Icon size={24} className="mb-2" />
+                <span className="text-center leading-tight">{label}</span>
+              </div>
+            ))}
           </div>
         </div>
       )}

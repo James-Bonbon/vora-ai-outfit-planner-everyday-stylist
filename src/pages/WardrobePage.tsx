@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import GlassCard from "@/components/GlassCard";
@@ -14,12 +14,12 @@ import type { PrefillData } from "@/components/wardrobe/AddItemSheet";
 import GarmentDetailSheet from "@/components/wardrobe/GarmentDetailSheet";
 import SmartCamera from "@/components/wardrobe/SmartCamera";
 import type { AnalyzedItem } from "@/components/wardrobe/SmartCamera";
-import type { ClosetItem, DreamItem, GarmentDisplay } from "@/types/wardrobe";
-import { WardrobeMap } from "@/components/wardrobe/WardrobeMap";
+import type { ClosetItem, DreamItem, GarmentDisplay, Wardrobe } from "@/types/wardrobe";
+import WardrobeViewer from "@/components/wardrobe/WardrobeViewer";
 import { LookbookTab } from "@/components/wardrobe/LookbookTab";
 import { normalizeToPng } from "@/utils/imageProcessing";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 const CATEGORIES = ["All", "Tops", "Bottoms", "Shoes", "Accessories", "Outerwear"];
 
@@ -43,8 +43,7 @@ const WardrobePage = () => {
 
   // Wardrobe Map state
   const [mapOpen, setMapOpen] = useState(false);
-  const MOCK_SVG = `<svg viewBox="0 0 1000 1000" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><rect id="top_left" x="50" y="50" width="400" height="400" /><rect id="bottom_left" x="50" y="470" width="400" height="480" /><rect id="top_right" x="470" y="50" width="480" height="400" /><rect id="bottom_right" x="470" y="470" width="480" height="480" /></svg>`;
-  const [closetSvg, setClosetSvg] = useState<string | null>(MOCK_SVG);
+  const [closetSvg, setClosetSvg] = useState<string | null>(null);
   const [generatingMap, setGeneratingMap] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -57,15 +56,60 @@ const WardrobePage = () => {
       .eq("user_id", user.id)
       .maybeSingle()
       .then(({ data }) => {
-        if (data?.closet_svg) setClosetSvg(data.closet_svg);
+        setClosetSvg(data?.closet_svg ?? null);
       });
   }, [user]);
 
+  const previewWardrobe = useMemo<Wardrobe | null>(() => {
+    if (!closetSvg) return null;
+
+    return {
+      id: "ai-wardrobe-preview",
+      title: "AI Wardrobe Map",
+      views: [
+        {
+          id: "generated-view",
+          name: "Current View",
+          imageUrl: "/placeholder.svg",
+          svgString: closetSvg,
+        },
+      ],
+    };
+  }, [closetSvg]);
+
+  const clearStoredClosetSvg = async () => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ closet_svg: null })
+      .eq("user_id", user.id);
+
+    if (error) throw error;
+  };
+
+  const openClosetPhotoPicker = (wipeCurrentSvg = false) => {
+    if (wipeCurrentSvg) {
+      setClosetSvg(null);
+    }
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+      fileInputRef.current.click();
+    }
+  };
+
   const handleClosetPhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const input = e.target;
+    const file = input.files?.[0];
     if (!file) return;
+
     setGeneratingMap(true);
+    setClosetSvg(null);
+
     try {
+      await clearStoredClosetSvg();
+
       const normalizedBlob = await normalizeToPng(file);
       const base64 = await new Promise<string>((resolve) => {
         const reader = new FileReader();
@@ -90,6 +134,7 @@ const WardrobePage = () => {
       console.error("Wardrobe map error:", err);
       toast.error(err.message || "Failed to generate wardrobe map.");
     } finally {
+      input.value = "";
       setGeneratingMap(false);
     }
   };
@@ -473,17 +518,8 @@ const WardrobePage = () => {
 
           {/* Body */}
           <div className="flex-1 overflow-y-auto p-4 flex items-center justify-center bg-muted/20">
-            {closetSvg ? (
-              <div className="relative w-full max-w-2xl mx-auto min-h-[50vh] rounded-xl overflow-hidden shadow-md bg-card">
-                <img
-                  src="/placeholder.svg"
-                  alt="Wardrobe"
-                  className="w-full h-auto block"
-                />
-                <div className="absolute inset-0 w-full h-full pointer-events-none">
-                  <WardrobeMap svgString={closetSvg} />
-                </div>
-              </div>
+            {previewWardrobe ? (
+              <WardrobeViewer wardrobe={previewWardrobe} />
             ) : (
               <div className="text-center py-6">
                 <CabinetIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
@@ -504,7 +540,7 @@ const WardrobePage = () => {
               onChange={handleClosetPhotoSelect}
             />
             <Button
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => openClosetPhotoPicker(Boolean(closetSvg))}
               disabled={generatingMap}
               variant="outline"
               className="rounded-xl gap-2"
