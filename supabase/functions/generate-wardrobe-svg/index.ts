@@ -30,7 +30,7 @@ serve(async (req) => {
     const geminiKey = Deno.env.get("GEMINI_API_KEY");
 
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${geminiKey}`,
       {
         method: "POST",
         headers: {
