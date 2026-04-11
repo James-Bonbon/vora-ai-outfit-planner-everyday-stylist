@@ -104,8 +104,21 @@ const WardrobePage = () => {
     const file = input.files?.[0];
     if (!file) return;
 
+    const toastId = "wardrobe-upload";
+    const getErrorMessage = (error: any) => {
+      const rawMessage =
+        error?.message ?? (typeof error === "string" ? error : JSON.stringify(error));
+
+      if (error?.name === "AbortError" || /aborted|timeout/i.test(rawMessage ?? "")) {
+        return "Request timed out after 30 seconds";
+      }
+
+      return rawMessage || "Unknown error";
+    };
+
     setGeneratingMap(true);
     setClosetSvg(null);
+    toast.loading("Analyzing wardrobe layout...", { id: toastId });
 
     try {
       await clearStoredClosetSvg();
@@ -120,49 +133,47 @@ const WardrobePage = () => {
         reader.readAsDataURL(normalizedBlob);
       });
 
-      // DEBUG 1: Confirm base64 conversion
-      toast.loading("Generating wardrobe map…", { id: "ai-map" });
+      const supabaseUrlExists = Boolean(import.meta.env.VITE_SUPABASE_URL);
+      const supabaseAnonKeyExists = Boolean(import.meta.env.VITE_SUPABASE_ANON_KEY);
+      const supabasePublishableKeyExists = Boolean(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
+
+      console.log("Supabase URL exists:", supabaseUrlExists);
+      console.log("Supabase Anon Key exists:", supabaseAnonKeyExists);
+      console.log("Supabase Publishable Key exists:", supabasePublishableKeyExists);
       console.log("Base64 length:", base64.length);
 
-      let data: any;
-      let error: any;
-      try {
-        const response = await supabase.functions.invoke("generate-wardrobe-svg", {
-          body: { imageBase64: base64 },
-        });
-        data = response.data;
-        error = response.error;
-
-        // DEBUG 3: Log raw response
-        console.log("Raw Supabase Response:", { data, error });
-      } catch (invokeErr: any) {
-        toast.error("Invoke threw: " + (invokeErr.message || JSON.stringify(invokeErr)), { id: "ai-map" });
-        throw invokeErr;
+      if (!supabaseUrlExists || (!supabaseAnonKeyExists && !supabasePublishableKeyExists)) {
+        throw new Error("Supabase client config is missing.");
       }
 
-      // DEBUG 4: Network-level error
+      if (!base64 || base64.length < 100) {
+        throw new Error("Invalid image data. Please try again.");
+      }
+
+      const { data, error } = await supabase.functions.invoke("generate-wardrobe-svg", {
+        body: { imageBase64: base64 },
+        timeout: 30000,
+      });
+
+      console.log("Raw Supabase Response:", { data, error });
+
       if (error) {
-        toast.error("Edge Function Network Error: " + error.message, { id: "ai-map" });
-        throw error;
+        throw new Error(getErrorMessage(error));
       }
 
-      // DEBUG 5: Logic error from the function
       if (data?.error) {
-        toast.error("Edge Function Logic Error: " + data.error, { id: "ai-map" });
-        throw new Error(data.error);
+        throw new Error(typeof data.error === "string" ? data.error : JSON.stringify(data.error));
       }
 
-      // DEBUG 6: Missing SVG
-      if (data?.svg) {
-        setClosetSvg(data.svg);
-        toast.success("Wardrobe map generated! ✨", { id: "ai-map" });
-      } else {
-        toast.error("API Success, but no SVG returned!", { id: "ai-map" });
-        throw new Error("No SVG returned");
+      if (!data?.svg) {
+        throw new Error("API Success, but no SVG returned!");
       }
+
+      setClosetSvg(data.svg);
+      toast.success("Map generated!", { id: toastId });
     } catch (err: any) {
-      console.error("Wardrobe map error:", err);
-      toast.error("Catch Block: " + (err.message || JSON.stringify(err)), { id: "ai-map" });
+      console.error("Full Network Error Object:", err);
+      toast.error("Failed: " + getErrorMessage(err), { id: toastId });
     } finally {
       input.value = "";
       setGeneratingMap(false);
