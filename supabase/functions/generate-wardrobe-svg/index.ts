@@ -33,11 +33,7 @@ serve(async (req) => {
     }
 
     // Check if user already has a cached SVG
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("closet_svg")
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const { data: profile } = await supabase.from("profiles").select("closet_svg").eq("user_id", user.id).maybeSingle();
 
     const { imageBase64 } = await req.json();
     if (!imageBase64) {
@@ -55,19 +51,19 @@ serve(async (req) => {
       });
     }
 
-    const systemPrompt = `You are a precise SVG generator. Your task is to analyze photos of physical closets/wardrobes and produce clean SVG line drawings of their structure.
-
-Rules:
-- Output ONLY the raw <svg> tag. No markdown, no explanation, no code blocks.
-- Draw only the physical structure: shelves, racks, drawers, compartments, doors.
-- Do NOT draw any clothes, shoes, accessories, or items inside.
-- Use clean, minimalist 2D line-drawing style with thin strokes.
-- Assign a unique HTML 'id' attribute to every compartment element (path, rect, etc).
-- Use descriptive ids like: top-shelf, middle-rack, bottom-drawer-1, left-compartment, hanging-rod, etc.
-- The SVG viewBox should be roughly 400x500.
-- Use only <rect>, <path>, <line>, <polygon> elements.
-- All strokes should be #D6D3D1 (stone-300) with stroke-width="2".
-- All fills should be "none" or "transparent".`;
+    const systemPrompt = `You are an AI wardrobe layout mapper. You output ONLY raw SVG code. No markdown blocks, no formatting, no explanations. Just the <svg> element.
+              
+              RULES:
+              1. Output an SVG with exactly viewBox="0 0 1000 1000" and preserveAspectRatio="none".
+              2. Analyze the provided image of the closet.
+              3. Draw <rect> elements over the 5 primary storage zones you detect. 
+              4. You MUST use these exact IDs for the rectangles:
+                 - id="left_shelves"
+                 - id="center_hanging_shirts"
+                 - id="center_drawers"
+                 - id="right_hanging_dresses"
+                 - id="floor_storage"
+              5. Estimate the x, y, width, and height as a percentage of the 1000x1000 canvas.`;
 
     const userPrompt = `Analyze this closet photo. Output ONLY a clean, minimalist 2D SVG line-drawing representing the physical compartments (shelves, racks, drawers). Do not draw clothes. Assign a unique HTML 'id' to every compartment 'path' or 'rect' (e.g., id='top-rack', id='drawer-1'). Do not wrap in markdown blocks, return only the raw <svg> tag.`;
 
@@ -121,7 +117,10 @@ Rules:
     let svgContent = result.choices?.[0]?.message?.content || "";
 
     // Clean up: strip markdown code blocks if model wraps them
-    svgContent = svgContent.replace(/```(?:xml|svg|html)?\s*/gi, "").replace(/```\s*/g, "").trim();
+    svgContent = svgContent
+      .replace(/```(?:xml|svg|html)?\s*/gi, "")
+      .replace(/```\s*/g, "")
+      .trim();
 
     // Validate it starts with <svg
     if (!svgContent.includes("<svg")) {
@@ -153,12 +152,9 @@ Rules:
     });
   } catch (e) {
     console.error("generate-wardrobe-svg error:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
