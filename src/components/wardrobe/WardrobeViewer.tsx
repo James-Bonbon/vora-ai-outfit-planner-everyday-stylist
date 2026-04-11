@@ -41,17 +41,18 @@ const WardrobeViewer: React.FC<WardrobeViewerProps> = ({
 
       {/* Visual container — image + SVG overlay */}
       {activeView && (
-        <div className="relative w-full max-w-sm mx-auto overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
+        <div className="relative w-full max-w-sm mx-auto rounded-xl overflow-hidden">
           <img
             src={activeView.imageUrl}
             alt={activeView.name}
-            className="w-full h-auto block object-cover"
+            className="w-full h-auto block"
           />
           <WardrobeMap
             svgString={activeView.svgString}
             activeZoneId={activeZoneId}
             onZoneSelect={onZoneSelect}
             isSelectionMode={isSelectionMode}
+            className="pointer-events-none"
           />
         </div>
       )}

@@ -42,6 +42,7 @@ export const WardrobeMap: React.FC<WardrobeMapProps> = ({
       htmlEl.style.strokeWidth = "2";
       htmlEl.style.transition = "all 0.3s ease";
       htmlEl.style.cursor = isSelectionMode && zoneId ? "pointer" : "default";
+      htmlEl.style.pointerEvents = "auto";
 
       // Active zone highlighting
       if (activeZoneId && zoneId === activeZoneId) {
