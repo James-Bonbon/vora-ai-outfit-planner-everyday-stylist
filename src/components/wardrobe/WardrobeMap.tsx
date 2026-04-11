@@ -27,7 +27,7 @@ export const WardrobeMap: React.FC<WardrobeMapProps> = ({
     if (!svgElement) return;
 
     svgElement.style.width = "100%";
-    svgElement.style.height = "auto";
+    svgElement.style.height = "100%";
     svgElement.setAttribute("preserveAspectRatio", "xMidYMid meet");
 
     const paths = svgElement.querySelectorAll("path, rect, polygon, ellipse, circle");
@@ -83,7 +83,7 @@ export const WardrobeMap: React.FC<WardrobeMapProps> = ({
     <div
       ref={containerRef}
       className={cn(
-        "w-full max-w-sm mx-auto p-4 rounded-3xl border border-border bg-card shadow-sm",
+        "absolute inset-0 w-full h-full z-10",
         className,
       )}
       dangerouslySetInnerHTML={{ __html: svgString }}

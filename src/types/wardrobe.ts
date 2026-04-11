@@ -26,3 +26,16 @@ export interface DreamItem {
 export type GarmentDisplay =
   | (ClosetItem & { source: "closet" })
   | (DreamItem & { source: "dream" });
+
+export interface WardrobeView {
+  id: string;
+  name: string;
+  imageUrl: string;
+  svgString: string;
+}
+
+export interface Wardrobe {
+  id: string;
+  title: string;
+  views: WardrobeView[];
+}
