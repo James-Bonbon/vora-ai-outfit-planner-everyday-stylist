@@ -1,6 +1,5 @@
-// supabase/functions/generate-wardrobe-map/index.ts
+// supabase/functions/generate-wardrobe-svg/index.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,25 +7,19 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const { view_id, image_url } = await req.json();
+    const { imageBase64 } = await req.json();
 
-    if (!view_id || !image_url) {
-      throw new Error("Missing view_id or image_url");
+    if (!imageBase64) {
+      throw new Error("Missing imageBase64 data from frontend");
     }
 
-    // 1. Fetch the image and convert to Base64 for Gemini
-    const imageReq = await fetch(image_url);
-    const imageBlob = await imageReq.blob();
-    const arrayBuffer = await imageBlob.arrayBuffer();
-    const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-    const mimeType = imageBlob.type || "image/jpeg";
-
-    // 2. Call the FREE Gemini 2.5 Pro API
+    // Call the FREE Gemini 2.5 Pro API using the Base64 data
     const geminiKey = Deno.env.get("GEMINI_API_KEY");
 
     const geminiResponse = await fetch(
@@ -58,15 +51,15 @@ serve(async (req) => {
                 },
                 {
                   inline_data: {
-                    mime_type: mimeType,
-                    data: base64Image,
+                    mime_type: "image/jpeg",
+                    data: imageBase64,
                   },
                 },
               ],
             },
           ],
           generationConfig: {
-            temperature: 0.1, // Keep it highly mathematical and strict
+            temperature: 0.1,
           },
         }),
       },
@@ -86,20 +79,8 @@ serve(async (req) => {
       .replace(/```\n?/g, "")
       .trim();
 
-    // 3. Save the AI's SVG back to your Supabase Database
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    );
-
-    const { error: updateError } = await supabaseClient
-      .from("wardrobe_views")
-      .update({ svg_string: svgString })
-      .eq("id", view_id);
-
-    if (updateError) throw updateError;
-
-    return new Response(JSON.stringify({ success: true, svg_string: svgString }), {
+    // Return the key "svg" exactly as line 88 in WardrobePage.tsx expects: `if (data?.svg)`
+    return new Response(JSON.stringify({ svg: svgString }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
