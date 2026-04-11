@@ -83,7 +83,7 @@ export const WardrobeMap: React.FC<WardrobeMapProps> = ({
     <div
       ref={containerRef}
       className={cn(
-        "w-full max-w-sm mx-auto p-4 rounded-3xl border border-border bg-card shadow-sm",
+        "absolute inset-0 w-full h-full z-10",
         className,
       )}
       dangerouslySetInnerHTML={{ __html: svgString }}
