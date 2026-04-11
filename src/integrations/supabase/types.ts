@@ -701,6 +701,62 @@ export type Database = {
         }
         Relationships: []
       }
+      wardrobe_views: {
+        Row: {
+          created_at: string | null
+          id: string
+          image_url: string
+          name: string
+          svg_string: string | null
+          wardrobe_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          image_url: string
+          name: string
+          svg_string?: string | null
+          wardrobe_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          image_url?: string
+          name?: string
+          svg_string?: string | null
+          wardrobe_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wardrobe_views_wardrobe_id_fkey"
+            columns: ["wardrobe_id"]
+            isOneToOne: false
+            referencedRelation: "wardrobes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wardrobes: {
+        Row: {
+          created_at: string | null
+          id: string
+          title: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          title: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          title?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

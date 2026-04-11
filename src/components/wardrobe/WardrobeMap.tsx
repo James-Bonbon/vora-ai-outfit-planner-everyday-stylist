@@ -29,6 +29,7 @@ export const WardrobeMap: React.FC<WardrobeMapProps> = ({
     svgElement.style.width = "100%";
     svgElement.style.height = "100%";
     svgElement.setAttribute("preserveAspectRatio", "xMidYMid meet");
+    svgElement.style.pointerEvents = "none";
 
     const paths = svgElement.querySelectorAll("path, rect, polygon, ellipse, circle");
 
@@ -36,13 +37,20 @@ export const WardrobeMap: React.FC<WardrobeMapProps> = ({
       const htmlEl = el as SVGElement & ElementCSSInlineStyle;
       const zoneId = htmlEl.getAttribute("id");
 
+      if (!zoneId) {
+        htmlEl.style.pointerEvents = "none";
+        htmlEl.style.fill = "transparent";
+        htmlEl.style.stroke = "none";
+        return;
+      }
+
       // Reset styles
+      htmlEl.style.pointerEvents = "auto";
       htmlEl.style.fill = "transparent";
       htmlEl.style.stroke = "hsl(var(--border))";
       htmlEl.style.strokeWidth = "2";
       htmlEl.style.transition = "all 0.3s ease";
-      htmlEl.style.cursor = isSelectionMode && zoneId ? "pointer" : "default";
-      htmlEl.style.pointerEvents = "auto";
+      htmlEl.style.cursor = isSelectionMode ? "pointer" : "default";
 
       // Active zone highlighting
       if (activeZoneId && zoneId === activeZoneId) {
@@ -53,7 +61,7 @@ export const WardrobeMap: React.FC<WardrobeMapProps> = ({
       }
 
       // Interactive listeners for selection mode
-      if (isSelectionMode && onZoneSelect && zoneId) {
+      if (isSelectionMode && onZoneSelect) {
         htmlEl.onmouseenter = () => {
           if (zoneId !== activeZoneId) {
             htmlEl.style.fill = SAGE;

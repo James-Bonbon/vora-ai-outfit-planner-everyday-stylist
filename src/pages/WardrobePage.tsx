@@ -455,7 +455,7 @@ const WardrobePage = () => {
 
       {/* Wardrobe Map Dialog */}
       <Dialog open={mapOpen} onOpenChange={setMapOpen}>
-        <DialogContent className="rounded-2xl max-w-sm">
+        <DialogContent className="max-w-sm rounded-2xl [&>button]:relative [&>button]:z-[60] [&>button]:pointer-events-auto">
           <DialogHeader>
             <DialogTitle className="font-outfit">AI Wardrobe Map</DialogTitle>
           </DialogHeader>
@@ -480,7 +480,7 @@ const WardrobePage = () => {
             <Button
               onClick={() => fileInputRef.current?.click()}
               disabled={generatingMap}
-              className="w-full rounded-xl gap-2"
+              className="relative z-[60] w-full gap-2 rounded-xl pointer-events-auto"
               variant={closetSvg ? "outline" : "default"}
             >
               {generatingMap ? (
