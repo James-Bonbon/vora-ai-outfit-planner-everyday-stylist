@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import GlassCard from "@/components/GlassCard";
 import SafeImage from "@/components/ui/SafeImage";
 import { Plus, Library, Camera, Loader2, WashingMachine, AlertTriangle } from "lucide-react";
-import WardrobeHybridOverlay from "@/components/wardrobe/WardrobeHybridOverlay";
 import CabinetIcon from "@/components/icons/CabinetIcon";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -737,7 +736,15 @@ const WardrobePage = () => {
           {/* Body */}
           <div className="flex-1 overflow-y-auto p-4 flex items-center justify-center bg-muted/20">
             {closetSvg ? (
-              <WardrobeHybridOverlay svgString={closetSvg} />
+              <div
+                className="relative w-full aspect-square max-h-[60vh] flex items-center justify-center
+                           [&>svg]:w-full [&>svg]:h-full [&>svg]:max-w-full [&>svg]:max-h-full
+                           [&>svg]:object-contain
+                           [&_rect]:!fill-transparent [&_rect]:!stroke-foreground [&_rect]:!stroke-[2px]
+                           [&_text]:!fill-foreground [&_text]:text-sm [&_text]:font-medium
+                           [&_path]:!stroke-foreground [&_circle]:!stroke-foreground"
+                dangerouslySetInnerHTML={{ __html: closetSvg }}
+              />
             ) : (
               <div className="text-center py-6">
                 <CabinetIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
