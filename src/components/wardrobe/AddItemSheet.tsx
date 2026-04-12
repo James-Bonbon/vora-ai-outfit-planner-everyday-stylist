@@ -341,6 +341,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       setBrand(prefill.brand);
       setHasTransparentBg(!!prefill.hasTransparentBg);
       if (prefill.processedBlob) setProcessedBlob(prefill.processedBlob);
+      if (prefill.storage_zone) setStorageZoneId(prefill.storage_zone);
     }
   }, [prefill, open]);
 
@@ -644,6 +645,23 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
                     <Search className="w-3 h-3" /> Searching product info...
                   </p>
                 )}
+              </div>
+
+              {/* Storage Zone */}
+              <div>
+                <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                  <MapPin className="w-3 h-3" /> Storage Zone
+                </Label>
+                <select
+                  value={storageZoneId || ""}
+                  onChange={(e) => setStorageZoneId(e.target.value || null)}
+                  className="w-full h-10 text-sm rounded-xl bg-card border border-input px-3 mt-1 outline-none text-foreground"
+                >
+                  <option value="">None (assign later)</option>
+                  {STORAGE_ZONES.map((z) => (
+                    <option key={z.id} value={z.id}>{z.label}</option>
+                  ))}
+                </select>
               </div>
 
               {/* Care data preview */}

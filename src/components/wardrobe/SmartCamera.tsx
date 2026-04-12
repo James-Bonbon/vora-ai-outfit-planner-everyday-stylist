@@ -158,6 +158,7 @@ const SmartCamera = ({ open, onOpenChange, onAnalyzed }: SmartCameraProps) => {
           material: data?.material || "",
           brand: data?.brand || "",
           hasTransparentBg,
+          storage_zone: data?.storage_zone || undefined,
         });
       }
 
