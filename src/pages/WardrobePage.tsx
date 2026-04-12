@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import GlassCard from "@/components/GlassCard";
 import SafeImage from "@/components/ui/SafeImage";
-import { Plus, Library, Camera, Loader2, WashingMachine, AlertTriangle, Grid, Shirt, Server, User, ShoppingBag } from "lucide-react";
+import { Plus, Library, Camera, Loader2, WashingMachine, AlertTriangle, Grid, Shirt, Server, User, ShoppingBag, X } from "lucide-react";
 import CabinetIcon from "@/components/icons/CabinetIcon";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -145,6 +145,7 @@ const WardrobePage = () => {
   const [stagedPhotos, setStagedPhotos] = useState<File[]>([]);
   const [stagedThumbnails, setStagedThumbnails] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [activeZoneFilter, setActiveZoneFilter] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load existing SVG
@@ -358,7 +359,18 @@ const WardrobePage = () => {
 
   const items = closetData?.items ?? [];
   const imageUrls = closetData?.imageUrls ?? {};
-  const filtered = activeCategory === "All" ? items : items.filter((i) => i.category === activeCategory);
+  const filtered = items.filter(i =>
+    (activeCategory === "All" || i.category === activeCategory) &&
+    (!activeZoneFilter || i.storage_zone_id === activeZoneFilter)
+  );
+
+  const ZONE_LABEL_MAP: Record<string, string> = {
+    left_shelves: "Left Shelving",
+    center_hanging_shirts: "Center Hanging Shirts",
+    center_drawers: "Center Drawers",
+    right_hanging_dresses: "Right Hanging Dresses",
+    floor_storage: "Floor Bags/Storage",
+  };
 
   // Smart Laundry: detect stale items (7+ days in laundry)
   useEffect(() => {
@@ -505,6 +517,21 @@ const WardrobePage = () => {
               </div>
             </Alert>
           )}
+          {/* Active Zone Filter Chip */}
+          {activeZoneFilter && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 w-fit">
+              <span className="text-xs font-medium text-primary">
+                Zone: {ZONE_LABEL_MAP[activeZoneFilter] || activeZoneFilter}
+              </span>
+              <button
+                onClick={() => setActiveZoneFilter(null)}
+                className="w-4 h-4 rounded-full bg-primary/20 flex items-center justify-center hover:bg-primary/30 transition-colors"
+              >
+                <X className="w-3 h-3 text-primary" />
+              </button>
+            </div>
+          )}
+
           <div className="flex gap-2 overflow-x-auto no-scrollbar">
             {CATEGORIES.map((cat) => (
               <button
@@ -759,8 +786,14 @@ const WardrobePage = () => {
                       return (
                         <div
                           key={idx}
-                          className="absolute flex flex-col items-center justify-center text-foreground p-2 text-center"
+                          className={`absolute flex flex-col items-center justify-center text-foreground p-2 text-center cursor-pointer hover:bg-primary/10 transition-colors rounded-lg ${
+                            activeZoneFilter === zone.id ? "bg-primary/15 ring-1 ring-primary/30" : ""
+                          }`}
                           style={{ left: zone.left, top: zone.top, width: zone.width, height: zone.height }}
+                          onClick={() => {
+                            setActiveZoneFilter(activeZoneFilter === zone.id ? null : zone.id);
+                            setMapOpen(false);
+                          }}
                         >
                           {content.icon}
                           <span className="text-[10px] sm:text-xs font-medium leading-tight">{content.text}</span>
