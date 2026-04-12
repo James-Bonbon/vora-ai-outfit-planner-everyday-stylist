@@ -740,9 +740,9 @@ const WardrobePage = () => {
                 className="relative w-full aspect-square max-h-[60vh] flex items-center justify-center
                            [&>svg]:w-full [&>svg]:h-full [&>svg]:max-w-full [&>svg]:max-h-full
                            [&>svg]:object-contain
-                           [&_rect]:!fill-transparent [&_rect]:!stroke-foreground [&_rect]:!stroke-[4px]
-                           [&_text]:!fill-foreground [&_text]:!text-sm [&_text]:font-medium
-                           [&_path]:!hidden [&_circle]:!hidden"
+                           [&_rect]:!fill-transparent [&_rect]:!stroke-foreground [&_rect]:!stroke-[2px]
+                           [&_text]:!fill-foreground [&_text]:text-sm [&_text]:font-medium
+                           [&_path]:!stroke-foreground [&_circle]:!stroke-foreground"
                 dangerouslySetInnerHTML={{ __html: closetSvg }}
               />
             ) : (
