@@ -803,28 +803,48 @@ const WardrobePage = () => {
               type="file"
               accept="image/*"
               className="hidden"
-              onChange={handleClosetPhotoSelect}
+              onChange={handlePhotoSelect}
             />
-            <Button
-              onClick={() => openClosetPhotoPicker(Boolean(closetSvg))}
-              disabled={generatingMap}
-              variant="outline"
-              className="rounded-xl gap-2"
-            >
-              {generatingMap ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Analyzing…
-                </>
-              ) : closetSvg ? (
-                "Retake Photo"
-              ) : (
-                "Take Closet Photo"
-              )}
-            </Button>
-            <Button className="rounded-xl gap-2" disabled={!closetSvg}>
-              Save Closet
-            </Button>
+            {closetSvg ? (
+              <>
+                <Button
+                  onClick={() => { setClosetSvg(null); clearStaging(); }}
+                  disabled={generatingMap}
+                  variant="outline"
+                  className="rounded-xl gap-2"
+                >
+                  Retake Photo
+                </Button>
+                <Button className="rounded-xl gap-2" disabled={!closetSvg}>
+                  Save Closet
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  onClick={openClosetPhotoPicker}
+                  disabled={generatingMap || stagedPhotos.length >= 2}
+                  variant="outline"
+                  className="rounded-xl gap-2"
+                >
+                  {stagedPhotos.length === 0 ? "Take Closet Photo" : "Add Photo"}
+                </Button>
+                <Button
+                  className="rounded-xl gap-2"
+                  disabled={stagedPhotos.length === 0 || generatingMap}
+                  onClick={handleGenerateMap}
+                >
+                  {generatingMap ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Analyzing…
+                    </>
+                  ) : (
+                    "Generate AI Map"
+                  )}
+                </Button>
+              </>
+            )}
           </div>
         </DialogContent>
       </Dialog>
