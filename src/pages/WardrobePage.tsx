@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import GlassCard from "@/components/GlassCard";
 import SafeImage from "@/components/ui/SafeImage";
-import { Plus, Library, Camera, Loader2, WashingMachine, AlertTriangle } from "lucide-react";
+import { Plus, Library, Camera, Loader2, WashingMachine, AlertTriangle, Grid, Shirt, Server, User, ShoppingBag } from "lucide-react";
 import CabinetIcon from "@/components/icons/CabinetIcon";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -736,15 +736,62 @@ const WardrobePage = () => {
           {/* Body */}
           <div className="flex-1 overflow-y-auto p-4 flex items-center justify-center bg-muted/20">
             {closetSvg ? (
-              <div
-                className="relative w-full aspect-square max-h-[60vh] flex items-center justify-center
-                           [&>svg]:w-full [&>svg]:h-full [&>svg]:max-w-full [&>svg]:max-h-full
-                           [&>svg]:object-contain
-                           [&_rect]:!fill-transparent [&_rect]:!stroke-foreground [&_rect]:!stroke-[2px]
-                           [&_text]:!fill-foreground [&_text]:text-sm [&_text]:font-medium
-                           [&_path]:!stroke-foreground [&_circle]:!stroke-foreground"
-                dangerouslySetInnerHTML={{ __html: closetSvg }}
-              />
+              (() => {
+                const parseSvgCoordinates = (svgStr: string) => {
+                  const parser = new DOMParser();
+                  const doc = parser.parseFromString(svgStr, "image/svg+xml");
+                  const rects = Array.from(doc.querySelectorAll("rect"));
+                  return rects.map(rect => {
+                    const getVal = (attr: string) => (parseFloat(rect.getAttribute(attr) || "0") / 10);
+                    return {
+                      id: rect.getAttribute("id") || "",
+                      left: `${getVal("x")}%`,
+                      top: `${getVal("y")}%`,
+                      width: `${getVal("width")}%`,
+                      height: `${getVal("height")}%`,
+                    };
+                  });
+                };
+
+                const zones = parseSvgCoordinates(closetSvg);
+
+                const getZoneContent = (id: string) => {
+                  switch (id) {
+                    case "left_shelves": return { icon: <Grid className="w-5 h-5 mb-1" />, text: "Left Shelving" };
+                    case "center_hanging_shirts": return { icon: <Shirt className="w-5 h-5 mb-1" />, text: "Center Hanging Shirts" };
+                    case "center_drawers": return { icon: <Server className="w-5 h-5 mb-1" />, text: "Center Drawers" };
+                    case "right_hanging_dresses": return { icon: <User className="w-5 h-5 mb-1" />, text: "Right Hanging Dresses" };
+                    case "floor_storage": return { icon: <ShoppingBag className="w-5 h-5 mb-1" />, text: "Floor Bags/Storage" };
+                    default: return null;
+                  }
+                };
+
+                return (
+                  <div className="relative w-full aspect-square max-h-[60vh] mx-auto bg-background border border-border rounded-xl overflow-hidden">
+                    {/* Layer 1: The AI Blueprint Background */}
+                    <div
+                      className="absolute inset-0 w-full h-full [&>svg]:w-full [&>svg]:h-full [&_rect]:!fill-transparent [&_rect]:!stroke-foreground/20 [&_rect]:!stroke-[2px]"
+                      dangerouslySetInnerHTML={{ __html: closetSvg }}
+                    />
+
+                    {/* Layer 2: The React Interactive Overlay */}
+                    {zones.map((zone, idx) => {
+                      const content = getZoneContent(zone.id);
+                      if (!content) return null;
+                      return (
+                        <div
+                          key={idx}
+                          className="absolute flex flex-col items-center justify-center text-foreground p-2 text-center"
+                          style={{ left: zone.left, top: zone.top, width: zone.width, height: zone.height }}
+                        >
+                          {content.icon}
+                          <span className="text-[10px] sm:text-xs font-medium leading-tight">{content.text}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()
             ) : (
               <div className="text-center py-6">
                 <CabinetIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
