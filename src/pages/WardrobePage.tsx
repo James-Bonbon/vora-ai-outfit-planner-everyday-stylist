@@ -142,6 +142,8 @@ const WardrobePage = () => {
   const [mapOpen, setMapOpen] = useState(false);
   const [closetSvg, setClosetSvg] = useState<string | null>(null);
   const [generatingMap, setGeneratingMap] = useState(false);
+  const [stagedPhotos, setStagedPhotos] = useState<File[]>([]);
+  const [stagedThumbnails, setStagedThumbnails] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load existing SVG
@@ -182,45 +184,44 @@ const WardrobePage = () => {
     if (error) throw error;
   };
 
-  const openClosetPhotoPicker = (wipeCurrentSvg = false) => {
-    if (wipeCurrentSvg) {
-      setClosetSvg(null);
-    }
-
+  const openClosetPhotoPicker = () => {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
       fileInputRef.current.click();
     }
   };
 
-  const handleClosetPhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const input = e.target;
-    const file = input.files?.[0];
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file) return;
+    if (stagedPhotos.length >= 2) return;
+    const newPhotos = [...stagedPhotos, file];
+    setStagedPhotos(newPhotos);
+    // Generate thumbnail
+    const url = URL.createObjectURL(file);
+    setStagedThumbnails(prev => [...prev, url]);
+    e.target.value = "";
+  };
+
+  const clearStaging = () => {
+    stagedThumbnails.forEach(u => URL.revokeObjectURL(u));
+    setStagedPhotos([]);
+    setStagedThumbnails([]);
+  };
+
+  const handleGenerateMap = async () => {
+    if (stagedPhotos.length === 0) return;
 
     const toastId = "wardrobe-upload";
     let restoreFetchDebugLogger: (() => void) | undefined;
     const getErrorMessage = (error: any) => {
       if (error?.name === "FunctionsFetchError") {
-        const contextMessage = error?.context?.message ?? error?.context?.cause?.message ?? error?.context?.name ?? "";
-
-        return [
-          "Browser/network failed before the Edge Function returned a readable response.",
-          contextMessage ? `Fetch detail: ${contextMessage}.` : "",
-          "Check DevTools Network for CORS preflight, DNS, or offline failures.",
-        ]
-          .filter(Boolean)
-          .join(" ");
+        return "Browser/network failed before the Edge Function returned a readable response.";
       }
-
-      const rawMessage =
-        error?.message ??
-        (typeof error === "string" ? error : JSON.stringify(error, Object.getOwnPropertyNames(error)));
-
+      const rawMessage = error?.message ?? (typeof error === "string" ? error : JSON.stringify(error, Object.getOwnPropertyNames(error)));
       if (error?.name === "AbortError" || /aborted|timeout/i.test(rawMessage ?? "")) {
         return "Request timed out after 30 seconds";
       }
-
       return rawMessage || "Unknown error";
     };
 
@@ -231,59 +232,27 @@ const WardrobePage = () => {
     try {
       restoreFetchDebugLogger = installWardrobeFetchDebugLogger();
 
-      console.log("[Wardrobe map debug] Clearing stored closet SVG before invoking Edge Function...");
       await withDebugTimeout(clearStoredClosetSvg(), NETWORK_DEBUG_TIMEOUT_MS, "Clearing stored closet SVG");
-      console.log("[Wardrobe map debug] Stored closet SVG cleared.");
 
-      const normalizedBlob = await normalizeToPng(file);
-      const base64 = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const result = ev.target?.result as string;
-          resolve(result.split(",")[1]);
-        };
-        reader.readAsDataURL(normalizedBlob);
-      });
+      const base64Array = await Promise.all(
+        stagedPhotos.map(async (file) => {
+          const normalizedBlob = await normalizeToPng(file);
+          return new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (ev) => resolve((ev.target?.result as string).split(",")[1]);
+            reader.readAsDataURL(normalizedBlob);
+          });
+        })
+      );
 
-      const supabaseUrlExists = Boolean(import.meta.env.VITE_SUPABASE_URL);
-      const supabaseAnonKeyExists = Boolean(import.meta.env.VITE_SUPABASE_ANON_KEY);
-      const supabasePublishableKeyExists = Boolean(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseFunctionsUrl = isUsableEnvValue(supabaseUrl)
-        ? `${supabaseUrl.replace(/\/+$/, "")}/functions/v1`
-        : undefined;
-      const supabaseUrlLooksValid = isUsableEnvValue(supabaseUrl) && /^https?:\/\//i.test(supabaseUrl);
-      const supabaseKeyLooksValid =
-        isUsableEnvValue(import.meta.env.VITE_SUPABASE_ANON_KEY) ||
-        isUsableEnvValue(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
-
-      console.log("Supabase env debug:", {
-        supabaseUrl,
-        supabaseFunctionsUrl,
-        supabaseUrlExists,
-        supabaseUrlLooksValid,
-        supabaseAnonKeyExists,
-        supabasePublishableKeyExists,
-      });
-      console.log("Base64 length:", base64.length);
-
-      if (!supabaseUrlLooksValid || !supabaseKeyLooksValid) {
-        throw new Error("Supabase client config is missing.");
-      }
-
-      if (!base64 || base64.length < 100) {
+      if (base64Array.some(b => !b || b.length < 100)) {
         throw new Error("Invalid image data. Please try again.");
       }
-
-      console.log("[Wardrobe map debug] Invoking Edge Function", {
-        functionName: "generate-wardrobe-svg",
-        expectedUrl: `${supabaseFunctionsUrl}/generate-wardrobe-svg`,
-      });
 
       const invokeController = new AbortController();
       const { data, error } = await withDebugTimeout(
         supabase.functions.invoke("generate-wardrobe-svg", {
-          body: { imageBase64: base64 },
+          body: { imagesBase64: base64Array },
           signal: invokeController.signal,
           timeout: NETWORK_DEBUG_TIMEOUT_MS,
         } as any),
@@ -292,21 +261,10 @@ const WardrobePage = () => {
         () => invokeController.abort(),
       );
 
-      console.log("Raw Supabase Response:", { data, error });
+      if (error) throw new Error(getErrorMessage(error));
+      if (data?.error) throw new Error(typeof data.error === "string" ? data.error : JSON.stringify(data.error));
+      if (!data?.svg) throw new Error("API Success, but no SVG returned!");
 
-      if (error) {
-        throw new Error(getErrorMessage(error));
-      }
-
-      if (data?.error) {
-        throw new Error(typeof data.error === "string" ? data.error : JSON.stringify(data.error));
-      }
-
-      if (!data?.svg) {
-        throw new Error("API Success, but no SVG returned!");
-      }
-
-      // Sanitize SVG to be CSP-safe: strip script tags, event handlers, and foreign objects
       let sanitizedSvg = data.svg
         .replace(/<script[\s\S]*?<\/script>/gi, "")
         .replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, "")
@@ -315,16 +273,14 @@ const WardrobePage = () => {
         .replace(/javascript\s*:/gi, "blocked:")
         .trim();
 
-      console.log("[Wardrobe map] Sanitized SVG length:", sanitizedSvg.length);
-
       setClosetSvg(sanitizedSvg);
+      clearStaging();
       toast.success("Map generated!", { id: toastId });
     } catch (err: any) {
       console.error("Full Network Error Object:", err);
       toast.error("Failed: " + getErrorMessage(err), { id: toastId });
     } finally {
       restoreFetchDebugLogger?.();
-      input.value = "";
       setGeneratingMap(false);
     }
   };
@@ -768,13 +724,10 @@ const WardrobePage = () => {
 
                 return (
                   <div className="relative w-full aspect-square max-h-[60vh] mx-auto bg-background border border-border rounded-xl overflow-hidden">
-                    {/* Layer 1: The AI Blueprint Background */}
                     <div
                       className="absolute inset-0 w-full h-full [&>svg]:w-full [&>svg]:h-full [&_rect]:!fill-transparent [&_rect]:!stroke-foreground/20 [&_rect]:!stroke-[2px]"
                       dangerouslySetInnerHTML={{ __html: closetSvg }}
                     />
-
-                    {/* Layer 2: The React Interactive Overlay */}
                     {zones.map((zone, idx) => {
                       const content = getZoneContent(zone.id);
                       if (!content) return null;
@@ -792,6 +745,47 @@ const WardrobePage = () => {
                   </div>
                 );
               })()
+            ) : stagedPhotos.length > 0 ? (
+              <div className="w-full space-y-4">
+                <div className="flex gap-3 justify-center">
+                  {stagedThumbnails.map((thumb, i) => (
+                    <div key={i} className="relative w-32 h-32 rounded-xl overflow-hidden border border-border shadow-sm">
+                      <img src={thumb} alt={`Closet photo ${i + 1}`} className="w-full h-full object-cover" />
+                      <button
+                        className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs"
+                        onClick={() => {
+                          URL.revokeObjectURL(stagedThumbnails[i]);
+                          setStagedPhotos(prev => prev.filter((_, idx) => idx !== i));
+                          setStagedThumbnails(prev => prev.filter((_, idx) => idx !== i));
+                        }}
+                      >
+                        ×
+                      </button>
+                      <span className="absolute bottom-1 left-1 text-[9px] bg-background/80 text-foreground px-1.5 py-0.5 rounded-md font-medium">
+                        {i === 0 ? "Left / Main" : "Right Side"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex flex-col items-center gap-2">
+                  {stagedPhotos.length === 1 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl gap-2 text-xs"
+                      onClick={openClosetPhotoPicker}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Add Right Side (Sliding Door)
+                    </Button>
+                  )}
+                  <p className="text-[10px] text-muted-foreground">
+                    {stagedPhotos.length === 1
+                      ? "1 photo staged. Add a second for sliding-door wardrobes, or generate now."
+                      : "2 photos staged. Ready to generate."}
+                  </p>
+                </div>
+              </div>
             ) : (
               <div className="text-center py-6">
                 <CabinetIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
@@ -809,28 +803,48 @@ const WardrobePage = () => {
               type="file"
               accept="image/*"
               className="hidden"
-              onChange={handleClosetPhotoSelect}
+              onChange={handlePhotoSelect}
             />
-            <Button
-              onClick={() => openClosetPhotoPicker(Boolean(closetSvg))}
-              disabled={generatingMap}
-              variant="outline"
-              className="rounded-xl gap-2"
-            >
-              {generatingMap ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Analyzing…
-                </>
-              ) : closetSvg ? (
-                "Retake Photo"
-              ) : (
-                "Take Closet Photo"
-              )}
-            </Button>
-            <Button className="rounded-xl gap-2" disabled={!closetSvg}>
-              Save Closet
-            </Button>
+            {closetSvg ? (
+              <>
+                <Button
+                  onClick={() => { setClosetSvg(null); clearStaging(); }}
+                  disabled={generatingMap}
+                  variant="outline"
+                  className="rounded-xl gap-2"
+                >
+                  Retake Photo
+                </Button>
+                <Button className="rounded-xl gap-2" disabled={!closetSvg}>
+                  Save Closet
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  onClick={openClosetPhotoPicker}
+                  disabled={generatingMap || stagedPhotos.length >= 2}
+                  variant="outline"
+                  className="rounded-xl gap-2"
+                >
+                  {stagedPhotos.length === 0 ? "Take Closet Photo" : "Add Photo"}
+                </Button>
+                <Button
+                  className="rounded-xl gap-2"
+                  disabled={stagedPhotos.length === 0 || generatingMap}
+                  onClick={handleGenerateMap}
+                >
+                  {generatingMap ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Analyzing…
+                    </>
+                  ) : (
+                    "Generate AI Map"
+                  )}
+                </Button>
+              </>
+            )}
           </div>
         </DialogContent>
       </Dialog>
