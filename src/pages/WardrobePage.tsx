@@ -306,7 +306,18 @@ const WardrobePage = () => {
         throw new Error("API Success, but no SVG returned!");
       }
 
-      setClosetSvg(data.svg);
+      // Sanitize SVG to be CSP-safe: strip script tags, event handlers, and foreign objects
+      let sanitizedSvg = data.svg
+        .replace(/<script[\s\S]*?<\/script>/gi, "")
+        .replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, "")
+        .replace(/\bon\w+\s*=\s*"[^"]*"/gi, "")
+        .replace(/\bon\w+\s*=\s*'[^']*'/gi, "")
+        .replace(/javascript\s*:/gi, "blocked:")
+        .trim();
+
+      console.log("[Wardrobe map] Sanitized SVG length:", sanitizedSvg.length);
+
+      setClosetSvg(sanitizedSvg);
       toast.success("Map generated!", { id: toastId });
     } catch (err: any) {
       console.error("Full Network Error Object:", err);
