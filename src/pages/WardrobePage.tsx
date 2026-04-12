@@ -144,6 +144,7 @@ const WardrobePage = () => {
   const [generatingMap, setGeneratingMap] = useState(false);
   const [stagedPhotos, setStagedPhotos] = useState<File[]>([]);
   const [stagedThumbnails, setStagedThumbnails] = useState<string[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load existing SVG
