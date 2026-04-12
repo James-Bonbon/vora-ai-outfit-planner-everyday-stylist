@@ -10,6 +10,7 @@ export interface ClosetItem {
   is_in_laundry: boolean;
   laundry_added_at: string | null;
   last_laundry_reminder_at: string | null;
+  storage_zone_id: string | null;
   created_at: string;
 }
 
