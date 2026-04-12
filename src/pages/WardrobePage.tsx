@@ -210,6 +210,30 @@ const WardrobePage = () => {
     setStagedThumbnails([]);
   };
 
+  const handleSaveCloset = async () => {
+    if (!user || !closetSvg) return;
+    
+    setIsSaving(true);
+    const toastId = toast.loading("Saving wardrobe map...");
+
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ closet_svg: closetSvg })
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      toast.success("Wardrobe map saved successfully! ✨", { id: toastId });
+      setMapOpen(false);
+    } catch (error: any) {
+      console.error("Save Error:", error);
+      toast.error("Failed to save: " + error.message, { id: toastId });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleGenerateMap = async () => {
     if (stagedPhotos.length === 0) return;
 
@@ -816,7 +840,12 @@ const WardrobePage = () => {
                 >
                   Retake Photo
                 </Button>
-                <Button className="rounded-xl gap-2" disabled={!closetSvg}>
+                <Button 
+                  onClick={handleSaveCloset} 
+                  disabled={!closetSvg || isSaving} 
+                  className="rounded-xl gap-2"
+                >
+                  {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
                   Save Closet
                 </Button>
               </>
