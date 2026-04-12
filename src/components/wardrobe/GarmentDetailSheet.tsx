@@ -19,6 +19,7 @@ interface GarmentDetailSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDeleted: () => void;
+  onLocate?: (zoneId: string) => void;
 }
 
 interface StainStep {
@@ -60,7 +61,7 @@ const DetailRow = ({ label, value }: { label: string; value: string | null | und
   );
 };
 
-const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDetailSheetProps) => {
+const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: GarmentDetailSheetProps) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -345,11 +346,25 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted }: GarmentDeta
             )}
           </div>
 
-          {/* Edit button for closet items */}
+          {/* Edit & Locate buttons for closet items */}
           {!isDream && !isEditing && (
-            <Button variant="outline" className="w-full rounded-xl gap-2" onClick={() => setIsEditing(true)}>
-              <Pencil className="w-4 h-4" /> Edit Details
-            </Button>
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1 rounded-xl gap-2" onClick={() => setIsEditing(true)}>
+                <Pencil className="w-4 h-4" /> Edit Details
+              </Button>
+              {storageZoneId && onLocate && (
+                <Button
+                  variant="outline"
+                  className="rounded-xl gap-2"
+                  onClick={() => {
+                    onOpenChange(false);
+                    onLocate(storageZoneId);
+                  }}
+                >
+                  <MapPin className="w-4 h-4 text-primary" /> Locate
+                </Button>
+              )}
+            </div>
           )}
 
           {/* Wardrobe Map Zone */}

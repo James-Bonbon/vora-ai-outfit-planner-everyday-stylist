@@ -146,6 +146,7 @@ const WardrobePage = () => {
   const [stagedThumbnails, setStagedThumbnails] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [activeZoneFilter, setActiveZoneFilter] = useState<string | null>(null);
+  const [highlightZoneId, setHighlightZoneId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load existing SVG
@@ -700,6 +701,11 @@ const WardrobePage = () => {
         open={detailOpen}
         onOpenChange={setDetailOpen}
         onDeleted={handleRefresh}
+        onLocate={(zoneId) => {
+          setDetailOpen(false);
+          setHighlightZoneId(zoneId);
+          setTimeout(() => setMapOpen(true), 300);
+        }}
       />
       <SmartCamera
         open={cameraOpen}
@@ -717,7 +723,7 @@ const WardrobePage = () => {
       />
 
       {/* Wardrobe Map Dialog */}
-      <Dialog open={mapOpen} onOpenChange={setMapOpen}>
+      <Dialog open={mapOpen} onOpenChange={(v) => { setMapOpen(v); if (!v) setHighlightZoneId(null); }}>
         <DialogContent className="max-w-4xl w-[90vw] h-[85vh] flex flex-col p-0 overflow-hidden bg-background [&>button]:hidden">
           {/* Header */}
           <div className="flex justify-between items-center p-4 border-b z-50 bg-background shrink-0">
@@ -786,11 +792,18 @@ const WardrobePage = () => {
                       return (
                         <div
                           key={idx}
-                          className={`absolute flex flex-col items-center justify-center text-foreground p-2 text-center cursor-pointer hover:bg-primary/10 transition-colors rounded-lg ${
-                            activeZoneFilter === zone.id ? "bg-primary/15 ring-1 ring-primary/30" : ""
+                          className={`absolute flex flex-col items-center justify-center text-foreground p-2 text-center cursor-pointer hover:bg-primary/10 transition-all duration-300 rounded-lg ${
+                            highlightZoneId
+                              ? zone.id === highlightZoneId
+                                ? "ring-4 ring-primary animate-pulse bg-primary/20"
+                                : "opacity-30 grayscale"
+                              : activeZoneFilter === zone.id
+                                ? "bg-primary/15 ring-1 ring-primary/30"
+                                : ""
                           }`}
                           style={{ left: zone.left, top: zone.top, width: zone.width, height: zone.height }}
                           onClick={() => {
+                            if (highlightZoneId) return; // Don't filter when in locate mode
                             setActiveZoneFilter(activeZoneFilter === zone.id ? null : zone.id);
                             setMapOpen(false);
                           }}
