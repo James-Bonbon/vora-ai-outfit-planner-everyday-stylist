@@ -19,7 +19,7 @@ serve(async (req) => {
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) throw new Error("HARD STOP: LOVABLE_API_KEY is missing!");
 
-    const prompt = "You are a wardrobe layout mapper. Output ONLY raw SVG code. ViewBox MUST be '0 0 1000 1000'. Use strictly <rect> and <text> elements. IDs required: 'left_shelves', 'center_hanging_shirts', 'center_drawers', 'right_hanging_dresses', 'floor_storage'. DO NOT draw any background elements. DO NOT draw camera or photo icons. Focus purely on mapping the boundaries.";
+    const prompt = "You are a wardrobe layout mapper. Output ONLY raw SVG code. ViewBox MUST be '0 0 1000 1000'. Map boundaries using <rect>. IDs required: 'left_shelves', 'center_hanging_shirts', 'center_drawers', 'right_hanging_dresses', 'floor_storage'. CRITICAL: Inside each box, you MUST draw a centered <text> label (e.g., 'Center Hanging Shirts'). Above the text, you MUST draw a minimalist SVG icon (using <path> or <circle>) representing that category (e.g., a shirt, dress, or drawers). DO NOT draw solid background blocks. Use transparent backgrounds.";
 
     console.log("3. Calling Lovable AI Gateway (gemini-2.5-flash)...");
     const response = await fetch(
