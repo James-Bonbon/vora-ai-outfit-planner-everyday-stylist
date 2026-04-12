@@ -262,6 +262,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       if (data?.color) setColor(data.color);
       if (data?.material) setMaterial(data.material);
       if (data?.brand) setBrand(data.brand || "");
+      if (data?.storage_zone) setStorageZoneId(data.storage_zone);
       toast.success("AI tagged your item! ✨");
 
       if (data?.brand) {
