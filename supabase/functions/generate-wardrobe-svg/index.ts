@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  console.log("1. REQUEST RECEIVED: Initializing AI Brain...");
+  console.log("1. EDGE FUNCTION HIT! Method:", req.method);
 
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -17,15 +17,13 @@ serve(async (req) => {
     console.log("2. Payload received. Size Check:", imageBase64?.length || 0);
 
     const geminiKey = Deno.env.get("GEMINI_API_KEY");
-    if (!geminiKey) throw new Error("GEMINI_API_KEY is missing in Supabase Secrets!");
+    if (!geminiKey) throw new Error("GEMINI_API_KEY is missing in secrets!");
 
-    // Construct the payload for Gemini 2.5 Pro
-    const prompt =
-      "You are a wardrobe layout mapper. Output ONLY raw SVG code. No markdown. Draw <rect> elements with these IDs: 'left_shelves', 'center_hanging_shirts', 'center_drawers', 'right_hanging_dresses', 'floor_storage'. Imagine this 1000x1000 canvas is a transparent glass sheet over the closet image. Map the physical boundaries accurately.";
+    console.log("3. Calling default gemini-flash-latest...");
 
-    console.log("3. Calling Gemini 2.5 Pro API...");
+    // Using the exact endpoint from your AI Studio cURL
     const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent",
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent",
       {
         method: "POST",
         headers: {
@@ -35,14 +33,15 @@ serve(async (req) => {
         body: JSON.stringify({
           contents: [
             {
-              parts: [{ text: prompt }, { inline_data: { mime_type: "image/jpeg", data: imageBase64 } }],
+              parts: [
+                {
+                  text: "You are a wardrobe layout mapper. Output ONLY raw SVG code. No markdown. Draw rect elements with these IDs: 'left_shelves', 'center_hanging_shirts', 'center_drawers', 'right_hanging_dresses', 'floor_storage'. ViewBox: 0 0 1000 1000.",
+                },
+                { inline_data: { mime_type: "image/jpeg", data: imageBase64 } },
+              ],
             },
           ],
-          generationConfig: {
-            temperature: 0.1, // Forces accuracy over creativity
-            topP: 0.95,
-            topK: 64,
-          },
+          generationConfig: { temperature: 0.1 },
         }),
       },
     );
@@ -53,12 +52,11 @@ serve(async (req) => {
     const rawSvg = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!rawSvg) throw new Error("AI returned empty content.");
 
-    // Clean markdown and return pure SVG
     const cleanSvg = rawSvg
       .replace(/```svg\n?/g, "")
       .replace(/```\n?/g, "")
       .trim();
-    console.log("4. SUCCESS: SVG generated. Length:", cleanSvg.length);
+    console.log("4. SUCCESS: SVG generated.");
 
     return new Response(JSON.stringify({ svg: cleanSvg }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
