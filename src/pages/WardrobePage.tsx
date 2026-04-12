@@ -724,13 +724,10 @@ const WardrobePage = () => {
 
                 return (
                   <div className="relative w-full aspect-square max-h-[60vh] mx-auto bg-background border border-border rounded-xl overflow-hidden">
-                    {/* Layer 1: The AI Blueprint Background */}
                     <div
                       className="absolute inset-0 w-full h-full [&>svg]:w-full [&>svg]:h-full [&_rect]:!fill-transparent [&_rect]:!stroke-foreground/20 [&_rect]:!stroke-[2px]"
                       dangerouslySetInnerHTML={{ __html: closetSvg }}
                     />
-
-                    {/* Layer 2: The React Interactive Overlay */}
                     {zones.map((zone, idx) => {
                       const content = getZoneContent(zone.id);
                       if (!content) return null;
@@ -748,6 +745,47 @@ const WardrobePage = () => {
                   </div>
                 );
               })()
+            ) : stagedPhotos.length > 0 ? (
+              <div className="w-full space-y-4">
+                <div className="flex gap-3 justify-center">
+                  {stagedThumbnails.map((thumb, i) => (
+                    <div key={i} className="relative w-32 h-32 rounded-xl overflow-hidden border border-border shadow-sm">
+                      <img src={thumb} alt={`Closet photo ${i + 1}`} className="w-full h-full object-cover" />
+                      <button
+                        className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs"
+                        onClick={() => {
+                          URL.revokeObjectURL(stagedThumbnails[i]);
+                          setStagedPhotos(prev => prev.filter((_, idx) => idx !== i));
+                          setStagedThumbnails(prev => prev.filter((_, idx) => idx !== i));
+                        }}
+                      >
+                        ×
+                      </button>
+                      <span className="absolute bottom-1 left-1 text-[9px] bg-background/80 text-foreground px-1.5 py-0.5 rounded-md font-medium">
+                        {i === 0 ? "Left / Main" : "Right Side"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex flex-col items-center gap-2">
+                  {stagedPhotos.length === 1 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl gap-2 text-xs"
+                      onClick={openClosetPhotoPicker}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Add Right Side (Sliding Door)
+                    </Button>
+                  )}
+                  <p className="text-[10px] text-muted-foreground">
+                    {stagedPhotos.length === 1
+                      ? "1 photo staged. Add a second for sliding-door wardrobes, or generate now."
+                      : "2 photos staged. Ready to generate."}
+                  </p>
+                </div>
+              </div>
             ) : (
               <div className="text-center py-6">
                 <CabinetIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
