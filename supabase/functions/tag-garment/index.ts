@@ -42,6 +42,7 @@ serve(async (req) => {
 - "color": the primary color (e.g. "Navy Blue")
 - "material": best guess material (e.g. "Cotton", "Polyester", "Leather", "Denim")
 - "brand": brand if visible, otherwise null
+- "storage_zone": Based on the garment type, assign one of these exact IDs: "left_shelves" (folded items like sweaters, t-shirts), "center_hanging_shirts" (shirts, blouses, button-downs), "right_hanging_dresses" (dresses, coats, long garments), "center_drawers" (small items like socks, underwear, accessories), or "floor_storage" (shoes, bags, large accessories)
 Return ONLY valid JSON, no markdown.`,
           },
           {

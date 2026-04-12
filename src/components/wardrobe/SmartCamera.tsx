@@ -23,6 +23,7 @@ export interface AnalyzedItem {
   material: string;
   brand: string;
   hasTransparentBg: boolean;
+  storage_zone?: string;
 }
 
 interface SmartCameraProps {
@@ -157,6 +158,7 @@ const SmartCamera = ({ open, onOpenChange, onAnalyzed }: SmartCameraProps) => {
           material: data?.material || "",
           brand: data?.brand || "",
           hasTransparentBg,
+          storage_zone: data?.storage_zone || undefined,
         });
       }
 
