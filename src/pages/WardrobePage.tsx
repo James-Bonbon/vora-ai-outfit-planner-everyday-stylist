@@ -22,8 +22,105 @@ import { toast } from "sonner";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 const CATEGORIES = ["All", "Tops", "Bottoms", "Shoes", "Accessories", "Outerwear"];
+const NETWORK_DEBUG_TIMEOUT_MS = 30000;
 
 type TabValue = "closet" | "lookbook" | "dream";
+
+const isUsableEnvValue = (value: unknown) => {
+  return typeof value === "string" && value.trim() !== "" && value.trim().toLowerCase() !== "undefined";
+};
+
+const maskHeaderValue = (key: string, value: string) => {
+  if (!/authorization|apikey|api-key|token/i.test(key)) return value;
+  if (value.length <= 12) return "[redacted]";
+  return `${value.slice(0, 8)}...[redacted]...${value.slice(-4)}`;
+};
+
+const getDebugHeaders = (input: RequestInfo | URL, init?: RequestInit) => {
+  const request = typeof Request !== "undefined" && input instanceof Request ? input : null;
+  const headers = new Headers(request?.headers);
+
+  if (init?.headers) {
+    new Headers(init.headers).forEach((value, key) => {
+      headers.set(key, value);
+    });
+  }
+
+  const headersForLog: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    headersForLog[key] = maskHeaderValue(key, value);
+  });
+  return headersForLog;
+};
+
+const getDebugFetchUrl = (input: RequestInfo | URL) => {
+  if (typeof input === "string") return input;
+  if (input instanceof URL) return input.toString();
+  return input.url;
+};
+
+const installWardrobeFetchDebugLogger = () => {
+  if (typeof window === "undefined") return () => undefined;
+
+  const originalFetch = window.fetch.bind(window);
+
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = typeof Request !== "undefined" && input instanceof Request ? input : null;
+    const url = getDebugFetchUrl(input);
+    const method = init?.method ?? request?.method ?? "GET";
+    const startedAt = performance.now();
+
+    console.groupCollapsed(`[Wardrobe fetch debug] ${method} ${url}`);
+    console.log("Request:", {
+      url,
+      method,
+      headers: getDebugHeaders(input, init),
+      bodyType: init?.body ? Object.prototype.toString.call(init.body) : "none",
+    });
+    console.groupEnd();
+
+    try {
+      const response = await originalFetch(input, init);
+      console.log("[Wardrobe fetch debug] response", {
+        url,
+        status: response.status,
+        ok: response.ok,
+        type: response.type,
+        elapsedMs: Math.round(performance.now() - startedAt),
+      });
+      return response;
+    } catch (error) {
+      console.error("[Wardrobe fetch debug] failed before readable response", {
+        url,
+        elapsedMs: Math.round(performance.now() - startedAt),
+        online: navigator.onLine,
+        error,
+      });
+      throw error;
+    }
+  };
+
+  return () => {
+    window.fetch = originalFetch;
+  };
+};
+
+const withDebugTimeout = async <T,>(promise: Promise<T>, timeoutMs: number, label: string, onTimeout?: () => void) => {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      onTimeout?.();
+      reject(new DOMException(`${label} timed out after ${timeoutMs / 1000} seconds`, "AbortError"));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+};
 
 const WardrobePage = () => {
   const { user } = useAuth();
@@ -80,10 +177,7 @@ const WardrobePage = () => {
   const clearStoredClosetSvg = async () => {
     if (!user) return;
 
-    const { error } = await supabase
-      .from("profiles")
-      .update({ closet_svg: null })
-      .eq("user_id", user.id);
+    const { error } = await supabase.from("profiles").update({ closet_svg: null }).eq("user_id", user.id);
 
     if (error) throw error;
   };
@@ -105,9 +199,23 @@ const WardrobePage = () => {
     if (!file) return;
 
     const toastId = "wardrobe-upload";
+    let restoreFetchDebugLogger: (() => void) | undefined;
     const getErrorMessage = (error: any) => {
+      if (error?.name === "FunctionsFetchError") {
+        const contextMessage = error?.context?.message ?? error?.context?.cause?.message ?? error?.context?.name ?? "";
+
+        return [
+          "Browser/network failed before the Edge Function returned a readable response.",
+          contextMessage ? `Fetch detail: ${contextMessage}.` : "",
+          "Check DevTools Network for CORS preflight, DNS, or offline failures.",
+        ]
+          .filter(Boolean)
+          .join(" ");
+      }
+
       const rawMessage =
-        error?.message ?? (typeof error === "string" ? error : JSON.stringify(error));
+        error?.message ??
+        (typeof error === "string" ? error : JSON.stringify(error, Object.getOwnPropertyNames(error)));
 
       if (error?.name === "AbortError" || /aborted|timeout/i.test(rawMessage ?? "")) {
         return "Request timed out after 30 seconds";
@@ -121,7 +229,11 @@ const WardrobePage = () => {
     toast.loading("Analyzing wardrobe layout...", { id: toastId });
 
     try {
-      await clearStoredClosetSvg();
+      restoreFetchDebugLogger = installWardrobeFetchDebugLogger();
+
+      console.log("[Wardrobe map debug] Clearing stored closet SVG before invoking Edge Function...");
+      await withDebugTimeout(clearStoredClosetSvg(), NETWORK_DEBUG_TIMEOUT_MS, "Clearing stored closet SVG");
+      console.log("[Wardrobe map debug] Stored closet SVG cleared.");
 
       const normalizedBlob = await normalizeToPng(file);
       const base64 = await new Promise<string>((resolve) => {
@@ -136,13 +248,26 @@ const WardrobePage = () => {
       const supabaseUrlExists = Boolean(import.meta.env.VITE_SUPABASE_URL);
       const supabaseAnonKeyExists = Boolean(import.meta.env.VITE_SUPABASE_ANON_KEY);
       const supabasePublishableKeyExists = Boolean(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseFunctionsUrl = isUsableEnvValue(supabaseUrl)
+        ? `${supabaseUrl.replace(/\/+$/, "")}/functions/v1`
+        : undefined;
+      const supabaseUrlLooksValid = isUsableEnvValue(supabaseUrl) && /^https?:\/\//i.test(supabaseUrl);
+      const supabaseKeyLooksValid =
+        isUsableEnvValue(import.meta.env.VITE_SUPABASE_ANON_KEY) ||
+        isUsableEnvValue(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
 
-      console.log("Supabase URL exists:", supabaseUrlExists);
-      console.log("Supabase Anon Key exists:", supabaseAnonKeyExists);
-      console.log("Supabase Publishable Key exists:", supabasePublishableKeyExists);
+      console.log("Supabase env debug:", {
+        supabaseUrl,
+        supabaseFunctionsUrl,
+        supabaseUrlExists,
+        supabaseUrlLooksValid,
+        supabaseAnonKeyExists,
+        supabasePublishableKeyExists,
+      });
       console.log("Base64 length:", base64.length);
 
-      if (!supabaseUrlExists || (!supabaseAnonKeyExists && !supabasePublishableKeyExists)) {
+      if (!supabaseUrlLooksValid || !supabaseKeyLooksValid) {
         throw new Error("Supabase client config is missing.");
       }
 
@@ -150,10 +275,22 @@ const WardrobePage = () => {
         throw new Error("Invalid image data. Please try again.");
       }
 
-      const { data, error } = await supabase.functions.invoke("generate-wardrobe-svg", {
-        body: { imageBase64: base64 },
-        timeout: 30000,
+      console.log("[Wardrobe map debug] Invoking Edge Function", {
+        functionName: "generate-wardrobe-svg",
+        expectedUrl: `${supabaseFunctionsUrl}/generate-wardrobe-svg`,
       });
+
+      const invokeController = new AbortController();
+      const { data, error } = await withDebugTimeout(
+        supabase.functions.invoke("generate-wardrobe-svg", {
+          body: { imageBase64: base64 },
+          signal: invokeController.signal,
+          timeout: NETWORK_DEBUG_TIMEOUT_MS,
+        } as any),
+        NETWORK_DEBUG_TIMEOUT_MS,
+        "generate-wardrobe-svg",
+        () => invokeController.abort(),
+      );
 
       console.log("Raw Supabase Response:", { data, error });
 
@@ -175,6 +312,7 @@ const WardrobePage = () => {
       console.error("Full Network Error Object:", err);
       toast.error("Failed: " + getErrorMessage(err), { id: toastId });
     } finally {
+      restoreFetchDebugLogger?.();
       input.value = "";
       setGeneratingMap(false);
     }
@@ -232,14 +370,18 @@ const WardrobePage = () => {
 
   // Smart Laundry: detect stale items (7+ days in laundry)
   useEffect(() => {
-    if (!items.length) { setNeedsLaundryReview([]); return; }
+    if (!items.length) {
+      setNeedsLaundryReview([]);
+      return;
+    }
     const now = new Date();
     const staleItems = items.filter((item: any) => {
       if (!item.is_in_laundry || !item.laundry_added_at) return false;
       const daysInLaundry = (now.getTime() - new Date(item.laundry_added_at).getTime()) / (1000 * 3600 * 24);
       if (daysInLaundry < 7) return false;
       if (!item.last_laundry_reminder_at) return true;
-      const daysSinceReminder = (now.getTime() - new Date(item.last_laundry_reminder_at).getTime()) / (1000 * 3600 * 24);
+      const daysSinceReminder =
+        (now.getTime() - new Date(item.last_laundry_reminder_at).getTime()) / (1000 * 3600 * 24);
       return daysSinceReminder >= 3;
     });
     setNeedsLaundryReview(staleItems);
@@ -256,7 +398,10 @@ const WardrobePage = () => {
 
   const handleMarkAllClean = async (staleItems: ClosetItem[]) => {
     const ids = staleItems.map((i) => i.id);
-    await supabase.from("closet_items").update({ is_in_laundry: false, laundry_added_at: null, last_laundry_reminder_at: null }).in("id", ids);
+    await supabase
+      .from("closet_items")
+      .update({ is_in_laundry: false, laundry_added_at: null, last_laundry_reminder_at: null })
+      .in("id", ids);
     setNeedsLaundryReview([]);
     handleRefresh();
     toast.success("All items marked as clean!");
@@ -349,10 +494,20 @@ const WardrobePage = () => {
                 These have been in the wash for over a week.
               </AlertDescription>
               <div className="flex gap-2 mt-3">
-                <Button size="sm" variant="outline" className="rounded-xl text-xs h-8 border-amber-300" onClick={() => handleMarkAllClean(needsLaundryReview)}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="rounded-xl text-xs h-8 border-amber-300"
+                  onClick={() => handleMarkAllClean(needsLaundryReview)}
+                >
                   Mark as Clean
                 </Button>
-                <Button size="sm" variant="ghost" className="rounded-xl text-xs h-8 text-muted-foreground" onClick={() => handleSnoozeReminders(needsLaundryReview)}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="rounded-xl text-xs h-8 text-muted-foreground"
+                  onClick={() => handleSnoozeReminders(needsLaundryReview)}
+                >
                   Still Washing – Snooze 3 days
                 </Button>
               </div>
@@ -409,7 +564,9 @@ const WardrobePage = () => {
                   )}
                   <button
                     className={`absolute top-2 right-2 z-10 w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
-                      item.is_in_laundry ? "bg-primary text-primary-foreground" : "bg-muted/80 text-muted-foreground hover:bg-muted"
+                      item.is_in_laundry
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted/80 text-muted-foreground hover:bg-muted"
                     }`}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -546,14 +703,22 @@ const WardrobePage = () => {
           {/* Header */}
           <div className="flex justify-between items-center p-4 border-b z-50 bg-background shrink-0">
             <h2 className="text-xl font-semibold font-outfit">AI Wardrobe Map</h2>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative z-50"
-              onClick={() => setMapOpen(false)}
-            >
+            <Button variant="ghost" size="icon" className="relative z-50" onClick={() => setMapOpen(false)}>
               <span className="sr-only">Close</span>
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
+              </svg>
             </Button>
           </div>
 
