@@ -21,7 +21,16 @@ export interface PrefillData {
   hasTransparentBg?: boolean;
   /** Processed blob after bg removal (for manual uploads) */
   processedBlob?: Blob;
+  storage_zone?: string;
 }
+
+const STORAGE_ZONES = [
+  { id: "left_shelves", label: "Left Shelving" },
+  { id: "center_hanging_shirts", label: "Center Hanging Shirts" },
+  { id: "center_drawers", label: "Center Drawers" },
+  { id: "right_hanging_dresses", label: "Right Hanging Dresses" },
+  { id: "floor_storage", label: "Floor Bags/Storage" },
+];
 
 interface AddItemSheetProps {
   open: boolean;

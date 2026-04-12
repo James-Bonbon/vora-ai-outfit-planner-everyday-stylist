@@ -23,6 +23,7 @@ export interface AnalyzedItem {
   material: string;
   brand: string;
   hasTransparentBg: boolean;
+  storage_zone?: string;
 }
 
 interface SmartCameraProps {
