@@ -184,45 +184,44 @@ const WardrobePage = () => {
     if (error) throw error;
   };
 
-  const openClosetPhotoPicker = (wipeCurrentSvg = false) => {
-    if (wipeCurrentSvg) {
-      setClosetSvg(null);
-    }
-
+  const openClosetPhotoPicker = () => {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
       fileInputRef.current.click();
     }
   };
 
-  const handleClosetPhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const input = e.target;
-    const file = input.files?.[0];
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file) return;
+    if (stagedPhotos.length >= 2) return;
+    const newPhotos = [...stagedPhotos, file];
+    setStagedPhotos(newPhotos);
+    // Generate thumbnail
+    const url = URL.createObjectURL(file);
+    setStagedThumbnails(prev => [...prev, url]);
+    e.target.value = "";
+  };
+
+  const clearStaging = () => {
+    stagedThumbnails.forEach(u => URL.revokeObjectURL(u));
+    setStagedPhotos([]);
+    setStagedThumbnails([]);
+  };
+
+  const handleGenerateMap = async () => {
+    if (stagedPhotos.length === 0) return;
 
     const toastId = "wardrobe-upload";
     let restoreFetchDebugLogger: (() => void) | undefined;
     const getErrorMessage = (error: any) => {
       if (error?.name === "FunctionsFetchError") {
-        const contextMessage = error?.context?.message ?? error?.context?.cause?.message ?? error?.context?.name ?? "";
-
-        return [
-          "Browser/network failed before the Edge Function returned a readable response.",
-          contextMessage ? `Fetch detail: ${contextMessage}.` : "",
-          "Check DevTools Network for CORS preflight, DNS, or offline failures.",
-        ]
-          .filter(Boolean)
-          .join(" ");
+        return "Browser/network failed before the Edge Function returned a readable response.";
       }
-
-      const rawMessage =
-        error?.message ??
-        (typeof error === "string" ? error : JSON.stringify(error, Object.getOwnPropertyNames(error)));
-
+      const rawMessage = error?.message ?? (typeof error === "string" ? error : JSON.stringify(error, Object.getOwnPropertyNames(error)));
       if (error?.name === "AbortError" || /aborted|timeout/i.test(rawMessage ?? "")) {
         return "Request timed out after 30 seconds";
       }
-
       return rawMessage || "Unknown error";
     };
 
@@ -233,59 +232,27 @@ const WardrobePage = () => {
     try {
       restoreFetchDebugLogger = installWardrobeFetchDebugLogger();
 
-      console.log("[Wardrobe map debug] Clearing stored closet SVG before invoking Edge Function...");
       await withDebugTimeout(clearStoredClosetSvg(), NETWORK_DEBUG_TIMEOUT_MS, "Clearing stored closet SVG");
-      console.log("[Wardrobe map debug] Stored closet SVG cleared.");
 
-      const normalizedBlob = await normalizeToPng(file);
-      const base64 = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const result = ev.target?.result as string;
-          resolve(result.split(",")[1]);
-        };
-        reader.readAsDataURL(normalizedBlob);
-      });
+      const base64Array = await Promise.all(
+        stagedPhotos.map(async (file) => {
+          const normalizedBlob = await normalizeToPng(file);
+          return new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (ev) => resolve((ev.target?.result as string).split(",")[1]);
+            reader.readAsDataURL(normalizedBlob);
+          });
+        })
+      );
 
-      const supabaseUrlExists = Boolean(import.meta.env.VITE_SUPABASE_URL);
-      const supabaseAnonKeyExists = Boolean(import.meta.env.VITE_SUPABASE_ANON_KEY);
-      const supabasePublishableKeyExists = Boolean(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseFunctionsUrl = isUsableEnvValue(supabaseUrl)
-        ? `${supabaseUrl.replace(/\/+$/, "")}/functions/v1`
-        : undefined;
-      const supabaseUrlLooksValid = isUsableEnvValue(supabaseUrl) && /^https?:\/\//i.test(supabaseUrl);
-      const supabaseKeyLooksValid =
-        isUsableEnvValue(import.meta.env.VITE_SUPABASE_ANON_KEY) ||
-        isUsableEnvValue(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
-
-      console.log("Supabase env debug:", {
-        supabaseUrl,
-        supabaseFunctionsUrl,
-        supabaseUrlExists,
-        supabaseUrlLooksValid,
-        supabaseAnonKeyExists,
-        supabasePublishableKeyExists,
-      });
-      console.log("Base64 length:", base64.length);
-
-      if (!supabaseUrlLooksValid || !supabaseKeyLooksValid) {
-        throw new Error("Supabase client config is missing.");
-      }
-
-      if (!base64 || base64.length < 100) {
+      if (base64Array.some(b => !b || b.length < 100)) {
         throw new Error("Invalid image data. Please try again.");
       }
-
-      console.log("[Wardrobe map debug] Invoking Edge Function", {
-        functionName: "generate-wardrobe-svg",
-        expectedUrl: `${supabaseFunctionsUrl}/generate-wardrobe-svg`,
-      });
 
       const invokeController = new AbortController();
       const { data, error } = await withDebugTimeout(
         supabase.functions.invoke("generate-wardrobe-svg", {
-          body: { imageBase64: base64 },
+          body: { imagesBase64: base64Array },
           signal: invokeController.signal,
           timeout: NETWORK_DEBUG_TIMEOUT_MS,
         } as any),
@@ -294,21 +261,10 @@ const WardrobePage = () => {
         () => invokeController.abort(),
       );
 
-      console.log("Raw Supabase Response:", { data, error });
+      if (error) throw new Error(getErrorMessage(error));
+      if (data?.error) throw new Error(typeof data.error === "string" ? data.error : JSON.stringify(data.error));
+      if (!data?.svg) throw new Error("API Success, but no SVG returned!");
 
-      if (error) {
-        throw new Error(getErrorMessage(error));
-      }
-
-      if (data?.error) {
-        throw new Error(typeof data.error === "string" ? data.error : JSON.stringify(data.error));
-      }
-
-      if (!data?.svg) {
-        throw new Error("API Success, but no SVG returned!");
-      }
-
-      // Sanitize SVG to be CSP-safe: strip script tags, event handlers, and foreign objects
       let sanitizedSvg = data.svg
         .replace(/<script[\s\S]*?<\/script>/gi, "")
         .replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, "")
@@ -317,16 +273,14 @@ const WardrobePage = () => {
         .replace(/javascript\s*:/gi, "blocked:")
         .trim();
 
-      console.log("[Wardrobe map] Sanitized SVG length:", sanitizedSvg.length);
-
       setClosetSvg(sanitizedSvg);
+      clearStaging();
       toast.success("Map generated!", { id: toastId });
     } catch (err: any) {
       console.error("Full Network Error Object:", err);
       toast.error("Failed: " + getErrorMessage(err), { id: toastId });
     } finally {
       restoreFetchDebugLogger?.();
-      input.value = "";
       setGeneratingMap(false);
     }
   };
