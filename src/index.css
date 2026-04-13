@@ -439,6 +439,10 @@
     font-family: 'Inter', sans-serif;
   }
 
+  .font-serif-display {
+    font-family: 'Cormorant Garamond', serif;
+  }
+
   .glass-card {
     background: hsl(var(--card) / 0.85);
     backdrop-filter: blur(24px);
