@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { fadeUp } from "./fadeAnimation";
 import SuccessMessage from "./SuccessMessage";
+import MagneticButton from "./MagneticButton";
 
 interface Props {
   email: string;
@@ -50,13 +51,13 @@ const WelcomeHero = ({ email, setEmail, loading, submitted, onSubmit }: Props) =
           disabled={loading}
           className="w-full sm:flex-1 bg-transparent border-b border-[#e8e6e1]/20 focus:border-[#e8e6e1] py-3 text-sm font-outfit placeholder:text-[#e8e6e1]/30 focus:outline-none transition-colors disabled:opacity-40"
         />
-        <button
+        <MagneticButton
           type="submit"
           disabled={loading || !email}
           className="w-full sm:w-auto border border-[#e8e6e1]/60 px-8 py-3 uppercase tracking-[0.2em] text-[10px] font-outfit font-medium hover:bg-[#e8e6e1] hover:text-[#0a0a0a] transition-colors duration-300 disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap"
         >
           {loading ? "Reserving…" : "Request Access"}
-        </button>
+        </MagneticButton>
       </motion.form>
     ) : (
       <SuccessMessage />
