@@ -1874,7 +1874,7 @@
 
     "workbox-build/glob/minimatch/brace-expansion": ["brace-expansion@5.0.5", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/brace-expansion/-/brace-expansion-5.0.5.tgz", { "dependencies": { "balanced-match": "^4.0.2" } }, "sha512-VZznLgtwhn+Mact9tfiwx64fA9erHH/MCXEUfB/0bX/6Fz6ny5EGTXYltMocqg4xFAQZtnO3DHWWXi8RiuN7cQ=="],
 
-    "workbox-build/glob/path-scurry/lru-cache": ["lru-cache@11.3.3", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/lru-cache/-/lru-cache-11.3.3.tgz", {}, "sha512-JvNw9Y81y33E+BEYPr0U7omo+U9AySnsMsEiXgwT6yqd31VQWTLNQqmT4ou5eqPFUrTfIDFta2wKhB1hyohtAQ=="],
+    "workbox-build/glob/path-scurry/lru-cache": ["lru-cache@11.3.5", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/lru-cache/-/lru-cache-11.3.5.tgz", {}, "sha512-NxVFwLAnrd9i7KUBxC4DrUhmgjzOs+1Qm50D3oF1/oL+r1NpZ4gA7xvG0/zJ8evR7zIKn4vLf7qTNduWFtCrRw=="],
 
     "workbox-build/source-map/whatwg-url/tr46": ["tr46@1.0.1", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/tr46/-/tr46-1.0.1.tgz", { "dependencies": { "punycode": "^2.1.0" } }, "sha512-dTpowEjclQ7Kgx5SdBkqRzVhERQXov8/l9Ft9dVM9fmg0W0KQSVaXX9T4i6twCPNtYiZM53lpSSUAwJbFPOHxA=="],
 
