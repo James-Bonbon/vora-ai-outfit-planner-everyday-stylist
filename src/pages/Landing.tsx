@@ -15,14 +15,17 @@ const Landing = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
 
-  // Redirect if already logged in (must be in useEffect, not during render)
+  // Redirect based on auth state
   useEffect(() => {
     if (!loading && user) {
       navigate("/home", { replace: true });
+    } else if (!loading && !user) {
+      navigate("/welcome", { replace: true });
     }
   }, [loading, user, navigate]);
 
   if (!loading && user) return null;
+  if (!loading && !user) return null;
 
   const handleGoogleSignIn = async () => {
     if (!agreed) return;

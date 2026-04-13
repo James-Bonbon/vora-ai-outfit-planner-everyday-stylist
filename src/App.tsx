@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Landing from "./pages/Landing";
+import WelcomePage from "./pages/WelcomePage";
 import LegalPage from "./pages/LegalPage";
 import SettingsPage from "./pages/SettingsPage";
 import SubscriptionPage from "./pages/SubscriptionPage";
@@ -35,6 +36,7 @@ const App = () => (
         <ThemeProvider>
           <Routes>
             <Route path="/" element={<Landing />} />
+            <Route path="/welcome" element={<WelcomePage />} />
             <Route path="/legal" element={<LegalPage />} />
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="/subscription" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
