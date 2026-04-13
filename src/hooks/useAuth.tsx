@@ -19,7 +19,7 @@ export function useAuth() {
           setSession(session);
           setUser(session?.user ?? null);
 
-          if (event === "SIGNED_IN" && window.location.pathname === "/") {
+          if (event === "SIGNED_IN" && (window.location.pathname === "/" || window.location.pathname === "/welcome")) {
             window.location.replace("/home");
           }
         }
