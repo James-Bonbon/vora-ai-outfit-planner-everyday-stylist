@@ -56,7 +56,7 @@ const ProtectedRoute = ({
   }
 
   if (!user) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/welcome" replace />;
   }
 
   // 6. Ensure skipOnboarding properly bypasses this redirect
