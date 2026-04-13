@@ -36,6 +36,7 @@ const App = () => (
         <ThemeProvider>
           <Routes>
             <Route path="/" element={<Landing />} />
+            <Route path="/welcome" element={<WelcomePage />} />
             <Route path="/legal" element={<LegalPage />} />
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="/subscription" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
