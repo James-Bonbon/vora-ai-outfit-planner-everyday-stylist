@@ -3,12 +3,14 @@ import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Check } from "lucide-react";
+import WelcomeHeader from "@/components/welcome/WelcomeHeader";
 import WelcomeHero from "@/components/welcome/WelcomeHero";
 import WelcomeProcess from "@/components/welcome/WelcomeProcess";
 import WelcomeFeatures from "@/components/welcome/WelcomeFeatures";
 import WelcomeManifesto from "@/components/welcome/WelcomeManifesto";
 import WelcomeFAQ from "@/components/welcome/WelcomeFAQ";
 import WelcomeFooterCTA from "@/components/welcome/WelcomeFooterCTA";
+import WelcomeFooter from "@/components/welcome/WelcomeFooter";
 
 const WelcomePage = () => {
   const [email, setEmail] = useState("");
@@ -50,6 +52,7 @@ const WelcomePage = () => {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-[#e8e6e1] selection:bg-[#e8e6e1]/20">
+      <WelcomeHeader />
       <WelcomeHero
         email={email}
         setEmail={setEmail}
@@ -68,6 +71,7 @@ const WelcomePage = () => {
         submitted={footerSubmitted}
         onSubmit={(e) => handleSubmit(e, footerEmail, setFooterLoading, setFooterSubmitted)}
       />
+      <WelcomeFooter />
     </div>
   );
 };
