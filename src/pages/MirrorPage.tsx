@@ -351,16 +351,28 @@ const MirrorPage = () => {
     if (!selectedLook || !user) return;
     setIsSharing(true);
     try {
-      // Get a public/signed URL for the look image
-      const imageUrl = await getSignedUrl("looks", selectedLook.image_path);
-      if (!imageUrl) throw new Error("Could not get image URL");
+      // Download the look image from private "looks" bucket and re-upload to public "feed_images" bucket
+      const { data: downloadData, error: downloadError } = await supabase.storage
+        .from("looks")
+        .download(selectedLook.image_path);
+      if (downloadError || !downloadData) throw new Error("Could not download look image");
+
+      const feedPath = `${user.id}/${Date.now()}_shared.png`;
+      const { error: uploadError } = await supabase.storage
+        .from("feed_images")
+        .upload(feedPath, downloadData, { contentType: "image/png" });
+      if (uploadError) throw uploadError;
+
+      // Get public URL for the feed_images bucket (public bucket)
+      const { data: publicUrlData } = supabase.storage.from("feed_images").getPublicUrl(feedPath);
+      const feedImageUrl = publicUrlData.publicUrl;
 
       const { error } = await supabase.from("feed_posts").insert({
         user_id: user.id,
-        image_url: imageUrl,
+        image_url: feedImageUrl,
         description: shareCaption.trim() || "AI Styled Look ✨",
         is_vton: true,
-        status: "approved",
+        status: "pending",
         outfit_breakdown: selectedLook.garment_ids
           ? selectedLook.garment_ids.map((id: string) => {
               const g = lookGarments.find((lg) => lg.id === id);
@@ -376,7 +388,7 @@ const MirrorPage = () => {
       setShareModalOpen(false);
       setShareCaption("");
       queryClient.invalidateQueries({ queryKey: ["feed-posts"] });
-      toast.success("Look shared to the global feed!");
+      toast.success("Look submitted for review!");
     } catch (err: any) {
       toast.error("Failed to share", { description: err.message });
     } finally {
