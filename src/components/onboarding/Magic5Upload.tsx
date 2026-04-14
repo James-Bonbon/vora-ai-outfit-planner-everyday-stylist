@@ -88,17 +88,11 @@ const Magic5Upload = ({ onAllUploaded, profileData, preferences }: Magic5UploadP
               .upload(filePath, blob, { contentType: "image/png", upsert: true });
             if (uploadErr) throw uploadErr;
 
-            // 4. Get signed URL
-            const { data: signedData, error: signedErr } = await supabase.storage
-              .from("garments")
-              .createSignedUrl(filePath, 60 * 60 * 24 * 365);
-            if (signedErr) throw signedErr;
-
             setProgressCount((c) => c + 1);
 
             return {
               user_id: user.id,
-              image_url: signedData.signedUrl,
+              image_url: filePath,
               name: SLOTS[i].label,
               category: SLOTS[i].category,
             };
