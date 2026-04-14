@@ -70,8 +70,11 @@ export function useSelfieUrl() {
         .maybeSingle();
 
       if (!profile?.selfie_url) return null;
+
+      // Legacy: if it's already a full URL, use as-is
       if (profile.selfie_url.startsWith("http")) return profile.selfie_url;
 
+      // Otherwise sign from private bucket
       const { data } = await supabase.storage.from("selfies").createSignedUrl(profile.selfie_url, 3600);
       return data?.signedUrl || null;
     },

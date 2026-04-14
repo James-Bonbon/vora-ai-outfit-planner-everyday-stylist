@@ -43,15 +43,20 @@ export function useCommunityFeed() {
         })
       );
 
-      // Resolve creator avatars
-      const avatarEntries = data.map((look) => {
-        const p = look.profiles as any;
-        let avatar = p?.selfie_url || p?.avatar_url || null;
-        if (avatar && !avatar.startsWith("http")) {
-          avatar = supabase.storage.from("selfies").getPublicUrl(avatar).data.publicUrl;
-        }
-        return [look.id, avatar] as const;
-      });
+      // Resolve creator avatars — use signed URLs for private selfie bucket
+      const avatarEntries = await Promise.all(
+        data.map(async (look) => {
+          const p = look.profiles as any;
+          let avatar = p?.selfie_url || p?.avatar_url || null;
+          if (avatar && !avatar.startsWith("http")) {
+            const { data: signedData } = await supabase.storage
+              .from("selfies")
+              .createSignedUrl(avatar, 3600);
+            avatar = signedData?.signedUrl || null;
+          }
+          return [look.id, avatar] as const;
+        })
+      );
 
       return {
         looks: data as unknown as CommunityLook[],
