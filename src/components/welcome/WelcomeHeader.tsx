@@ -1,6 +1,5 @@
 import { motion } from "framer-motion";
 import WelcomeThemeSwitcher, { type WelcomeThemeKey } from "./WelcomeThemeSwitcher";
-import WelcomeThemeSwitcher, { type WelcomeThemeKey } from "./WelcomeThemeSwitcher";
 
 interface Props {
   activeTheme: WelcomeThemeKey;
