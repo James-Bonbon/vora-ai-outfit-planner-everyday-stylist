@@ -15,14 +15,14 @@ const WelcomeHero = ({ email, setEmail, loading, submitted, onSubmit }: Props) =
   <section className="min-h-[85vh] flex flex-col items-center justify-center text-center px-6">
     <motion.p
       {...fadeUp(0)}
-      className="font-outfit text-xs uppercase tracking-[0.35em] text-[#e8e6e1]/40 mb-12"
+      className="font-outfit text-xs uppercase tracking-[0.35em] text-[#3A4B40] mb-12"
     >
       VORA
     </motion.p>
 
     <motion.h1
       {...fadeUp(0.15)}
-      className="font-serif-display font-light text-5xl md:text-7xl lg:text-8xl tracking-tight leading-[1.05] mb-6 max-w-4xl"
+      className="font-serif-display font-light text-5xl md:text-7xl lg:text-8xl tracking-tight leading-[1.05] mb-6 max-w-4xl text-[#E8EAE3]"
     >
       Your Wardrobe,
       <br />
@@ -31,7 +31,7 @@ const WelcomeHero = ({ email, setEmail, loading, submitted, onSubmit }: Props) =
 
     <motion.p
       {...fadeUp(0.3)}
-      className="font-outfit text-[#e8e6e1]/50 max-w-2xl text-base md:text-lg lg:text-xl leading-relaxed mb-14"
+      className="font-outfit text-[#E8EAE3]/50 max-w-2xl text-base md:text-lg lg:text-xl leading-relaxed mb-14"
     >
       Stop staring at a closet full of clothes with nothing to wear.
       We are digitizing your physical space with advanced spatial AI.
@@ -49,12 +49,12 @@ const WelcomeHero = ({ email, setEmail, loading, submitted, onSubmit }: Props) =
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Enter your email"
           disabled={loading}
-          className="w-full sm:flex-1 bg-transparent border-b border-[#e8e6e1]/20 focus:border-[#e8e6e1] py-3 text-sm font-outfit placeholder:text-[#e8e6e1]/30 focus:outline-none transition-colors disabled:opacity-40"
+          className="w-full sm:flex-1 bg-transparent border-b border-[#3A4B40] focus:border-[#E8EAE3] py-3 text-sm font-outfit text-[#E8EAE3] placeholder:text-[#E8EAE3]/30 focus:outline-none transition-colors disabled:opacity-40"
         />
         <MagneticButton
           type="submit"
           disabled={loading || !email}
-          className="w-full sm:w-auto border border-[#e8e6e1]/60 px-8 py-3 uppercase tracking-[0.2em] text-[10px] font-outfit font-medium hover:bg-[#e8e6e1] hover:text-[#0a0a0a] transition-colors duration-300 disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap"
+          className="w-full sm:w-auto border border-[#E8EAE3]/60 px-8 py-3 uppercase tracking-[0.2em] text-[10px] font-outfit font-medium text-[#E8EAE3] hover:bg-[#E8EAE3] hover:text-[#111613] transition-colors duration-300 disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap"
         >
           {loading ? "Reserving…" : "Request Access"}
         </MagneticButton>
@@ -65,10 +65,10 @@ const WelcomeHero = ({ email, setEmail, loading, submitted, onSubmit }: Props) =
 
     <motion.div
       {...fadeUp(0.7)}
-      className="mt-20 flex flex-col items-center gap-2 text-[#e8e6e1]/20"
+      className="mt-20 flex flex-col items-center gap-2 text-[#3A4B40]"
     >
       <span className="text-[10px] uppercase tracking-[0.3em] font-outfit">Discover</span>
-      <div className="w-px h-8 bg-[#e8e6e1]/10" />
+      <div className="w-px h-8 bg-[#3A4B40]/50" />
     </motion.div>
   </section>
 );

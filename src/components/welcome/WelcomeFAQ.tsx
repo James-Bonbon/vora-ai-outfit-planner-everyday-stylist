@@ -32,22 +32,22 @@ const WelcomeFAQ = () => {
     <section className="max-w-3xl mx-auto py-24 md:py-32 px-6">
       <motion.p
         {...fadeUp(0)}
-        className="text-center text-[10px] uppercase tracking-[0.35em] text-[#e8e6e1]/30 font-outfit mb-16"
+        className="text-center text-[10px] uppercase tracking-[0.35em] text-[#3A4B40] font-outfit mb-16"
       >
         The Concierge
       </motion.p>
 
-      <div className="flex flex-col divide-y divide-[#e8e6e1]/10">
+      <div className="flex flex-col divide-y divide-[#3A4B40]/30">
         {faqs.map((faq, i) => (
           <motion.div key={i} {...fadeUp(i * 0.08)}>
             <button
               onClick={() => setOpenIndex(openIndex === i ? null : i)}
               className="w-full text-left py-6 flex items-start justify-between gap-4 group"
             >
-              <span className="font-outfit text-base md:text-lg text-[#e8e6e1]/80 group-hover:text-[#e8e6e1] transition-colors">
+              <span className="font-outfit text-base md:text-lg text-[#E8EAE3]/80 group-hover:text-[#E8EAE3] transition-colors">
                 {faq.q}
               </span>
-              <span className="font-outfit text-[#e8e6e1]/30 text-xl leading-none mt-0.5 shrink-0 transition-transform duration-300"
+              <span className="font-outfit text-[#3A4B40] text-xl leading-none mt-0.5 shrink-0 transition-transform duration-300"
                 style={{ transform: openIndex === i ? "rotate(45deg)" : "rotate(0deg)" }}
               >
                 +
@@ -57,7 +57,7 @@ const WelcomeFAQ = () => {
               className="overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.25,0.1,0.25,1)]"
               style={{ maxHeight: openIndex === i ? "200px" : "0px", opacity: openIndex === i ? 1 : 0 }}
             >
-              <p className="font-outfit text-sm text-[#e8e6e1]/40 leading-relaxed pb-6 max-w-2xl">
+              <p className="font-outfit text-sm text-[#E8EAE3]/40 leading-relaxed pb-6 max-w-2xl">
                 {faq.a}
               </p>
             </div>

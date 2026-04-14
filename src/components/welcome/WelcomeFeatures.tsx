@@ -54,13 +54,13 @@ const WelcomeFeatures = () => (
           <div className="w-full md:w-1/2 text-left">
             <motion.p
               {...fadeUp(0)}
-              className="text-[10px] uppercase tracking-[0.3em] text-[#e8e6e1]/30 font-outfit mb-4"
+              className="text-[10px] uppercase tracking-[0.3em] text-[#3A4B40] font-outfit mb-4"
             >
               {feat.label}
             </motion.p>
             <motion.h2
               {...fadeUp(0.1)}
-              className="font-serif-display font-light text-3xl md:text-5xl tracking-tight mb-6 leading-[1.1]"
+              className="font-serif-display font-light text-3xl md:text-5xl tracking-tight mb-6 leading-[1.1] text-[#E8EAE3]"
             >
               {feat.title[0]}
               <br />
@@ -68,19 +68,19 @@ const WelcomeFeatures = () => (
             </motion.h2>
             <motion.p
               {...fadeUp(0.2)}
-              className="font-outfit text-[#e8e6e1]/50 text-base md:text-lg leading-relaxed max-w-lg"
+              className="font-outfit text-[#E8EAE3]/50 text-base md:text-lg leading-relaxed max-w-lg"
             >
               {feat.body}
             </motion.p>
           </div>
 
           <motion.div {...fadeUp(0.25)} className="w-full md:w-1/2">
-            <div className="aspect-square rounded-2xl bg-[#e8e6e1]/[0.03] border border-[#e8e6e1]/[0.06] flex items-center justify-center backdrop-blur-sm">
+            <div className="aspect-square rounded-2xl bg-[#E8EAE3]/[0.03] border border-[#3A4B40]/40 flex items-center justify-center backdrop-blur-sm">
               <div className="text-center">
-                <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-[#e8e6e1]/[0.05] flex items-center justify-center">
-                  <Icon className="w-5 h-5 text-[#e8e6e1]/20" />
+                <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-[#E8EAE3]/[0.05] flex items-center justify-center">
+                  <Icon className="w-5 h-5 text-[#3A4B40]" />
                 </div>
-                <p className="text-xs uppercase tracking-[0.2em] text-[#e8e6e1]/20 font-outfit">
+                <p className="text-xs uppercase tracking-[0.2em] text-[#3A4B40] font-outfit">
                   {feat.placeholder}
                 </p>
               </div>
