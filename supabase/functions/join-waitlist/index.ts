@@ -33,20 +33,27 @@ serve(async (req) => {
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (!resendKey) throw new Error("Missing Resend API Key.");
 
+    const fromEmail = Deno.env.get("WAITLIST_FROM_EMAIL") || "Vora <hello@vora.london>";
+    const replyTo = Deno.env.get("WAITLIST_REPLY_TO") || "vora.support@gmail.com";
+
     const emailHtml = `
-      <div style="background-color:#141a24;padding:60px 30px;font-family:'Helvetica Neue',Arial,sans-serif;text-align:center;color:#e8e0d0;">
+      <div style="background-color:#0a0a0a;padding:60px 30px;font-family:'Helvetica Neue',Arial,sans-serif;text-align:center;color:#e8e6e1;">
         <div style="max-width:480px;margin:0 auto;">
           <h1 style="font-size:28px;letter-spacing:6px;font-weight:300;color:#c9a96e;margin-bottom:40px;text-transform:uppercase;">
-            WELCOME TO THE ATELIER
+            VORA
           </h1>
           <p style="font-size:15px;line-height:1.8;color:#a09888;margin-bottom:30px;">
-            You are officially on the list. Keep this email secure — it is your ticket to early access when the private beta opens.
+            You are officially on the list. This email is your ticket to early access when the private beta opens.
           </p>
           <div style="display:inline-block;padding:14px 36px;border:1px solid #c9a96e;color:#c9a96e;font-size:12px;letter-spacing:4px;text-transform:uppercase;margin-bottom:40px;">
             STATUS: VIP PRIORITY
           </div>
           <p style="font-size:13px;color:#5a5248;margin-top:30px;letter-spacing:2px;text-transform:uppercase;">
             Prepare your wardrobe.
+          </p>
+          <hr style="border:none;border-top:1px solid #1a1a1a;margin:40px 0 20px;" />
+          <p style="font-size:11px;color:#3a3a3a;letter-spacing:1px;">
+            vora.london
           </p>
         </div>
       </div>
@@ -59,9 +66,10 @@ serve(async (req) => {
         Authorization: `Bearer ${resendKey}`,
       },
       body: JSON.stringify({
-        from: "VORA Waitlist <onboarding@resend.dev>",
+        from: fromEmail,
+        reply_to: replyTo,
         to: [email.trim().toLowerCase()],
-        subject: "Your Early Access Ticket",
+        subject: "Your Early Access Ticket — VORA",
         html: emailHtml,
       }),
     });
