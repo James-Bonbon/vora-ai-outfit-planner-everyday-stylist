@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
+import { sanitizeWardrobeSvg } from "@/utils/sanitizeWardrobeSvg";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import GlassCard from "@/components/GlassCard";
@@ -221,7 +222,7 @@ const WardrobePage = () => {
     try {
       const { error } = await supabase
         .from("profiles")
-        .update({ closet_svg: closetSvg })
+        .update({ closet_svg: sanitizeWardrobeSvg(closetSvg) })
         .eq("user_id", user.id);
 
       if (error) throw error;
@@ -292,13 +293,7 @@ const WardrobePage = () => {
       if (data?.error) throw new Error(typeof data.error === "string" ? data.error : JSON.stringify(data.error));
       if (!data?.svg) throw new Error("API Success, but no SVG returned!");
 
-      let sanitizedSvg = data.svg
-        .replace(/<script[\s\S]*?<\/script>/gi, "")
-        .replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, "")
-        .replace(/\bon\w+\s*=\s*"[^"]*"/gi, "")
-        .replace(/\bon\w+\s*=\s*'[^']*'/gi, "")
-        .replace(/javascript\s*:/gi, "blocked:")
-        .trim();
+      let sanitizedSvg = sanitizeWardrobeSvg(data.svg);
 
       setClosetSvg(sanitizedSvg);
       clearStaging();
@@ -787,7 +782,7 @@ const WardrobePage = () => {
                   <div className="relative w-full aspect-square max-h-[60vh] mx-auto bg-background border border-border rounded-xl overflow-hidden">
                     <div
                       className="absolute inset-0 w-full h-full [&>svg]:w-full [&>svg]:h-full [&_rect]:!fill-transparent [&_rect]:!stroke-foreground/20 [&_rect]:!stroke-[2px]"
-                      dangerouslySetInnerHTML={{ __html: closetSvg }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeWardrobeSvg(closetSvg) }}
                     />
                     {zones.map((zone, idx) => {
                       const content = getZoneContent(zone.id);
