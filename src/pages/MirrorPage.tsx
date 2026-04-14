@@ -27,7 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
-import { getSignedUrl } from "@/utils/urlCache";
+
 import { toast } from "sonner";
 import {
   useClosetItems,
