@@ -67,11 +67,14 @@ const ProfilePage = () => {
         .eq("role", "admin")
         .maybeSingle();
 
-      // 3. Resolve Avatar URL safely
+      // 3. Resolve selfie URL safely — always sign since bucket may be private
       let finalSelfieUrl = pData?.selfie_url || null;
-      if (finalSelfieUrl && !finalSelfieUrl.startsWith("http")) {
-        const { data } = supabase.storage.from("selfies").getPublicUrl(finalSelfieUrl);
-        finalSelfieUrl = data?.publicUrl || finalSelfieUrl;
+      if (finalSelfieUrl) {
+        // If it's already a full URL (legacy), use as-is; otherwise sign
+        if (!finalSelfieUrl.startsWith("http")) {
+          const { data } = await supabase.storage.from("selfies").createSignedUrl(finalSelfieUrl, 3600);
+          finalSelfieUrl = data?.signedUrl || finalSelfieUrl;
+        }
       }
 
       return {
@@ -273,7 +276,7 @@ const ProfilePage = () => {
     }
     setSaving(true);
     try {
-      let selfiePublicUrl = profile?.selfie_url ?? null;
+      let selfieStoragePath = profile?.selfie_url ?? null;
 
       if (editSelfieFile) {
         const fileExt = editSelfieFile.name.split(".").pop();
@@ -289,11 +292,8 @@ const ProfilePage = () => {
           await supabase.storage.from("selfies").remove([profile.selfie_url]);
         }
 
-        // Get permanent public URL
-        const { data: publicUrlData } = supabase.storage
-          .from("selfies")
-          .getPublicUrl(filePath);
-        selfiePublicUrl = publicUrlData.publicUrl;
+        // Store the raw storage path, not a public/signed URL
+        selfieStoragePath = filePath;
       }
 
       const updatePayload: Record<string, any> = {
@@ -302,7 +302,7 @@ const ProfilePage = () => {
           gender: editSex || null,
           height_cm: editHeight ? Number(editHeight) : null,
           weight_kg: editWeight ? Number(editWeight) : null,
-          selfie_url: selfiePublicUrl,
+          selfie_url: selfieStoragePath,
           body_shape: editBodyShape || null,
           username: editUsername.trim() || null,
         };
