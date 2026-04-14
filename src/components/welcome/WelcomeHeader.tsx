@@ -1,7 +1,5 @@
 import { motion } from "framer-motion";
-import { useAuth } from "@/hooks/useAuth";
-import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import WelcomeThemeSwitcher, { type WelcomeThemeKey } from "./WelcomeThemeSwitcher";
 import WelcomeThemeSwitcher, { type WelcomeThemeKey } from "./WelcomeThemeSwitcher";
 
 interface Props {
