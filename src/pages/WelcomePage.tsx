@@ -1,8 +1,6 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Check } from "lucide-react";
 import WelcomeHeader from "@/components/welcome/WelcomeHeader";
 import WelcomeHero from "@/components/welcome/WelcomeHero";
 import WelcomeProcess from "@/components/welcome/WelcomeProcess";
@@ -11,6 +9,7 @@ import WelcomeManifesto from "@/components/welcome/WelcomeManifesto";
 import WelcomeFAQ from "@/components/welcome/WelcomeFAQ";
 import WelcomeFooterCTA from "@/components/welcome/WelcomeFooterCTA";
 import WelcomeFooter from "@/components/welcome/WelcomeFooter";
+import { type WelcomeThemeKey, WELCOME_THEME_CLASS_MAP } from "@/components/welcome/WelcomeThemeSwitcher";
 
 const WelcomePage = () => {
   const [email, setEmail] = useState("");
@@ -20,6 +19,8 @@ const WelcomePage = () => {
   const [footerEmail, setFooterEmail] = useState("");
   const [footerLoading, setFooterLoading] = useState(false);
   const [footerSubmitted, setFooterSubmitted] = useState(false);
+
+  const [activeTheme, setActiveTheme] = useState<WelcomeThemeKey>("default");
 
   const handleSubmit = async (
     e: React.FormEvent,
@@ -50,9 +51,13 @@ const WelcomePage = () => {
     }
   };
 
+  const themeClass = WELCOME_THEME_CLASS_MAP[activeTheme];
+
   return (
-    <div className="min-h-screen bg-[#111613] text-[#E8EAE3] selection:bg-[#E8EAE3]/20">
-      <WelcomeHeader />
+    <div
+      className={`min-h-screen bg-background text-foreground selection:bg-foreground/20 transition-colors duration-700 ${themeClass}`}
+    >
+      <WelcomeHeader activeTheme={activeTheme} onThemeChange={setActiveTheme} />
       <WelcomeHero
         email={email}
         setEmail={setEmail}

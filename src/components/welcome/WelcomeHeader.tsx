@@ -2,8 +2,14 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
+import WelcomeThemeSwitcher, { type WelcomeThemeKey } from "./WelcomeThemeSwitcher";
 
-const WelcomeHeader = () => {
+interface Props {
+  activeTheme: WelcomeThemeKey;
+  onThemeChange: (key: WelcomeThemeKey) => void;
+}
+
+const WelcomeHeader = ({ activeTheme, onThemeChange }: Props) => {
   const { user, loading } = useAuth();
 
   return (
@@ -13,17 +19,15 @@ const WelcomeHeader = () => {
       transition={{ duration: 1, delay: 0.2 }}
       className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-10 py-5"
     >
-      <span className="font-serif-display text-2xl tracking-[0.25em] text-[#E8EAE3]/80">
+      <span className="font-serif-display text-2xl tracking-[0.25em] text-foreground/80">
         VORA
       </span>
       <div className="flex items-center gap-4">
-        <span className="text-[9px] uppercase tracking-[0.3em] text-[#3A4B40] font-outfit hidden sm:block">
-          By Invitation Only
-        </span>
+        <WelcomeThemeSwitcher active={activeTheme} onChange={onThemeChange} />
         {!loading && user && (
           <Link
             to="/home"
-            className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.2em] text-[#E8EAE3]/60 hover:text-[#E8EAE3] transition-colors duration-300 font-outfit"
+            className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.2em] text-foreground/60 hover:text-foreground transition-colors duration-300 font-outfit"
           >
             Go to App
             <ArrowRight className="w-3 h-3" />

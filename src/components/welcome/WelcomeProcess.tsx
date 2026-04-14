@@ -11,7 +11,7 @@ const WelcomeProcess = () => (
   <section className="max-w-5xl mx-auto py-24 md:py-32 px-6">
     <motion.p
       {...fadeUp(0)}
-      className="text-center text-[10px] uppercase tracking-[0.35em] text-[#3A4B40] font-outfit mb-16"
+      className="text-center text-[10px] uppercase tracking-[0.35em] text-muted-foreground font-outfit mb-16"
     >
       The Process
     </motion.p>
@@ -19,13 +19,13 @@ const WelcomeProcess = () => (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-8">
       {steps.map((step, i) => (
         <motion.div key={step.number} {...fadeUp(i * 0.12)} className="text-center">
-          <p className="font-serif-display text-5xl md:text-6xl font-light text-[#E8EAE3]/[0.07] mb-4">
+          <p className="font-serif-display text-5xl md:text-6xl font-light text-foreground/[0.07] mb-4">
             {step.number}
           </p>
-          <h3 className="font-serif-display text-2xl md:text-3xl font-light italic mb-3 text-[#E8EAE3]">
+          <h3 className="font-serif-display text-2xl md:text-3xl font-light italic mb-3 text-foreground">
             {step.title}
           </h3>
-          <p className="font-outfit text-sm text-[#E8EAE3]/40 max-w-xs mx-auto leading-relaxed">
+          <p className="font-outfit text-sm text-foreground/40 max-w-xs mx-auto leading-relaxed">
             {step.description}
           </p>
         </motion.div>
