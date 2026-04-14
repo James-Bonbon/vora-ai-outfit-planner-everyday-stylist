@@ -9,33 +9,18 @@ interface Props {
   onThemeChange: (key: WelcomeThemeKey) => void;
 }
 
-const WelcomeHeader = ({ activeTheme, onThemeChange }: Props) => {
-  const { user, loading } = useAuth();
-
-  return (
-    <motion.header
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 1, delay: 0.2 }}
-      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-10 py-5"
-    >
-      <span className="font-serif-display text-2xl tracking-[0.25em] text-foreground/80">
-        VORA
-      </span>
-      <div className="flex items-center gap-4">
-        <WelcomeThemeSwitcher active={activeTheme} onChange={onThemeChange} />
-        {!loading && user && (
-          <Link
-            to="/home"
-            className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.2em] text-foreground/60 hover:text-foreground transition-colors duration-300 font-outfit"
-          >
-            Go to App
-            <ArrowRight className="w-3 h-3" />
-          </Link>
-        )}
-      </div>
-    </motion.header>
-  );
-};
+const WelcomeHeader = ({ activeTheme, onThemeChange }: Props) => (
+  <motion.header
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    transition={{ duration: 1, delay: 0.2 }}
+    className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-10 py-5"
+  >
+    <span className="font-serif-display text-2xl tracking-[0.25em] text-foreground/80">
+      VORA
+    </span>
+    <WelcomeThemeSwitcher active={activeTheme} onChange={onThemeChange} />
+  </motion.header>
+);
 
 export default WelcomeHeader;

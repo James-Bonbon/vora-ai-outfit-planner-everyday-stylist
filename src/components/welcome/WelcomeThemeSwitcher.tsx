@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 
 const WELCOME_THEMES = [
-  { key: "default", label: "Noir", swatch: "hsl(38 45% 58%)" },
+  { key: "default", label: "Noir", swatch: "hsl(220 15% 8%)" },
   { key: "forest", label: "Forest", swatch: "hsl(138 15% 20%)" },
   { key: "navy", label: "Navy", swatch: "hsl(213 28% 14%)" },
   { key: "rose", label: "Rosé", swatch: "hsl(348 52% 75%)" },
