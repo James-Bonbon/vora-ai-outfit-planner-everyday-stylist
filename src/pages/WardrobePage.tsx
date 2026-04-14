@@ -327,15 +327,18 @@ const WardrobePage = () => {
       if (!data) return { items: [] as ClosetItem[], imageUrls: {} as Record<string, string> };
 
       const urls: Record<string, string> = {};
-      const paths = data.map((item) => item.image_url).filter(Boolean);
+      const pathEntries = data
+        .map((item) => ({ id: item.id, path: item.image_url }))
+        .filter((e) => Boolean(e.path));
 
-      if (paths.length > 0) {
+      if (pathEntries.length > 0) {
+        const paths = pathEntries.map((e) => e.path);
         const { data: urlData, error: urlError } = await supabase.storage
           .from("garments")
           .createSignedUrls(paths, 3600);
         if (!urlError && urlData) {
           urlData.forEach((u, index) => {
-            if (u.signedUrl) urls[data[index].id] = u.signedUrl;
+            if (u.signedUrl) urls[pathEntries[index].id] = u.signedUrl;
           });
         }
       }

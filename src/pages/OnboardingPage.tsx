@@ -156,17 +156,16 @@ const OnboardingPage = () => {
       if (existing) { toast.error("That username was just taken. Please choose another."); setSaving(false); setUsernameStatus("taken"); return; }
 
       // 1. Process and Upload the Selfie (if provided)
-      let finalAvatarUrl = null;
+      let finalSelfieStoragePath: string | null = null;
       if (!isSkippingAvatar && selfieFile) {
         try {
           const fileExt = selfieFile.name.split(".").pop();
           const filePath = `${user.id}/selfie_${Date.now()}.${fileExt}`;
-          const { data: uploadData, error: uploadError } = await supabase.storage
+          const { error: uploadError } = await supabase.storage
             .from('selfies')
             .upload(filePath, selfieFile, { contentType: 'image/jpeg', upsert: true });
-          if (!uploadError && uploadData) {
-            const { data: publicUrlData } = supabase.storage.from('selfies').getPublicUrl(filePath);
-            finalAvatarUrl = publicUrlData.publicUrl;
+          if (!uploadError) {
+            finalSelfieStoragePath = filePath;
           }
         } catch (imgErr) {
           console.error("Failed to process/upload avatar:", imgErr);
@@ -188,8 +187,8 @@ const OnboardingPage = () => {
         onboarding_complete: true,
       };
 
-      if (finalAvatarUrl) {
-        profileUpdatePayload.selfie_url = finalAvatarUrl;
+      if (finalSelfieStoragePath) {
+        profileUpdatePayload.selfie_url = finalSelfieStoragePath;
       }
 
       // 3. UPSERT with explicit Conflict Targeting
