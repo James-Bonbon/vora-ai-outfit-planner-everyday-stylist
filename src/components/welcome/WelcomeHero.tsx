@@ -13,12 +13,7 @@ interface Props {
 
 const WelcomeHero = ({ email, setEmail, loading, submitted, onSubmit }: Props) => (
   <section className="min-h-[85vh] flex flex-col items-center justify-center text-center px-6">
-    <motion.p
-      {...fadeUp(0)}
-      className="font-outfit text-xs uppercase tracking-[0.35em] text-muted-foreground mb-12"
-    >
-      VORA
-    </motion.p>
+    <div className="mb-12" />
 
     <motion.h1
       {...fadeUp(0.15)}
