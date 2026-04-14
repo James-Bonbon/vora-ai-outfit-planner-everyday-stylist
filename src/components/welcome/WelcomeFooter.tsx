@@ -35,7 +35,7 @@ const WelcomeFooter = () => (
           href="mailto:vora.support@gmail.com"
           className="text-[10px] uppercase tracking-[0.2em] font-outfit text-background/30 hover:text-background transition-colors duration-300"
         >
-          Contact Concierge
+          Contact
         </a>
       </div>
 

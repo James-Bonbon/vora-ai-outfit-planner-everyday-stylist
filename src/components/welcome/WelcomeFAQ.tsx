@@ -34,7 +34,7 @@ const WelcomeFAQ = () => {
         {...fadeUp(0)}
         className="text-center text-[10px] uppercase tracking-[0.35em] text-muted-foreground font-outfit mb-16"
       >
-        The Concierge
+        FAQ
       </motion.p>
 
       <div className="flex flex-col divide-y divide-muted-foreground/30">
