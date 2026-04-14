@@ -7,12 +7,35 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-async function computeInputHash(userId: string, garmentIds: string[], bodyShape?: string | null): Promise<string> {
-  const sorted = [...garmentIds].sort();
-  const input = `${userId}:${sorted.join(",")}:${bodyShape || "none"}`;
-  const data = new TextEncoder().encode(input);
+/**
+ * Strip query strings from URLs so that short-lived signed-URL tokens
+ * don't bust the cache when the underlying storage path hasn't changed.
+ */
+function stripQueryString(url: string): string {
+  if (!url) return "";
+  try {
+    const u = new URL(url);
+    return u.origin + u.pathname;
+  } catch {
+    return url;
+  }
+}
+
+function normalize(v: unknown): string {
+  if (v === null || v === undefined || v === "") return "";
+  if (typeof v === "string") return v.trim().toLowerCase();
+  return JSON.stringify(v);
+}
+
+async function computeInputHash(parts: Record<string, string>): Promise<string> {
+  // Deterministic JSON: sorted keys
+  const keys = Object.keys(parts).sort();
+  const canonical = JSON.stringify(keys.map((k) => [k, parts[k]]));
+  const data = new TextEncoder().encode(canonical);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 serve(async (req) => {
@@ -44,7 +67,16 @@ serve(async (req) => {
     }
     const userId = user.id;
 
-    const { selfieUrl, garmentUrls, garmentIds, occasion, styleVibe, bodyShape: reqBodyShape } = await req.json();
+    const {
+      selfieUrl,
+      garmentUrls,
+      garmentIds,
+      occasion,
+      desiredLook,
+      weather,
+      stylingInstruction,
+      bodyShape: reqBodyShape,
+    } = await req.json();
 
     if (!selfieUrl || !garmentUrls?.length || !garmentIds?.length) {
       return new Response(JSON.stringify({ error: "selfieUrl, garmentUrls, and garmentIds are required" }), {
@@ -77,8 +109,26 @@ serve(async (req) => {
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
+    // Build a comprehensive cache key from ALL generation-affecting inputs.
+    // URLs are stripped of query strings so signed-URL tokens don't bust the cache.
+    const sortedGarmentIds = [...garmentIds].sort();
+    const stableGarmentUrls = garmentUrls.map((u: string) => stripQueryString(u)).sort();
+
+    const hashParts: Record<string, string> = {
+      userId,
+      garmentIds: sortedGarmentIds.join(","),
+      garmentUrls: stableGarmentUrls.join(","),
+      selfieUrl: stripQueryString(selfieUrl),
+      bodyShape: normalize(bodyShape),
+      occasion: normalize(occasion),
+      desiredLook: normalize(desiredLook),
+      weather: normalize(weather),
+      stylingInstruction: normalize(stylingInstruction),
+    };
+
+    const inputHash = await computeInputHash(hashParts);
+
     // Check cache
-    const inputHash = await computeInputHash(userId, garmentIds, bodyShape);
     const { data: cached } = await supabaseAdmin
       .from("generated_looks_cache")
       .select("image_path")
@@ -116,15 +166,38 @@ serve(async (req) => {
       }
     }
 
-    // Map the user's style vibe (string or array) to a Photoroom scene preset
+    // --- Scene preset selection ---
+    // Photoroom's Virtual Model API supports a limited set of scene presets.
+    // It does NOT support free-text styling prompts, weather context, or custom
+    // occasion descriptions. We map the available inputs to the closest preset.
+    //
+    // LIMITATION: desiredLook, weather, and stylingInstruction are included in the
+    // cache hash (so changing them forces a new generation), but Photoroom only
+    // uses the scene preset to vary the background/setting. The garment arrangement
+    // and model pose are AI-driven and cannot be controlled via text prompts.
+    // If a future provider supports free-text prompts, these fields are ready to use.
     let scenePreset = "studio";
-    const vibeData = styleVibe;
-    const vibeArray = Array.isArray(vibeData) ? vibeData : [vibeData || "Casual"];
-    const vibeString = vibeArray.join(" ").toLowerCase();
 
-    if (vibeString.includes("street") || vibeString.includes("athleisure")) scenePreset = "street";
-    else if (vibeString.includes("casual") || vibeString.includes("bohemian")) scenePreset = "cafe";
-    else if (vibeString.includes("minimalist") || vibeString.includes("preppy")) scenePreset = "concretestudio";
+    // Combine all text signals for preset mapping
+    const textSignals = [
+      normalize(occasion),
+      normalize(desiredLook),
+      normalize(weather),
+      normalize(stylingInstruction),
+    ].join(" ");
+
+    if (textSignals.includes("street") || textSignals.includes("athleisure") || textSignals.includes("urban")) {
+      scenePreset = "street";
+    } else if (textSignals.includes("outdoor") || textSignals.includes("rain") || textSignals.includes("snow") || textSignals.includes("cold")) {
+      scenePreset = "street";
+    } else if (textSignals.includes("casual") || textSignals.includes("bohemian") || textSignals.includes("brunch") || textSignals.includes("cafe")) {
+      scenePreset = "cafe";
+    } else if (textSignals.includes("formal") || textSignals.includes("work") || textSignals.includes("office") || textSignals.includes("minimalist") || textSignals.includes("preppy")) {
+      scenePreset = "concretestudio";
+    } else if (textSignals.includes("party") || textSignals.includes("date") || textSignals.includes("evening") || textSignals.includes("night")) {
+      scenePreset = "cafe";
+    }
+
     formData.append("virtualModel.scene.preset.name", scenePreset);
 
     const response = await fetch("https://image-api.photoroom.com/v2/edit", {
