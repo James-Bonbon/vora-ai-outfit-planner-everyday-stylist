@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useRef, useCallback, useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { sanitizeWardrobeSvg } from "@/utils/sanitizeWardrobeSvg";
 
 interface WardrobeMapProps {
   svgString: string;
@@ -89,7 +90,9 @@ export const WardrobeMap: React.FC<WardrobeMapProps> = ({
     applyStyles();
   }, [applyStyles]);
 
-  if (!svgString) return null;
+  const sanitizedSvg = useMemo(() => sanitizeWardrobeSvg(svgString), [svgString]);
+
+  if (!sanitizedSvg) return null;
 
   return (
     <div
@@ -98,7 +101,7 @@ export const WardrobeMap: React.FC<WardrobeMapProps> = ({
         "absolute inset-0 w-full h-full z-10",
         className,
       )}
-      dangerouslySetInnerHTML={{ __html: svgString }}
+      dangerouslySetInnerHTML={{ __html: sanitizedSvg }}
     />
   );
 };
