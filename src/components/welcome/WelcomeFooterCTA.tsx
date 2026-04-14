@@ -12,10 +12,10 @@ interface Props {
 }
 
 const WelcomeFooterCTA = ({ email, setEmail, loading, submitted, onSubmit }: Props) => (
-  <section className="min-h-[50vh] flex flex-col items-center justify-center text-center bg-[#e8e6e1] text-[#0a0a0a] py-24 px-6">
+  <section className="min-h-[50vh] flex flex-col items-center justify-center text-center bg-[#E8EAE3] text-[#111613] py-24 px-6">
     <motion.p
       {...fadeUp(0)}
-      className="text-[10px] uppercase tracking-[0.35em] text-[#0a0a0a]/30 font-outfit mb-6"
+      className="text-[10px] uppercase tracking-[0.35em] text-[#111613]/30 font-outfit mb-6"
     >
       Batch 01 · Currently Reviewing Applications
     </motion.p>
@@ -29,7 +29,7 @@ const WelcomeFooterCTA = ({ email, setEmail, loading, submitted, onSubmit }: Pro
 
     <motion.p
       {...fadeUp(0.16)}
-      className="font-outfit text-[#0a0a0a]/50 max-w-lg text-base md:text-lg leading-relaxed mb-10"
+      className="font-outfit text-[#111613]/50 max-w-lg text-base md:text-lg leading-relaxed mb-10"
     >
       Spots for the private beta are strictly limited. Join the atelier.
     </motion.p>
@@ -46,12 +46,12 @@ const WelcomeFooterCTA = ({ email, setEmail, loading, submitted, onSubmit }: Pro
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Enter your email"
           disabled={loading}
-          className="w-full sm:flex-1 bg-transparent border-b border-[#0a0a0a]/20 focus:border-[#0a0a0a] py-3 text-sm font-outfit text-[#0a0a0a] placeholder:text-[#0a0a0a]/30 focus:outline-none transition-colors disabled:opacity-40"
+          className="w-full sm:flex-1 bg-transparent border-b border-[#111613]/20 focus:border-[#111613] py-3 text-sm font-outfit text-[#111613] placeholder:text-[#111613]/30 focus:outline-none transition-colors disabled:opacity-40"
         />
         <MagneticButton
           type="submit"
           disabled={loading || !email}
-          className="w-full sm:w-auto border border-[#0a0a0a]/60 text-[#0a0a0a] px-8 py-3 uppercase tracking-[0.2em] text-[10px] font-outfit font-medium hover:bg-[#0a0a0a] hover:text-[#e8e6e1] transition-colors duration-300 disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap"
+          className="w-full sm:w-auto border border-[#111613]/60 text-[#111613] px-8 py-3 uppercase tracking-[0.2em] text-[10px] font-outfit font-medium hover:bg-[#111613] hover:text-[#E8EAE3] transition-colors duration-300 disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap"
         >
           {loading ? "Reserving…" : "Request Access"}
         </MagneticButton>
@@ -62,7 +62,7 @@ const WelcomeFooterCTA = ({ email, setEmail, loading, submitted, onSubmit }: Pro
 
     <motion.p
       {...fadeUp(0.4)}
-      className="mt-16 text-[10px] uppercase tracking-[0.35em] text-[#0a0a0a]/25 font-outfit"
+      className="mt-16 text-[10px] uppercase tracking-[0.35em] text-[#111613]/25 font-outfit"
     >
       By invitation only
     </motion.p>

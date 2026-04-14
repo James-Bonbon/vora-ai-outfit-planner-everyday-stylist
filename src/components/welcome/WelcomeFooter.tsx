@@ -13,9 +13,9 @@ const socials = [
 ];
 
 const WelcomeFooter = () => (
-  <footer className="bg-[#e8e6e1] text-[#0a0a0a] py-10 px-6">
+  <footer className="bg-[#E8EAE3] text-[#111613] py-10 px-6">
     <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
-      <span className="font-serif-display text-sm tracking-[0.2em] text-[#0a0a0a]/40">
+      <span className="font-serif-display text-sm tracking-[0.2em] text-[#111613]/40">
         VORA
       </span>
 
@@ -25,21 +25,21 @@ const WelcomeFooter = () => (
             key={s.label}
             href={s.href}
             aria-label={s.label}
-            className="text-[#0a0a0a]/30 hover:text-[#0a0a0a] transition-colors duration-300"
+            className="text-[#111613]/30 hover:text-[#111613] transition-colors duration-300"
           >
             {s.isCustom ? <s.icon /> : <s.icon className="w-4 h-4" />}
           </a>
         ))}
-        <span className="w-px h-4 bg-[#0a0a0a]/10" />
+        <span className="w-px h-4 bg-[#111613]/10" />
         <a
           href="mailto:vora.support@gmail.com"
-          className="text-[10px] uppercase tracking-[0.2em] font-outfit text-[#0a0a0a]/30 hover:text-[#0a0a0a] transition-colors duration-300"
+          className="text-[10px] uppercase tracking-[0.2em] font-outfit text-[#111613]/30 hover:text-[#111613] transition-colors duration-300"
         >
           Contact Concierge
         </a>
       </div>
 
-      <span className="text-[9px] uppercase tracking-[0.2em] font-outfit text-[#0a0a0a]/25">
+      <span className="text-[9px] uppercase tracking-[0.2em] font-outfit text-[#111613]/25">
         © {new Date().getFullYear()}
       </span>
     </div>

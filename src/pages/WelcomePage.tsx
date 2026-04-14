@@ -51,7 +51,7 @@ const WelcomePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-[#e8e6e1] selection:bg-[#e8e6e1]/20">
+    <div className="min-h-screen bg-[#111613] text-[#E8EAE3] selection:bg-[#E8EAE3]/20">
       <WelcomeHeader />
       <WelcomeHero
         email={email}

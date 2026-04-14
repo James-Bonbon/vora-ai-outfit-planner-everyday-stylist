@@ -13,17 +13,17 @@ const WelcomeHeader = () => {
       transition={{ duration: 1, delay: 0.2 }}
       className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-10 py-5"
     >
-      <span className="font-serif-display text-2xl tracking-[0.25em] text-[#e8e6e1]/80">
+      <span className="font-serif-display text-2xl tracking-[0.25em] text-[#E8EAE3]/80">
         VORA
       </span>
       <div className="flex items-center gap-4">
-        <span className="text-[9px] uppercase tracking-[0.3em] text-[#e8e6e1]/25 font-outfit hidden sm:block">
+        <span className="text-[9px] uppercase tracking-[0.3em] text-[#3A4B40] font-outfit hidden sm:block">
           By Invitation Only
         </span>
         {!loading && user && (
           <Link
             to="/home"
-            className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.2em] text-[#e8e6e1]/60 hover:text-[#e8e6e1] transition-colors duration-300 font-outfit"
+            className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.2em] text-[#E8EAE3]/60 hover:text-[#E8EAE3] transition-colors duration-300 font-outfit"
           >
             Go to App
             <ArrowRight className="w-3 h-3" />
