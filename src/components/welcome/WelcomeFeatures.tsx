@@ -42,6 +42,12 @@ const features = [
 
 const WelcomeFeatures = () => (
   <section className="max-w-6xl mx-auto py-24 md:py-32 px-6 flex flex-col gap-32 md:gap-48">
+    <motion.p
+      {...fadeUp(0)}
+      className="text-center text-[10px] uppercase tracking-[0.35em] text-muted-foreground font-outfit"
+    >
+      The Features
+    </motion.p>
     {features.map((feat, i) => {
       const isReversed = i % 2 !== 0;
       const Icon = feat.icon;
