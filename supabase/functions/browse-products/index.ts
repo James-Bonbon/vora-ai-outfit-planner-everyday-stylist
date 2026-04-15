@@ -18,12 +18,32 @@ serve(async (req) => {
   }
 
   try {
-    const SERPAPI_KEY = Deno.env.get("SERPAPI_KEY");
-    if (!SERPAPI_KEY) throw new Error("SERPAPI_KEY is not configured");
+    // ── Auth: require authenticated user ──────────────────────
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+
+    const supabaseUser = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabaseUser.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -37,13 +57,16 @@ serve(async (req) => {
       .eq("search_query", searchQuery);
 
     if (cached && cached.length > 0) {
-      console.log(`Cache hit for "${searchQuery}": ${cached.length} products`);
+      console.log(`Cache hit for query: ${cached.length} products`);
       return new Response(JSON.stringify({ products: cached }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     // 2. Cache miss — fetch from SerpApi
+    const SERPAPI_KEY = Deno.env.get("SERPAPI_KEY");
+    if (!SERPAPI_KEY) throw new Error("SERPAPI_KEY is not configured");
+
     const baseQuery = search || category || "beauty products";
     const query = `${baseQuery} beauty skincare`;
 
@@ -57,7 +80,7 @@ serve(async (req) => {
       num: "40",
     });
 
-    console.log("SerpApi query:", query);
+    console.log("SerpApi cache miss — fetching");
     const response = await fetch(`https://serpapi.com/search.json?${params.toString()}`);
     if (!response.ok) {
       const text = await response.text();
@@ -154,7 +177,7 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Cached ${inserted.length} products for "${searchQuery}"`);
+    console.log(`Cached ${inserted.length} products`);
     return new Response(JSON.stringify({ products: inserted }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
