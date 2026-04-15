@@ -85,7 +85,7 @@ serve(async (req) => {
     // ── Fetch profile ───────────────────────────────────────
     const { data: profile } = await supabase
       .from("profiles")
-      .select("body_shape, sex, height_cm, weight_kg, display_name")
+      .select("body_shape, gender, height_cm, weight_kg, display_name")
       .eq("user_id", userId)
       .single();
 
@@ -114,7 +114,7 @@ BODY SHAPE STYLING INTELLIGENCE:
 USER PROFILE:
 - Name: ${profile?.display_name || "there"}
 - Body shape: ${bodyShapeLabel}
-- Sex: ${profile?.sex || "not specified"}
+- Gender: ${profile?.gender || "not specified"}
 - Height: ${profile?.height_cm ? profile.height_cm + " cm" : "not specified"}
 - Weight: ${profile?.weight_kg ? profile.weight_kg + " kg" : "not specified"}
 

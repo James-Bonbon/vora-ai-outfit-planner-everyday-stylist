@@ -23,7 +23,6 @@ function parseICS(text: string) {
   for (let i = 1; i < blocks.length; i++) {
     const block = blocks[i].split("END:VEVENT")[0];
     const get = (key: string): string | null => {
-      // Handle folded lines (RFC 5545: lines starting with space/tab are continuations)
       const unfolded = block.replace(/\r?\n[ \t]/g, "");
       const regex = new RegExp(`^${key}[;:](.*)$`, "m");
       const match = unfolded.match(regex);
@@ -39,18 +38,14 @@ function parseICS(text: string) {
 
     if (!rawStart) continue;
 
-    // Parse ICS date formats: 20260415T100000Z or 20260415 (all-day)
     const parseICSDate = (raw: string): { iso: string; allDay: boolean } => {
-      // Strip any VALUE= or TZID= prefix remnants
       const cleaned = raw.replace(/^[^:]*:/, "").replace(/^VALUE=DATE:/i, "");
       if (cleaned.length === 8) {
-        // All-day: YYYYMMDD
         return {
           iso: `${cleaned.slice(0, 4)}-${cleaned.slice(4, 6)}-${cleaned.slice(6, 8)}T00:00:00Z`,
           allDay: true,
         };
       }
-      // DateTime: YYYYMMDDTHHMMSS or YYYYMMDDTHHMMSSZ
       const d = cleaned.replace(/Z$/, "");
       const iso = `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}T${d.slice(9, 11)}:${d.slice(11, 13)}:${d.slice(13, 15)}Z`;
       return { iso, allDay: false };
@@ -80,31 +75,34 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const admin = createClient(supabaseUrl, serviceKey);
-
-    // Determine user_id from body or auth header
-    let userId: string | null = null;
-    try {
-      const body = await req.json();
-      userId = body.user_id || null;
-    } catch { /* no body */ }
-
-    if (!userId) {
-      const authHeader = req.headers.get("authorization")?.replace("Bearer ", "");
-      if (authHeader) {
-        const { data: { user } } = await createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!).auth.getUser(authHeader);
-        userId = user?.id || null;
-      }
-    }
-
-    if (!userId) {
-      return new Response(JSON.stringify({ error: "user_id is required" }), {
-        status: 400,
+    // ── Auth: verify JWT — do NOT trust user_id from body ─────
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabaseUser.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const userId = claimsData.claims.sub;
+
+    const admin = createClient(supabaseUrl, serviceKey);
 
     const now = new Date();
     const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -132,7 +130,7 @@ serve(async (req) => {
 
     if (profile?.apple_calendar_url) {
       const url = profile.apple_calendar_url.replace("webcal://", "https://");
-      console.log("Fetching Apple WebCal:", url);
+      console.log("Fetching Apple WebCal");
       try {
         const icsResp = await fetch(url);
         if (icsResp.ok) {
@@ -173,13 +171,13 @@ serve(async (req) => {
       );
 
       if (googleIdentity?.identity_data?.provider_token) {
-        const token = googleIdentity.identity_data.provider_token;
+        const gcalToken = googleIdentity.identity_data.provider_token;
         console.log("Fetching Google Calendar events");
 
         const gcalUrl = `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=250`;
 
         const gcalResp = await fetch(gcalUrl, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${gcalToken}` },
         });
 
         if (gcalResp.ok) {
@@ -201,8 +199,7 @@ serve(async (req) => {
           }
           console.log(`Google: ${allEvents.filter(e => e.provider === "google").length} events`);
         } else {
-          const errText = await gcalResp.text();
-          console.error("Google Calendar API error:", gcalResp.status, errText);
+          console.error("Google Calendar API error:", gcalResp.status);
         }
       }
     } catch (err) {
@@ -212,7 +209,7 @@ serve(async (req) => {
     // --- Upsert into user_calendar_events ---
     let upserted = 0;
     if (allEvents.length > 0) {
-      const { error, count } = await admin
+      const { error } = await admin
         .from("user_calendar_events")
         .upsert(allEvents, {
           onConflict: "user_id,external_event_id",
@@ -236,7 +233,7 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("sync-calendars error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: (error as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
