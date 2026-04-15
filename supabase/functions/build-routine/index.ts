@@ -42,7 +42,7 @@ Only include steps where user has products. In gaps, list any missing critical s
           },
           {
             role: "user",
-            content: `Here are my skincare products:\n${productList}\n\nProfile: ${profile?.sex || "not specified"}, age approximate.`,
+            content: `Here are my skincare products:\n${productList}\n\nProfile: ${profile?.gender || "not specified"}, age approximate.`,
           },
         ],
         max_tokens: 800,
