@@ -5,7 +5,7 @@ const containerVariants = {
   hidden: {},
   visible: {
     transition: {
-      staggerChildren: 0.06,
+      staggerChildren: 0.15,
     },
   },
 };
@@ -21,8 +21,8 @@ const wordVariants = {
     y: 0,
     filter: "blur(0px)",
     transition: {
-      duration: 0.4,
-      ease: "easeOut" as const,
+      duration: 0.8,
+      ease: [0.25, 0.46, 0.45, 0.94] as [number, number, number, number],
     },
   },
 };
