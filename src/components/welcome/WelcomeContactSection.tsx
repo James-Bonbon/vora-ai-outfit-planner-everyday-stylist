@@ -46,7 +46,7 @@ const WelcomeContactSection = () => {
 
       const { error: insertError } = await supabase
         .from("welcome_messages")
-        .insert({ id, ...payload });
+        .insert([{ id, ...payload }]);
       if (insertError) throw insertError;
 
       // Confirmation to visitor (non-blocking)
