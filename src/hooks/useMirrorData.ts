@@ -203,11 +203,40 @@ export function useLookGarments(garmentIds: string[] | null) {
     queryKey: ["look-garments", garmentIds],
     queryFn: async () => {
       if (!garmentIds?.length) return [];
-      const { data } = await supabase
-        .from("closet_items")
-        .select("id, name, category, color, material, brand")
-        .in("id", garmentIds);
-      return (data || []) as GarmentInfo[];
+
+      // Garments may live in either closet_items or dream_items (wishlist).
+      // Fetch from both tables concurrently and merge into a single lookup.
+      const [closetRes, dreamRes] = await Promise.all([
+        supabase
+          .from("closet_items")
+          .select("id, name, category, color, material, brand")
+          .in("id", garmentIds),
+        supabase
+          .from("dream_items")
+          .select("id, name, brand")
+          .in("id", garmentIds),
+      ]);
+
+      const merged: GarmentInfo[] = [];
+      const seen = new Set<string>();
+
+      for (const item of closetRes.data || []) {
+        merged.push(item as GarmentInfo);
+        seen.add(item.id);
+      }
+      for (const item of dreamRes.data || []) {
+        if (seen.has(item.id)) continue;
+        merged.push({
+          id: item.id,
+          name: item.name ?? null,
+          category: null,
+          color: null,
+          material: null,
+          brand: item.brand ?? null,
+        });
+      }
+
+      return merged;
     },
     enabled: !!garmentIds?.length,
     staleTime: 10 * 60 * 1000,
