@@ -4,9 +4,9 @@ const WELCOME_THEMES = [
   { key: "default", label: "Noir", swatch: "hsl(220 15% 8%)" },
   { key: "forest", label: "Forest", swatch: "hsl(138 15% 20%)" },
   { key: "navy", label: "Navy", swatch: "hsl(213 28% 14%)" },
-  { key: "rose", label: "Rosé", swatch: "hsl(348 52% 75%)" },
   { key: "cream", label: "Cream", swatch: "hsl(34 12% 61%)" },
   { key: "peach", label: "Peach", swatch: "hsl(22 66% 73%)" },
+  { key: "rose", label: "Rosé", swatch: "hsl(348 52% 75%)" },
 ] as const;
 
 export type WelcomeThemeKey = (typeof WELCOME_THEMES)[number]["key"];
