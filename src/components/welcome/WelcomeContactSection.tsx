@@ -43,10 +43,17 @@ const WelcomeContactSection = () => {
     try {
       const id = crypto.randomUUID();
       const payload = parsed.data;
+      const row = {
+        id,
+        name: payload.name,
+        email: payload.email,
+        category: payload.category,
+        message: payload.message,
+      };
 
       const { error: insertError } = await supabase
         .from("welcome_messages")
-        .insert([{ id, ...payload }]);
+        .insert([row]);
       if (insertError) throw insertError;
 
       // Confirmation to visitor (non-blocking)
