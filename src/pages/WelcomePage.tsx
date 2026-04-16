@@ -12,10 +12,6 @@ import WelcomeFooter from "@/components/welcome/WelcomeFooter";
 import { type WelcomeThemeKey, WELCOME_THEME_CLASS_MAP } from "@/components/welcome/WelcomeThemeSwitcher";
 
 const WelcomePage = () => {
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-
   const [footerEmail, setFooterEmail] = useState("");
   const [footerLoading, setFooterLoading] = useState(false);
   const [footerSubmitted, setFooterSubmitted] = useState(false);
@@ -58,13 +54,7 @@ const WelcomePage = () => {
       className={`min-h-screen bg-background text-foreground selection:bg-foreground/20 transition-colors duration-700 ${themeClass}`}
     >
       <WelcomeHeader activeTheme={activeTheme} onThemeChange={setActiveTheme} />
-      <WelcomeHero
-        email={email}
-        setEmail={setEmail}
-        loading={loading}
-        submitted={submitted}
-        onSubmit={(e) => handleSubmit(e, email, setLoading, setSubmitted)}
-      />
+      <WelcomeHero />
       <WelcomeProcess />
       <WelcomeFeatures />
       <WelcomeManifesto />
