@@ -26,7 +26,7 @@ const termsItems = [
     id: "subscription",
     title: "3. VORA Pro Subscription",
     content:
-      "VORA Pro is a paid subscription at £12/month, billed through Stripe. You may cancel at any time from your Profile settings. Cancellation takes effect at the end of the current billing cycle. Refunds are not provided for partial billing periods.",
+      "Paid VORA subscriptions are not currently active. Pricing and billing details shown in the app are previews of plans coming soon. No payment is taken today, and no recurring charges are made. When paid plans launch, this section will be updated with the active billing terms, cancellation policy, and refund rules before you are charged.",
   },
   {
     id: "ai-features",
@@ -95,7 +95,7 @@ const privacyItems = [
     id: "third-party",
     title: "6. Third-Party Services",
     content:
-      "VORA uses the following third-party services: Google OAuth (authentication), Stripe (payment processing), Google Gemini AI (image and text processing), Fal.ai (Virtual Try-On processing), Photoroom (Image processing and background removal), Kling AI (Video Catwalk generation), and Supabase (database and storage). Each service has its own privacy policy. We share only the minimum data necessary for each service to function.",
+      "VORA uses the following third-party services: Google OAuth (authentication), Google Gemini AI (image and text processing), Photoroom (image processing and background removal), and Supabase (database and storage). A payment processor will be added when paid subscriptions launch. Each service has its own privacy policy. We share only the minimum data necessary for each service to function.",
   },
   {
     id: "your-rights",
