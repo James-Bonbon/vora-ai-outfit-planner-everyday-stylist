@@ -96,9 +96,13 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
     enabled: garments.length > 0,
   });
 
-  // Send message mutation
+  // Send message mutation (with optimistic update + 30s timeout)
   const sendMutation = useMutation({
-    mutationFn: async (userMessage: string) => {
+    mutationFn: async (
+      args: { userMessage: string; attachmentSnapshot: Attachment | null }
+    ) => {
+      const { userMessage, attachmentSnapshot } = args;
+
       // Persist user message
       await supabase.from("chat_messages").insert({
         user_id: user!.id,
@@ -113,29 +117,99 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
       }));
       recentMessages.push({ role: "user", content: userMessage });
 
-      const { data, error } = await supabase.functions.invoke("chat-stylist", {
-        body: {
-          messages: recentMessages,
-          userContext: {
-            name: profile?.display_name,
-            bodyShape: profile?.body_shape,
-            sex: profile?.gender,
-            height: profile?.height_cm,
-            weight: profile?.weight_kg,
-          },
-          attachment: attachment ? { base64: attachment.base64, url: attachment.url } : undefined,
-        },
-      });
+      // 30s client-side timeout via AbortController
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30_000);
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      return data as { reply_text: string; recommended_ids: string[] };
+      try {
+        const { data, error } = await supabase.functions.invoke("chat-stylist", {
+          body: {
+            messages: recentMessages,
+            attachment: attachmentSnapshot
+              ? { base64: attachmentSnapshot.base64, url: attachmentSnapshot.url }
+              : undefined,
+          },
+          // supabase-js forwards `signal` to the underlying fetch for abort support
+          signal: controller.signal,
+        } as Parameters<typeof supabase.functions.invoke>[1]);
+
+        if (error) {
+          // FunctionsHttpError exposes a Response on `context`
+          const ctx = (error as unknown as { context?: Response }).context;
+          if (ctx && typeof ctx.json === "function") {
+            try {
+              const parsed = await ctx.json();
+              if (parsed?.error) throw new Error(parsed.error);
+            } catch (_) {
+              /* fall through to generic error */
+            }
+          }
+          throw error;
+        }
+        if (data?.error) throw new Error(data.error);
+        return data as { reply_text: string; recommended_ids: string[] };
+      } catch (err) {
+        if ((err as Error)?.name === "AbortError") {
+          throw new Error(
+            "The stylist took too long to respond. Please try again."
+          );
+        }
+        throw err;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    },
+    onMutate: async ({ userMessage }) => {
+      // Optimistically append the user message so the UI feels instant.
+      await queryClient.cancelQueries({ queryKey: ["chat-messages"] });
+      const previous = queryClient.getQueryData<ChatMessage[]>(["chat-messages"]) || [];
+      const optimistic: ChatMessage = {
+        id: `optimistic-${Date.now()}`,
+        role: "user",
+        content: userMessage,
+        suggested_garment_ids: null,
+        created_at: new Date().toISOString(),
+      };
+      queryClient.setQueryData<ChatMessage[]>(
+        ["chat-messages"],
+        [...previous, optimistic]
+      );
+      return { previous };
     },
     onSuccess: () => {
+      // Refetch from server (source of truth) — replaces optimistic + adds assistant reply.
       queryClient.invalidateQueries({ queryKey: ["chat-messages"] });
     },
-    onError: (err: Error) => {
-      toast.error("Stylist unavailable", { description: err.message });
+    onError: (err: Error, _vars, context) => {
+      // Roll back optimistic update so the UI doesn't show an unsent message.
+      if (context?.previous) {
+        queryClient.setQueryData(["chat-messages"], context.previous);
+      }
+      const msg = err?.message || "";
+      // Surface useful, on-brand feedback for known error shapes.
+      if (msg.toLowerCase().includes("too long to respond")) {
+        toast.error(msg);
+      } else if (
+        msg.toLowerCase().includes("rate limit") ||
+        msg.toLowerCase().includes("too quickly") ||
+        msg.toLowerCase().includes("daily chat limit")
+      ) {
+        toast.error("Slow down a moment", { description: msg });
+      } else if (msg.toLowerCase().includes("credits")) {
+        toast.error("Stylist temporarily unavailable", { description: msg });
+      } else if (
+        msg.toLowerCase().includes("too long") ||
+        msg.toLowerCase().includes("must be a string") ||
+        msg.toLowerCase().includes("attachment") ||
+        msg.toLowerCase().includes("max ")
+      ) {
+        toast.error("Couldn't send that", { description: msg });
+      } else {
+        toast.error("Stylist unavailable", {
+          description: msg || "Please try again in a moment.",
+        });
+      }
+      // Refetch to reconcile with server (the user message was already persisted).
       queryClient.invalidateQueries({ queryKey: ["chat-messages"] });
     },
   });
@@ -152,6 +226,11 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-messages"] });
       toast.success("Chat cleared");
+    },
+    onError: (err: Error) => {
+      toast.error("Couldn't clear chat", {
+        description: err?.message || "Please try again.",
+      });
     },
   });
 
@@ -174,9 +253,10 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
   const handleSend = () => {
     const text = input.trim();
     if (!text || sendMutation.isPending) return;
+    const attachmentSnapshot = attachment;
     setInput("");
     setAttachment(null);
-    sendMutation.mutate(text);
+    sendMutation.mutate({ userMessage: text, attachmentSnapshot });
   };
 
   // Auto-scroll to bottom
@@ -190,7 +270,7 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
   useEffect(() => {
     if (initialMessage && !initialSentRef.current && user && !sendMutation.isPending) {
       initialSentRef.current = true;
-      sendMutation.mutate(initialMessage);
+      sendMutation.mutate({ userMessage: initialMessage, attachmentSnapshot: null });
     }
   }, [initialMessage, user]);
 
