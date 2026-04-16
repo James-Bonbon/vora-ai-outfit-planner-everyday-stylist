@@ -96,68 +96,74 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
     enabled: garments.length > 0,
   });
 
-  // Send message mutation (with optimistic update + 30s timeout)
+  // Send message mutation (with optimistic update + reliable 30s timeout)
   const sendMutation = useMutation({
     mutationFn: async (
       args: { userMessage: string; attachmentSnapshot: Attachment | null }
     ) => {
       const { userMessage, attachmentSnapshot } = args;
 
-      // Persist user message
-      await supabase.from("chat_messages").insert({
-        user_id: user!.id,
-        role: "user",
-        content: userMessage,
-      });
-
-      // Build conversation context (last 20 messages)
+      // Build conversation context (last 20 messages). The Edge Function persists
+      // the latest user message ONLY after validation + rate-limit checks pass,
+      // so we no longer insert it here.
       const recentMessages = messages.slice(-20).map((m) => ({
         role: m.role,
         content: m.content,
       }));
       recentMessages.push({ role: "user", content: userMessage });
 
-      // 30s client-side timeout via AbortController
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30_000);
+      // Reliable client-side 30s timeout via Promise.race (does not rely on
+      // untyped `signal` forwarding by supabase-js).
+      const TIMEOUT_MS = 30_000;
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(
+          () =>
+            reject(
+              new Error("The stylist took too long to respond. Please try again.")
+            ),
+          TIMEOUT_MS
+        );
+      });
 
+      const invokePromise = supabase.functions.invoke("chat-stylist", {
+        body: {
+          messages: recentMessages,
+          attachment: attachmentSnapshot
+            ? { base64: attachmentSnapshot.base64, url: attachmentSnapshot.url }
+            : undefined,
+        },
+      });
+
+      let result: Awaited<typeof invokePromise>;
       try {
-        const { data, error } = await supabase.functions.invoke("chat-stylist", {
-          body: {
-            messages: recentMessages,
-            attachment: attachmentSnapshot
-              ? { base64: attachmentSnapshot.base64, url: attachmentSnapshot.url }
-              : undefined,
-          },
-          // supabase-js forwards `signal` to the underlying fetch for abort support
-          signal: controller.signal,
-        } as Parameters<typeof supabase.functions.invoke>[1]);
-
-        if (error) {
-          // FunctionsHttpError exposes a Response on `context`
-          const ctx = (error as unknown as { context?: Response }).context;
-          if (ctx && typeof ctx.json === "function") {
-            try {
-              const parsed = await ctx.json();
-              if (parsed?.error) throw new Error(parsed.error);
-            } catch (_) {
-              /* fall through to generic error */
-            }
-          }
-          throw error;
-        }
-        if (data?.error) throw new Error(data.error);
-        return data as { reply_text: string; recommended_ids: string[] };
-      } catch (err) {
-        if ((err as Error)?.name === "AbortError") {
-          throw new Error(
-            "The stylist took too long to respond. Please try again."
-          );
-        }
-        throw err;
+        result = await Promise.race([invokePromise, timeoutPromise]);
       } finally {
-        clearTimeout(timeoutId);
+        if (timeoutId) clearTimeout(timeoutId);
       }
+
+      const { data, error } = result;
+
+      if (error) {
+        // FunctionsHttpError exposes a Response on `context`. Parse safely
+        // OUTSIDE a throw so the structured backend error reaches onError.
+        let parsedMessage: string | null = null;
+        const ctx = (error as unknown as { context?: Response }).context;
+        if (ctx && typeof ctx.json === "function") {
+          try {
+            const parsed = await ctx.json();
+            if (parsed && typeof parsed.error === "string") {
+              parsedMessage = parsed.error;
+            }
+          } catch {
+            /* parsing failed — fall back to original error below */
+          }
+        }
+        if (parsedMessage) throw new Error(parsedMessage);
+        throw error;
+      }
+      if (data?.error) throw new Error(data.error);
+      return data as { reply_text: string; recommended_ids: string[] };
     },
     onMutate: async ({ userMessage }) => {
       // Optimistically append the user message so the UI feels instant.

@@ -199,6 +199,17 @@ serve(async (req) => {
       });
     }
 
+    // ── Persist the latest user message AFTER all validation + rate-limit checks ──
+    // This ensures rejected requests (validation/attachment/rate-limit) never pollute history.
+    const lastClientMsg = sanitizedMessages[sanitizedMessages.length - 1];
+    if (lastClientMsg?.role === "user" && lastClientMsg.content.trim().length > 0) {
+      await supabase.from("chat_messages").insert({
+        user_id: userId,
+        role: "user",
+        content: lastClientMsg.content,
+      });
+    }
+
     // ── Fetch wardrobe + profile ───────────────────────────
     const { data: wardrobeRaw } = await supabase
       .from("closet_items")
