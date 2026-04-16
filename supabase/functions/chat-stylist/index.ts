@@ -270,7 +270,11 @@ STYLING RULES:
     }
 
     // ── Build messages with multimodal support ──────────────
-    const processedMessages = messages.map((m: any) => ({ ...m }));
+    // Use only the sanitized messages (role + string content). Never spread raw client objects.
+    const processedMessages: Array<
+      | { role: "user" | "assistant"; content: string }
+      | { role: "user"; content: Array<{ type: string; text?: string; image_url?: { url: string } }> }
+    > = sanitizedMessages.map((m) => ({ ...m }));
     const lastMsg = processedMessages[processedMessages.length - 1];
 
     if (attachment?.base64 && lastMsg?.role === "user") {
