@@ -12,7 +12,7 @@ interface Props {
 }
 
 const WelcomeFooterCTA = ({ email, setEmail, loading, submitted, onSubmit }: Props) => (
-  <section className="min-h-[50vh] flex flex-col items-center justify-center text-center bg-foreground text-background py-24 px-6">
+  <section id="request-access" className="min-h-[50vh] flex flex-col items-center justify-center text-center bg-foreground text-background py-24 px-6">
     <motion.p
       {...fadeUp(0)}
       className="text-[10px] uppercase tracking-[0.35em] text-background/30 font-outfit mb-6"
