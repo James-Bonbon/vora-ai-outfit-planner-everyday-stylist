@@ -14,6 +14,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 // Landing + AppLayout + ProtectedRoute stay eager so the first paint and
 // auth-gated routing remain functionally identical.
 const WelcomePage = lazy(() => import("./pages/WelcomePage"));
+const UnsubscribePage = lazy(() => import("./pages/UnsubscribePage"));
 const LegalPage = lazy(() => import("./pages/LegalPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const SubscriptionPage = lazy(() => import("./pages/SubscriptionPage"));
@@ -47,6 +48,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/welcome" element={<WelcomePage />} />
+              <Route path="/unsubscribe" element={<UnsubscribePage />} />
               <Route path="/legal" element={<LegalPage />} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="/subscription" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />

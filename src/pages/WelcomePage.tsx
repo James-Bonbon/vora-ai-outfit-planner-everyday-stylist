@@ -8,6 +8,7 @@ import WelcomeFeatures from "@/components/welcome/WelcomeFeatures";
 import WelcomeManifesto from "@/components/welcome/WelcomeManifesto";
 import WelcomeFAQ from "@/components/welcome/WelcomeFAQ";
 import WelcomeFooterCTA from "@/components/welcome/WelcomeFooterCTA";
+import WelcomeContactSection from "@/components/welcome/WelcomeContactSection";
 import WelcomeFooter from "@/components/welcome/WelcomeFooter";
 import { type WelcomeThemeKey, WELCOME_THEME_CLASS_MAP } from "@/components/welcome/WelcomeThemeSwitcher";
 
@@ -66,6 +67,7 @@ const WelcomePage = () => {
         submitted={footerSubmitted}
         onSubmit={(e) => handleSubmit(e, footerEmail, setFooterLoading, setFooterSubmitted)}
       />
+      <WelcomeContactSection />
       <WelcomeFooter />
     </div>
   );
