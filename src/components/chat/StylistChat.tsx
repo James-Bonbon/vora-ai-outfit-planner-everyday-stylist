@@ -129,9 +129,9 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
               ? { base64: attachmentSnapshot.base64, url: attachmentSnapshot.url }
               : undefined,
           },
-          // @ts-expect-error - supabase-js v2 forwards signal to underlying fetch
+          // supabase-js forwards `signal` to the underlying fetch for abort support
           signal: controller.signal,
-        });
+        } as Parameters<typeof supabase.functions.invoke>[1]);
 
         if (error) {
           // FunctionsHttpError exposes a Response on `context`
