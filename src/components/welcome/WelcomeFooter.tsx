@@ -13,7 +13,7 @@ const socials = [
 ];
 
 const WelcomeFooter = () => (
-  <footer className="bg-foreground text-background py-10 px-6">
+  <footer className="bg-background text-foreground py-10 px-6 border-t border-foreground/10">
     <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
       <span className="font-serif-display text-sm tracking-[0.2em] text-background/40">
         VORA
