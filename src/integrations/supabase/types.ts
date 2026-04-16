@@ -131,6 +131,24 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_usage_events: {
+        Row: {
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       closet_items: {
         Row: {
           brand: string | null
