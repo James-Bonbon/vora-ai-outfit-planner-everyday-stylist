@@ -4,10 +4,8 @@ import { sanitizeWardrobeSvg } from "./sanitizeWardrobeSvg";
 describe("sanitizeWardrobeSvg", () => {
   it("returns empty string for falsy or non-string input", () => {
     expect(sanitizeWardrobeSvg("")).toBe("");
-    // @ts-expect-error — runtime guard
-    expect(sanitizeWardrobeSvg(null)).toBe("");
-    // @ts-expect-error — runtime guard
-    expect(sanitizeWardrobeSvg(undefined)).toBe("");
+    expect(sanitizeWardrobeSvg(null as unknown as string)).toBe("");
+    expect(sanitizeWardrobeSvg(undefined as unknown as string)).toBe("");
   });
 
   it("preserves a basic safe svg with rects", () => {
