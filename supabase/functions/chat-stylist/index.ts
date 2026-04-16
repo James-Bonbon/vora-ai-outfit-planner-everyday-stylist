@@ -99,24 +99,25 @@ serve(async (req) => {
     }
 
     let totalChars = 0;
+    const sanitizedMessages: Array<{ role: "user" | "assistant"; content: string }> = [];
     for (const m of messages) {
       if (!m || typeof m !== "object") {
         return json({ error: "Invalid message object" }, 400);
       }
-      if (m.role !== "user" && m.role !== "assistant" && m.role !== "system") {
-        return json({ error: "Invalid message role" }, 400);
+      // Client may only send user/assistant messages. The system prompt is built server-side.
+      if (m.role !== "user" && m.role !== "assistant") {
+        return json({ error: "Invalid message role. Only 'user' and 'assistant' are allowed." }, 400);
       }
-      // Only string content is enforced for length; arrays handled later for attachment
-      if (typeof m.content === "string") {
-        if (m.content.length > MAX_MESSAGE_CHARS) {
-          return json({ error: `Message too long (max ${MAX_MESSAGE_CHARS} chars).` }, 400);
-        }
-        totalChars += m.content.length;
-      } else if (Array.isArray(m.content)) {
-        for (const part of m.content) {
-          if (typeof part?.text === "string") totalChars += part.text.length;
-        }
+      // Client content must be a plain string. Multimodal arrays are constructed server-side
+      // only after the separate `attachment` field passes MIME and size validation.
+      if (typeof m.content !== "string") {
+        return json({ error: "Message content must be a string." }, 400);
       }
+      if (m.content.length > MAX_MESSAGE_CHARS) {
+        return json({ error: `Message too long (max ${MAX_MESSAGE_CHARS} chars).` }, 400);
+      }
+      totalChars += m.content.length;
+      sanitizedMessages.push({ role: m.role, content: m.content });
     }
     if (totalChars > MAX_TOTAL_CHARS) {
       return json({ error: `Conversation too long (max ${MAX_TOTAL_CHARS} chars).` }, 400);
