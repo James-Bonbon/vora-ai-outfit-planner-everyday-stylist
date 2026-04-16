@@ -253,9 +253,10 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
   const handleSend = () => {
     const text = input.trim();
     if (!text || sendMutation.isPending) return;
+    const attachmentSnapshot = attachment;
     setInput("");
     setAttachment(null);
-    sendMutation.mutate(text);
+    sendMutation.mutate({ userMessage: text, attachmentSnapshot });
   };
 
   // Auto-scroll to bottom
@@ -269,7 +270,7 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
   useEffect(() => {
     if (initialMessage && !initialSentRef.current && user && !sendMutation.isPending) {
       initialSentRef.current = true;
-      sendMutation.mutate(initialMessage);
+      sendMutation.mutate({ userMessage: initialMessage, attachmentSnapshot: null });
     }
   }, [initialMessage, user]);
 
