@@ -15,7 +15,7 @@ const socials = [
 const WelcomeFooter = () => (
   <footer className="bg-background text-foreground py-10 px-6 border-t border-foreground/10">
     <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
-      <span className="font-serif-display text-sm tracking-[0.2em] text-background/40">
+      <span className="font-serif-display text-sm tracking-[0.2em] text-foreground/40">
         VORA
       </span>
 
@@ -25,21 +25,21 @@ const WelcomeFooter = () => (
             key={s.label}
             href={s.href}
             aria-label={s.label}
-            className="text-background/30 hover:text-background transition-colors duration-300"
+            className="text-foreground/30 hover:text-foreground transition-colors duration-300"
           >
             {s.isCustom ? <s.icon /> : <s.icon className="w-4 h-4" />}
           </a>
         ))}
-        <span className="w-px h-4 bg-background/10" />
+        <span className="w-px h-4 bg-foreground/10" />
         <a
           href="mailto:vora.support@gmail.com"
-          className="text-[10px] uppercase tracking-[0.2em] font-outfit text-background/30 hover:text-background transition-colors duration-300"
+          className="text-[10px] uppercase tracking-[0.2em] font-outfit text-foreground/30 hover:text-foreground transition-colors duration-300"
         >
           Contact
         </a>
       </div>
 
-      <span className="text-[9px] uppercase tracking-[0.2em] font-outfit text-background/25">
+      <span className="text-[9px] uppercase tracking-[0.2em] font-outfit text-foreground/25">
         © {new Date().getFullYear()}
       </span>
     </div>
