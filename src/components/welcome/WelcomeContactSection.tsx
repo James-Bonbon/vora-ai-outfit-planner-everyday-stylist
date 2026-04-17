@@ -80,7 +80,13 @@ const WelcomeContactSection = () => {
         },
       }).catch((err) => console.warn("notification email failed", err));
 
+      // Reset inputs
+      setName("");
+      setEmail("");
+      setCategory("question");
+      setMessage("");
       setSubmitted(true);
+      toast.success("Message sent. We will be in touch.");
     } catch (err: any) {
       console.error("welcome contact submit error", err);
       toast.error(err.message || "Something went wrong. Please try again.");

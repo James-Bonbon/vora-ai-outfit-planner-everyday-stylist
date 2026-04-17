@@ -1,11 +1,6 @@
 /// <reference types="npm:@types/react@18.3.1" />
 import * as React from 'npm:react@18.3.1'
-import {
-  Body, Container, Head, Heading, Html, Preview, Section, Text, Hr,
-} from 'npm:@react-email/components@0.0.22'
 import type { TemplateEntry } from './registry.ts'
-
-const SITE_NAME = 'VORA'
 
 interface Props {
   name?: string
@@ -13,52 +8,189 @@ interface Props {
   message?: string
 }
 
-const categoryLabel = (c?: string) => {
-  switch (c) {
-    case 'question': return 'Question'
-    case 'feedback': return 'Feedback'
-    case 'feature': return 'Feature Request'
-    case 'partnership': return 'Partnership'
-    default: return 'Message'
+const bodyTextFor = (category?: string): string => {
+  switch ((category || '').toLowerCase()) {
+    case 'question':
+      return 'We have received your inquiry. Our team is reviewing your question and will reply personally shortly.'
+    case 'feedback':
+      return 'Thank you for your thoughts. VORA is shaped by the meticulous standards of our early community. We are reviewing your feedback closely.'
+    case 'feature':
+    case 'feature request':
+      return 'Thank you for sharing your vision. The atelier is constantly evolving, and we have shared your suggestion directly with our product team.'
+    case 'partnership':
+      return 'Thank you for your interest in VORA. Our team is reviewing your proposal and will reach out if there is a mutual alignment.'
+    default:
+      return 'We have received your message. Our team will reply personally shortly.'
   }
 }
 
-const WelcomeContactConfirmation = ({ name, category, message }: Props) => (
-  <Html lang="en" dir="ltr">
-    <Head />
-    <Preview>We received your message — {SITE_NAME}</Preview>
-    <Body style={main}>
-      <Container style={container}>
-        <Heading style={brand}>{SITE_NAME}</Heading>
+// Hand-crafted HTML email — inline styles, dark luxury aesthetic.
+// We bypass React Email's helper components to preserve exact markup fidelity.
+const WelcomeContactConfirmation = ({ name, category, message }: Props) => {
+  const bodyText = bodyTextFor(category)
+  const safeName = name || 'there'
+  const safeMessage = message || ''
 
-        <Heading style={h1}>
-          {name ? `Thank you, ${name}.` : 'Thank you for reaching out.'}
-        </Heading>
+  return (
+    <html>
+      <head>
+        <meta charSet="utf-8" />
+      </head>
+      <body
+        style={{
+          margin: 0,
+          padding: 0,
+          backgroundColor: '#0A0A0A',
+          color: '#EAEAEA',
+          fontFamily:
+            "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+          WebkitFontSmoothing: 'antialiased',
+        }}
+      >
+        <table
+          width="100%"
+          border={0}
+          cellSpacing={0}
+          cellPadding={0}
+          style={{ backgroundColor: '#0A0A0A' }}
+        >
+          <tbody>
+            <tr>
+              <td align="center" style={{ padding: '80px 20px' }}>
+                <table
+                  width="100%"
+                  border={0}
+                  cellSpacing={0}
+                  cellPadding={0}
+                  style={{ maxWidth: '500px', textAlign: 'left' }}
+                >
+                  <tbody>
+                    <tr>
+                      <td align="center" style={{ paddingBottom: '50px' }}>
+                        <h1
+                          style={{
+                            fontFamily: "'Georgia', serif",
+                            fontSize: '22px',
+                            fontWeight: 'normal',
+                            letterSpacing: '8px',
+                            margin: 0,
+                            color: '#FFFFFF',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          Vora
+                        </h1>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td
+                        style={{
+                          fontSize: '15px',
+                          lineHeight: '1.8',
+                          color: '#CCCCCC',
+                          paddingBottom: '25px',
+                        }}
+                      >
+                        Hello {safeName},
+                      </td>
+                    </tr>
+                    <tr>
+                      <td
+                        style={{
+                          fontSize: '15px',
+                          lineHeight: '1.8',
+                          color: '#CCCCCC',
+                          paddingBottom: '35px',
+                        }}
+                      >
+                        {bodyText}
+                      </td>
+                    </tr>
+                    {safeMessage ? (
+                      <tr>
+                        <td
+                          style={{
+                            fontSize: '15px',
+                            lineHeight: '1.8',
+                            color: '#CCCCCC',
+                            paddingBottom: '35px',
+                          }}
+                        >
+                          A copy of your message:
+                          <br />
+                          <em style={{ color: '#888' }}>"{safeMessage}"</em>
+                        </td>
+                      </tr>
+                    ) : null}
+                    <tr>
+                      <td
+                        style={{
+                          fontFamily: "'Georgia', serif",
+                          fontStyle: 'italic',
+                          fontSize: '16px',
+                          color: '#FFFFFF',
+                          paddingBottom: '40px',
+                        }}
+                      >
+                        Welcome to clarity.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td
+                        style={{
+                          fontSize: '13px',
+                          letterSpacing: '1px',
+                          color: '#888888',
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        The Vora Team
+                        <br />
+                        <a
+                          href="https://vora.london"
+                          style={{
+                            color: '#888888',
+                            textDecoration: 'none',
+                            borderBottom: '1px solid #444444',
+                            paddingBottom: '2px',
+                            lineHeight: 2,
+                          }}
+                        >
+                          vora.london
+                        </a>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </body>
+    </html>
+  )
+}
 
-        <Text style={text}>
-          We've received your message and a member of the atelier will respond
-          personally, usually within 1–2 business days.
-        </Text>
-
-        {message ? (
-          <Section style={quote}>
-            <Text style={quoteLabel}>{categoryLabel(category)}</Text>
-            <Text style={quoteText}>{message}</Text>
-          </Section>
-        ) : null}
-
-        <Hr style={hr} />
-        <Text style={footer}>
-          With care,<br />The {SITE_NAME} Team
-        </Text>
-      </Container>
-    </Body>
-  </Html>
-)
+const subjectFor = (data: Record<string, any>) => {
+  const c = (data?.category || '').toLowerCase()
+  switch (c) {
+    case 'question':
+      return 'We received your question — VORA'
+    case 'feedback':
+      return 'Thank you for your feedback — VORA'
+    case 'feature':
+    case 'feature request':
+      return 'Thank you for your idea — VORA'
+    case 'partnership':
+      return 'Thank you for your interest — VORA'
+    default:
+      return 'We received your message — VORA'
+  }
+}
 
 export const template = {
   component: WelcomeContactConfirmation,
-  subject: 'We received your message — VORA',
+  subject: subjectFor,
   displayName: 'Welcome contact — visitor confirmation',
   previewData: {
     name: 'Jane',
@@ -66,68 +198,3 @@ export const template = {
     message: 'Loving the aesthetic — would love to see a tablet view.',
   },
 } satisfies TemplateEntry
-
-const main: React.CSSProperties = {
-  backgroundColor: '#ffffff',
-  fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif',
-  margin: 0,
-  padding: 0,
-}
-const container: React.CSSProperties = {
-  maxWidth: '520px',
-  margin: '0 auto',
-  padding: '48px 28px',
-}
-const brand: React.CSSProperties = {
-  fontSize: '14px',
-  letterSpacing: '6px',
-  fontWeight: 300,
-  color: '#c9a96e',
-  margin: '0 0 32px',
-  textTransform: 'uppercase',
-  textAlign: 'center',
-}
-const h1: React.CSSProperties = {
-  fontSize: '24px',
-  fontWeight: 400,
-  color: '#0a0a0a',
-  margin: '0 0 20px',
-  lineHeight: '1.3',
-}
-const text: React.CSSProperties = {
-  fontSize: '15px',
-  color: '#55575d',
-  lineHeight: '1.7',
-  margin: '0 0 24px',
-}
-const quote: React.CSSProperties = {
-  borderLeft: '2px solid #c9a96e',
-  padding: '4px 16px',
-  margin: '24px 0',
-  backgroundColor: '#fafaf8',
-}
-const quoteLabel: React.CSSProperties = {
-  fontSize: '10px',
-  letterSpacing: '2px',
-  textTransform: 'uppercase',
-  color: '#c9a96e',
-  margin: '0 0 6px',
-}
-const quoteText: React.CSSProperties = {
-  fontSize: '14px',
-  color: '#3a3a3a',
-  lineHeight: '1.6',
-  margin: 0,
-  whiteSpace: 'pre-wrap',
-}
-const hr: React.CSSProperties = {
-  border: 'none',
-  borderTop: '1px solid #ececec',
-  margin: '32px 0 20px',
-}
-const footer: React.CSSProperties = {
-  fontSize: '12px',
-  color: '#999999',
-  lineHeight: '1.6',
-  margin: 0,
-}
