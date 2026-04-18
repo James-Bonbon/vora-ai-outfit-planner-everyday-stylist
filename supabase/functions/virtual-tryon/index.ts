@@ -100,6 +100,31 @@ serve(async (req) => {
       });
     }
 
+    // Pre-flight: verify all image URLs are actually fetchable (2XX) before
+    // sending to Photoroom. Photoroom fails opaquely when an upstream image 404s.
+    const urlsToCheck = [selfieUrl, ...garmentUrls];
+    const headChecks = await Promise.all(
+      urlsToCheck.map(async (u) => {
+        try {
+          const r = await fetch(u, { method: "HEAD" });
+          return { url: u, ok: r.ok, status: r.status };
+        } catch {
+          return { url: u, ok: false, status: 0 };
+        }
+      })
+    );
+    const broken = headChecks.filter((c) => !c.ok);
+    if (broken.length > 0) {
+      const isSelfie = broken.some((b) => b.url === selfieUrl);
+      const msg = isSelfie
+        ? "Your selfie image could not be loaded. Please re-upload it in your profile."
+        : "One or more garment images could not be loaded. Please re-upload them.";
+      console.error("Pre-flight URL check failed:", broken);
+      return new Response(JSON.stringify({ error: msg, broken }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { data: profileData } = await supabaseUser
       .from("profiles")
       .select("body_shape")
@@ -221,8 +246,15 @@ serve(async (req) => {
       }
       if (contentType.includes("application/json")) {
         const errJson = await response.json();
-        console.error("Photoroom structured error:", errJson);
-        throw new Error(`Photoroom API Error: ${errJson.error || errJson.message || "Failed to generate try-on"}`);
+        console.error("Photoroom structured error:", JSON.stringify(errJson));
+        // Photoroom nests the message: { error: { message: "..." } }
+        const detail =
+          (typeof errJson?.error === "string" && errJson.error) ||
+          errJson?.error?.message ||
+          errJson?.message ||
+          (Array.isArray(errJson?.errors) && errJson.errors[0]?.message) ||
+          "Failed to generate try-on";
+        throw new Error(`Photoroom API Error: ${detail}`);
       } else {
         const errText = await response.text();
         console.error("Photoroom raw error:", response.status, errText);
