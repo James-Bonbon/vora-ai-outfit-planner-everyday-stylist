@@ -2,59 +2,39 @@
 
 import * as React from 'npm:react@18.3.1'
 
-import {
-  Body,
-  Container,
-  Head,
-  Heading,
-  Html,
-  Preview,
-  Text,
-} from 'npm:@react-email/components@0.0.22'
-
 interface ReauthenticationEmailProps {
   token: string
 }
 
 export const ReauthenticationEmail = ({ token }: ReauthenticationEmailProps) => (
-  <Html lang="en" dir="ltr">
-    <Head />
-    <Preview>Your verification code</Preview>
-    <Body style={main}>
-      <Container style={container}>
-        <Heading style={h1}>Confirm reauthentication</Heading>
-        <Text style={text}>Use the code below to confirm your identity:</Text>
-        <Text style={codeStyle}>{token}</Text>
-        <Text style={footer}>
-          This code will expire shortly. If you didn't request this, you can
-          safely ignore this email.
-        </Text>
-      </Container>
-    </Body>
-  </Html>
+  <html>
+    <head><meta charSet="utf-8" /></head>
+    <body style={{ margin: 0, padding: 0, backgroundColor: '#0A0A0A', color: '#EAEAEA', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif", WebkitFontSmoothing: 'antialiased' }}>
+      <table width="100%" border={0} cellSpacing={0} cellPadding={0} style={{ backgroundColor: '#0A0A0A' }}>
+        <tbody><tr><td align="center" style={{ padding: '80px 20px' }}>
+          <table width="100%" border={0} cellSpacing={0} cellPadding={0} style={{ maxWidth: '500px', textAlign: 'left' }}>
+            <tbody>
+              <tr><td align="center" style={{ paddingBottom: '50px' }}>
+                <h1 style={{ fontFamily: "'Georgia', serif", fontSize: '22px', fontWeight: 'normal', letterSpacing: '8px', margin: 0, color: '#FFFFFF', textTransform: 'uppercase' }}>Vora</h1>
+              </td></tr>
+              <tr><td style={{ fontSize: '15px', lineHeight: '1.8', color: '#CCCCCC', paddingBottom: '25px' }}>Hello,</td></tr>
+              <tr><td style={{ fontSize: '15px', lineHeight: '1.8', color: '#CCCCCC', paddingBottom: '25px' }}>
+                Use the verification code below to confirm your identity. This code will expire shortly.
+              </td></tr>
+              <tr><td align="center" style={{ paddingBottom: '40px' }}>
+                <div style={{ fontFamily: "'Georgia', serif", fontSize: '32px', letterSpacing: '12px', color: '#FFFFFF', padding: '20px 0', borderTop: '1px solid #333', borderBottom: '1px solid #333' }}>{token}</div>
+              </td></tr>
+              <tr><td style={{ fontFamily: "'Georgia', serif", fontStyle: 'italic', fontSize: '16px', color: '#FFFFFF', paddingBottom: '40px' }}>Welcome to clarity.</td></tr>
+              <tr><td style={{ fontSize: '13px', letterSpacing: '1px', color: '#888888', textTransform: 'uppercase' }}>
+                The Vora Team<br />
+                <a href="https://vora.london" style={{ color: '#888888', textDecoration: 'none', borderBottom: '1px solid #444444', paddingBottom: '2px', lineHeight: 2 }}>vora.london</a>
+              </td></tr>
+            </tbody>
+          </table>
+        </td></tr></tbody>
+      </table>
+    </body>
+  </html>
 )
 
 export default ReauthenticationEmail
-
-const main = { backgroundColor: '#ffffff', fontFamily: 'Arial, sans-serif' }
-const container = { padding: '20px 25px' }
-const h1 = {
-  fontSize: '22px',
-  fontWeight: 'bold' as const,
-  color: '#000000',
-  margin: '0 0 20px',
-}
-const text = {
-  fontSize: '14px',
-  color: '#55575d',
-  lineHeight: '1.5',
-  margin: '0 0 25px',
-}
-const codeStyle = {
-  fontFamily: 'Courier, monospace',
-  fontSize: '22px',
-  fontWeight: 'bold' as const,
-  color: '#000000',
-  margin: '0 0 30px',
-}
-const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }
