@@ -259,7 +259,9 @@ const MirrorPage = () => {
 
     tryOnMutation.mutate(
       {
-        selfieUrl: activeImageUrl!,
+        // Photoroom needs a real, fetchable face image. Prefer the user's
+        // signed selfie URL; fall back to the Vora placeholder only if absent.
+        selfieUrl: (selfieUrl || activeImageUrl)!,
         garmentUrls,
         garmentIds: garmentIdsArray,
         occasion,
