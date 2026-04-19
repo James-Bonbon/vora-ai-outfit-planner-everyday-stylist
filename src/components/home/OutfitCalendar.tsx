@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useWeather } from "@/hooks/useWeather";
+import { getCachedSignedUrls } from "@/utils/signedUrlCache";
 import { WeatherWidget } from "@/components/WeatherWidget";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
@@ -82,14 +83,15 @@ const OutfitCalendar = () => {
   const { data: cachedData, isLoading } = useQuery({
     queryKey: ['outfit-calendar-data', user?.id],
     enabled: !!user,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 30,
+    refetchOnMount: false,
     queryFn: async () => {
       const today = format(new Date(), "yyyy-MM-dd");
       const end = format(addDays(new Date(), 6), "yyyy-MM-dd");
 
       const [profileRes, closetRes, roleRes, outfitRes, eventsRes] = await Promise.all([
         supabase.from("profiles").select("subscription_tier").eq("user_id", user!.id).maybeSingle(),
-        supabase.from("closet_items").select("id, name, image_url, category, created_at, is_in_laundry").eq("user_id", user!.id),
+        supabase.from("closet_items").select("id, name, image_url, thumbnail_url, category, created_at, is_in_laundry").eq("user_id", user!.id),
         supabase.from("user_roles").select("role").eq("user_id", user!.id).eq("role", "admin").maybeSingle(),
         supabase.from("outfit_calendar").select("*").eq("user_id", user!.id).gte("date", today).lte("date", end).order("date"),
         supabase.from("user_calendar_events").select("id, title, start_time, end_time, location").eq("user_id", user!.id).gte("start_time", today + "T00:00:00Z").lte("start_time", end + "T23:59:59Z").order("start_time"),
@@ -97,19 +99,24 @@ const OutfitCalendar = () => {
 
       const pool: GarmentSnapshot[] = [];
       if (closetRes.data && closetRes.data.length > 0) {
-        const paths = closetRes.data.map((item) => item.image_url).filter(Boolean);
-        let urlMap: Record<string, string> = {};
-        if (paths.length > 0) {
-          const { data: urlData } = await supabase.storage.from("garments").createSignedUrls(paths, 3600);
-          if (urlData) {
-            urlData.forEach((u, index) => {
-              if (u.signedUrl) urlMap[closetRes.data![index].image_url] = u.signedUrl;
-            });
-          }
-        }
-        pool.push(...closetRes.data.map((item) => ({
-          id: item.id, name: item.name, image_url: urlMap[item.image_url] || item.image_url, category: item.category, created_at: item.created_at, is_in_laundry: item.is_in_laundry, source: "closet" as const,
-        })));
+        // Prefer thumbnails for calendar previews; fall back to full image for legacy rows.
+        const previewPaths = closetRes.data
+          .map((it: any) => it.thumbnail_url || it.image_url)
+          .filter(Boolean) as string[];
+        const urlMap = await getCachedSignedUrls("garments", previewPaths);
+
+        pool.push(...closetRes.data.map((item: any) => {
+          const previewPath = item.thumbnail_url || item.image_url;
+          return {
+            id: item.id,
+            name: item.name,
+            image_url: urlMap[previewPath] || item.image_url,
+            category: item.category,
+            created_at: item.created_at,
+            is_in_laundry: item.is_in_laundry,
+            source: "closet" as const,
+          };
+        }));
       }
 
       return {
@@ -122,25 +129,34 @@ const OutfitCalendar = () => {
     }
   });
 
-  /* ---- Resolve garment images (with signed URLs) ---- */
+  /* ---- Resolve garment images for entries that reference items not in the pool ---- */
   useEffect(() => {
     const allIds = entries.flatMap((e) => e.garment_ids || []);
     const unique = [...new Set(allIds)].filter((id) => !garments[id]);
     if (unique.length === 0) return;
 
     (async () => {
-      const { data } = await supabase.from("closet_items").select("id, name, image_url, category").in("id", unique);
-      if (data) {
-        const withUrls = await Promise.all(
-          data.map(async (g) => {
-            const { data: urlData } = await supabase.storage.from("garments").createSignedUrl(g.image_url, 3600);
-            return { ...g, image_url: urlData?.signedUrl || g.image_url, source: "closet" as const } as GarmentSnapshot;
-          }),
-        );
-        const map: Record<string, GarmentSnapshot> = { ...garments };
-        withUrls.forEach((g) => (map[g.id] = g));
-        setGarments(map);
+      const { data } = await supabase
+        .from("closet_items")
+        .select("id, name, image_url, thumbnail_url, category")
+        .in("id", unique);
+      if (!data) return;
+
+      const previewPaths = data
+        .map((g: any) => g.thumbnail_url || g.image_url)
+        .filter(Boolean) as string[];
+      const urlMap = await getCachedSignedUrls("garments", previewPaths);
+
+      const map: Record<string, GarmentSnapshot> = { ...garments };
+      for (const g of data as any[]) {
+        const path = g.thumbnail_url || g.image_url;
+        map[g.id] = {
+          ...g,
+          image_url: urlMap[path] || g.image_url,
+          source: "closet" as const,
+        } as GarmentSnapshot;
       }
+      setGarments(map);
     })();
   }, [entries, garments]);
 

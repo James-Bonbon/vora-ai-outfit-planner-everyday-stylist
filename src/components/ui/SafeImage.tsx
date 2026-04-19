@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -25,6 +25,17 @@ const SafeImage = ({
 }: SafeImageProps) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const lastSrcRef = useRef<string | undefined>(undefined);
+
+  // Only reset loaded/error state when the src actually changes to a different value.
+  // Prevents flicker when parents re-render with the same URL.
+  useEffect(() => {
+    if (lastSrcRef.current !== src) {
+      lastSrcRef.current = src as string | undefined;
+      setIsLoaded(false);
+      setHasError(false);
+    }
+  }, [src]);
 
   return (
     <div className={cn("relative overflow-hidden", aspectRatio, wrapperClassName)}>
@@ -38,6 +49,8 @@ const SafeImage = ({
         <img
           src={src}
           alt={alt || ""}
+          decoding="async"
+          loading={(props as any).loading ?? "lazy"}
           className={cn(
             "w-full h-full transition-opacity duration-300 ease-out",
             fit === "cover" && "object-cover",

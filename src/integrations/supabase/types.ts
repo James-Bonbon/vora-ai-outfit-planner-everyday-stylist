@@ -164,6 +164,7 @@ export type Database = {
           name: string | null
           notes: string | null
           storage_zone_id: string | null
+          thumbnail_url: string | null
           updated_at: string
           user_id: string
         }
@@ -181,6 +182,7 @@ export type Database = {
           name?: string | null
           notes?: string | null
           storage_zone_id?: string | null
+          thumbnail_url?: string | null
           updated_at?: string
           user_id: string
         }
@@ -198,6 +200,7 @@ export type Database = {
           name?: string | null
           notes?: string | null
           storage_zone_id?: string | null
+          thumbnail_url?: string | null
           updated_at?: string
           user_id?: string
         }

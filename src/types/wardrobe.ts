@@ -1,6 +1,7 @@
 export interface ClosetItem {
   id: string;
   image_url: string;
+  thumbnail_url?: string | null;
   name: string | null;
   category: string | null;
   color: string | null;
