@@ -715,8 +715,11 @@ const WardrobePage = () => {
         onDeleted={handleRefresh}
         preloadedImageUrl={selectedItem?.source === 'closet' ? imageUrls[selectedItem.id] : selectedItem?.image_url}
         onLocate={(zoneId) => {
-          setHighlightZoneId(zoneId);
-          setMapOpen(true);
+          setDetailOpen(false);
+          setTimeout(() => {
+            setHighlightZoneId(zoneId);
+            setMapOpen(true);
+          }, 300);
         }}
       />
       <SmartCamera
