@@ -9,6 +9,7 @@ import GlassCard from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Plus, Calendar as CalendarIcon, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
+import { ignoreToastInteractOutside } from "@/lib/radixToastGuard";
 
 export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const { user } = useAuth();
@@ -78,7 +79,7 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
   return (
     <>
       <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto pb-10">
+        <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto pb-10" onInteractOutside={ignoreToastInteractOutside}>
           <SheetHeader className="pb-2">
             <SheetTitle className="flex items-center gap-2 font-outfit">
               <CalendarIcon className="w-5 h-5 text-primary" />

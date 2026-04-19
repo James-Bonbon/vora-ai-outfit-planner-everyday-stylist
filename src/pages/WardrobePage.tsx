@@ -28,6 +28,7 @@ import type { PrefillData } from "@/components/wardrobe/AddItemSheet";
 import GarmentDetailSheet from "@/components/wardrobe/GarmentDetailSheet";
 import SmartCamera from "@/components/wardrobe/SmartCamera";
 import type { AnalyzedItem } from "@/components/wardrobe/SmartCamera";
+import { ignoreToastInteractOutside } from "@/lib/radixToastGuard";
 import type { ClosetItem, DreamItem, GarmentDisplay, Wardrobe } from "@/types/wardrobe";
 import WardrobeViewer from "@/components/wardrobe/WardrobeViewer";
 import { LookbookTab } from "@/components/wardrobe/LookbookTab";
@@ -744,7 +745,7 @@ const WardrobePage = () => {
           }
         }}
       >
-        <DialogContent className="z-[100] max-w-4xl w-[90vw] h-[85vh] flex flex-col p-0 overflow-hidden bg-background [&>button]:hidden">
+        <DialogContent className="z-[100] max-w-4xl w-[90vw] h-[85vh] flex flex-col p-0 overflow-hidden bg-background [&>button]:hidden" onInteractOutside={ignoreToastInteractOutside}>
           {/* Header */}
           <div className="flex justify-between items-center p-4 border-b z-50 bg-background shrink-0">
             <h2 className="text-xl font-semibold font-outfit">AI Wardrobe Map</h2>
