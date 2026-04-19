@@ -137,6 +137,7 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: G
 
   useEffect(() => {
     if (!item) return;
+    setImageUrl(null);
     setShowCare(false);
     setShowStain(false);
     setStainResult(null);
