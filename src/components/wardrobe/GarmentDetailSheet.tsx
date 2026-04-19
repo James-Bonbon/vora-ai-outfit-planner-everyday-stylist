@@ -327,7 +327,9 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: G
             <SafeImage
               src={imageUrl}
               alt={item.name || "Garment"}
-              wrapperClassName="w-full rounded-2xl bg-[#F5F5F0]"
+              wrapperClassName="w-full aspect-square rounded-2xl bg-[#F5F5F0] p-8"
+              fit="contain"
+              className="drop-shadow-md"
               skeletonClassName="rounded-2xl"
             />
           )}
