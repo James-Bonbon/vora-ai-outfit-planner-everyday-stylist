@@ -27,6 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
+import { ignoreToastInteractOutside } from "@/lib/radixToastGuard";
 
 import { toast } from "sonner";
 import {
@@ -424,7 +425,7 @@ const MirrorPage = () => {
           </Button>
         </div>
         <Sheet open={chatOpen} onOpenChange={setChatOpen}>
-          <SheetContent side="right" className="w-full sm:max-w-md p-4 flex flex-col">
+          <SheetContent side="right" className="w-full sm:max-w-md p-4 flex flex-col" onInteractOutside={ignoreToastInteractOutside}>
             <SheetTitle className="sr-only">Stylist Chat</SheetTitle>
             <StylistChat />
           </SheetContent>
@@ -457,7 +458,7 @@ const MirrorPage = () => {
       </div>
 
       <Sheet open={chatOpen} onOpenChange={setChatOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-md p-4 flex flex-col">
+        <SheetContent side="right" className="w-full sm:max-w-md p-4 flex flex-col" onInteractOutside={ignoreToastInteractOutside}>
           <SheetTitle className="sr-only">Stylist Chat</SheetTitle>
           <StylistChat />
         </SheetContent>
@@ -634,7 +635,7 @@ const MirrorPage = () => {
 
       {/* ========== SHARE TO FEED MODAL ========== */}
       <Dialog open={shareModalOpen} onOpenChange={setShareModalOpen}>
-        <DialogContent className="sm:max-w-md rounded-2xl">
+        <DialogContent className="sm:max-w-md rounded-2xl" onInteractOutside={ignoreToastInteractOutside}>
           <DialogHeader>
             <DialogTitle className="font-outfit">Publish to Feed</DialogTitle>
           </DialogHeader>

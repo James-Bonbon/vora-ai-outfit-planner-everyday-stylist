@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import type { GarmentDisplay } from "@/types/wardrobe";
 import { useAuth } from "@/hooks/useAuth";
 import { WardrobeMap } from "@/components/wardrobe/WardrobeMap";
+import { ignoreToastInteractOutside } from "@/lib/radixToastGuard";
 
 const CATEGORIES = ["Tops", "Bottoms", "Shoes", "Accessories", "Outerwear"];
 
@@ -326,7 +327,7 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate, pre
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="rounded-t-3xl max-h-[90vh] overflow-y-auto bg-background z-[60]">
+      <SheetContent side="bottom" className="rounded-t-3xl max-h-[90vh] overflow-y-auto bg-background z-[60]" onInteractOutside={ignoreToastInteractOutside}>
         <SheetHeader>
           <SheetTitle className="font-outfit text-zinc-950 dark:text-zinc-50 font-bold tracking-tight opacity-100">
             {item.name || "Item Details"}

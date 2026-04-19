@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { OutfitPost, Garment } from "@/data/mockFeedData";
+import { ignoreToastInteractOutside } from "@/lib/radixToastGuard";
 
 interface FeedOutfitSheetProps {
   item: OutfitPost | null;
@@ -110,7 +111,7 @@ export const FeedOutfitSheet = ({ item, open, onOpenChange }: FeedOutfitSheetPro
 
   return (
     <Sheet open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) { setSavedIdxs(new Set()); setOutfitSaved(false); } }}>
-      <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto pb-10">
+      <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto pb-10" onInteractOutside={ignoreToastInteractOutside}>
         <SheetHeader className="pb-2">
           <SheetTitle className="font-outfit text-lg">{item.description}</SheetTitle>
           <p className="text-[11px] text-muted-foreground font-semibold tracking-wide">

@@ -18,6 +18,7 @@ import { BODY_SHAPES, toDbValue, toDisplayLabel } from "@/constants/bodyShapes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AvatarCropperModal } from "@/components/AvatarCropperModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { ignoreToastInteractOutside } from "@/lib/radixToastGuard";
 
 interface ProfileData {
   display_name: string | null;
@@ -700,7 +701,7 @@ const ProfilePage = () => {
 
       {/* Feedback Modal */}
       <Dialog open={feedbackOpen} onOpenChange={setFeedbackOpen}>
-        <DialogContent className="rounded-2xl max-w-[360px]">
+        <DialogContent className="rounded-2xl max-w-[360px]" onInteractOutside={ignoreToastInteractOutside}>
           <DialogHeader>
             <DialogTitle>Help & Feedback</DialogTitle>
             <DialogDescription>Let us know how we can improve.</DialogDescription>

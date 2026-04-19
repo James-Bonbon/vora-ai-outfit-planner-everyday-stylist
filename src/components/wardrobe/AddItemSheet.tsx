@@ -9,6 +9,7 @@ import { normalizeToPng, sliceImageByBoundingBoxes, BoundingBox, CroppedGarment 
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { WardrobeMap } from "@/components/wardrobe/WardrobeMap";
+import { ignoreToastInteractOutside } from "@/lib/radixToastGuard";
 
 export interface PrefillData {
   imageFile: File;

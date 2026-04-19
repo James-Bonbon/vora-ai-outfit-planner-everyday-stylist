@@ -25,6 +25,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import ProductLibrary from "@/components/beauty/ProductLibrary";
+import { ignoreToastInteractOutside } from "@/lib/radixToastGuard";
 
 interface BeautyProduct {
   id: string;
@@ -574,7 +575,7 @@ const BeautyPage = () => {
 
           {/* Add Product Sheet */}
           <Sheet open={addOpen} onOpenChange={setAddOpen}>
-            <SheetContent side="bottom" className="rounded-t-3xl pb-safe">
+            <SheetContent side="bottom" className="rounded-t-3xl pb-safe" onInteractOutside={ignoreToastInteractOutside}>
               <SheetHeader>
                 <SheetTitle className="font-outfit">Scan Product</SheetTitle>
               </SheetHeader>
@@ -616,7 +617,7 @@ const BeautyPage = () => {
 
           {/* Product Detail Sheet */}
           <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
-            <SheetContent side="bottom" className="rounded-t-3xl pb-safe max-h-[85vh] overflow-y-auto">
+            <SheetContent side="bottom" className="rounded-t-3xl pb-safe max-h-[85vh] overflow-y-auto" onInteractOutside={ignoreToastInteractOutside}>
               {selectedProduct && (
                 <>
                   <SheetHeader>
@@ -686,7 +687,7 @@ const BeautyPage = () => {
 
           {/* Routine Sheet */}
           <Sheet open={routineOpen} onOpenChange={setRoutineOpen}>
-            <SheetContent side="bottom" className="rounded-t-3xl pb-safe max-h-[90vh] overflow-y-auto">
+            <SheetContent side="bottom" className="rounded-t-3xl pb-safe max-h-[90vh] overflow-y-auto" onInteractOutside={ignoreToastInteractOutside}>
               <SheetHeader>
                 <SheetTitle className="font-outfit">Your Routine</SheetTitle>
               </SheetHeader>
