@@ -157,7 +157,9 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate, pre
       setEditBrand(ci.brand || "");
     }
 
-    if (isDream) {
+    if (preloadedImageUrl) {
+      setImageUrl(preloadedImageUrl);
+    } else if (isDream) {
       setImageUrl(item.image_url);
     } else {
       supabase.storage
@@ -165,7 +167,7 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate, pre
         .createSignedUrl(item.image_url, 3600)
         .then(({ data }) => setImageUrl(data?.signedUrl || null));
     }
-  }, [item, isDream]);
+  }, [item, isDream, preloadedImageUrl]);
 
   // Load closet SVG for zone display
   useEffect(() => {
