@@ -2,13 +2,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { getSignedUrl } from "@/utils/urlCache";
+import { getCachedSignedUrl, getCachedSignedUrls } from "@/utils/signedUrlCache";
 
 // ─── Types ───────────────────────────────────────────────────────────────
 
 export interface ClosetItem {
   id: string;
   image_url: string;
+  thumbnail_url?: string | null;
   name: string | null;
   category: string | null;
   is_in_laundry: boolean;
@@ -94,7 +95,7 @@ export function useClosetItems() {
     queryFn: async () => {
       const { data } = await supabase
         .from("closet_items")
-        .select("id, image_url, name, category, is_in_laundry")
+        .select("id, image_url, thumbnail_url, name, category, is_in_laundry")
         .eq("user_id", user!.id)
         .order("created_at", { ascending: false });
 
@@ -102,24 +103,25 @@ export function useClosetItems() {
 
       // Filter out laundry items for display in try-on
       const availableItems: StylistItem[] = data
-        .filter((item) => !item.is_in_laundry)
-        .map((item) => ({ ...item, source: "closet" as const }));
+        .filter((item: any) => !item.is_in_laundry)
+        .map((item: any) => ({ ...item, source: "closet" as const }));
 
-      // Batch sign all URLs in parallel
-      const urlEntries = await Promise.all(
-        availableItems.map(async (item) => {
-          const url = await getSignedUrl("garments", item.image_url);
-          return [item.id, url || ""] as const;
-        })
-      );
+      // For the selector grid we use thumbnails (fall back to full image for legacy rows).
+      // The full image_url is preserved on the item for try-on.
+      const previewPaths = availableItems.map((it: any) => it.thumbnail_url || it.image_url).filter(Boolean) as string[];
+      const urlMap = await getCachedSignedUrls("garments", previewPaths);
 
-      return {
-        items: availableItems,
-        urls: Object.fromEntries(urlEntries) as Record<string, string>,
-      };
+      const urls: Record<string, string> = {};
+      for (const it of availableItems as any[]) {
+        const path = it.thumbnail_url || it.image_url;
+        if (path && urlMap[path]) urls[it.id] = urlMap[path];
+      }
+
+      return { items: availableItems, urls };
     },
     enabled: !!user,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30 * 60 * 1000,
+    refetchOnMount: false,
   });
 }
 
@@ -145,25 +147,20 @@ export function useDreamItems() {
         source: "dream" as const,
       }));
 
-      // Sign URLs — dream items may be external URLs or bucket paths
-      const urlEntries = await Promise.all(
-        dreamItems.map(async (item) => {
-          const isPath = !item.image_url.startsWith("http");
-          if (isPath) {
-            const url = await getSignedUrl("garments", item.image_url);
-            return [item.id, url || ""] as const;
-          }
-          return [item.id, item.image_url] as const;
-        })
-      );
+      // Sign URLs — dream items may be external URLs or bucket paths.
+      const paths = dreamItems.map((it) => it.image_url).filter(Boolean) as string[];
+      const urlMap = await getCachedSignedUrls("garments", paths);
 
-      return {
-        items: dreamItems,
-        urls: Object.fromEntries(urlEntries) as Record<string, string>,
-      };
+      const urls: Record<string, string> = {};
+      for (const it of dreamItems) {
+        urls[it.id] = urlMap[it.image_url] || it.image_url;
+      }
+
+      return { items: dreamItems, urls };
     },
     enabled: !!user,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30 * 60 * 1000,
+    refetchOnMount: false,
   });
 }
 
