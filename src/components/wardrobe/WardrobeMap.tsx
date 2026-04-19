@@ -8,6 +8,8 @@ interface WardrobeMapProps {
   onZoneSelect?: (zoneId: string) => void;
   isSelectionMode?: boolean;
   className?: string;
+  /** When true, preserves the SVG's intrinsic aspect ratio (fits inside container) instead of stretching. */
+  preserveAspect?: boolean;
 }
 
 const SAGE = "hsl(110, 10%, 38%)"; // flatlay-cta token equivalent
@@ -18,6 +20,7 @@ export const WardrobeMap: React.FC<WardrobeMapProps> = ({
   onZoneSelect,
   isSelectionMode = false,
   className,
+  preserveAspect = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -29,9 +32,18 @@ export const WardrobeMap: React.FC<WardrobeMapProps> = ({
 
     svgElement.style.width = "100%";
     svgElement.style.height = "100%";
-    svgElement.setAttribute("preserveAspectRatio", "none");
+    svgElement.setAttribute("preserveAspectRatio", preserveAspect ? "xMidYMid meet" : "none");
     svgElement.style.pointerEvents = "none";
     svgElement.style.backgroundColor = "transparent";
+
+    // Ensure zone labels (text) remain visible
+    svgElement.querySelectorAll("text").forEach((t) => {
+      const el = t as SVGTextElement & ElementCSSInlineStyle;
+      if (!el.getAttribute("fill") || el.getAttribute("fill") === "none") {
+        el.style.fill = "hsl(var(--foreground))";
+      }
+      el.style.pointerEvents = "none";
+    });
 
     const paths = svgElement.querySelectorAll("path, rect, polygon, ellipse, circle");
 

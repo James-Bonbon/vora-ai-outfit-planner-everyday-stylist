@@ -373,8 +373,8 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: G
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1 px-1">
                 <MapPin className="w-3 h-3" /> Stored in: {storageZoneId.replace(/-/g, " ")}
               </p>
-              <div className="relative overflow-hidden rounded-xl aspect-square bg-muted/30">
-                <WardrobeMap svgString={closetSvg} activeZoneId={storageZoneId} />
+              <div className="relative w-full overflow-hidden rounded-xl bg-muted/30 aspect-[4/3]">
+                <WardrobeMap svgString={closetSvg} activeZoneId={storageZoneId} preserveAspect />
               </div>
             </div>
           )}
