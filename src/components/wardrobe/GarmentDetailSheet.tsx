@@ -439,7 +439,7 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate, pre
                     onLocate(storageZoneId);
                   }}
                 >
-                  <MapPin className="w-4 h-4 text-foreground" /> Locate
+                  <MapPin className="w-4 h-4" /> Locate
                 </Button>
               )}
             </div>
