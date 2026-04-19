@@ -91,9 +91,9 @@ const DEFAULT_CARE = {
 const DetailRow = ({ label, value }: { label: string; value: string | null | undefined }) => {
   if (!value) return null;
   return (
-    <div className="flex justify-between items-center py-2.5 border-b border-border last:border-0">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-sm font-medium text-foreground">{value}</span>
+    <div className="flex justify-between items-start py-2.5 border-b border-border last:border-0 gap-4">
+      <span className="text-xs text-muted-foreground shrink-0 mt-0.5">{label}</span>
+      <span className="text-sm font-medium text-foreground text-right break-words max-w-[75%]">{value}</span>
     </div>
   );
 };
