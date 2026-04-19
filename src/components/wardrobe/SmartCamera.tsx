@@ -229,16 +229,7 @@ const SmartCamera = ({ open, onOpenChange, onAnalyzed }: SmartCameraProps) => {
             />
             {!analyzing && (
               <div className="absolute inset-0 pointer-events-none">
-              <svg className="absolute inset-6" width="100%" height="100%" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="1" y="1" width="calc(100% - 2px)" height="calc(100% - 2px)" rx="22" ry="22" stroke="white" strokeOpacity="0.5" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-                </svg>
-                {/* Corner accents via SVG paths inside the same overlay */}
-                <svg className="absolute inset-6" width="100%" height="100%" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M 2 24 L 2 12 Q 2 2 12 2 L 24 2" stroke="white" strokeWidth="3" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-                  <path d="M calc(100% - 24px) 2 L calc(100% - 12px) 2 Q calc(100% - 2px) 2 calc(100% - 2px) 12 L calc(100% - 2px) 24" stroke="white" strokeWidth="3" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-                  <path d="M 2 calc(100% - 24px) L 2 calc(100% - 12px) Q 2 calc(100% - 2px) 12 calc(100% - 2px) L 24 calc(100% - 2px)" stroke="white" strokeWidth="3" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-                  <path d="M calc(100% - 24px) calc(100% - 2px) L calc(100% - 12px) calc(100% - 2px) Q calc(100% - 2px) calc(100% - 2px) calc(100% - 2px) calc(100% - 12px) L calc(100% - 2px) calc(100% - 24px)" stroke="white" strokeWidth="3" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-                </svg>
+                <div className="absolute inset-6 border-2 border-white/70 rounded-3xl" />
                 <p className="absolute top-10 left-0 right-0 text-center text-white/80 text-sm font-medium">
                   Align your garment here
                 </p>
