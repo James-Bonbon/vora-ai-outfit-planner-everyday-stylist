@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Send, Sparkles, Loader2, Trash2, Paperclip, X, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,11 +15,30 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { getCachedSignedUrls } from "@/utils/signedUrlCache";
 
+export type ChatQuickAction = {
+  id: string;
+  label: string;
+  emoji?: string;
+  kind: "send_message" | "see_on_me" | "save_to_lookbook" | "open_wardrobe" | "open_stylist";
+  message?: string;
+  garment_ids?: string[];
+  outfit_name?: string;
+};
+
+const ALLOWED_KINDS = new Set([
+  "send_message",
+  "see_on_me",
+  "save_to_lookbook",
+  "open_wardrobe",
+  "open_stylist",
+]);
+
 interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   suggested_garment_ids?: string[] | null;
+  quick_actions?: ChatQuickAction[] | null;
   created_at: string;
 }
 
