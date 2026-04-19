@@ -96,7 +96,7 @@ export const WardrobeMap: React.FC<WardrobeMapProps> = ({
         };
       }
     });
-  }, [svgString, activeZoneId, isSelectionMode, onZoneSelect]);
+  }, [svgString, activeZoneId, isSelectionMode, onZoneSelect, preserveAspect]);
 
   useEffect(() => {
     applyStyles();
