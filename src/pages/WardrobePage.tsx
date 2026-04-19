@@ -742,7 +742,12 @@ const WardrobePage = () => {
         open={mapOpen}
         onOpenChange={(v) => {
           setMapOpen(v);
-          if (!v) setHighlightZoneId(null);
+          if (!v) {
+            if (highlightZoneId) {
+              setTimeout(() => setDetailOpen(true), 300);
+            }
+            setHighlightZoneId(null);
+          }
         }}
       >
         <DialogContent className="max-w-4xl w-[90vw] h-[85vh] flex flex-col p-0 overflow-hidden bg-background [&>button]:hidden">
