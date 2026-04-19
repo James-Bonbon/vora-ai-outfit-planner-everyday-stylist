@@ -405,20 +405,22 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
               Ask me for outfit ideas, styling advice, or what to wear for any occasion. I know your whole wardrobe!
             </p>
             <div className="flex flex-wrap gap-2 mt-5 justify-center">
-              {["What should I wear today?", "Date night outfit", "Work outfit ideas"].map(
-                (prompt) => (
-                  <button
-                    key={prompt}
-                    onClick={() => {
-                      setInput(prompt);
-                      inputRef.current?.focus();
-                    }}
-                    className="text-xs px-3 py-1.5 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-flatlay-cta/40 transition-colors"
-                  >
-                    {prompt}
-                  </button>
-                )
-              )}
+              {[
+                "What should I wear today?",
+                "Style this for work",
+                "Make me an outfit from my closet",
+                "What's missing from my wardrobe?",
+                "Help me look more polished",
+              ].map((prompt) => (
+                <button
+                  key={prompt}
+                  onClick={() => sendQuickMessage(prompt)}
+                  disabled={sendMutation.isPending}
+                  className="text-xs px-3 py-1.5 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-flatlay-cta/40 transition-colors disabled:opacity-50"
+                >
+                  {prompt}
+                </button>
+              ))}
             </div>
           </div>
         )}
@@ -483,6 +485,44 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
                           </div>
                         );
                       })}
+                    </div>
+                  )}
+
+                {/* Quick action bubbles */}
+                {msg.role === "assistant" &&
+                  Array.isArray(msg.quick_actions) &&
+                  msg.quick_actions.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {msg.quick_actions
+                        .filter((a) => a && ALLOWED_KINDS.has(a.kind))
+                        .map((action) => {
+                          // Hide actions that need garments but have none valid
+                          if (
+                            (action.kind === "see_on_me" || action.kind === "save_to_lookbook") &&
+                            !(action.garment_ids || []).some((id) =>
+                              garments.some((g) => g.id === id)
+                            )
+                          ) {
+                            return null;
+                          }
+                          const isSaving =
+                            action.kind === "save_to_lookbook" && savingActionId === action.id;
+                          return (
+                            <button
+                              key={action.id}
+                              onClick={() => handleQuickAction(action)}
+                              disabled={sendMutation.isPending || isSaving}
+                              className="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-full border border-border bg-background text-foreground hover:border-primary/40 hover:bg-secondary transition-colors disabled:opacity-50"
+                            >
+                              {isSaving ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : action.emoji ? (
+                                <span>{action.emoji}</span>
+                              ) : null}
+                              <span>{action.label}</span>
+                            </button>
+                          );
+                        })}
                     </div>
                   )}
               </div>
