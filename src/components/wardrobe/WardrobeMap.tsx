@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { sanitizeWardrobeSvg } from "@/utils/sanitizeWardrobeSvg";
+import { Grid, Shirt, Server, User, ShoppingBag } from "lucide-react";
 
 interface WardrobeMapProps {
   svgString: string;
@@ -12,7 +13,32 @@ interface WardrobeMapProps {
   preserveAspect?: boolean;
 }
 
-const SAGE = "hsl(110, 10%, 38%)"; // flatlay-cta token equivalent
+const ZONE_CONTENT: Record<string, { icon: React.ReactNode; text: string }> = {
+  left_shelves: { icon: <Grid className="w-4 h-4 mb-0.5" />, text: "Left Shelving" },
+  center_hanging_shirts: { icon: <Shirt className="w-4 h-4 mb-0.5" />, text: "Center Hanging Shirts" },
+  center_drawers: { icon: <Server className="w-4 h-4 mb-0.5" />, text: "Center Drawers" },
+  right_hanging_dresses: { icon: <User className="w-4 h-4 mb-0.5" />, text: "Right Hanging Dresses" },
+  floor_storage: { icon: <ShoppingBag className="w-4 h-4 mb-0.5" />, text: "Floor Bags/Storage" },
+};
+
+const parseSvgZones = (svgStr: string) => {
+  if (typeof window === "undefined") return [];
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(svgStr, "image/svg+xml");
+  const rects = Array.from(doc.querySelectorAll("rect"));
+  return rects
+    .map((rect) => {
+      const getVal = (attr: string) => parseFloat(rect.getAttribute(attr) || "0") / 10;
+      return {
+        id: rect.getAttribute("id") || "",
+        left: `${getVal("x")}%`,
+        top: `${getVal("y")}%`,
+        width: `${getVal("width")}%`,
+        height: `${getVal("height")}%`,
+      };
+    })
+    .filter((z) => z.id);
+};
 
 export const WardrobeMap: React.FC<WardrobeMapProps> = ({
   svgString,
@@ -22,99 +48,48 @@ export const WardrobeMap: React.FC<WardrobeMapProps> = ({
   className,
   preserveAspect = false,
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const applyStyles = useCallback(() => {
-    if (!containerRef.current) return;
-
-    const svgElement = containerRef.current.querySelector("svg");
-    if (!svgElement) return;
-
-    svgElement.style.width = "100%";
-    svgElement.style.height = "100%";
-    svgElement.setAttribute("preserveAspectRatio", preserveAspect ? "xMidYMid meet" : "none");
-    svgElement.style.pointerEvents = "none";
-    svgElement.style.backgroundColor = "transparent";
-
-    // Ensure zone labels (text) remain visible
-    svgElement.querySelectorAll("text").forEach((t) => {
-      const el = t as SVGTextElement & ElementCSSInlineStyle;
-      if (!el.getAttribute("fill") || el.getAttribute("fill") === "none") {
-        el.style.fill = "hsl(var(--foreground))";
-      }
-      el.style.pointerEvents = "none";
-    });
-
-    const paths = svgElement.querySelectorAll("path, rect, polygon, ellipse, circle");
-
-    paths.forEach((el) => {
-      const htmlEl = el as SVGElement & ElementCSSInlineStyle;
-      const zoneId = htmlEl.getAttribute("id");
-
-      if (!zoneId) {
-        htmlEl.style.pointerEvents = "none";
-        htmlEl.style.fill = "transparent";
-        htmlEl.style.backgroundColor = "transparent";
-        htmlEl.style.stroke = "none";
-        return;
-      }
-
-      // Reset styles
-      htmlEl.style.pointerEvents = "auto";
-      htmlEl.style.fill = "transparent";
-      htmlEl.style.backgroundColor = "transparent";
-      htmlEl.style.stroke = "hsl(var(--border))";
-      htmlEl.style.strokeWidth = "2";
-      htmlEl.style.transition = "all 0.3s ease";
-      htmlEl.style.cursor = isSelectionMode ? "pointer" : "default";
-
-      // Active zone highlighting
-      if (activeZoneId && zoneId === activeZoneId) {
-        htmlEl.style.fill = SAGE;
-        htmlEl.style.fillOpacity = "0.4";
-        htmlEl.style.stroke = SAGE;
-        htmlEl.style.strokeWidth = "2.5";
-      }
-
-      // Interactive listeners for selection mode
-      if (isSelectionMode && onZoneSelect) {
-        htmlEl.onmouseenter = () => {
-          if (zoneId !== activeZoneId) {
-            htmlEl.style.fill = SAGE;
-            htmlEl.style.fillOpacity = "0.15";
-          }
-        };
-        htmlEl.onmouseleave = () => {
-          if (zoneId !== activeZoneId) {
-            htmlEl.style.fill = "transparent";
-            htmlEl.style.fillOpacity = "1";
-          }
-        };
-        htmlEl.onclick = (e) => {
-          e.stopPropagation();
-          onZoneSelect(zoneId);
-        };
-      }
-    });
-  }, [svgString, activeZoneId, isSelectionMode, onZoneSelect, preserveAspect]);
-
-  useEffect(() => {
-    applyStyles();
-  }, [applyStyles]);
-
   const sanitizedSvg = useMemo(() => sanitizeWardrobeSvg(svgString), [svgString]);
+  const zones = useMemo(() => parseSvgZones(sanitizedSvg || ""), [sanitizedSvg]);
 
   if (!sanitizedSvg) return null;
 
   return (
-    <div
-      ref={containerRef}
-      className={cn(
-        "absolute inset-0 w-full h-full z-10",
-        className,
-      )}
-      dangerouslySetInnerHTML={{ __html: sanitizedSvg }}
-    />
+    <div className={cn("absolute inset-0 w-full h-full z-10", className)}>
+      <div
+        className={cn(
+          "absolute inset-0 w-full h-full [&_rect]:!fill-transparent [&_rect]:!stroke-foreground/20 [&_rect]:!stroke-[2px]",
+          preserveAspect ? "[&>svg]:w-full [&>svg]:h-full" : "[&>svg]:w-full [&>svg]:h-full",
+        )}
+        dangerouslySetInnerHTML={{ __html: sanitizedSvg }}
+      />
+      {zones.map((zone, idx) => {
+        const content = ZONE_CONTENT[zone.id];
+        if (!content) return null;
+        const isActive = activeZoneId === zone.id;
+        const dimmed = activeZoneId && !isActive;
+        return (
+          <div
+            key={idx}
+            className={cn(
+              "absolute flex flex-col items-center justify-center text-foreground p-1 text-center rounded-lg transition-all duration-300",
+              isSelectionMode && "cursor-pointer hover:bg-primary/10",
+              isActive && "ring-4 ring-primary bg-primary/20",
+              dimmed && "opacity-30 grayscale",
+            )}
+            style={{ left: zone.left, top: zone.top, width: zone.width, height: zone.height }}
+            onClick={(e) => {
+              if (isSelectionMode && onZoneSelect) {
+                e.stopPropagation();
+                onZoneSelect(zone.id);
+              }
+            }}
+          >
+            {content.icon}
+            <span className="text-[9px] sm:text-[10px] font-medium leading-tight">{content.text}</span>
+          </div>
+        );
+      })}
+    </div>
   );
 };
 
