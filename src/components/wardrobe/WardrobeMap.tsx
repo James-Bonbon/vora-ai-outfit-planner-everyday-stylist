@@ -54,15 +54,13 @@ export const WardrobeMap: React.FC<WardrobeMapProps> = ({
   if (!sanitizedSvg) return null;
 
   return (
-    <div className={cn("absolute inset-0 w-full h-full z-10", className)}>
-      <div
-        className={cn(
-          "absolute inset-0 w-full h-full [&_rect]:!fill-transparent [&_rect]:!stroke-foreground/20 [&_rect]:!stroke-[2px]",
-          preserveAspect ? "[&>svg]:w-full [&>svg]:h-full" : "[&>svg]:w-full [&>svg]:h-full",
-        )}
-        dangerouslySetInnerHTML={{ __html: sanitizedSvg }}
-      />
-      {zones.map((zone, idx) => {
+    <div className={cn("w-full flex items-center justify-center p-6 bg-card border border-border/50 rounded-2xl", className)}>
+      <div className="relative w-full max-w-[300px] aspect-square">
+        <div
+          className="absolute inset-0 w-full h-full [&>svg]:w-full [&>svg]:h-full [&_rect]:!fill-transparent [&_rect]:!stroke-foreground/20 [&_rect]:!stroke-[2px]"
+          dangerouslySetInnerHTML={{ __html: sanitizedSvg }}
+        />
+        {zones.map((zone, idx) => {
         const content = ZONE_CONTENT[zone.id];
         if (!content) return null;
         const isActive = activeZoneId === zone.id;
