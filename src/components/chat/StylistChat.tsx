@@ -292,6 +292,62 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
     sendMutation.mutate({ userMessage: text, attachmentSnapshot });
   };
 
+  const sendQuickMessage = (message: string) => {
+    if (!message.trim() || sendMutation.isPending) return;
+    sendMutation.mutate({ userMessage: message.trim(), attachmentSnapshot: null });
+  };
+
+  const handleQuickAction = async (action: ChatQuickAction) => {
+    if (!ALLOWED_KINDS.has(action.kind)) return;
+    if (sendMutation.isPending) return;
+
+    // Filter garment IDs against the loaded wardrobe
+    const validGarmentIds = (action.garment_ids || []).filter((id) =>
+      garments.some((g) => g.id === id)
+    );
+
+    switch (action.kind) {
+      case "send_message": {
+        if (action.message) sendQuickMessage(action.message);
+        return;
+      }
+      case "see_on_me": {
+        if (validGarmentIds.length === 0) return;
+        navigate("/mirror", { state: { preSelectedIds: validGarmentIds } });
+        return;
+      }
+      case "open_wardrobe":
+        navigate("/wardrobe");
+        return;
+      case "open_stylist":
+        navigate("/mirror");
+        return;
+      case "save_to_lookbook": {
+        if (validGarmentIds.length === 0 || !user) return;
+        if (savingActionId === action.id) return;
+        setSavingActionId(action.id);
+        try {
+          const { error } = await supabase.from("lookbook_outfits").insert({
+            user_id: user.id,
+            name: action.outfit_name || "Vora Stylist Look",
+            garment_ids: validGarmentIds,
+          });
+          if (error) throw error;
+          toast.success("Saved to Lookbook.");
+          queryClient.invalidateQueries({ queryKey: ["lookbook"] });
+          queryClient.invalidateQueries({ queryKey: ["lookbook_outfits"] });
+        } catch (err) {
+          toast.error("Couldn't save look", {
+            description: err instanceof Error ? err.message : "Please try again.",
+          });
+        } finally {
+          setSavingActionId(null);
+        }
+        return;
+      }
+    }
+  };
+
   // Auto-scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
