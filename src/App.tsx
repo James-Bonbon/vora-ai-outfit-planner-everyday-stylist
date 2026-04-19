@@ -15,16 +15,35 @@ const lazyWithRetry = <T extends React.ComponentType<any>>(
   factory: () => Promise<{ default: T }>
 ) =>
   lazy(async () => {
+    const isChunkError = (err: any) => {
+      const msg = String(err?.message || "");
+      return (
+        msg.includes("Failed to fetch dynamically imported module") ||
+        msg.includes("Importing a module script failed") ||
+        msg.includes("error loading dynamically imported module")
+      );
+    };
+
     try {
       return await factory();
     } catch (err: any) {
-      const msg = String(err?.message || "");
-      if (msg.includes("Failed to fetch dynamically imported module") || msg.includes("Importing a module script failed")) {
-        const key = "vora_chunk_reload";
-        if (!sessionStorage.getItem(key)) {
-          sessionStorage.setItem(key, "1");
-          window.location.reload();
-          return new Promise(() => {}) as any;
+      if (isChunkError(err)) {
+        // First retry: try once more in-place after a short delay (handles transient network blips)
+        try {
+          await new Promise((r) => setTimeout(r, 400));
+          return await factory();
+        } catch (err2: any) {
+          if (isChunkError(err2)) {
+            const key = "vora_chunk_reload";
+            const last = Number(sessionStorage.getItem(key) || "0");
+            // Allow another reload if more than 10s since last attempt (avoid infinite loops)
+            if (Date.now() - last > 10_000) {
+              sessionStorage.setItem(key, String(Date.now()));
+              window.location.reload();
+              return new Promise(() => {}) as any;
+            }
+          }
+          throw err2;
         }
       }
       throw err;
