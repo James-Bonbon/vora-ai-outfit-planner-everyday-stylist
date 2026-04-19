@@ -229,7 +229,27 @@ const SmartCamera = ({ open, onOpenChange, onAnalyzed }: SmartCameraProps) => {
             />
             {!analyzing && (
               <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute inset-6 border-2 border-white/70 rounded-3xl" />
+                <svg
+                  className="absolute inset-6 h-[calc(100%-3rem)] w-[calc(100%-3rem)]"
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <rect
+                    x="1.25"
+                    y="1.25"
+                    width="97.5"
+                    height="97.5"
+                    rx="8"
+                    stroke="white"
+                    strokeOpacity="0.72"
+                    strokeWidth="2.5"
+                    vectorEffect="non-scaling-stroke"
+                    shapeRendering="geometricPrecision"
+                  />
+                </svg>
                 <p className="absolute top-10 left-0 right-0 text-center text-white/80 text-sm font-medium">
                   Align your garment here
                 </p>
