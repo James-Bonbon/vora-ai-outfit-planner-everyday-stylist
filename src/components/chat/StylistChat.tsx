@@ -11,6 +11,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { getCachedSignedUrls } from "@/utils/signedUrlCache";
 
 interface ChatMessage {
   id: string;
@@ -26,6 +27,7 @@ interface GarmentMini {
   category: string | null;
   color: string | null;
   image_url: string;
+  thumbnail_url?: string | null;
 }
 
 interface Attachment {
@@ -65,35 +67,37 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
 
   // Fetch all closet items for rendering garment cards
   const { data: garments = [] } = useQuery<GarmentMini[]>({
-    queryKey: ["chat-garments"],
+    queryKey: ["chat-garments", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("closet_items")
-        .select("id, name, category, color, image_url");
+        .select("id, name, category, color, image_url, thumbnail_url");
       if (error) throw error;
       return (data || []) as GarmentMini[];
     },
     enabled: !!user,
+    staleTime: 30 * 60 * 1000,
+    refetchOnMount: false,
   });
 
-  // Generate signed URLs for garment images
+  // Generate signed URLs for garment thumbnails (fall back to full image for legacy rows)
   const garmentIds = garments.map((g) => g.id);
   const { data: garmentUrls = {} } = useQuery<Record<string, string>>({
     queryKey: ["chat-garment-urls", garmentIds],
     queryFn: async () => {
       if (garments.length === 0) return {};
-      const paths = garments.map((g) => g.image_url);
-      const { data } = await supabase.storage
-        .from("garments")
-        .createSignedUrls(paths, 3600);
-      if (!data) return {};
-      const urlMap: Record<string, string> = {};
-      data.forEach((item, i) => {
-        if (item.signedUrl) urlMap[garments[i].id] = item.signedUrl;
-      });
-      return urlMap;
+      const paths = garments.map((g) => g.thumbnail_url || g.image_url).filter(Boolean) as string[];
+      const urlMap = await getCachedSignedUrls("garments", paths);
+      const out: Record<string, string> = {};
+      for (const g of garments) {
+        const path = g.thumbnail_url || g.image_url;
+        if (path && urlMap[path]) out[g.id] = urlMap[path];
+      }
+      return out;
     },
     enabled: garments.length > 0,
+    staleTime: 30 * 60 * 1000,
+    refetchOnMount: false,
   });
 
   // Send message mutation (with optimistic update + reliable 30s timeout)
