@@ -36,7 +36,7 @@ const STORAGE_ZONES = [
 interface AddItemSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onItemAdded: () => void;
+  onItemAdded: (item?: any, immediateImageUrl?: string) => void;
   prefill?: PrefillData | null;
 }
 
