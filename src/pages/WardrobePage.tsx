@@ -904,6 +904,43 @@ const WardrobePage = () => {
           <div className="p-4 border-t flex justify-between items-center bg-background z-50 shrink-0">
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} />
             {closetSvg ? (
+              detailOpen && selectedItem ? (
+                <>
+                  <Button
+                    variant="outline"
+                    className="rounded-xl gap-2"
+                    onClick={() => setMapOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    className="rounded-xl gap-2"
+                    disabled={!highlightZoneId || isSaving}
+                    onClick={async () => {
+                      if (selectedItem?.source !== "closet" || !highlightZoneId) return;
+                      setIsSaving(true);
+                      try {
+                        const { error } = await supabase
+                          .from("closet_items")
+                          .update({ storage_zone_id: highlightZoneId })
+                          .eq("id", selectedItem.id);
+                        if (error) throw error;
+                        await queryClient.invalidateQueries({ queryKey: ["closet"] });
+                        await queryClient.invalidateQueries({ queryKey: ["closet-items"] });
+                        toast.success("Location saved!");
+                        setMapOpen(false);
+                      } catch (err: any) {
+                        toast.error("Failed to save location: " + (err?.message || "Unknown error"));
+                      } finally {
+                        setIsSaving(false);
+                      }
+                    }}
+                  >
+                    {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+                    Save Location
+                  </Button>
+                </>
+              ) : (
               <>
                 <Button
                   onClick={() => {
@@ -921,6 +958,7 @@ const WardrobePage = () => {
                   Save Closet
                 </Button>
               </>
+              )
             ) : (
               <>
                 <Button
