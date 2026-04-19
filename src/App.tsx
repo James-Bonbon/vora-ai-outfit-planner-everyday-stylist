@@ -10,24 +10,42 @@ import Landing from "./pages/Landing";
 import AppLayout from "./components/AppLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
-// Lazy-load all non-landing routes to keep the initial bundle small.
-// Landing + AppLayout + ProtectedRoute stay eager so the first paint and
-// auth-gated routing remain functionally identical.
-const WelcomePage = lazy(() => import("./pages/WelcomePage"));
-const UnsubscribePage = lazy(() => import("./pages/UnsubscribePage"));
-const LegalPage = lazy(() => import("./pages/LegalPage"));
-const SettingsPage = lazy(() => import("./pages/SettingsPage"));
-const SubscriptionPage = lazy(() => import("./pages/SubscriptionPage"));
-const AdminPage = lazy(() => import("./pages/AdminPage"));
-const HomePage = lazy(() => import("./pages/HomePage"));
-const WardrobePage = lazy(() => import("./pages/WardrobePage"));
-const MirrorPage = lazy(() => import("./pages/MirrorPage"));
-const BeautyPage = lazy(() => import("./pages/BeautyPage"));
-const ProfilePage = lazy(() => import("./pages/ProfilePage"));
-const OnboardingPage = lazy(() => import("./pages/OnboardingPage"));
-const LibraryPage = lazy(() => import("./pages/LibraryPage"));
-const CommunityPage = lazy(() => import("./pages/CommunityPage"));
-const NotFound = lazy(() => import("./pages/NotFound"));
+// Auto-retry lazy imports once on failure (handles stale chunk hashes after deploys/HMR).
+const lazyWithRetry = <T extends React.ComponentType<any>>(
+  factory: () => Promise<{ default: T }>
+) =>
+  lazy(async () => {
+    try {
+      return await factory();
+    } catch (err: any) {
+      const msg = String(err?.message || "");
+      if (msg.includes("Failed to fetch dynamically imported module") || msg.includes("Importing a module script failed")) {
+        const key = "vora_chunk_reload";
+        if (!sessionStorage.getItem(key)) {
+          sessionStorage.setItem(key, "1");
+          window.location.reload();
+          return new Promise(() => {}) as any;
+        }
+      }
+      throw err;
+    }
+  });
+
+const WelcomePage = lazyWithRetry(() => import("./pages/WelcomePage"));
+const UnsubscribePage = lazyWithRetry(() => import("./pages/UnsubscribePage"));
+const LegalPage = lazyWithRetry(() => import("./pages/LegalPage"));
+const SettingsPage = lazyWithRetry(() => import("./pages/SettingsPage"));
+const SubscriptionPage = lazyWithRetry(() => import("./pages/SubscriptionPage"));
+const AdminPage = lazyWithRetry(() => import("./pages/AdminPage"));
+const HomePage = lazyWithRetry(() => import("./pages/HomePage"));
+const WardrobePage = lazyWithRetry(() => import("./pages/WardrobePage"));
+const MirrorPage = lazyWithRetry(() => import("./pages/MirrorPage"));
+const BeautyPage = lazyWithRetry(() => import("./pages/BeautyPage"));
+const ProfilePage = lazyWithRetry(() => import("./pages/ProfilePage"));
+const OnboardingPage = lazyWithRetry(() => import("./pages/OnboardingPage"));
+const LibraryPage = lazyWithRetry(() => import("./pages/LibraryPage"));
+const CommunityPage = lazyWithRetry(() => import("./pages/CommunityPage"));
+const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
 
