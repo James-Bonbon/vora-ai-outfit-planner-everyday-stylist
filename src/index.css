@@ -338,59 +338,6 @@
 
     --product-bg: 0 0% 100%;
   }
-  .theme-peach, .dark .theme-peach {
-    --background: 25 90% 95%;
-    --foreground: 20 22% 30%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 20 22% 30%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 20 22% 30%;
-
-    --primary: 22 66% 73%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 25 80% 97%;
-    --secondary-foreground: 20 22% 38%;
-
-    --muted: 25 80% 97%;
-    --muted-foreground: 20 14% 63%;
-
-    --accent: 22 66% 73%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 62% 55%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 20 48% 89%;
-    --input: 20 48% 89%;
-    --ring: 22 66% 73%;
-
-    --radius: 0.75rem;
-
-    --sidebar-background: 25 90% 93%;
-    --sidebar-foreground: 20 22% 30%;
-    --sidebar-primary: 22 66% 73%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 25 80% 97%;
-    --sidebar-accent-foreground: 20 22% 30%;
-    --sidebar-border: 20 48% 89%;
-    --sidebar-ring: 22 66% 73%;
-
-    --gold: 22 66% 73%;
-    --gold-foreground: 0 0% 100%;
-
-    --calendar-bg: 0 0% 100%;
-    --calendar-card: 25 80% 98%;
-    --calendar-accent: 22 66% 73%;
-    --calendar-accent-foreground: 0 0% 100%;
-    --calendar-text: 20 22% 30%;
-    --calendar-text-muted: 20 14% 63%;
-    --calendar-border: 20 48% 89%;
-
-    --product-bg: 0 0% 100%;
-  }
 }
 
 @layer base {
