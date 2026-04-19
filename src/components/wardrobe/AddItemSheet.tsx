@@ -471,9 +471,22 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
 
         if (uploadError) throw uploadError;
 
+        let thumbPath: string | null = null;
+        try {
+          const thumb = await createThumbnail(item.blob, 512);
+          const tPath = `${user.id}/thumbnails/${crypto.randomUUID()}.${thumb.ext}`;
+          const { error: tErr } = await supabase.storage
+            .from("garments")
+            .upload(tPath, thumb.blob, { contentType: thumb.contentType });
+          if (!tErr) thumbPath = tPath;
+        } catch (thumbErr) {
+          console.warn("[AddItemSheet] batch thumbnail failed", thumbErr);
+        }
+
         insertPayloads.push({
           user_id: user.id,
           image_url: filePath,
+          thumbnail_url: thumbPath,
           name: item.name,
           category: item.category,
           storage_zone_id: storageZoneId || null,
