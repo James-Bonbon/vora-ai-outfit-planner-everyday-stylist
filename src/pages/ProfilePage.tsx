@@ -364,7 +364,7 @@ const ProfilePage = () => {
   };
 
   const displayName = profile?.display_name || user?.user_metadata?.full_name || "VORA User";
-  const avatarUrl = profile?.selfie_url || profile?.avatar_url || user?.user_metadata?.avatar_url;
+  const avatarUrl = signedSelfieUrl || profile?.avatar_url || user?.user_metadata?.avatar_url;
 
   const formatDate = (d: string | null) => {
     if (!d) return "—";
