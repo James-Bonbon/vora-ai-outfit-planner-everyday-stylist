@@ -361,7 +361,7 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
                   className={cn(
                     "px-4 py-2.5 rounded-2xl text-sm leading-relaxed",
                     msg.role === "user"
-                      ? "bg-flatlay-cta text-white rounded-br-md"
+                      ? "bg-primary text-primary-foreground rounded-br-md"
                       : "bg-card border border-border text-foreground rounded-bl-md"
                   )}
                 >
