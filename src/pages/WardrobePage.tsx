@@ -4,7 +4,20 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import GlassCard from "@/components/GlassCard";
 import SafeImage from "@/components/ui/SafeImage";
-import { Plus, Library, Camera, Loader2, WashingMachine, AlertTriangle, Grid, Shirt, Server, User, ShoppingBag, X } from "lucide-react";
+import {
+  Plus,
+  Library,
+  Camera,
+  Loader2,
+  WashingMachine,
+  AlertTriangle,
+  Grid,
+  Shirt,
+  Server,
+  User,
+  ShoppingBag,
+  X,
+} from "lucide-react";
 import CabinetIcon from "@/components/icons/CabinetIcon";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -203,19 +216,19 @@ const WardrobePage = () => {
     setStagedPhotos(newPhotos);
     // Generate thumbnail
     const url = URL.createObjectURL(file);
-    setStagedThumbnails(prev => [...prev, url]);
+    setStagedThumbnails((prev) => [...prev, url]);
     e.target.value = "";
   };
 
   const clearStaging = () => {
-    stagedThumbnails.forEach(u => URL.revokeObjectURL(u));
+    stagedThumbnails.forEach((u) => URL.revokeObjectURL(u));
     setStagedPhotos([]);
     setStagedThumbnails([]);
   };
 
   const handleSaveCloset = async () => {
     if (!user || !closetSvg) return;
-    
+
     setIsSaving(true);
     const toastId = toast.loading("Saving wardrobe map...");
 
@@ -246,7 +259,9 @@ const WardrobePage = () => {
       if (error?.name === "FunctionsFetchError") {
         return "Browser/network failed before the Edge Function returned a readable response.";
       }
-      const rawMessage = error?.message ?? (typeof error === "string" ? error : JSON.stringify(error, Object.getOwnPropertyNames(error)));
+      const rawMessage =
+        error?.message ??
+        (typeof error === "string" ? error : JSON.stringify(error, Object.getOwnPropertyNames(error)));
       if (error?.name === "AbortError" || /aborted|timeout/i.test(rawMessage ?? "")) {
         return "Request timed out after 30 seconds";
       }
@@ -270,10 +285,10 @@ const WardrobePage = () => {
             reader.onload = (ev) => resolve((ev.target?.result as string).split(",")[1]);
             reader.readAsDataURL(normalizedBlob);
           });
-        })
+        }),
       );
 
-      if (base64Array.some(b => !b || b.length < 100)) {
+      if (base64Array.some((b) => !b || b.length < 100)) {
         throw new Error("Invalid image data. Please try again.");
       }
 
@@ -322,9 +337,7 @@ const WardrobePage = () => {
       if (!data) return { items: [] as ClosetItem[], imageUrls: {} as Record<string, string> };
 
       const urls: Record<string, string> = {};
-      const pathEntries = data
-        .map((item) => ({ id: item.id, path: item.image_url }))
-        .filter((e) => Boolean(e.path));
+      const pathEntries = data.map((item) => ({ id: item.id, path: item.image_url })).filter((e) => Boolean(e.path));
 
       if (pathEntries.length > 0) {
         const paths = pathEntries.map((e) => e.path);
@@ -358,9 +371,10 @@ const WardrobePage = () => {
 
   const items = closetData?.items ?? [];
   const imageUrls = closetData?.imageUrls ?? {};
-  const filtered = items.filter(i =>
-    (activeCategory === "All" || i.category === activeCategory) &&
-    (!activeZoneFilter || i.storage_zone_id === activeZoneFilter)
+  const filtered = items.filter(
+    (i) =>
+      (activeCategory === "All" || i.category === activeCategory) &&
+      (!activeZoneFilter || i.storage_zone_id === activeZoneFilter),
   );
 
   const ZONE_LABEL_MAP: Record<string, string> = {
@@ -605,8 +619,12 @@ const WardrobePage = () => {
                     />
                   </div>
                   <div className="p-3">
-                    <p className="text-sm font-semibold tracking-tight text-zinc-950 dark:text-zinc-50 truncate">{item.name || "Unnamed"}</p>
-                    {item.category && <span className="text-[10px] text-muted-foreground">{item.category}</span>}
+                    <p className="text-sm font-bold tracking-tight text-foreground opacity-100 truncate">
+                      {item.name || "Unnamed"}
+                    </p>
+                    {item.category && (
+                      <span className="text-[10px] text-muted-foreground font-medium">{item.category}</span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -662,7 +680,9 @@ const WardrobePage = () => {
                     />
                   </div>
                   <div className="p-3">
-                    <p className="text-sm font-medium text-[#1a1a1a] truncate">{item.name || "Unnamed"}</p>
+                    <p className="text-sm font-bold tracking-tight text-foreground opacity-100 truncate">
+                      {item.name || "Unnamed"}
+                    </p>
                     <div className="flex items-center justify-between">
                       {item.brand && <span className="text-[10px] text-[#555]">{item.brand}</span>}
                       {item.price != null && (
@@ -721,7 +741,13 @@ const WardrobePage = () => {
       />
 
       {/* Wardrobe Map Dialog */}
-      <Dialog open={mapOpen} onOpenChange={(v) => { setMapOpen(v); if (!v) setHighlightZoneId(null); }}>
+      <Dialog
+        open={mapOpen}
+        onOpenChange={(v) => {
+          setMapOpen(v);
+          if (!v) setHighlightZoneId(null);
+        }}
+      >
         <DialogContent className="max-w-4xl w-[90vw] h-[85vh] flex flex-col p-0 overflow-hidden bg-background [&>button]:hidden">
           {/* Header */}
           <div className="flex justify-between items-center p-4 border-b z-50 bg-background shrink-0">
@@ -753,8 +779,8 @@ const WardrobePage = () => {
                   const parser = new DOMParser();
                   const doc = parser.parseFromString(svgStr, "image/svg+xml");
                   const rects = Array.from(doc.querySelectorAll("rect"));
-                  return rects.map(rect => {
-                    const getVal = (attr: string) => (parseFloat(rect.getAttribute(attr) || "0") / 10);
+                  return rects.map((rect) => {
+                    const getVal = (attr: string) => parseFloat(rect.getAttribute(attr) || "0") / 10;
                     return {
                       id: rect.getAttribute("id") || "",
                       left: `${getVal("x")}%`,
@@ -769,12 +795,18 @@ const WardrobePage = () => {
 
                 const getZoneContent = (id: string) => {
                   switch (id) {
-                    case "left_shelves": return { icon: <Grid className="w-5 h-5 mb-1" />, text: "Left Shelving" };
-                    case "center_hanging_shirts": return { icon: <Shirt className="w-5 h-5 mb-1" />, text: "Center Hanging Shirts" };
-                    case "center_drawers": return { icon: <Server className="w-5 h-5 mb-1" />, text: "Center Drawers" };
-                    case "right_hanging_dresses": return { icon: <User className="w-5 h-5 mb-1" />, text: "Right Hanging Dresses" };
-                    case "floor_storage": return { icon: <ShoppingBag className="w-5 h-5 mb-1" />, text: "Floor Bags/Storage" };
-                    default: return null;
+                    case "left_shelves":
+                      return { icon: <Grid className="w-5 h-5 mb-1" />, text: "Left Shelving" };
+                    case "center_hanging_shirts":
+                      return { icon: <Shirt className="w-5 h-5 mb-1" />, text: "Center Hanging Shirts" };
+                    case "center_drawers":
+                      return { icon: <Server className="w-5 h-5 mb-1" />, text: "Center Drawers" };
+                    case "right_hanging_dresses":
+                      return { icon: <User className="w-5 h-5 mb-1" />, text: "Right Hanging Dresses" };
+                    case "floor_storage":
+                      return { icon: <ShoppingBag className="w-5 h-5 mb-1" />, text: "Floor Bags/Storage" };
+                    default:
+                      return null;
                   }
                 };
 
@@ -818,14 +850,17 @@ const WardrobePage = () => {
               <div className="w-full space-y-4">
                 <div className="flex gap-3 justify-center">
                   {stagedThumbnails.map((thumb, i) => (
-                    <div key={i} className="relative w-32 h-32 rounded-xl overflow-hidden border border-border shadow-sm">
+                    <div
+                      key={i}
+                      className="relative w-32 h-32 rounded-xl overflow-hidden border border-border shadow-sm"
+                    >
                       <img src={thumb} alt={`Closet photo ${i + 1}`} className="w-full h-full object-cover" />
                       <button
                         className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs"
                         onClick={() => {
                           URL.revokeObjectURL(stagedThumbnails[i]);
-                          setStagedPhotos(prev => prev.filter((_, idx) => idx !== i));
-                          setStagedThumbnails(prev => prev.filter((_, idx) => idx !== i));
+                          setStagedPhotos((prev) => prev.filter((_, idx) => idx !== i));
+                          setStagedThumbnails((prev) => prev.filter((_, idx) => idx !== i));
                         }}
                       >
                         ×
@@ -867,28 +902,21 @@ const WardrobePage = () => {
 
           {/* Footer */}
           <div className="p-4 border-t flex justify-between items-center bg-background z-50 shrink-0">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handlePhotoSelect}
-            />
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} />
             {closetSvg ? (
               <>
                 <Button
-                  onClick={() => { setClosetSvg(null); clearStaging(); }}
+                  onClick={() => {
+                    setClosetSvg(null);
+                    clearStaging();
+                  }}
                   disabled={generatingMap}
                   variant="outline"
                   className="rounded-xl gap-2"
                 >
                   Retake Photo
                 </Button>
-                <Button 
-                  onClick={handleSaveCloset} 
-                  disabled={!closetSvg || isSaving} 
-                  className="rounded-xl gap-2"
-                >
+                <Button onClick={handleSaveCloset} disabled={!closetSvg || isSaving} className="rounded-xl gap-2">
                   {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
                   Save Closet
                 </Button>
