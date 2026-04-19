@@ -6,6 +6,94 @@ export interface BoundingBox {
   xmax: number;
 }
 
+/**
+ * Conservative post-processor for AI-detected garment bounding boxes.
+ * Avoids false-positive multi-garment splits on single product/model photos.
+ * - Clamps coords to [0,1]
+ * - Drops invalid/tiny boxes (< 8% area)
+ * - Merges heavily overlapping boxes (IoU > 0.3)
+ * - Merges adjacent same-category boxes (e.g. trouser legs split apart)
+ * - If one box dominates (>= 2.5x next-largest), keeps only the dominant one
+ */
+export function filterBoundingBoxes(boxes: BoundingBox[]): BoundingBox[] {
+  if (!Array.isArray(boxes) || boxes.length === 0) return [];
+
+  const clamp = (n: number) => Math.max(0, Math.min(1, Number(n) || 0));
+  const area = (b: BoundingBox) =>
+    Math.max(0, b.xmax - b.xmin) * Math.max(0, b.ymax - b.ymin);
+
+  let valid = boxes
+    .map((b) => ({
+      category: b.category || "Tops",
+      xmin: clamp(b.xmin),
+      ymin: clamp(b.ymin),
+      xmax: clamp(b.xmax),
+      ymax: clamp(b.ymax),
+    }))
+    .filter((b) => b.xmax > b.xmin && b.ymax > b.ymin && area(b) >= 0.08);
+
+  if (valid.length <= 1) return valid;
+
+  const iou = (a: BoundingBox, b: BoundingBox) => {
+    const ix1 = Math.max(a.xmin, b.xmin);
+    const iy1 = Math.max(a.ymin, b.ymin);
+    const ix2 = Math.min(a.xmax, b.xmax);
+    const iy2 = Math.min(a.ymax, b.ymax);
+    const iw = Math.max(0, ix2 - ix1);
+    const ih = Math.max(0, iy2 - iy1);
+    const inter = iw * ih;
+    const union = area(a) + area(b) - inter;
+    return union > 0 ? inter / union : 0;
+  };
+
+  valid.sort((a, b) => area(b) - area(a));
+  const kept: BoundingBox[] = [];
+  for (const b of valid) {
+    if (!kept.some((k) => iou(k, b) > 0.3)) kept.push(b);
+  }
+  valid = kept;
+
+  // Merge adjacent same-category boxes (e.g. trouser legs)
+  const merged: BoundingBox[] = [];
+  const used = new Set<number>();
+  for (let i = 0; i < valid.length; i++) {
+    if (used.has(i)) continue;
+    let cur = { ...valid[i] };
+    for (let j = i + 1; j < valid.length; j++) {
+      if (used.has(j)) continue;
+      const o = valid[j];
+      if (o.category !== cur.category) continue;
+      const xGap = Math.max(0, Math.max(cur.xmin, o.xmin) - Math.min(cur.xmax, o.xmax));
+      const yGap = Math.max(0, Math.max(cur.ymin, o.ymin) - Math.min(cur.ymax, o.ymax));
+      const xOverlap = Math.min(cur.xmax, o.xmax) - Math.max(cur.xmin, o.xmin);
+      const yOverlap = Math.min(cur.ymax, o.ymax) - Math.max(cur.ymin, o.ymin);
+      const adjacent = (xGap < 0.04 && yOverlap > 0.2) || (yGap < 0.04 && xOverlap > 0.2);
+      if (adjacent) {
+        cur = {
+          category: cur.category,
+          xmin: Math.min(cur.xmin, o.xmin),
+          ymin: Math.min(cur.ymin, o.ymin),
+          xmax: Math.max(cur.xmax, o.xmax),
+          ymax: Math.max(cur.ymax, o.ymax),
+        };
+        used.add(j);
+      }
+    }
+    used.add(i);
+    merged.push(cur);
+  }
+
+  if (merged.length <= 1) return merged;
+
+  // Dominance check
+  merged.sort((a, b) => area(b) - area(a));
+  if (area(merged[0]) >= 2.5 * area(merged[1])) {
+    return [merged[0]];
+  }
+
+  return merged;
+}
+
 export interface CroppedGarment {
   blob: Blob;
   category: string;

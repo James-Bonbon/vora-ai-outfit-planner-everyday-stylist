@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Camera, Loader2, Sparkles, Search, RefreshCw, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { normalizeToPng, sliceImageByBoundingBoxes, BoundingBox, CroppedGarment } from "@/utils/imageProcessing";
+import { normalizeToPng, sliceImageByBoundingBoxes, filterBoundingBoxes, BoundingBox, CroppedGarment } from "@/utils/imageProcessing";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { WardrobeMap } from "@/components/wardrobe/WardrobeMap";
@@ -139,9 +139,11 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       });
 
       if (detectError) throw detectError;
-      const boxes: BoundingBox[] = detectData || [];
+      const rawBoxes: BoundingBox[] = detectData || [];
+      const boxes = filterBoundingBoxes(rawBoxes);
+      console.log(`[detect-garments] raw=${rawBoxes.length} filtered=${boxes.length}`);
 
-      // 3. Routing Logic
+      // 3. Routing Logic — only batch when 2+ high-confidence distinct garments survive
       if (boxes.length > 1) {
         // --- BATCH FLOW ---
         setIsBatchMode(true);
