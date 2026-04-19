@@ -109,6 +109,7 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          quick_actions: Json | null
           role: string
           suggested_garment_ids: string[] | null
           user_id: string
@@ -117,6 +118,7 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          quick_actions?: Json | null
           role?: string
           suggested_garment_ids?: string[] | null
           user_id: string
@@ -125,6 +127,7 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          quick_actions?: Json | null
           role?: string
           suggested_garment_ids?: string[] | null
           user_id?: string
