@@ -288,7 +288,7 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
   const getGarment = (id: string) => garments.find((g) => g.id === id);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-10rem)]">
+    <div className="flex flex-col h-full min-h-0 flex-1">
       {/* Header */}
       <div className="flex items-center justify-between pb-3 pr-8">
         <div className="flex items-center gap-2">
