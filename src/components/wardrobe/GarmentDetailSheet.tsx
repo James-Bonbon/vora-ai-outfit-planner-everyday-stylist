@@ -452,16 +452,11 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate, pre
             </div>
           )}
 
-          {/* Wardrobe Map Zone */}
-          {!isDream && closetSvg && storageZoneId && (
-            <div className="space-y-2">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1 px-1">
-                <MapPin className="w-3 h-3" /> Stored in: {ZONE_LABEL_MAP[storageZoneId] || storageZoneId.replace(/_/g, " ")}
-              </p>
-              <div className="relative w-full overflow-hidden rounded-xl bg-muted/30 aspect-[4/3]">
-                <WardrobeMap svgString={closetSvg} activeZoneId={storageZoneId} preserveAspect />
-              </div>
-            </div>
+          {/* Storage zone label */}
+          {!isDream && storageZoneId && (
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1 px-1">
+              <MapPin className="w-3 h-3" /> Stored in: {ZONE_LABEL_MAP[storageZoneId] || storageZoneId.replace(/_/g, " ")}
+            </p>
           )}
 
           {!isDream && (

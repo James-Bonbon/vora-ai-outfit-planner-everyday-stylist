@@ -715,11 +715,8 @@ const WardrobePage = () => {
         onDeleted={handleRefresh}
         preloadedImageUrl={selectedItem?.source === 'closet' ? imageUrls[selectedItem.id] : selectedItem?.image_url}
         onLocate={(zoneId) => {
-          setDetailOpen(false);
-          setTimeout(() => {
-            setHighlightZoneId(zoneId);
-            setMapOpen(true);
-          }, 300);
+          setHighlightZoneId(zoneId);
+          setMapOpen(true);
         }}
       />
       <SmartCamera
@@ -743,14 +740,11 @@ const WardrobePage = () => {
         onOpenChange={(v) => {
           setMapOpen(v);
           if (!v) {
-            if (highlightZoneId) {
-              setTimeout(() => setDetailOpen(true), 300);
-            }
             setHighlightZoneId(null);
           }
         }}
       >
-        <DialogContent className="max-w-4xl w-[90vw] h-[85vh] flex flex-col p-0 overflow-hidden bg-background [&>button]:hidden">
+        <DialogContent className="z-[100] max-w-4xl w-[90vw] h-[85vh] flex flex-col p-0 overflow-hidden bg-background [&>button]:hidden">
           {/* Header */}
           <div className="flex justify-between items-center p-4 border-b z-50 bg-background shrink-0">
             <h2 className="text-xl font-semibold font-outfit">AI Wardrobe Map</h2>
@@ -825,19 +819,23 @@ const WardrobePage = () => {
                         <div
                           key={idx}
                           className={`absolute flex flex-col items-center justify-center text-foreground p-2 text-center cursor-pointer hover:bg-primary/10 transition-all duration-300 rounded-lg ${
-                            highlightZoneId
-                              ? zone.id === highlightZoneId
-                                ? "ring-4 ring-primary bg-primary/20"
-                                : "opacity-30 grayscale"
-                              : activeZoneFilter === zone.id
-                                ? "bg-primary/15 ring-1 ring-primary/30"
-                                : ""
+                            highlightZoneId === zone.id
+                              ? "ring-4 ring-primary bg-primary/20"
+                              : highlightZoneId && !detailOpen
+                                ? "opacity-30 grayscale"
+                                : activeZoneFilter === zone.id
+                                  ? "bg-primary/15 ring-1 ring-primary/30"
+                                  : ""
                           }`}
                           style={{ left: zone.left, top: zone.top, width: zone.width, height: zone.height }}
                           onClick={() => {
-                            if (highlightZoneId) return; // Don't filter when in locate mode
-                            setActiveZoneFilter(activeZoneFilter === zone.id ? null : zone.id);
-                            setMapOpen(false);
+                            if (detailOpen) {
+                              // Picker Mode: move highlight to clicked zone
+                              setHighlightZoneId(zone.id);
+                            } else {
+                              setActiveZoneFilter(activeZoneFilter === zone.id ? null : zone.id);
+                              setMapOpen(false);
+                            }
                           }}
                         >
                           {content.icon}
@@ -906,6 +904,43 @@ const WardrobePage = () => {
           <div className="p-4 border-t flex justify-between items-center bg-background z-50 shrink-0">
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} />
             {closetSvg ? (
+              detailOpen && selectedItem ? (
+                <>
+                  <Button
+                    variant="outline"
+                    className="rounded-xl gap-2"
+                    onClick={() => setMapOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    className="rounded-xl gap-2"
+                    disabled={!highlightZoneId || isSaving}
+                    onClick={async () => {
+                      if (selectedItem?.source !== "closet" || !highlightZoneId) return;
+                      setIsSaving(true);
+                      try {
+                        const { error } = await supabase
+                          .from("closet_items")
+                          .update({ storage_zone_id: highlightZoneId })
+                          .eq("id", selectedItem.id);
+                        if (error) throw error;
+                        await queryClient.invalidateQueries({ queryKey: ["closet"] });
+                        await queryClient.invalidateQueries({ queryKey: ["closet-items"] });
+                        toast.success("Location saved!");
+                        setMapOpen(false);
+                      } catch (err: any) {
+                        toast.error("Failed to save location: " + (err?.message || "Unknown error"));
+                      } finally {
+                        setIsSaving(false);
+                      }
+                    }}
+                  >
+                    {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+                    Save Location
+                  </Button>
+                </>
+              ) : (
               <>
                 <Button
                   onClick={() => {
@@ -923,6 +958,7 @@ const WardrobePage = () => {
                   Save Closet
                 </Button>
               </>
+              )
             ) : (
               <>
                 <Button
