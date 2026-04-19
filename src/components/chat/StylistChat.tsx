@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Send, Sparkles, Loader2, Trash2, Paperclip, X, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import SafeImage from "@/components/ui/SafeImage";
 import { supabase } from "@/integrations/supabase/client";
@@ -47,7 +48,7 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
   const [input, setInput] = useState("");
   const [attachment, setAttachment] = useState<Attachment | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialSentRef = useRef(false);
 
@@ -463,7 +464,7 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
       />
 
       {/* Input */}
-      <div className="flex items-center gap-2 pt-3 border-t border-border">
+      <div className="flex items-end gap-2 pt-3 border-t border-border">
         <Button
           variant="ghost"
           size="icon"
@@ -473,18 +474,30 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
         >
           <Paperclip className="w-4 h-4" />
         </Button>
-        <Input
+        <Textarea
           ref={inputRef}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => {
+            setInput(e.target.value);
+            // Auto-grow: reset then size to scrollHeight, capped to ~5 lines (~120px)
+            const el = e.currentTarget;
+            el.style.height = "auto";
+            el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+          }}
+          rows={1}
           placeholder="Ask for outfit ideas..."
-          className="rounded-full bg-secondary border-transparent focus-visible:ring-flatlay-cta"
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
+          className="min-h-10 h-10 max-h-[120px] resize-none rounded-2xl bg-secondary border-transparent focus-visible:ring-primary py-2.5 leading-tight overflow-y-auto"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              handleSend();
+            }
+          }}
           disabled={sendMutation.isPending}
         />
         <Button
           size="icon"
-          className="rounded-full bg-flatlay-cta hover:bg-flatlay-cta/90 text-white shrink-0 h-10 w-10"
+          className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shrink-0 h-10 w-10"
           onClick={handleSend}
           disabled={!input.trim() || sendMutation.isPending}
         >
