@@ -579,10 +579,24 @@ const ProfilePage = () => {
                     });
                     return;
                   }
-                  await supabase.from("profiles").update({ app_theme: t.key }).eq("user_id", user.id);
+                  if (isActive) return;
+                  const { error } = await supabase
+                    .from("profiles")
+                    .update({ app_theme: t.key })
+                    .eq("user_id", user.id);
+                  if (error) {
+                    toast.error("Failed to update theme.");
+                    return;
+                  }
                   localStorage.setItem("vora_app_theme", t.key);
                   applyTheme(t.key);
-                  queryClient.invalidateQueries({ queryKey: ['profile', user.id] });
+                  queryClient.setQueryData(['profile', user.id], (oldData: any) => {
+                    if (!oldData?.profile) return oldData;
+                    return {
+                      ...oldData,
+                      profile: { ...oldData.profile, app_theme: t.key },
+                    };
+                  });
                   toast.success("Theme updated!");
                 }}
                 className={`relative rounded-xl border-2 p-3 text-left transition-all ${
