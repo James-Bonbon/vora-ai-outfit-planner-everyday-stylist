@@ -740,14 +740,11 @@ const WardrobePage = () => {
         onOpenChange={(v) => {
           setMapOpen(v);
           if (!v) {
-            if (highlightZoneId) {
-              setTimeout(() => setDetailOpen(true), 300);
-            }
             setHighlightZoneId(null);
           }
         }}
       >
-        <DialogContent className="max-w-4xl w-[90vw] h-[85vh] flex flex-col p-0 overflow-hidden bg-background [&>button]:hidden">
+        <DialogContent className="z-[100] max-w-4xl w-[90vw] h-[85vh] flex flex-col p-0 overflow-hidden bg-background [&>button]:hidden">
           {/* Header */}
           <div className="flex justify-between items-center p-4 border-b z-50 bg-background shrink-0">
             <h2 className="text-xl font-semibold font-outfit">AI Wardrobe Map</h2>
@@ -832,9 +829,13 @@ const WardrobePage = () => {
                           }`}
                           style={{ left: zone.left, top: zone.top, width: zone.width, height: zone.height }}
                           onClick={() => {
-                            if (highlightZoneId) return; // Don't filter when in locate mode
-                            setActiveZoneFilter(activeZoneFilter === zone.id ? null : zone.id);
-                            setMapOpen(false);
+                            if (detailOpen) {
+                              // Picker Mode: move highlight to clicked zone
+                              setHighlightZoneId(zone.id);
+                            } else {
+                              setActiveZoneFilter(activeZoneFilter === zone.id ? null : zone.id);
+                              setMapOpen(false);
+                            }
                           }}
                         >
                           {content.icon}
