@@ -87,6 +87,7 @@ export const WardrobeMap: React.FC<WardrobeMapProps> = ({
           </div>
         );
       })}
+      </div>
     </div>
   );
 };
