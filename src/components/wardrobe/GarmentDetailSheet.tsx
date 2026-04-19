@@ -373,7 +373,9 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: G
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1 px-1">
                 <MapPin className="w-3 h-3" /> Stored in: {storageZoneId.replace(/-/g, " ")}
               </p>
-              <WardrobeMap svgString={closetSvg} activeZoneId={storageZoneId} />
+              <div className="relative overflow-hidden rounded-xl aspect-square bg-muted/30">
+                <WardrobeMap svgString={closetSvg} activeZoneId={storageZoneId} />
+              </div>
             </div>
           )}
 
@@ -399,7 +401,7 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: G
                 className="flex-1 rounded-xl gap-2"
                 onClick={() => { setShowCare(!showCare); setShowStain(false); }}
               >
-                <Droplets className="w-4 h-4 text-primary" />
+                <Droplets className="w-4 h-4 text-foreground" />
                 Wash It
               </Button>
               <Button
@@ -407,7 +409,7 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: G
                 className="flex-1 rounded-xl gap-2"
                 onClick={() => { setShowStain(!showStain); setShowCare(false); }}
               >
-                <SprayCan className="w-4 h-4 text-primary" />
+                <SprayCan className="w-4 h-4 text-foreground" />
                 Help Me Clean
               </Button>
             </div>
