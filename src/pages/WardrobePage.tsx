@@ -33,6 +33,7 @@ import type { ClosetItem, DreamItem, GarmentDisplay, Wardrobe } from "@/types/wa
 import WardrobeViewer from "@/components/wardrobe/WardrobeViewer";
 import { LookbookTab } from "@/components/wardrobe/LookbookTab";
 import { normalizeToPng } from "@/utils/imageProcessing";
+import { getCachedSignedUrls } from "@/utils/signedUrlCache";
 import { toast } from "sonner";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
@@ -327,6 +328,7 @@ const WardrobePage = () => {
     queryKey: ["closet", user?.id],
     enabled: !!user,
     staleTime: 1000 * 60 * 30,
+    refetchOnMount: false,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("closet_items")
@@ -337,19 +339,17 @@ const WardrobePage = () => {
       if (error) throw error;
       if (!data) return { items: [] as ClosetItem[], imageUrls: {} as Record<string, string> };
 
-      const urls: Record<string, string> = {};
-      const pathEntries = data.map((item) => ({ id: item.id, path: item.image_url })).filter((e) => Boolean(e.path));
+      // Prefer thumbnail_url for grid previews; fall back to image_url for legacy rows.
+      const pathByItem = data.map((item: any) => ({
+        id: item.id,
+        path: (item.thumbnail_url || item.image_url) as string | null,
+      }));
+      const allPaths = pathByItem.map((e) => e.path).filter(Boolean) as string[];
+      const urlMap = await getCachedSignedUrls("garments", allPaths);
 
-      if (pathEntries.length > 0) {
-        const paths = pathEntries.map((e) => e.path);
-        const { data: urlData, error: urlError } = await supabase.storage
-          .from("garments")
-          .createSignedUrls(paths, 3600);
-        if (!urlError && urlData) {
-          urlData.forEach((u, index) => {
-            if (u.signedUrl) urls[pathEntries[index].id] = u.signedUrl;
-          });
-        }
+      const urls: Record<string, string> = {};
+      for (const { id, path } of pathByItem) {
+        if (path && urlMap[path]) urls[id] = urlMap[path];
       }
       return { items: data as ClosetItem[], imageUrls: urls };
     },
