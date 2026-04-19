@@ -288,7 +288,7 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
   const getGarment = (id: string) => garments.find((g) => g.id === id);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-10rem)]">
+    <div className="flex flex-col h-full min-h-0 flex-1">
       {/* Header */}
       <div className="flex items-center justify-between pb-3 pr-8">
         <div className="flex items-center gap-2">
@@ -314,7 +314,7 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 pr-1 pb-2">
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1 pb-2">
         {messages.length === 0 && !sendMutation.isPending && (
           <div className="flex flex-col items-center justify-center h-full text-center px-6">
             <div className="w-16 h-16 rounded-3xl bg-flatlay-cta/10 flex items-center justify-center mb-4">
