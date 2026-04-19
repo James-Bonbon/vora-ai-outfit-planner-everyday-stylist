@@ -469,12 +469,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       <SheetContent
         side="bottom"
         className="rounded-t-3xl max-h-[90vh] overflow-y-auto bg-background"
-        onInteractOutside={(e) => {
-          const isToast = (e.target as Element).closest('[data-sonner-toast]');
-          if (isToast) {
-            e.preventDefault();
-          }
-        }}
+        onInteractOutside={ignoreToastInteractOutside}
       >
         <SheetHeader>
           <SheetTitle className="font-outfit">
