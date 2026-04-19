@@ -39,17 +39,53 @@ interface StoredCare {
 }
 
 const CARE_GUIDES: Record<string, { wash: string; dry: string; iron: string }> = {
-  Cotton: { wash: "Machine wash warm (40°C). Separate whites from colors.", dry: "Tumble dry medium or line dry.", iron: "Iron on medium-high heat while slightly damp." },
-  Linen: { wash: "Machine wash cold or warm (30-40°C), gentle cycle.", dry: "Air dry flat to prevent wrinkles.", iron: "Iron on high heat while damp. Use steam." },
-  Silk: { wash: "Hand wash in cold water with mild detergent. No wringing.", dry: "Lay flat on a towel to dry. Avoid direct sunlight.", iron: "Iron on lowest setting, inside out. No steam." },
-  Wool: { wash: "Hand wash cold or machine wash on wool cycle. Use wool detergent.", dry: "Lay flat to dry. Never hang wet wool.", iron: "Steam or iron on low heat through a press cloth." },
-  Polyester: { wash: "Machine wash warm (40°C). Turn inside out.", dry: "Tumble dry low or hang dry.", iron: "Iron on low heat. Use a press cloth." },
-  Denim: { wash: "Machine wash cold, inside out. Wash infrequently.", dry: "Hang dry to preserve shape and color.", iron: "Iron on high heat while slightly damp." },
-  Leather: { wash: "Wipe with a damp cloth. Use leather cleaner for stains.", dry: "Air dry away from heat sources.", iron: "Do not iron. Use a steamer at a distance." },
-  Cashmere: { wash: "Hand wash cold with cashmere shampoo. Gently press water out.", dry: "Lay flat on a towel. Reshape while damp.", iron: "Steam gently or iron on lowest setting inside out." },
+  Cotton: {
+    wash: "Machine wash warm (40°C). Separate whites from colors.",
+    dry: "Tumble dry medium or line dry.",
+    iron: "Iron on medium-high heat while slightly damp.",
+  },
+  Linen: {
+    wash: "Machine wash cold or warm (30-40°C), gentle cycle.",
+    dry: "Air dry flat to prevent wrinkles.",
+    iron: "Iron on high heat while damp. Use steam.",
+  },
+  Silk: {
+    wash: "Hand wash in cold water with mild detergent. No wringing.",
+    dry: "Lay flat on a towel to dry. Avoid direct sunlight.",
+    iron: "Iron on lowest setting, inside out. No steam.",
+  },
+  Wool: {
+    wash: "Hand wash cold or machine wash on wool cycle. Use wool detergent.",
+    dry: "Lay flat to dry. Never hang wet wool.",
+    iron: "Steam or iron on low heat through a press cloth.",
+  },
+  Polyester: {
+    wash: "Machine wash warm (40°C). Turn inside out.",
+    dry: "Tumble dry low or hang dry.",
+    iron: "Iron on low heat. Use a press cloth.",
+  },
+  Denim: {
+    wash: "Machine wash cold, inside out. Wash infrequently.",
+    dry: "Hang dry to preserve shape and color.",
+    iron: "Iron on high heat while slightly damp.",
+  },
+  Leather: {
+    wash: "Wipe with a damp cloth. Use leather cleaner for stains.",
+    dry: "Air dry away from heat sources.",
+    iron: "Do not iron. Use a steamer at a distance.",
+  },
+  Cashmere: {
+    wash: "Hand wash cold with cashmere shampoo. Gently press water out.",
+    dry: "Lay flat on a towel. Reshape while damp.",
+    iron: "Steam gently or iron on lowest setting inside out.",
+  },
 };
 
-const DEFAULT_CARE = { wash: "Check garment label. When in doubt, wash cold on gentle cycle.", dry: "Air dry or tumble dry low.", iron: "Iron on low heat with a press cloth." };
+const DEFAULT_CARE = {
+  wash: "Check garment label. When in doubt, wash cold on gentle cycle.",
+  dry: "Air dry or tumble dry low.",
+  iron: "Iron on low heat with a press cloth.",
+};
 
 const DetailRow = ({ label, value }: { label: string; value: string | null | undefined }) => {
   if (!value) return null;
@@ -106,8 +142,8 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: G
     setStainResult(null);
     setStainType("");
     setIsEditing(false);
-    setIsInLaundry(!isDream ? (item as any).is_in_laundry ?? false : false);
-    setStorageZoneId(!isDream ? (item as any).storage_zone_id ?? null : null);
+    setIsInLaundry(!isDream ? ((item as any).is_in_laundry ?? false) : false);
+    setStorageZoneId(!isDream ? ((item as any).storage_zone_id ?? null) : null);
 
     // Populate edit fields
     if (!isDream) {
@@ -184,10 +220,7 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: G
       const payload = checked
         ? { is_in_laundry: true, laundry_added_at: new Date().toISOString(), last_laundry_reminder_at: null }
         : { is_in_laundry: false, laundry_added_at: null, last_laundry_reminder_at: null };
-      const { error } = await supabase
-        .from("closet_items")
-        .update(payload)
-        .eq("id", item.id);
+      const { error } = await supabase.from("closet_items").update(payload).eq("id", item.id);
       if (error) throw error;
       setIsInLaundry(checked);
       toast.success(checked ? "Marked as in laundry" : "Back from laundry");
@@ -218,9 +251,7 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: G
         }
 
         if (storagePath) {
-          const { error: storageError } = await supabase.storage
-            .from("garments")
-            .remove([storagePath]);
+          const { error: storageError } = await supabase.storage.from("garments").remove([storagePath]);
           if (storageError) {
             console.warn("Storage delete warning:", storageError);
           }
@@ -285,12 +316,19 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: G
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="rounded-t-3xl max-h-[90vh] overflow-y-auto bg-background z-[60]">
         <SheetHeader>
-          <SheetTitle className="font-outfit text-foreground font-semibold">{item.name || "Item Details"}</SheetTitle>
+          <SheetTitle className="font-outfit text-zinc-950 dark:text-zinc-50 font-bold tracking-tight opacity-100">
+            {item.name || "Item Details"}
+          </SheetTitle>
         </SheetHeader>
 
         <div className="space-y-4 mt-4 pb-6">
           {imageUrl && (
-            <SafeImage src={imageUrl} alt={item.name || "Garment"} wrapperClassName="w-full rounded-2xl bg-[#F5F5F0]" skeletonClassName="rounded-2xl" />
+            <SafeImage
+              src={imageUrl}
+              alt={item.name || "Garment"}
+              wrapperClassName="w-full rounded-2xl bg-[#F5F5F0]"
+              skeletonClassName="rounded-2xl"
+            />
           )}
 
           <div className="bg-card rounded-2xl px-4">
@@ -304,33 +342,67 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: G
               <div className="space-y-3 py-3">
                 <div>
                   <Label className="text-[10px] text-muted-foreground">Name</Label>
-                  <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-8 text-sm rounded-lg mt-0.5" />
+                  <Input
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="h-8 text-sm rounded-lg mt-0.5"
+                  />
                 </div>
                 <div>
                   <Label className="text-[10px] text-muted-foreground">Category</Label>
-                  <select value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="w-full h-8 text-sm rounded-lg bg-background border border-input px-2 mt-0.5 outline-none">
+                  <select
+                    value={editCategory}
+                    onChange={(e) => setEditCategory(e.target.value)}
+                    className="w-full h-8 text-sm rounded-lg bg-background border border-input px-2 mt-0.5 outline-none"
+                  >
                     <option value="">Select...</option>
-                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    {CATEGORIES.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>
                   <Label className="text-[10px] text-muted-foreground">Color</Label>
-                  <Input value={editColor} onChange={(e) => setEditColor(e.target.value)} className="h-8 text-sm rounded-lg mt-0.5" />
+                  <Input
+                    value={editColor}
+                    onChange={(e) => setEditColor(e.target.value)}
+                    className="h-8 text-sm rounded-lg mt-0.5"
+                  />
                 </div>
                 <div>
                   <Label className="text-[10px] text-muted-foreground">Material</Label>
-                  <Input value={editMaterial} onChange={(e) => setEditMaterial(e.target.value)} className="h-8 text-sm rounded-lg mt-0.5" />
+                  <Input
+                    value={editMaterial}
+                    onChange={(e) => setEditMaterial(e.target.value)}
+                    className="h-8 text-sm rounded-lg mt-0.5"
+                  />
                 </div>
                 <div>
                   <Label className="text-[10px] text-muted-foreground">Brand</Label>
-                  <Input value={editBrand} onChange={(e) => setEditBrand(e.target.value)} className="h-8 text-sm rounded-lg mt-0.5" />
+                  <Input
+                    value={editBrand}
+                    onChange={(e) => setEditBrand(e.target.value)}
+                    className="h-8 text-sm rounded-lg mt-0.5"
+                  />
                 </div>
                 <div className="flex gap-2 pt-1">
-                  <Button size="sm" className="flex-1 rounded-xl gap-1" onClick={handleUpdateItem} disabled={editSaving}>
+                  <Button
+                    size="sm"
+                    className="flex-1 rounded-xl gap-1"
+                    onClick={handleUpdateItem}
+                    disabled={editSaving}
+                  >
                     {editSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                     Save
                   </Button>
-                  <Button size="sm" variant="outline" className="flex-1 rounded-xl gap-1" onClick={() => setIsEditing(false)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 rounded-xl gap-1"
+                    onClick={() => setIsEditing(false)}
+                  >
                     <X className="w-3 h-3" /> Cancel
                   </Button>
                 </div>
@@ -399,7 +471,10 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: G
               <Button
                 variant="outline"
                 className="flex-1 rounded-xl gap-2"
-                onClick={() => { setShowCare(!showCare); setShowStain(false); }}
+                onClick={() => {
+                  setShowCare(!showCare);
+                  setShowStain(false);
+                }}
               >
                 <Droplets className="w-4 h-4 text-foreground" />
                 Wash It
@@ -407,7 +482,10 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: G
               <Button
                 variant="outline"
                 className="flex-1 rounded-xl gap-2"
-                onClick={() => { setShowStain(!showStain); setShowCare(false); }}
+                onClick={() => {
+                  setShowStain(!showStain);
+                  setShowCare(false);
+                }}
               >
                 <SprayCan className="w-4 h-4 text-foreground" />
                 Help Me Clean
@@ -422,25 +500,35 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: G
                 <Droplets className="w-4 h-4 text-primary" />
                 Care Guide {closetItem!.material ? `for ${closetItem!.material}` : ""}
                 {storedCare?.care && (
-                  <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-semibold">AI</span>
+                  <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-semibold">
+                    AI
+                  </span>
                 )}
               </h3>
               <div className="space-y-2.5">
                 <div>
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Washing</span>
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                    Washing
+                  </span>
                   <p className="text-xs text-foreground mt-0.5">{care.wash}</p>
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Drying</span>
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                    Drying
+                  </span>
                   <p className="text-xs text-foreground mt-0.5">{care.dry}</p>
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Ironing</span>
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                    Ironing
+                  </span>
                   <p className="text-xs text-foreground mt-0.5">{care.iron}</p>
                 </div>
                 {care.special && (
                   <div>
-                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Special Notes</span>
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                      Special Notes
+                    </span>
                     <p className="text-xs text-foreground mt-0.5">{care.special}</p>
                   </div>
                 )}
@@ -458,7 +546,9 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: G
 
               {storedCare?.stain_guide && storedCare.stain_guide.length > 0 && (
                 <div className="space-y-2.5 pb-2 border-b border-border">
-                  <p className="text-[10px] uppercase tracking-wider text-primary font-semibold">Common stains for this item</p>
+                  <p className="text-[10px] uppercase tracking-wider text-primary font-semibold">
+                    Common stains for this item
+                  </p>
                   {storedCare.stain_guide.map((sg, i) => (
                     <div key={i} className="flex gap-3">
                       <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
@@ -478,7 +568,9 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: G
                 </div>
               )}
 
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Ask AI about a specific stain</p>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                Ask AI about a specific stain
+              </p>
               <div className="flex gap-2">
                 <Input
                   value={stainType}
@@ -528,12 +620,7 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: G
             </div>
           )}
 
-          <Button
-            variant="destructive"
-            onClick={handleDelete}
-            disabled={deleting}
-            className="w-full rounded-xl"
-          >
+          <Button variant="destructive" onClick={handleDelete} disabled={deleting} className="w-full rounded-xl">
             <Trash2 className="w-4 h-4 mr-2" />
             {deleting ? "Removing..." : isDream ? "Remove from Wishlist" : "Remove from Wardrobe"}
           </Button>
