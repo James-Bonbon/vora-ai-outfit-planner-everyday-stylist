@@ -98,7 +98,7 @@ const DetailRow = ({ label, value }: { label: string; value: string | null | und
   );
 };
 
-const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: GarmentDetailSheetProps) => {
+const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate, preloadedImageUrl }: GarmentDetailSheetProps) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
