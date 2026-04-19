@@ -819,13 +819,13 @@ const WardrobePage = () => {
                         <div
                           key={idx}
                           className={`absolute flex flex-col items-center justify-center text-foreground p-2 text-center cursor-pointer hover:bg-primary/10 transition-all duration-300 rounded-lg ${
-                            highlightZoneId
-                              ? zone.id === highlightZoneId
-                                ? "ring-4 ring-primary bg-primary/20"
-                                : "opacity-30 grayscale"
-                              : activeZoneFilter === zone.id
-                                ? "bg-primary/15 ring-1 ring-primary/30"
-                                : ""
+                            highlightZoneId === zone.id
+                              ? "ring-4 ring-primary bg-primary/20"
+                              : highlightZoneId && !detailOpen
+                                ? "opacity-30 grayscale"
+                                : activeZoneFilter === zone.id
+                                  ? "bg-primary/15 ring-1 ring-primary/30"
+                                  : ""
                           }`}
                           style={{ left: zone.left, top: zone.top, width: zone.width, height: zone.height }}
                           onClick={() => {
