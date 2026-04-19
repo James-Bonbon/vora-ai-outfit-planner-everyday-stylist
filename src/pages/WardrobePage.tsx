@@ -713,6 +713,7 @@ const WardrobePage = () => {
         open={detailOpen}
         onOpenChange={setDetailOpen}
         onDeleted={handleRefresh}
+        preloadedImageUrl={selectedItem?.source === 'closet' ? imageUrls[selectedItem.id] : selectedItem?.image_url}
         onLocate={(zoneId) => {
           setDetailOpen(false);
           setHighlightZoneId(zoneId);
