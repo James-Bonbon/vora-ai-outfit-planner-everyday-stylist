@@ -619,12 +619,8 @@ const WardrobePage = () => {
                     />
                   </div>
                   <div className="p-3">
-                    <p className="text-sm font-bold tracking-tight text-foreground opacity-100 truncate">
-                      {item.name || "Unnamed"}
-                    </p>
-                    {item.category && (
-                      <span className="text-[10px] text-muted-foreground font-medium">{item.category}</span>
-                    )}
+                    <p className="text-sm font-bold tracking-tight text-zinc-950 truncate">{item.name || "Unnamed"}</p>
+                    {item.category && <span className="text-[10px] text-zinc-500 font-medium">{item.category}</span>}
                   </div>
                 </div>
               ))}
@@ -680,9 +676,7 @@ const WardrobePage = () => {
                     />
                   </div>
                   <div className="p-3">
-                    <p className="text-sm font-bold tracking-tight text-foreground opacity-100 truncate">
-                      {item.name || "Unnamed"}
-                    </p>
+                    <p className="text-sm font-bold tracking-tight text-zinc-950 truncate">{item.name || "Unnamed"}</p>
                     <div className="flex items-center justify-between">
                       {item.brand && <span className="text-[10px] text-[#555]">{item.brand}</span>}
                       {item.price != null && (
