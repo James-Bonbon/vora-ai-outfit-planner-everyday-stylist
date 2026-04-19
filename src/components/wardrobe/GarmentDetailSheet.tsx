@@ -20,6 +20,7 @@ interface GarmentDetailSheetProps {
   onOpenChange: (open: boolean) => void;
   onDeleted: () => void;
   onLocate?: (zoneId: string) => void;
+  preloadedImageUrl?: string;
 }
 
 interface StainStep {
