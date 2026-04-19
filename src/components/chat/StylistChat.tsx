@@ -62,11 +62,13 @@ interface StylistChatProps {
 }
 
 export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: profile } = useProfileData();
   const [input, setInput] = useState("");
   const [attachment, setAttachment] = useState<Attachment | null>(null);
+  const [savingActionId, setSavingActionId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -81,7 +83,7 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
         .select("*")
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return (data || []) as ChatMessage[];
+      return ((data || []) as unknown) as ChatMessage[];
     },
     enabled: !!user,
   });
