@@ -439,7 +439,7 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate, pre
                     onLocate(storageZoneId);
                   }}
                 >
-                  <MapPin className="w-4 h-4 text-foreground" /> Locate
+                  <MapPin className="w-4 h-4" /> Locate
                 </Button>
               )}
             </div>
@@ -482,7 +482,7 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate, pre
                   setShowStain(false);
                 }}
               >
-                <Droplets className="w-4 h-4 text-foreground" />
+                <Droplets className="w-4 h-4" />
                 Wash It
               </Button>
               <Button
@@ -493,7 +493,7 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate, pre
                   setShowCare(false);
                 }}
               >
-                <SprayCan className="w-4 h-4 text-foreground" />
+                <SprayCan className="w-4 h-4" />
                 Help Me Clean
               </Button>
             </div>
