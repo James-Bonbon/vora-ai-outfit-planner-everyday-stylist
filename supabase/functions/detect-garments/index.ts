@@ -51,15 +51,25 @@ serve(async (req) => {
     if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
 
     // 3. Call Lovable AI Gateway with vision
-    const prompt = `You are an expert fashion AI and computer vision surveyor. Analyze this image and detect ALL distinct clothing items (Tops, Bottoms, Outerwear, Shoes, Accessories). Draw a tight bounding box around each item.
+    const prompt = `You are a fashion product detector for a wardrobe upload app.
 
-You MUST respond with ONLY a raw, minified JSON array. Do not include any markdown, backticks, or conversational text.
+Your job is to decide whether the uploaded image contains ONE intended garment or MULTIPLE clearly separate intended garments.
 
-Format: [{"category": "Tops", "ymin": 0.1, "xmin": 0.1, "ymax": 0.5, "xmax": 0.5}]
+Critical rules:
+- If the image is a product/model/e-commerce photo with one obvious main garment, return exactly ONE bounding box for that main garment.
+- Ignore the human model, body parts, skin, face, hair, hands, legs, and feet.
+- Ignore secondary styling pieces that are only partially visible (e.g. shoes peeking under trousers, a cropped top above trousers) unless they are clearly the main product.
+- Do NOT split one garment into parts. A pair of trousers is ONE garment. A jacket is ONE garment. A dress is ONE garment. A shirt is ONE garment. Do not separate sleeves, legs, waistbands, panels, seams, pockets, collars, straps, or pleats.
+- Return multiple items ONLY when there are multiple complete, distinct garments intentionally shown as separate products (e.g. a shirt and trousers laid separately on a floor with visible space between them).
+- If uncertain, return ONE item: the largest/central/dominant garment.
+
+Return ONLY a raw minified JSON array. No markdown, no backticks, no commentary.
+
+Format: [{"category":"Bottoms","ymin":0.0,"xmin":0.0,"ymax":1.0,"xmax":1.0}]
 
 Each object must have:
 - "category": one of "Tops", "Bottoms", "Shoes", "Accessories", "Outerwear"
-- "ymin", "xmin", "ymax", "xmax": relative coordinates from 0.0 to 1.0 representing the bounding box`;
+- "ymin", "xmin", "ymax", "xmax": relative coordinates 0.0–1.0 tightly covering the FULL intended garment (not individual parts).`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
