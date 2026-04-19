@@ -703,8 +703,29 @@ const WardrobePage = () => {
             setTimeout(() => setAddOpen(true), 300);
           }
         }}
-        onItemAdded={() => {
-          queryClient.invalidateQueries({ queryKey: ["closet"] });
+        onItemAdded={(newItem, immediateImageUrl) => {
+          if (newItem && immediateImageUrl) {
+            queryClient.setQueryData(["closet", user?.id], (old: any) => {
+              if (!old) {
+                return {
+                  items: [newItem],
+                  imageUrls: { [newItem.id]: immediateImageUrl },
+                };
+              }
+              return {
+                ...old,
+                items: [
+                  newItem,
+                  ...old.items.filter((it: any) => it.id !== newItem.id),
+                ],
+                imageUrls: {
+                  ...old.imageUrls,
+                  [newItem.id]: immediateImageUrl,
+                },
+              };
+            });
+          }
+          // Background refresh of the stylist's closet-items cache (mirror page) — does not block UI
           queryClient.invalidateQueries({ queryKey: ["closet-items"] });
         }}
         prefill={prefill}

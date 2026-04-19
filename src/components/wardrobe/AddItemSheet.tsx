@@ -36,7 +36,7 @@ const STORAGE_ZONES = [
 interface AddItemSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onItemAdded: () => void;
+  onItemAdded: (item?: any, immediateImageUrl?: string) => void;
   prefill?: PrefillData | null;
 }
 
@@ -388,9 +388,20 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
         brand: brand || null,
         notes: careData ? JSON.stringify(careData) : null,
         storage_zone_id: storageZoneId,
-      }).select("id").single();
+      }).select("*").single();
 
       if (dbError) throw dbError;
+
+      // Build an immediate display URL: prefer local preview, fall back to a fresh signed URL
+      let immediateUrl = preview || "";
+      try {
+        const { data: signed } = await supabase.storage
+          .from("garments")
+          .createSignedUrl(filePath, 3600);
+        if (!immediateUrl && signed?.signedUrl) immediateUrl = signed.signedUrl;
+      } catch {
+        // ignore — we'll still have the local preview
+      }
 
       toast.success("Item added to your wardrobe!");
 
@@ -398,10 +409,12 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       if (closetSvg && insertData?.id) {
         setSavedItemId(insertData.id);
         setShowMapStep(true);
+        // Pre-seed the cache so the item appears even if the user closes mid-zone-selection
+        onItemAdded(insertData, immediateUrl);
       } else {
         resetForm();
         onOpenChange(false);
-        onItemAdded();
+        onItemAdded(insertData, immediateUrl);
       }
     } catch (err) {
       console.error("Save error:", err);
