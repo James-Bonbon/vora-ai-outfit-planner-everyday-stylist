@@ -283,14 +283,14 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: G
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="rounded-t-3xl max-h-[90vh] overflow-y-auto bg-background">
+      <SheetContent side="bottom" className="rounded-t-3xl max-h-[90vh] overflow-y-auto bg-background z-[60]">
         <SheetHeader>
-          <SheetTitle className="font-outfit">{item.name || "Item Details"}</SheetTitle>
+          <SheetTitle className="font-outfit text-foreground font-semibold">{item.name || "Item Details"}</SheetTitle>
         </SheetHeader>
 
         <div className="space-y-4 mt-4 pb-6">
           {imageUrl && (
-            <SafeImage src={imageUrl} alt={item.name || "Garment"} wrapperClassName="w-full rounded-2xl bg-card" skeletonClassName="rounded-2xl" />
+            <SafeImage src={imageUrl} alt={item.name || "Garment"} wrapperClassName="w-full rounded-2xl bg-[#F5F5F0]" skeletonClassName="rounded-2xl" />
           )}
 
           <div className="bg-card rounded-2xl px-4">
