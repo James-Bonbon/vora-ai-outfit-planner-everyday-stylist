@@ -44,8 +44,8 @@ const ProfilePage = () => {
   const { data: profileData, isLoading } = useQuery({
     queryKey: ['profile', user?.id],
     enabled: !!user,
-    staleTime: 0,
-    refetchOnMount: "always",
+    staleTime: 5 * 60 * 1000,
+    refetchOnMount: false,
     queryFn: async () => {
       // 1. Fetch exactly the columns we need to avoid select("*") schema traps
       const { data: pData, error: pError } = await supabase
@@ -68,18 +68,9 @@ const ProfilePage = () => {
         .eq("role", "admin")
         .maybeSingle();
 
-      // 3. Resolve selfie URL safely — always sign since bucket may be private
-      let finalSelfieUrl = pData?.selfie_url || null;
-      if (finalSelfieUrl) {
-        // If it's already a full URL (legacy), use as-is; otherwise sign
-        if (!finalSelfieUrl.startsWith("http")) {
-          const { data } = await supabase.storage.from("selfies").createSignedUrl(finalSelfieUrl, 3600);
-          finalSelfieUrl = data?.signedUrl || finalSelfieUrl;
-        }
-      }
-
+      // Keep raw selfie_url path on profile — signing happens in a separate cached query
       return {
-        profile: { ...pData, selfie_url: finalSelfieUrl } as ProfileData,
+        profile: pData as ProfileData,
         isAdmin: !!rData || pData?.tier === 'admin',
       };
     }
@@ -87,6 +78,27 @@ const ProfilePage = () => {
 
   const profile = profileData?.profile || null;
   const isAdmin = profileData?.isAdmin || false;
+
+  // Separate cached signed URL query for the selfie. Keeps the avatar src stable
+  // across navigations while the signed URL is still valid (1h expiry, 50min cache).
+  const rawSelfieUrl = profile?.selfie_url || null;
+  const { data: signedSelfieUrl } = useQuery({
+    queryKey: ['selfie-url', user?.id, rawSelfieUrl],
+    enabled: !!user && !!rawSelfieUrl,
+    staleTime: 50 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+    refetchOnMount: false,
+    queryFn: async () => {
+      if (!rawSelfieUrl) return null;
+      if (rawSelfieUrl.startsWith("http")) return rawSelfieUrl;
+      const { data, error } = await supabase.storage.from("selfies").createSignedUrl(rawSelfieUrl, 3600);
+      if (error) {
+        console.error("Selfie signed URL error:", error);
+        return null;
+      }
+      return data?.signedUrl || null;
+    },
+  });
 
   const [editing, setEditing] = useState(false);
 
@@ -352,7 +364,7 @@ const ProfilePage = () => {
   };
 
   const displayName = profile?.display_name || user?.user_metadata?.full_name || "VORA User";
-  const avatarUrl = profile?.selfie_url || profile?.avatar_url || user?.user_metadata?.avatar_url;
+  const avatarUrl = signedSelfieUrl || profile?.avatar_url || user?.user_metadata?.avatar_url;
 
   const formatDate = (d: string | null) => {
     if (!d) return "—";
