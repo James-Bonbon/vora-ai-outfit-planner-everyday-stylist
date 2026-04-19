@@ -229,11 +229,7 @@ const SmartCamera = ({ open, onOpenChange, onAnalyzed }: SmartCameraProps) => {
             />
             {!analyzing && (
               <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute inset-6 border-2 border-white/50 rounded-3xl" />
-                <div className="absolute top-6 left-6 w-10 h-10 border-t-[3px] border-l-[3px] border-white rounded-tl-3xl" />
-                <div className="absolute top-6 right-6 w-10 h-10 border-t-[3px] border-r-[3px] border-white rounded-tr-3xl" />
-                <div className="absolute bottom-6 left-6 w-10 h-10 border-b-[3px] border-l-[3px] border-white rounded-bl-3xl" />
-                <div className="absolute bottom-6 right-6 w-10 h-10 border-b-[3px] border-r-[3px] border-white rounded-br-3xl" />
+                <div className="absolute inset-6 border-2 border-white/70 rounded-3xl" />
                 <p className="absolute top-10 left-0 right-0 text-center text-white/80 text-sm font-medium">
                   Align your garment here
                 </p>
