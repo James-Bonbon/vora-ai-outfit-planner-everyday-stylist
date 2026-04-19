@@ -20,6 +20,7 @@ interface GarmentDetailSheetProps {
   onOpenChange: (open: boolean) => void;
   onDeleted: () => void;
   onLocate?: (zoneId: string) => void;
+  preloadedImageUrl?: string;
 }
 
 interface StainStep {
@@ -97,7 +98,7 @@ const DetailRow = ({ label, value }: { label: string; value: string | null | und
   );
 };
 
-const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: GarmentDetailSheetProps) => {
+const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate, preloadedImageUrl }: GarmentDetailSheetProps) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -156,7 +157,9 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: G
       setEditBrand(ci.brand || "");
     }
 
-    if (isDream) {
+    if (preloadedImageUrl) {
+      setImageUrl(preloadedImageUrl);
+    } else if (isDream) {
       setImageUrl(item.image_url);
     } else {
       supabase.storage
@@ -164,7 +167,7 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: G
         .createSignedUrl(item.image_url, 3600)
         .then(({ data }) => setImageUrl(data?.signedUrl || null));
     }
-  }, [item, isDream]);
+  }, [item, isDream, preloadedImageUrl]);
 
   // Load closet SVG for zone display
   useEffect(() => {

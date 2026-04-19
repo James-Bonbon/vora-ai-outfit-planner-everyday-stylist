@@ -607,14 +607,14 @@ const WardrobePage = () => {
                   >
                     <WashingMachine className="w-3.5 h-3.5" />
                   </button>
-                  <div className="aspect-square w-full flex items-center justify-center bg-product-bg p-2">
+                  <div className="aspect-square w-full flex items-center justify-center bg-product-bg p-4">
                     <SafeImage
                       src={imageUrls[item.id]}
                       alt={item.name || "Garment"}
                       wrapperClassName="w-full h-full"
                       aspectRatio=""
                       fit="contain"
-                      className="drop-shadow-[0px_10px_15px_rgba(0,0,0,0.1)]"
+                      className="w-full h-full object-contain drop-shadow-sm"
                       loading="lazy"
                     />
                   </div>
@@ -713,6 +713,7 @@ const WardrobePage = () => {
         open={detailOpen}
         onOpenChange={setDetailOpen}
         onDeleted={handleRefresh}
+        preloadedImageUrl={selectedItem?.source === 'closet' ? imageUrls[selectedItem.id] : selectedItem?.image_url}
         onLocate={(zoneId) => {
           setDetailOpen(false);
           setHighlightZoneId(zoneId);
