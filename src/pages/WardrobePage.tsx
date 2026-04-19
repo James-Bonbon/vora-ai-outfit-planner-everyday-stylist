@@ -715,9 +715,8 @@ const WardrobePage = () => {
         onDeleted={handleRefresh}
         preloadedImageUrl={selectedItem?.source === 'closet' ? imageUrls[selectedItem.id] : selectedItem?.image_url}
         onLocate={(zoneId) => {
-          setDetailOpen(false);
           setHighlightZoneId(zoneId);
-          setTimeout(() => setMapOpen(true), 300);
+          setMapOpen(true);
         }}
       />
       <SmartCamera
@@ -820,7 +819,7 @@ const WardrobePage = () => {
                           className={`absolute flex flex-col items-center justify-center text-foreground p-2 text-center cursor-pointer hover:bg-primary/10 transition-all duration-300 rounded-lg ${
                             highlightZoneId
                               ? zone.id === highlightZoneId
-                                ? "ring-4 ring-primary animate-pulse bg-primary/20"
+                                ? "ring-4 ring-primary bg-primary/20"
                                 : "opacity-30 grayscale"
                               : activeZoneFilter === zone.id
                                 ? "bg-primary/15 ring-1 ring-primary/30"

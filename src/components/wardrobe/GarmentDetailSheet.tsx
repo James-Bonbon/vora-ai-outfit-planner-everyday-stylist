@@ -14,6 +14,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { WardrobeMap } from "@/components/wardrobe/WardrobeMap";
 
 const CATEGORIES = ["Tops", "Bottoms", "Shoes", "Accessories", "Outerwear"];
+
+const ZONE_LABEL_MAP: Record<string, string> = {
+  left_shelves: "Left Shelving",
+  center_hanging_shirts: "Center Hanging Shirts",
+  center_drawers: "Center Drawers",
+  right_hanging_dresses: "Right Hanging Dresses",
+  floor_storage: "Floor Bags/Storage",
+};
 interface GarmentDetailSheetProps {
   item: GarmentDisplay | null;
   open: boolean;
@@ -435,7 +443,6 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate, pre
                   variant="outline"
                   className="rounded-xl gap-2"
                   onClick={() => {
-                    onOpenChange(false);
                     onLocate(storageZoneId);
                   }}
                 >
@@ -449,7 +456,7 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate, pre
           {!isDream && closetSvg && storageZoneId && (
             <div className="space-y-2">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1 px-1">
-                <MapPin className="w-3 h-3" /> Stored in: {storageZoneId.replace(/-/g, " ")}
+                <MapPin className="w-3 h-3" /> Stored in: {ZONE_LABEL_MAP[storageZoneId] || storageZoneId.replace(/_/g, " ")}
               </p>
               <div className="relative w-full overflow-hidden rounded-xl bg-muted/30 aspect-[4/3]">
                 <WardrobeMap svgString={closetSvg} activeZoneId={storageZoneId} preserveAspect />
