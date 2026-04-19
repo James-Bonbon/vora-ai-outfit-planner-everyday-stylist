@@ -195,7 +195,7 @@ const SmartCamera = ({ open, onOpenChange, onAnalyzed }: SmartCameraProps) => {
 
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!analyzing) { onOpenChange(v); if (!v) setCapturedImages([]); } }}>
-      <SheetContent side="bottom" className="rounded-t-3xl h-[95vh] p-0 bg-black">
+      <SheetContent side="bottom" className="rounded-t-3xl h-[95vh] p-0 bg-black [&>button.absolute]:hidden">
         <div className="relative w-full h-full flex flex-col">
           {/* Top bar */}
           <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-4">

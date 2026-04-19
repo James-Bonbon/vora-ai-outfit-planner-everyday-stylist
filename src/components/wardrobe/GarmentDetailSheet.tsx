@@ -283,14 +283,14 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: G
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="rounded-t-3xl max-h-[90vh] overflow-y-auto bg-background">
+      <SheetContent side="bottom" className="rounded-t-3xl max-h-[90vh] overflow-y-auto bg-background z-[60]">
         <SheetHeader>
-          <SheetTitle className="font-outfit">{item.name || "Item Details"}</SheetTitle>
+          <SheetTitle className="font-outfit text-foreground font-semibold">{item.name || "Item Details"}</SheetTitle>
         </SheetHeader>
 
         <div className="space-y-4 mt-4 pb-6">
           {imageUrl && (
-            <SafeImage src={imageUrl} alt={item.name || "Garment"} wrapperClassName="w-full rounded-2xl bg-card" skeletonClassName="rounded-2xl" />
+            <SafeImage src={imageUrl} alt={item.name || "Garment"} wrapperClassName="w-full rounded-2xl bg-[#F5F5F0]" skeletonClassName="rounded-2xl" />
           )}
 
           <div className="bg-card rounded-2xl px-4">
@@ -361,7 +361,7 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: G
                     onLocate(storageZoneId);
                   }}
                 >
-                  <MapPin className="w-4 h-4 text-primary" /> Locate
+                  <MapPin className="w-4 h-4 text-foreground" /> Locate
                 </Button>
               )}
             </div>
@@ -373,7 +373,9 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: G
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1 px-1">
                 <MapPin className="w-3 h-3" /> Stored in: {storageZoneId.replace(/-/g, " ")}
               </p>
-              <WardrobeMap svgString={closetSvg} activeZoneId={storageZoneId} />
+              <div className="relative overflow-hidden rounded-xl aspect-square bg-muted/30">
+                <WardrobeMap svgString={closetSvg} activeZoneId={storageZoneId} />
+              </div>
             </div>
           )}
 
@@ -399,7 +401,7 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: G
                 className="flex-1 rounded-xl gap-2"
                 onClick={() => { setShowCare(!showCare); setShowStain(false); }}
               >
-                <Droplets className="w-4 h-4 text-primary" />
+                <Droplets className="w-4 h-4 text-foreground" />
                 Wash It
               </Button>
               <Button
@@ -407,7 +409,7 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate }: G
                 className="flex-1 rounded-xl gap-2"
                 onClick={() => { setShowStain(!showStain); setShowCare(false); }}
               >
-                <SprayCan className="w-4 h-4 text-primary" />
+                <SprayCan className="w-4 h-4 text-foreground" />
                 Help Me Clean
               </Button>
             </div>
