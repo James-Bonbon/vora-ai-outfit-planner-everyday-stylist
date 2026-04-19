@@ -177,10 +177,10 @@ export function useSavedLooks() {
 
       if (!data) return { looks: [] as SavedLook[], urls: {} as Record<string, string> };
 
-      // Sign URLs in parallel
+      // Sign URLs in parallel via shared cache
       const urlEntries = await Promise.all(
         data.map(async (look) => {
-          const url = await getSignedUrl("looks", look.image_path);
+          const url = await getCachedSignedUrl("looks", look.image_path);
           return [look.id, url || ""] as const;
         })
       );
