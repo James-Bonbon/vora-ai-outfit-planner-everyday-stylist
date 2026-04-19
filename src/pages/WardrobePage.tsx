@@ -925,6 +925,7 @@ const WardrobePage = () => {
                           .update({ storage_zone_id: highlightZoneId })
                           .eq("id", selectedItem.id);
                         if (error) throw error;
+                        setSelectedItem((prev) => prev && prev.source === "closet" ? { ...prev, storage_zone_id: highlightZoneId } : prev);
                         await queryClient.invalidateQueries({ queryKey: ["closet"] });
                         await queryClient.invalidateQueries({ queryKey: ["closet-items"] });
                         toast.success("Location saved!");
