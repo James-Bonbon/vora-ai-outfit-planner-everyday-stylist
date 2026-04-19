@@ -253,37 +253,37 @@ const SmartCamera = ({ open, onOpenChange, onAnalyzed }: SmartCameraProps) => {
 
           {/* Tier-specific instructional card */}
           {!analyzing && capturedImages.length === 0 && (
-            <div className="px-4 pb-2">
-              <GlassCard className="flex items-start gap-3 p-3 bg-white/10 border-white/20">
+            <div className="px-4 pt-4 pb-3">
+              <div className="flex items-start gap-3 p-3 rounded-2xl bg-card/95 backdrop-blur-md border border-border shadow-lg text-card-foreground">
                 {hasProAccess ? (
                   <>
-                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
-                      <rect x="2" y="6" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" className="text-primary" />
-                      <rect x="28" y="6" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" className="text-primary" />
-                      <rect x="15" y="28" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" className="text-primary" />
+                    <svg width="40" height="40" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0 text-primary">
+                      <rect x="2" y="6" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" />
+                      <rect x="28" y="6" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" />
+                      <rect x="15" y="28" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" />
                     </svg>
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-white">Auto-Batch Enabled</p>
-                      <p className="text-xs text-white/60 mt-0.5">
+                      <p className="text-sm font-semibold text-foreground">Auto-Batch Enabled</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
                         Lay multiple garments flat with clear space between them. Our AI will automatically detect, crop, and save each item individually.
                       </p>
                     </div>
                   </>
                 ) : (
                   <>
-                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
-                      <rect x="10" y="10" width="28" height="28" rx="3" stroke="currentColor" strokeWidth="1.5" className="text-primary" />
+                    <svg width="40" height="40" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0 text-primary">
+                      <rect x="10" y="10" width="28" height="28" rx="3" stroke="currentColor" strokeWidth="1.5" />
                     </svg>
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-white">Single Item Scan</p>
-                      <p className="text-xs text-white/60 mt-0.5">
+                      <p className="text-sm font-semibold text-foreground">Single Item Scan</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
                         Center a single garment in the frame. Ensure good lighting and a plain background for the best AI studio flat lay.{" "}
                         <span className="text-primary font-medium">Limit: {maxPhotos} photos per upload.</span>
                       </p>
                     </div>
                   </>
                 )}
-              </GlassCard>
+              </div>
             </div>
           )}
 
