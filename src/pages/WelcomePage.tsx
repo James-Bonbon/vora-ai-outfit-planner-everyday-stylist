@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { applyTheme } from "@/components/ThemeProvider";
 import { toast } from "sonner";
 import WelcomeHeader from "@/components/welcome/WelcomeHeader";
 import WelcomeHero from "@/components/welcome/WelcomeHero";
@@ -18,6 +19,12 @@ const WelcomePage = () => {
   const [footerSubmitted, setFooterSubmitted] = useState(false);
 
   const [activeTheme, setActiveTheme] = useState<WelcomeThemeKey>("default");
+
+  // Welcome page is theme-isolated: always preview themes locally,
+  // ignore any cached app theme from authenticated sessions.
+  useEffect(() => {
+    applyTheme(activeTheme);
+  }, [activeTheme]);
 
   const handleSubmit = async (
     e: React.FormEvent,
