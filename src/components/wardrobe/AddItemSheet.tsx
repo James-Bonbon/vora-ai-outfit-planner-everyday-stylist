@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Camera, Loader2, Sparkles, Search, RefreshCw, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { normalizeToPng, sliceImageByBoundingBoxes, filterBoundingBoxes, BoundingBox, CroppedGarment } from "@/utils/imageProcessing";
+import { createThumbnail } from "@/utils/createThumbnail";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { WardrobeMap } from "@/components/wardrobe/WardrobeMap";
@@ -378,9 +379,23 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
 
       if (uploadError) throw uploadError;
 
+      // Generate + upload a small thumbnail (non-blocking on failure).
+      let thumbPath: string | null = null;
+      try {
+        const thumb = await createThumbnail(uploadBlob, 512);
+        const tPath = `${user.id}/thumbnails/${crypto.randomUUID()}.${thumb.ext}`;
+        const { error: tErr } = await supabase.storage
+          .from("garments")
+          .upload(tPath, thumb.blob, { contentType: thumb.contentType });
+        if (!tErr) thumbPath = tPath;
+      } catch (thumbErr) {
+        console.warn("[AddItemSheet] thumbnail generation failed", thumbErr);
+      }
+
       const { data: insertData, error: dbError } = await supabase.from("closet_items").insert({
         user_id: user.id,
         image_url: filePath,
+        thumbnail_url: thumbPath,
         name: name || "Unnamed Item",
         category: category || null,
         color: color || null,
@@ -395,9 +410,10 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       // Build an immediate display URL: prefer local preview, fall back to a fresh signed URL
       let immediateUrl = preview || "";
       try {
+        const signTarget = thumbPath || filePath;
         const { data: signed } = await supabase.storage
           .from("garments")
-          .createSignedUrl(filePath, 3600);
+          .createSignedUrl(signTarget, 3600);
         if (!immediateUrl && signed?.signedUrl) immediateUrl = signed.signedUrl;
       } catch {
         // ignore — we'll still have the local preview
