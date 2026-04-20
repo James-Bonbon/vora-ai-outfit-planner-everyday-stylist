@@ -216,6 +216,28 @@ export default function StyleAnalytics() {
             </p>
           </div>
         </div>
+
+        {/* Generate PDF Report CTA */}
+        <div className="mt-8 flex justify-center pb-8">
+          <Button
+            size="lg"
+            onClick={handleGenerateReport}
+            disabled={isGenerating}
+            className="min-w-[220px]"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <FileDown className="h-4 w-4" />
+                Generate PDF Report
+              </>
+            )}
+          </Button>
+        </div>
       </main>
     </div>
   );
