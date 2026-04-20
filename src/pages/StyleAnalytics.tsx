@@ -1,6 +1,23 @@
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Sparkles, DollarSign, Palette, Crown } from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import GlassCard from "@/components/GlassCard";
+
+// Dummy data - hardcoded as requested
+const CATEGORY_VALUE_DATA = [
+  { category: "Tops", value: 6800 },
+  { category: "Bottoms", value: 4200 },
+  { category: "Outerwear", value: 9500 },
+  { category: "Shoes", value: 4000 },
+];
 
 // Dummy data - hardcoded as requested
 const SUMMARY_STATS = [
@@ -83,6 +100,79 @@ export default function StyleAnalytics() {
             );
           })}
         </div>
+
+        {/* Wardrobe Value by Category Chart */}
+        <GlassCard className="mb-8">
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">
+                Wardrobe Value by Category
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Distribution of your wardrobe investment
+              </p>
+            </div>
+          </div>
+          <div className="h-72 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={CATEGORY_VALUE_DATA}
+                margin={{ top: 8, right: 8, left: -16, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop
+                      offset="0%"
+                      stopColor="hsl(var(--primary))"
+                      stopOpacity={0.95}
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor="hsl(var(--primary))"
+                      stopOpacity={0.4}
+                    />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="hsl(var(--border))"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="category"
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+                />
+                <Tooltip
+                  cursor={{ fill: "hsl(var(--muted) / 0.4)" }}
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "0.75rem",
+                    color: "hsl(var(--foreground))",
+                    fontSize: "0.875rem",
+                  }}
+                  formatter={(value: number) => [`$${value.toLocaleString()}`, "Value"]}
+                />
+                <Bar
+                  dataKey="value"
+                  fill="url(#barGradient)"
+                  radius={[8, 8, 0, 0]}
+                  maxBarSize={56}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </GlassCard>
 
         {/* Placeholder for future analytics content */}
         <div className="rounded-2xl border border-border bg-card p-8">
