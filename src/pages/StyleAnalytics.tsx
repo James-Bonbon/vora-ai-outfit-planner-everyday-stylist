@@ -1,6 +1,9 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Sparkles, DollarSign, Palette, Crown } from "lucide-react";
+import { ArrowLeft, Sparkles, DollarSign, Palette, Crown, FileDown, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import {
   Bar,
   BarChart,
@@ -44,6 +47,17 @@ const SUMMARY_STATS = [
 
 export default function StyleAnalytics() {
   const navigate = useNavigate();
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleGenerateReport = () => {
+    setIsGenerating(true);
+    setTimeout(() => {
+      setIsGenerating(false);
+      toast.success("Mock Report Generated!", {
+        description: "Your Style DNA report is ready to download.",
+      });
+    }, 2000);
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
