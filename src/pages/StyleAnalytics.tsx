@@ -1,5 +1,28 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowLeft, Sparkles, DollarSign, Palette, Crown } from "lucide-react";
+import GlassCard from "@/components/GlassCard";
+
+// Dummy data - hardcoded as requested
+const SUMMARY_STATS = [
+  {
+    icon: DollarSign,
+    label: "Total Value",
+    value: "$24,500",
+    trend: "+12%",
+  },
+  {
+    icon: Palette,
+    label: "Most Worn Color",
+    value: "Midnight Black",
+    trend: "48% of wardrobe",
+  },
+  {
+    icon: Crown,
+    label: "Top Brand",
+    value: "The Row",
+    trend: "23 items",
+  },
+];
 
 export default function StyleAnalytics() {
   const navigate = useNavigate();
@@ -30,6 +53,35 @@ export default function StyleAnalytics() {
           <p className="mt-2 text-muted-foreground">
             Discover patterns and insights about your personal style.
           </p>
+        </div>
+
+        {/* Summary Stats Grid */}
+        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {SUMMARY_STATS.map((stat) => {
+            const Icon = stat.icon;
+            return (
+              <GlassCard
+                key={stat.label}
+                glowOnHover
+                className="relative overflow-hidden"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                    <Icon className="h-5 w-5 text-primary" />
+                  </div>
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {stat.trend}
+                  </span>
+                </div>
+                <div className="mt-4">
+                  <p className="text-sm text-muted-foreground">{stat.label}</p>
+                  <p className="mt-1 text-2xl font-semibold tracking-tight">
+                    {stat.value}
+                  </p>
+                </div>
+              </GlassCard>
+            );
+          })}
         </div>
 
         {/* Placeholder for future analytics content */}
