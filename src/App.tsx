@@ -64,6 +64,7 @@ const ProfilePage = lazyWithRetry(() => import("./pages/ProfilePage"));
 const OnboardingPage = lazyWithRetry(() => import("./pages/OnboardingPage"));
 const LibraryPage = lazyWithRetry(() => import("./pages/LibraryPage"));
 const CommunityPage = lazyWithRetry(() => import("./pages/CommunityPage"));
+const StyleAnalytics = lazyWithRetry(() => import("./pages/StyleAnalytics"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
