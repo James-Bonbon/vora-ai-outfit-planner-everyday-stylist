@@ -1,6 +1,9 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Sparkles, DollarSign, Palette, Crown } from "lucide-react";
+import { ArrowLeft, Sparkles, DollarSign, Palette, Crown, FileDown, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import {
   Bar,
   BarChart,
@@ -44,6 +47,17 @@ const SUMMARY_STATS = [
 
 export default function StyleAnalytics() {
   const navigate = useNavigate();
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleGenerateReport = () => {
+    setIsGenerating(true);
+    setTimeout(() => {
+      setIsGenerating(false);
+      toast.success("Mock Report Generated!", {
+        description: "Your Style DNA report is ready to download.",
+      });
+    }, 2000);
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -201,6 +215,28 @@ export default function StyleAnalytics() {
               Your style insights and analytics will appear here. Check back later for updates.
             </p>
           </div>
+        </div>
+
+        {/* Generate PDF Report CTA */}
+        <div className="mt-8 flex justify-center pb-8">
+          <Button
+            size="lg"
+            onClick={handleGenerateReport}
+            disabled={isGenerating}
+            className="min-w-[220px]"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <FileDown className="h-4 w-4" />
+                Generate PDF Report
+              </>
+            )}
+          </Button>
         </div>
       </main>
     </div>
