@@ -64,6 +64,7 @@ const ProfilePage = lazyWithRetry(() => import("./pages/ProfilePage"));
 const OnboardingPage = lazyWithRetry(() => import("./pages/OnboardingPage"));
 const LibraryPage = lazyWithRetry(() => import("./pages/LibraryPage"));
 const CommunityPage = lazyWithRetry(() => import("./pages/CommunityPage"));
+const StyleAnalytics = lazyWithRetry(() => import("./pages/StyleAnalytics"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -99,7 +100,8 @@ const App = () => (
                 <Route path="/feed" element={<CommunityPage />} />
                 <Route path="/beauty" element={<BeautyPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/library" element={<LibraryPage />} />
+<Route path="/library" element={<LibraryPage />} />
+                <Route path="/style-stats" element={<StyleAnalytics />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
