@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Sparkles, DollarSign, Palette, Crown } from "lucide-react";
+import { motion } from "framer-motion";
 import {
   Bar,
   BarChart,
@@ -74,35 +75,51 @@ export default function StyleAnalytics() {
 
         {/* Summary Stats Grid */}
         <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {SUMMARY_STATS.map((stat) => {
+          {SUMMARY_STATS.map((stat, index) => {
             const Icon = stat.icon;
             return (
-              <GlassCard
+              <motion.div
                 key={stat.label}
-                glowOnHover
-                className="relative overflow-hidden"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.5,
+                  delay: index * 0.12,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-                    <Icon className="h-5 w-5 text-primary" />
+                <GlassCard glowOnHover className="relative overflow-hidden">
+                  <div className="flex items-start justify-between">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                      <Icon className="h-5 w-5 text-primary" />
+                    </div>
+                    <span className="text-xs font-medium text-muted-foreground">
+                      {stat.trend}
+                    </span>
                   </div>
-                  <span className="text-xs font-medium text-muted-foreground">
-                    {stat.trend}
-                  </span>
-                </div>
-                <div className="mt-4">
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  <p className="mt-1 text-2xl font-semibold tracking-tight">
-                    {stat.value}
-                  </p>
-                </div>
-              </GlassCard>
+                  <div className="mt-4">
+                    <p className="text-sm text-muted-foreground">{stat.label}</p>
+                    <p className="mt-1 text-2xl font-semibold tracking-tight">
+                      {stat.value}
+                    </p>
+                  </div>
+                </GlassCard>
+              </motion.div>
             );
           })}
         </div>
 
         {/* Wardrobe Value by Category Chart */}
-        <GlassCard className="mb-8">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            duration: 0.6,
+            delay: SUMMARY_STATS.length * 0.12 + 0.15,
+            ease: [0.22, 1, 0.36, 1],
+          }}
+        >
+          <GlassCard className="mb-8">
           <div className="mb-6 flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold tracking-tight">
@@ -172,7 +189,8 @@ export default function StyleAnalytics() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </GlassCard>
+          </GlassCard>
+        </motion.div>
 
         {/* Placeholder for future analytics content */}
         <div className="rounded-2xl border border-border bg-card p-8">
