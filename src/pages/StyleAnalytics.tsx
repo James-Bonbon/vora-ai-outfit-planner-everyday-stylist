@@ -188,7 +188,8 @@ export default function StyleAnalytics() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </GlassCard>
+          </GlassCard>
+        </motion.div>
 
         {/* Placeholder for future analytics content */}
         <div className="rounded-2xl border border-border bg-card p-8">
