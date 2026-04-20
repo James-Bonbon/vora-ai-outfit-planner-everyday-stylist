@@ -66,6 +66,7 @@ const LibraryPage = lazyWithRetry(() => import("./pages/LibraryPage"));
 const CommunityPage = lazyWithRetry(() => import("./pages/CommunityPage"));
 const StyleAnalytics = lazyWithRetry(() => import("./pages/StyleAnalytics"));
 const ColorDNA = lazyWithRetry(() => import("./pages/ColorDNA"));
+const TravelPacker = lazyWithRetry(() => import("./pages/TravelPacker"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -103,7 +104,8 @@ const App = () => (
                 <Route path="/profile" element={<ProfilePage />} />
 <Route path="/library" element={<LibraryPage />} />
 <Route path="/style-stats" element={<StyleAnalytics />} />
-                <Route path="/color-dna" element={<ColorDNA />} />
+<Route path="/color-dna" element={<ColorDNA />} />
+                <Route path="/travel" element={<TravelPacker />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
