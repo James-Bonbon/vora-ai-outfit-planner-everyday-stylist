@@ -327,7 +327,11 @@ const MirrorPage = () => {
       },
       {
         onSuccess: () => {
-          toast.success("Look saved to your wardrobe.");
+          toast.success("Look saved to your Lookbook! ✨");
+          // Refresh both the saved-looks gallery and the lookbook tab
+          queryClient.invalidateQueries({ queryKey: ["looks"] });
+          queryClient.invalidateQueries({ queryKey: ["saved-looks"] });
+          queryClient.invalidateQueries({ queryKey: ["lookbook"] });
           tryOnMutation.reset();
           setSelectedIds(new Set());
           setOccasion(null);
@@ -571,19 +575,38 @@ const MirrorPage = () => {
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Garments in this look
                   </p>
-                  {lookGarments.map((g) => (
-                    <div key={g.id} className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{g.name || "Unnamed"}</p>
-                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-                          {g.category && <span className="text-[10px] text-muted-foreground">{g.category}</span>}
-                          {g.brand && <span className="text-[10px] text-muted-foreground">{g.brand}</span>}
-                          {g.color && <span className="text-[10px] text-muted-foreground">{g.color}</span>}
-                          {g.material && <span className="text-[10px] text-muted-foreground">{g.material}</span>}
+                  {lookGarments.map((g) => {
+                    const thumbUrl = imageUrls[g.id];
+                    return (
+                      <div
+                        key={g.id}
+                        className="flex items-center gap-4 p-3 border border-border rounded-xl bg-card/50"
+                      >
+                        {thumbUrl ? (
+                          <img
+                            src={thumbUrl}
+                            alt={g.name || "Garment"}
+                            className="w-16 h-16 rounded-md object-cover bg-secondary shrink-0"
+                          />
+                        ) : (
+                          <div className="w-16 h-16 rounded-md bg-secondary shrink-0" />
+                        )}
+                        <div className="flex flex-col min-w-0 flex-1">
+                          {g.brand && (
+                            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate">
+                              {g.brand}
+                            </span>
+                          )}
+                          <p className="text-sm font-medium text-foreground truncate">{g.name || "Unnamed"}</p>
+                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                            {g.category && <span className="text-[10px] text-muted-foreground">{g.category}</span>}
+                            {g.color && <span className="text-[10px] text-muted-foreground">{g.color}</span>}
+                            {g.material && <span className="text-[10px] text-muted-foreground">{g.material}</span>}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
@@ -722,7 +745,7 @@ const MirrorPage = () => {
                     ) : (
                       <Save className="w-4 h-4" />
                     )}
-                    Save Look
+                    {saveMutation.isPending ? "Saving…" : "Save to Lookbook"}
                   </Button>
                   <Button variant="outline" className="flex-1 rounded-xl" onClick={handleTryAnother}>
                     Try another
