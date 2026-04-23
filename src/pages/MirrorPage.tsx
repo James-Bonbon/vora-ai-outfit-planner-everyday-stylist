@@ -243,6 +243,22 @@ const MirrorPage = () => {
     const garmentIdsArray = Array.from(finalGarmentIds);
     const garmentUrls = garmentIdsArray.map((id) => imageUrls[id]).filter(Boolean);
 
+    // Rich garment metadata for body-zone aware prompt construction in the edge function.
+    const garmentsMeta = garmentIdsArray
+      .map((id) => {
+        const item = items.find((it) => it.id === id);
+        const url = imageUrls[id];
+        if (!item || !url) return null;
+        return {
+          id,
+          url,
+          category: item.category ?? null,
+          name: item.name ?? null,
+          brand: (item as any).brand ?? null,
+        };
+      })
+      .filter(Boolean) as { id: string; url: string; category: string | null; name: string | null; brand: string | null }[];
+
     const shapePrompts: Record<string, string> = {
       // Female / Neutral
       Slim: "tailored slim fit, close to the body, clean narrow silhouette",
