@@ -288,6 +288,7 @@ const MirrorPage = () => {
         selfieUrl: (selfieUrl || activeImageUrl)!,
         garmentUrls,
         garmentIds: garmentIdsArray,
+        garments: garmentsMeta,
         occasion,
         desiredLook: finalDesiredLook || null,
         weather: outfitPlan?.weather ?? null,
