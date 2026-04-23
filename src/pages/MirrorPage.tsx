@@ -110,13 +110,20 @@ const MirrorPage = () => {
   }, [items]); // re-run when items load
 
   // MAGIC STYLIST THRESHOLD LOGIC (Requires 7 Tops & 3 Bottoms)
-  const TOP_RE = /\b(top|shirt|blazer|sweater|knit|jacket|coat|polo|camisole|cardigan|hoodie)\b/i;
-  const BOTTOM_RE = /\b(bottom|trouser|pant|jeans|skirt|short|chinos|sweatpants)\b/i;
+  // Source: full fetched inventory (closet + wishlist), NOT selectedIds.
+  // Matching: case-insensitive substring so "Tops"/"Top"/"T-Shirt"/"Bottoms"/"Trousers" all match.
+  const TOP_KEYWORDS = ["top", "shirt", "blazer", "sweater", "knit", "jacket", "coat", "polo", "camisole", "cardigan", "hoodie", "tee"];
+  const BOTTOM_KEYWORDS = ["bottom", "trouser", "pant", "jean", "skirt", "short", "chino", "sweatpant"];
   const MIN_TOPS = 7;
   const MIN_BOTTOMS = 3;
 
-  const topsCount = items.filter((i) => TOP_RE.test(i.category || "") || TOP_RE.test(i.name || "")).length;
-  const bottomsCount = items.filter((i) => BOTTOM_RE.test(i.category || "") || BOTTOM_RE.test(i.name || "")).length;
+  const matchesAny = (item: { category: string | null; name: string | null }, keywords: string[]) => {
+    const haystack = `${item.category ?? ""} ${item.name ?? ""}`.toLowerCase();
+    return keywords.some((k) => haystack.includes(k));
+  };
+
+  const topsCount = items.filter((i) => matchesAny(i, TOP_KEYWORDS)).length;
+  const bottomsCount = items.filter((i) => matchesAny(i, BOTTOM_KEYWORDS)).length;
   const meetsThreshold = topsCount >= MIN_TOPS && bottomsCount >= MIN_BOTTOMS;
   const looks = looksData?.looks ?? [];
   const lookUrls = looksData?.urls ?? {};
