@@ -247,6 +247,7 @@ export function useTryOnMutation() {
     selfieUrl: string;
     garmentUrls: string[];
     garmentIds: string[];
+    garments?: { id: string; url: string; category: string | null; name: string | null; brand: string | null }[];
     occasion: string | null;
     desiredLook?: string | null;
     weather?: string | null;
@@ -254,9 +255,9 @@ export function useTryOnMutation() {
     stylingInstruction?: string | null;
   }>({
     mutationKey: ["virtual-tryon"],
-    mutationFn: async ({ selfieUrl, garmentUrls, garmentIds, occasion, desiredLook, weather, bodyShape, stylingInstruction }) => {
+    mutationFn: async ({ selfieUrl, garmentUrls, garmentIds, garments, occasion, desiredLook, weather, bodyShape, stylingInstruction }) => {
       const { data, error } = await supabase.functions.invoke("virtual-tryon", {
-        body: { selfieUrl, garmentUrls, garmentIds, occasion, desiredLook, weather, bodyShape, stylingInstruction },
+        body: { selfieUrl, garmentUrls, garmentIds, garments, occasion, desiredLook, weather, bodyShape, stylingInstruction },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
