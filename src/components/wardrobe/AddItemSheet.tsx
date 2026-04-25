@@ -212,10 +212,18 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
 
             if (response.ok) {
               const bgRemovedBlob = await response.blob();
+              const imageAnalysis = await calculateVisibleAlphaBounds(bgRemovedBlob);
+              let layoutMetadata = null;
+              try {
+                layoutMetadata = (await analyzeProcessedGarment(bgRemovedBlob, item.category, `${item.category || "Item"} ${i + 1}`, imageAnalysis)).metadata;
+              } catch (landmarkErr) {
+                console.warn("[AddItemSheet] batch landmark analysis failed", landmarkErr);
+              }
               processedBatch.push({
                 blob: bgRemovedBlob,
                 category: item.category,
-                imageAnalysis: await calculateVisibleAlphaBounds(bgRemovedBlob),
+                imageAnalysis,
+                layoutMetadata,
               } as CroppedGarment & { imageAnalysis?: ImageAnalysis | null });
             } else {
               processedBatch.push({
@@ -240,6 +248,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
           category: item.category || "Tops",
           name: `${item.category || 'Item'} ${idx + 1}`,
           imageAnalysis: (item as any).imageAnalysis || null,
+          layoutMetadata: (item as any).layoutMetadata || null,
         }));
         setBatchEdits(editableItems);
         
