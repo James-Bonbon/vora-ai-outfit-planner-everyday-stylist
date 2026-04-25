@@ -570,7 +570,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
           category: item.category,
           storage_zone_id: storageZoneId || null,
           image_analysis: item.imageAnalysis || null,
-          layout_metadata: mergeLayoutMetadataWithAnchors(inferLayoutMetadata(item.category, item.name), item.imageAnalysis || null, item.category, item.name),
+          layout_metadata: mergeLayoutMetadataWithAnchors(item.layoutMetadata || inferLayoutMetadata(item.category, item.name), item.imageAnalysis || null, item.category, item.name),
         });
       }
 
