@@ -7,11 +7,12 @@ import SafeImage from "@/components/ui/SafeImage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
-import { Plus, Loader2, Sparkles, Trash2, Wand2 } from "lucide-react";
+import { Plus, Loader2, Sparkles, Trash2, Wand2, Bug } from "lucide-react";
 import { toast } from "sonner";
 import OutfitCollage from "@/components/wardrobe/OutfitCollage";
 import { generateSmartOutfit } from "@/utils/stylingEngine";
 import type { ClosetItem } from "@/types/wardrobe";
+import { Switch } from "@/components/ui/switch";
 
 export const LookbookTab = ({ items, imageUrls }: { items: ClosetItem[]; imageUrls: Record<string, string> }) => {
   const { user } = useAuth();
@@ -19,6 +20,7 @@ export const LookbookTab = ({ items, imageUrls }: { items: ClosetItem[]; imageUr
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [outfitName, setOutfitName] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [debugAnchors, setDebugAnchors] = useState(false);
 
   const { data: outfits = [], isLoading } = useQuery({
     queryKey: ["lookbook", user?.id],
@@ -92,6 +94,15 @@ export const LookbookTab = ({ items, imageUrls }: { items: ClosetItem[]; imageUr
         <Plus className="w-4 h-4" /> Design New Outfit
       </Button>
 
+      {import.meta.env.DEV && (
+        <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-3 py-2">
+          <span className="flex items-center gap-2 text-[11px] font-medium text-foreground">
+            <Bug className="h-3.5 w-3.5 text-primary" /> Outfit debug overlay
+          </span>
+          <Switch checked={debugAnchors} onCheckedChange={setDebugAnchors} aria-label="Toggle outfit debug overlay" />
+        </div>
+      )}
+
       {outfits.length === 0 ? (
         <GlassCard className="flex flex-col items-center py-16 text-center">
           <Sparkles className="w-10 h-10 text-primary mb-4" />
@@ -125,7 +136,7 @@ export const LookbookTab = ({ items, imageUrls }: { items: ClosetItem[]; imageUr
                   </Button>
                 </div>
                 {garmentsWithUrls.length > 0 ? (
-                  <OutfitCollage garments={garmentsWithUrls} />
+                  <OutfitCollage garments={garmentsWithUrls} debugAnchors={debugAnchors} />
                 ) : (
                   <p className="text-xs text-muted-foreground">Items no longer in closet.</p>
                 )}
