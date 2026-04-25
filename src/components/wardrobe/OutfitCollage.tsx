@@ -37,6 +37,36 @@ type LayoutMetadata = {
   confidence?: number;
   anchorNormalization?: string;
   anchorSources?: Record<string, "ai" | "alpha_estimate" | "ratio_guard" | string>;
+  rawAiLandmarks?: any;
+  measurementAnchors?: {
+    upperFit?: {
+      leftUpperFitAnchor?: { x: number; y: number };
+      rightUpperFitAnchor?: { x: number; y: number };
+      upperBodyFitWidth?: number;
+      confidence?: number;
+      source?: string;
+      notes?: string;
+    };
+    waist?: {
+      leftWaistAnchor?: { x: number; y: number };
+      rightWaistAnchor?: { x: number; y: number };
+      waistWidth?: number;
+      confidence?: number;
+      source?: string;
+      notes?: string;
+    };
+  };
+  layoutAnchors?: {
+    upperFit?: {
+      leftUpperFitAnchor?: { x: number; y: number };
+      rightUpperFitAnchor?: { x: number; y: number };
+      upperBodyFitWidth?: number;
+      confidence?: number;
+      source?: string;
+      normalizationReason?: string;
+      notes?: string;
+    };
+  };
   bodyAnchors?: {
     leftShoulder?: { x: number; y: number };
     rightShoulder?: { x: number; y: number };
@@ -159,8 +189,10 @@ const toRelativePoint = (point: { x: number; y: number } | undefined, analysis?:
 };
 
 const getUpperAnchorPair = (metadata: LayoutMetadata, analysis?: ImageAnalysis | null) => {
-  const left = toRelativePoint(metadata.leftUpperAnchor, analysis) || toRelativePoint(metadata.bodyAnchors?.leftShoulder, analysis);
-  const right = toRelativePoint(metadata.rightUpperAnchor, analysis) || toRelativePoint(metadata.bodyAnchors?.rightShoulder, analysis);
+  const layoutFit = metadata.layoutAnchors?.upperFit;
+  const measurementFit = metadata.measurementAnchors?.upperFit;
+  const left = toRelativePoint(layoutFit?.leftUpperFitAnchor || measurementFit?.leftUpperFitAnchor || metadata.leftUpperAnchor, analysis) || toRelativePoint(metadata.bodyAnchors?.leftShoulder, analysis);
+  const right = toRelativePoint(layoutFit?.rightUpperFitAnchor || measurementFit?.rightUpperFitAnchor || metadata.rightUpperAnchor, analysis) || toRelativePoint(metadata.bodyAnchors?.rightShoulder, analysis);
   if (!left || !right) return null;
   const width = Math.abs(right.x - left.x);
   return width > 0.08 ? { left, right, width: clamp(width, 0.08, 1) } : null;
@@ -168,32 +200,25 @@ const getUpperAnchorPair = (metadata: LayoutMetadata, analysis?: ImageAnalysis |
 
 const hasSufficientAnchorConfidence = (metadata: LayoutMetadata) => Number(metadata.confidence) >= 0.5;
 
-const hasRealAnchorSource = (metadata: LayoutMetadata, leftKey: string, rightKey: string) => {
-  const sources = metadata.anchorSources;
-  const normalization = String(metadata.anchorNormalization || "");
-  if (normalization.includes("estimated") || normalization.includes("expanded_implausibly_narrow")) return false;
-  return !sources || (sources[leftKey] === "ai" && sources[rightKey] === "ai");
-};
-
 const getRealMeasurementPair = (metadata: LayoutMetadata, analysis: ImageAnalysis | null | undefined, visualCategory: VisualCategory) => {
-  if (!hasSufficientAnchorConfidence(metadata)) return null;
-
   const isUpperBodyGarment = ["outerwear", "dresses", "tops"].includes(visualCategory);
   if (isUpperBodyGarment) {
-    if (!hasRealAnchorSource(metadata, "leftUpperAnchor", "rightUpperAnchor")) return null;
-    const left = toRelativePoint(metadata.leftUpperAnchor, analysis);
-    const right = toRelativePoint(metadata.rightUpperAnchor, analysis);
+    const upperFit = metadata.measurementAnchors?.upperFit;
+    if (upperFit?.source !== "ai" || Number(upperFit.confidence) < 0.5) return null;
+    const left = toRelativePoint(upperFit.leftUpperFitAnchor, analysis);
+    const right = toRelativePoint(upperFit.rightUpperFitAnchor, analysis);
     if (!left || !right) return null;
     const width = Math.abs(right.x - left.x);
     return width > 0.08
-      ? { left, right, width: clamp(width, 0.08, 1), leftLabel: "L upper", rightLabel: "R upper", fullLabel: "leftUpperAnchor → rightUpperAnchor" }
+      ? { left, right, width: clamp(width, 0.08, 1), leftLabel: "L upper", rightLabel: "R upper", fullLabel: "leftUpperFitAnchor → rightUpperFitAnchor" }
       : null;
   }
 
   if (visualCategory === "bottoms") {
-    if (!hasRealAnchorSource(metadata, "leftWaistAnchor", "rightWaistAnchor")) return null;
-    const left = toRelativePoint(metadata.leftWaistAnchor, analysis);
-    const right = toRelativePoint(metadata.rightWaistAnchor, analysis);
+    const waist = metadata.measurementAnchors?.waist;
+    if (waist?.source !== "ai" || Number(waist.confidence) < 0.5) return null;
+    const left = toRelativePoint(waist.leftWaistAnchor, analysis);
+    const right = toRelativePoint(waist.rightWaistAnchor, analysis);
     if (!left || !right) return null;
     const width = Math.abs(right.x - left.x);
     return width > 0.08
@@ -205,6 +230,16 @@ const getRealMeasurementPair = (metadata: LayoutMetadata, analysis: ImageAnalysi
 };
 
 const getUpperBodyWidthRatio = (metadata: LayoutMetadata, analysis?: ImageAnalysis | null) => {
+  const layoutWidth = Number(metadata.layoutAnchors?.upperFit?.upperBodyFitWidth);
+  if (Number.isFinite(layoutWidth) && layoutWidth > 0) {
+    const ratio = layoutWidth > 1 && analysis?.imageWidth ? layoutWidth / analysis.imageWidth : layoutWidth;
+    if (ratio > 0.08) return clamp(ratio, 0.08, 1);
+  }
+  const measuredWidth = Number(metadata.measurementAnchors?.upperFit?.upperBodyFitWidth);
+  if (Number.isFinite(measuredWidth) && measuredWidth > 0) {
+    const ratio = measuredWidth > 1 && analysis?.imageWidth ? measuredWidth / analysis.imageWidth : measuredWidth;
+    if (ratio > 0.08) return clamp(ratio, 0.08, 1);
+  }
   const explicitWidth = Number(metadata.upperBodyWidthAnchor);
   if (Number.isFinite(explicitWidth) && explicitWidth > 0) {
     const ratio = explicitWidth > 1 && analysis?.imageWidth ? explicitWidth / analysis.imageWidth : explicitWidth;
@@ -214,7 +249,7 @@ const getUpperBodyWidthRatio = (metadata: LayoutMetadata, analysis?: ImageAnalys
 };
 
 const formatWidthAnchor = (metadata: LayoutMetadata, analysis?: ImageAnalysis | null) => {
-  const explicitWidth = Number(metadata.upperBodyWidthAnchor);
+  const explicitWidth = Number(metadata.layoutAnchors?.upperFit?.upperBodyFitWidth || metadata.measurementAnchors?.upperFit?.upperBodyFitWidth || metadata.upperBodyWidthAnchor);
   const ratio = getUpperBodyWidthRatio(metadata, analysis);
   if (Number.isFinite(explicitWidth) && explicitWidth > 0) {
     return explicitWidth > 1 ? `${explicitWidth.toFixed(0)}px / ${(ratio ?? 0).toFixed(2)}` : explicitWidth.toFixed(2);
@@ -255,8 +290,7 @@ const getNormalizedStyle = ({
   const preferredScale = clamp(Number(metadata.preferredPreviewScale) || 0.55, 0.2, 1);
   const intendedVisibleWidth = clamp(intendedVisibleHeight * visibleAspect * (0.82 + preferredScale * 0.24), 22, 66);
   const boxHeight = clamp(intendedVisibleHeight / visibleHeightRatio, 22, 88);
-  const confidence = Number(metadata.confidence ?? 0.75);
-  const upperBodyWidthRatio = confidence >= 0.5 ? getUpperBodyWidthRatio(metadata, analysis) : null;
+  const upperBodyWidthRatio = getUpperBodyWidthRatio(metadata, analysis);
   const upperAnchorBoxWidth = upperBodyWidthRatio && targetRenderedShoulderWidth
     ? targetRenderedShoulderWidth / upperBodyWidthRatio
     : null;
@@ -363,6 +397,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
         const { boxWidthPct, boxHeightPct, anchorShiftXPct, anchorShiftYPct, rotationDeg, ...imageStyle } = style;
         const upperPair = getUpperAnchorPair(metadata, garment?.image_analysis);
         const measurementPair = getRealMeasurementPair(metadata, garment?.image_analysis, visualCategory);
+        const layoutSource = metadata.layoutAnchors?.upperFit?.source;
         const measurementCenter = measurementPair ? { x: (measurementPair.left.x + measurementPair.right.x) / 2, y: (measurementPair.left.y + measurementPair.right.y) / 2 } : null;
         const landmarkPoints = [
           measurementPair?.left,
@@ -407,7 +442,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
                 <span className="absolute bottom-1 left-1 z-[91] max-w-[92%] rounded bg-background/90 px-1.5 py-0.5 text-[9px] font-medium leading-3 text-foreground shadow-sm">
                   <span className="block">{metadata.garmentType || visualCategory}</span>
                   <span className="block">{measurementPair.fullLabel}</span>
-                  <span className="block">anchor: {formatWidthAnchor(metadata, garment?.image_analysis)}</span>
+                  <span className="block">measured fit: {formatWidthAnchor(metadata, garment?.image_analysis)}</span>
                   <span className="block">rendered: {(renderedUpperWidth ?? measurementPair.width * boxWidthPct).toFixed(1)}%</span>
                 </span>
                 {landmarkPoints.map((point, pointIndex) => (
@@ -417,6 +452,14 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
                     style={{ left: `${point!.x * 100}%`, top: `${point!.y * 100}%` }}
                   />
                 ))}
+              </div>
+            )}
+            {showDebugAnchors && !measurementPair && layoutSource && (
+              <div className="absolute bottom-1 left-1 z-[91] max-w-[92%] rounded bg-background/90 px-1.5 py-0.5 text-[9px] font-medium leading-3 text-foreground shadow-sm" style={imageStyle}>
+                <span className="block">{metadata.garmentType || visualCategory}</span>
+                <span className="block">estimated layout scaling</span>
+                <span className="block">source: {layoutSource}</span>
+                <span className="block">width: {formatWidthAnchor(metadata, garment?.image_analysis)}</span>
               </div>
             )}
           </div>

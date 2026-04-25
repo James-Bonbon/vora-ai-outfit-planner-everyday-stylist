@@ -57,8 +57,10 @@ For EACH item, provide:
   "bulkClass": one of "light", "medium", "bulky",
   "preferredPreviewScale": number from 0.2 to 1.0 for editorial flat-lay visual importance,
   "visibleAlphaBounds": tight visible garment bounds if discernible, as pixel coordinates {"x": number, "y": number, "width": number, "height": number},
-  "leftUpperAnchor" and "rightUpperAnchor": pixel coordinates on the actual visible upper-body span, not transparent canvas edges. Use shoulder seam/strap/upper bodice extremes for sleeveless, asymmetric, strapless, and one-shoulder garments,
-  "upperBodyWidthAnchor": pixel distance between leftUpperAnchor and rightUpperAnchor,
+  "leftUpperFitAnchor" and "rightUpperFitAnchor": pixel coordinates for the actual visible upper-body fit span, not transparent canvas edges,
+  "upperBodyFitWidth": pixel distance between leftUpperFitAnchor and rightUpperFitAnchor,
+  "notes": short explanation of what was measured,
+  For dresses, especially asymmetric or sleeveless dresses, do NOT measure literal shoulder seams. Detect upperBodyFitWidth across the upper bodice/chest/armhole area that corresponds to the wearer's upper torso. If the span is ambiguous or implausibly narrow, return low confidence below 0.5 and explain why in notes.
   "necklineCenter", "waistCenter", "hemCenter": pixel coordinates if visible, otherwise null,
   "confidence": number from 0 to 1 for landmark reliability,
   "bodyAnchors": backward-compatible relative coordinates from 0 to 1 using the same upper anchors as shoulders when true shoulder seams are ambiguous.
