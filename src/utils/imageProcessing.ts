@@ -130,6 +130,16 @@ export interface BodyAnchors {
   visibleAlphaBounds?: ImageAnalysis["visibleAlphaBounds"];
 }
 
+export interface GarmentLandmarks {
+  leftUpperAnchor?: BodyAnchorPoint;
+  rightUpperAnchor?: BodyAnchorPoint;
+  upperBodyWidthAnchor?: number;
+  necklineCenter?: BodyAnchorPoint;
+  waistCenter?: BodyAnchorPoint;
+  hemCenter?: BodyAnchorPoint;
+  confidence?: number;
+}
+
 export const normalizeBodyAnchors = (anchors?: BodyAnchors | null): BodyAnchors | null => {
   if (!anchors) return null;
   const normalizePoint = (point?: BodyAnchorPoint) => {
@@ -175,12 +185,65 @@ export const estimateBodyAnchors = (analysis?: ImageAnalysis | null, category?: 
   });
 };
 
+const clampPointPixels = (point: any, analysis?: ImageAnalysis | null): BodyAnchorPoint | undefined => {
+  if (!point || !analysis?.imageWidth || !analysis?.imageHeight) return undefined;
+  const rawX = Number(point.x);
+  const rawY = Number(point.y);
+  if (!Number.isFinite(rawX) || !Number.isFinite(rawY)) return undefined;
+  const x = rawX <= 1 ? rawX * analysis.imageWidth : rawX;
+  const y = rawY <= 1 ? rawY * analysis.imageHeight : rawY;
+  return {
+    x: Math.max(0, Math.min(analysis.imageWidth, x)),
+    y: Math.max(0, Math.min(analysis.imageHeight, y)),
+  };
+};
+
+export const normalizeGarmentLandmarks = (metadata: any, analysis?: ImageAnalysis | null, category?: string | null, itemName?: string | null): GarmentLandmarks | null => {
+  if (!analysis?.imageWidth || !analysis?.imageHeight) return null;
+  const source = metadata || {};
+  const anchors = source.bodyAnchors || source.body_anchors || {};
+  const leftUpperAnchor = clampPointPixels(source.leftUpperAnchor || source.left_upper_anchor || anchors.leftUpperAnchor || anchors.leftShoulder, analysis);
+  const rightUpperAnchor = clampPointPixels(source.rightUpperAnchor || source.right_upper_anchor || anchors.rightUpperAnchor || anchors.rightShoulder, analysis);
+  const necklineCenter = clampPointPixels(source.necklineCenter || source.neckline_center || anchors.necklineCenter, analysis);
+  const waistCenter = clampPointPixels(source.waistCenter || source.waist_center || anchors.waistCenter, analysis);
+  const hemCenter = clampPointPixels(source.hemCenter || source.hem_center || anchors.hemCenter, analysis);
+  const explicitWidth = Number(source.upperBodyWidthAnchor || source.upper_body_width_anchor);
+
+  if (leftUpperAnchor && rightUpperAnchor) {
+    return {
+      leftUpperAnchor,
+      rightUpperAnchor,
+      upperBodyWidthAnchor: Number.isFinite(explicitWidth) && explicitWidth > 0 ? explicitWidth : Math.abs(rightUpperAnchor.x - leftUpperAnchor.x),
+      necklineCenter,
+      waistCenter,
+      hemCenter,
+      confidence: Math.max(0, Math.min(1, Number(source.confidence) || 0.75)),
+    };
+  }
+
+  const estimated = estimateBodyAnchors(analysis, category, itemName);
+  const left = estimated?.leftShoulder ? clampPointPixels(estimated.leftShoulder, analysis) : undefined;
+  const right = estimated?.rightShoulder ? clampPointPixels(estimated.rightShoulder, analysis) : undefined;
+  if (!left || !right) return null;
+  return {
+    leftUpperAnchor: left,
+    rightUpperAnchor: right,
+    upperBodyWidthAnchor: Math.abs(right.x - left.x),
+    necklineCenter: estimated?.necklineCenter ? clampPointPixels(estimated.necklineCenter, analysis) : undefined,
+    waistCenter: estimated?.waistCenter ? clampPointPixels(estimated.waistCenter, analysis) : undefined,
+    hemCenter: estimated?.hemCenter ? clampPointPixels(estimated.hemCenter, analysis) : undefined,
+    confidence: 0.45,
+  };
+};
+
 export const mergeLayoutMetadataWithAnchors = (metadata: any, analysis?: ImageAnalysis | null, category?: string | null, itemName?: string | null) => {
   const normalizedAnchors = normalizeBodyAnchors(metadata?.bodyAnchors || metadata?.body_anchors);
+  const landmarks = normalizeGarmentLandmarks(metadata, analysis, category, itemName);
   return {
     ...(metadata || {}),
     bodyAnchors: normalizedAnchors || estimateBodyAnchors(analysis, category, itemName),
     visibleAlphaBounds: analysis?.visibleAlphaBounds,
+    ...(landmarks || {}),
   };
 };
 

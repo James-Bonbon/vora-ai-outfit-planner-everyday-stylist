@@ -56,7 +56,12 @@ For EACH item, provide:
   "lengthClass": one of "cropped", "waist", "hip", "thigh", "knee", "midi", "full_length",
   "bulkClass": one of "light", "medium", "bulky",
   "preferredPreviewScale": number from 0.2 to 1.0 for editorial flat-lay visual importance,
-  "bodyAnchors": for coats, jackets, dresses, shirts, sweaters, and other upper-body garments, estimate semantic landmarks as relative coordinates from 0 to 1 in the image: { "leftShoulder": {"x": number, "y": number}, "rightShoulder": {"x": number, "y": number}, "necklineCenter": {"x": number, "y": number}, "waistCenter": {"x": number, "y": number} or null, "hemCenter": {"x": number, "y": number} or null }. Shoulders must mark the actual garment shoulder/outer shoulder seam, not the transparent canvas bounds.
+  "visibleAlphaBounds": tight visible garment bounds if discernible, as pixel coordinates {"x": number, "y": number, "width": number, "height": number},
+  "leftUpperAnchor" and "rightUpperAnchor": pixel coordinates on the actual visible upper-body span, not transparent canvas edges. Use shoulder seam/strap/upper bodice extremes for sleeveless, asymmetric, strapless, and one-shoulder garments,
+  "upperBodyWidthAnchor": pixel distance between leftUpperAnchor and rightUpperAnchor,
+  "necklineCenter", "waistCenter", "hemCenter": pixel coordinates if visible, otherwise null,
+  "confidence": number from 0 to 1 for landmark reliability,
+  "bodyAnchors": backward-compatible relative coordinates from 0 to 1 using the same upper anchors as shoulders when true shoulder seams are ambiguous.
 }
 - 'boundingBox': { "ymin": number, "xmin": number, "ymax": number, "xmax": number } 
   (Provide the relative coordinates from 0.0 to 1.0 representing the box around this specific item. For example, if an item is in the top left quadrant, it might be ymin: 0.0, xmin: 0.0, ymax: 0.5, xmax: 0.5)

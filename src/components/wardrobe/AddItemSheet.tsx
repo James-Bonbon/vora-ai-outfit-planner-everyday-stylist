@@ -85,6 +85,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
     category: string;
     name: string;
     imageAnalysis?: ImageAnalysis | null;
+    layoutMetadata?: any;
   }
   const [batchEdits, setBatchEdits] = useState<BatchEditItem[]>([]);
 
@@ -130,6 +131,22 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
   const imageAnalysisRef = useRef<ImageAnalysis | null>(null);
   const layoutMetadataRef = useRef<any>(null);
 
+  const blobToBase64 = async (blob: Blob) => new Promise<string>((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (ev) => resolve((ev.target?.result as string).split(",")[1]);
+    reader.readAsDataURL(blob);
+  });
+
+  const analyzeProcessedGarment = async (blob: Blob, fallbackCategory?: string, fallbackName?: string, analysis?: ImageAnalysis | null) => {
+    const imageBase64 = await blobToBase64(blob);
+    const { data, error } = await supabase.functions.invoke("tag-garment", { body: { imageBase64, mimeType: "image/png" } });
+    if (error) throw error;
+    return {
+      tags: data,
+      metadata: mergeLayoutMetadataWithAnchors(data?.layout_metadata, analysis, data?.category || fallbackCategory, data?.name || fallbackName),
+    };
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
@@ -145,10 +162,14 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
     setPreview(rawPreview);
 
     setIsProcessingAI(true);
+    let normalizedBlobForAnalysis: Blob = f;
+    let finalBlobForAnalysis: Blob = f;
+    let bgRemovedForAnalysis = false;
 
     try {
       // 1. Get Base64 for the Surveyor
       const normalizedBlob = await normalizeToPng(f);
+      normalizedBlobForAnalysis = normalizedBlob;
       const base64 = await new Promise<string>((resolve) => {
         const b64Reader = new FileReader();
         b64Reader.onload = (ev) => resolve((ev.target?.result as string).split(",")[1]);
@@ -195,10 +216,18 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
 
             if (response.ok) {
               const bgRemovedBlob = await response.blob();
+              const imageAnalysis = await calculateVisibleAlphaBounds(bgRemovedBlob);
+              let layoutMetadata = null;
+              try {
+                layoutMetadata = (await analyzeProcessedGarment(bgRemovedBlob, item.category, `${item.category || "Item"} ${i + 1}`, imageAnalysis)).metadata;
+              } catch (landmarkErr) {
+                console.warn("[AddItemSheet] batch landmark analysis failed", landmarkErr);
+              }
               processedBatch.push({
                 blob: bgRemovedBlob,
                 category: item.category,
-                imageAnalysis: await calculateVisibleAlphaBounds(bgRemovedBlob),
+                imageAnalysis,
+                layoutMetadata,
               } as CroppedGarment & { imageAnalysis?: ImageAnalysis | null });
             } else {
               processedBatch.push({
@@ -223,6 +252,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
           category: item.category || "Tops",
           name: `${item.category || 'Item'} ${idx + 1}`,
           imageAnalysis: (item as any).imageAnalysis || null,
+          layoutMetadata: (item as any).layoutMetadata || null,
         }));
         setBatchEdits(editableItems);
         
@@ -268,6 +298,8 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       const processedFile = new File([safeBlob], `processed_${Date.now()}.png`, { type: "image/png" });
       finalBlob = processedFile;
       bgRemoved = true;
+      finalBlobForAnalysis = finalBlob;
+      bgRemovedForAnalysis = bgRemoved;
       imageAnalysisRef.current = await calculateVisibleAlphaBounds(processedFile);
       setHasTransparentBg(true);
       setProcessedBlob(processedFile);
@@ -285,15 +317,12 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       setIsProcessingAI(false);
     }
 
-    // Step 2: Auto-tag with AI
+    // Step 2: Auto-tag + landmark processed garment with AI
     setTagging(true);
     try {
-      const base64 = imageBase64Ref.current;
-      const { data, error } = await supabase.functions.invoke("tag-garment", {
-        body: { imageBase64: base64 },
-      });
-
-      if (error) throw error;
+      const analysisBlob = bgRemovedForAnalysis ? finalBlobForAnalysis : normalizedBlobForAnalysis;
+      if (!imageAnalysisRef.current) imageAnalysisRef.current = await calculateVisibleAlphaBounds(analysisBlob);
+      const { tags: data, metadata } = await analyzeProcessedGarment(analysisBlob, category, name, imageAnalysisRef.current);
 
       if (data?.name) setName(data.name);
       if (data?.category) setCategory(data.category);
@@ -301,9 +330,10 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       if (data?.material) setMaterial(data.material);
       if (data?.brand) setBrand(data.brand || "");
       if (data?.storage_zone) setStorageZoneId(data.storage_zone);
-      layoutMetadataRef.current = mergeLayoutMetadataWithAnchors(data?.layout_metadata, imageAnalysisRef.current, data?.category || category, data?.name || name);
+      layoutMetadataRef.current = metadata;
       toast.success("AI tagged your item! ✨");
 
+      const base64 = imageBase64Ref.current;
       if (data?.brand) {
         triggerProductLookup(base64, data.brand, data.name, data.category, data.color, data.material);
       }
@@ -540,7 +570,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
           category: item.category,
           storage_zone_id: storageZoneId || null,
           image_analysis: item.imageAnalysis || null,
-          layout_metadata: mergeLayoutMetadataWithAnchors(inferLayoutMetadata(item.category, item.name), item.imageAnalysis || null, item.category, item.name),
+          layout_metadata: mergeLayoutMetadataWithAnchors(item.layoutMetadata || inferLayoutMetadata(item.category, item.name), item.imageAnalysis || null, item.category, item.name),
         });
       }
 
