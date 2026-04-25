@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { cropToBoundingBox } from "@/utils/imageProcessing";
+import { cropToBoundingBox, calculateVisibleAlphaBounds, type ImageAnalysis } from "@/utils/imageProcessing";
 import GlassCard from "@/components/GlassCard";
 // Lazy-loaded to avoid WASM pre-bundling timeout
 const loadRemoveBackground = () =>
@@ -24,6 +24,8 @@ export interface AnalyzedItem {
   brand: string;
   hasTransparentBg: boolean;
   storage_zone?: string;
+  imageAnalysis?: ImageAnalysis | null;
+  layoutMetadata?: any;
 }
 
 interface SmartCameraProps {
@@ -159,6 +161,8 @@ const SmartCamera = ({ open, onOpenChange, onAnalyzed }: SmartCameraProps) => {
           brand: data?.brand || "",
           hasTransparentBg,
           storage_zone: data?.storage_zone || undefined,
+          imageAnalysis: await calculateVisibleAlphaBounds(processedBlob),
+          layoutMetadata: data?.layout_metadata || null,
         });
       }
 
