@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { addDays, format, isToday, getDay } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
-import { Snowflake, Sun, Cloud, CloudRain, RefreshCw, Pencil, Lock, ShirtIcon, Layers } from "lucide-react";
+import { Snowflake, Sun, Cloud, CloudRain, RefreshCw, Pencil, Lock, ShirtIcon, Layers, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SafeImage from "@/components/ui/SafeImage";
 import GlassCard from "@/components/GlassCard";
@@ -13,7 +13,7 @@ import { getCachedSignedUrls } from "@/utils/signedUrlCache";
 import { WeatherWidget } from "@/components/WeatherWidget";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
-import { OutfitFlatLay } from "@/components/OutfitFlatLay";
+import OutfitCollage from "@/components/wardrobe/OutfitCollage";
 import { useNavigate } from "react-router-dom";
 import {
   generateSmartOutfit,
@@ -383,12 +383,92 @@ const OutfitCalendar = () => {
             </span>
           </div>
 
-          {/* Flat-Lay Display */}
+          {/* Outfit Collage Display */}
           {todayGarments.length > 0 ? (
-            <OutfitFlatLay
-              garments={todayGarments}
-              onTryOnMake={() => {
-                // Navigate to AI Stylist with garments pre-selected
+            <div className="space-y-3">
+              <OutfitCollage garments={todayGarments} />
+              <Button
+                className="w-full rounded-xl gap-2"
+                onClick={() => {
+                  // Navigate to AI Stylist with garments pre-selected
+                  navigate("/mirror", {
+                    state: {
+                      preSelectedIds: todayGarments.map((g) => g.id),
+                      vibe: todayOccasion,
+                    },
+                  });
+                }}
+              >
+                <Sparkles className="w-4 h-4" />
+                See it on me
+              </Button>
+            </div>
+          ) : (
+            <div className="flex gap-2 justify-center py-4">
+              <div className="w-20 h-24 rounded-xl bg-muted flex items-center justify-center">
+                <span className="text-[10px] text-muted-foreground">Top</span>
+              </div>
+              <div className="w-20 h-24 rounded-xl bg-muted flex items-center justify-center">
+                <span className="text-[10px] text-muted-foreground">Bottom</span>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-center gap-4 mt-4 pt-2 w-full">
+            <Button
+              size="sm"
+              className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 text-xs h-8 px-4"
+              onClick={() => handleSwap(todaySlot.dateStr)}
+            >
+              <RefreshCw className="w-3 h-3 mr-1" /> Swap
+            </Button>
+            <DrawerTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-xl border-primary text-primary hover:bg-primary/10 text-xs h-8 px-4"
+                onClick={() => {
+                  setEditingDate(todaySlot.dateStr);
+                  setEditingSlotIndex(0);
+                }}
+              >
+                <Pencil className="w-3 h-3 mr-1" /> Edit
+              </Button>
+            </DrawerTrigger>
+          </div>
+
+          <div className="mt-4 pt-3 border-t border-border text-center">
+            <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
+              {todaySlot.entry ? "Planned Outfit" : "Suggested Outfit"}
+            </span>
+          </div>
+        </div>
+
+        {/* ===== UPCOMING DAYS CAROUSEL ===== */}
+        {visibleUpcoming.length > 0 && (
+          <Carousel opts={{ align: "start", dragFree: true }} className="w-full">
+            <CarouselContent className="-ml-2">
+              {visibleUpcoming.map((slot) => {
+                const slotGarments = getItemsForDate(slot.date, slot.entry, slot.calendarEvents);
+                const occasion = slot.calendarEvents.length > 0
+                  ? slot.calendarEvents[0].title
+                  : slot.entry?.occasion || (isWeekend(slot.date) ? "Casual" : "Office");
+
+                return (
+                  <CarouselItem key={slot.dateStr} className="pl-2 basis-[55%] sm:basis-[42%]">
+                    <div className="rounded-2xl bg-card border border-border p-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-bold text-foreground font-outfit">{format(slot.date, "EEE d")}</p>
+                        <span className="text-[9px] text-muted-foreground capitalize">{occasion}</span>
+                      </div>
+
+                      <div className="mt-2">
+                        {slotGarments.length > 0 ? (
+                          <OutfitCollage garments={slotGarments} />
+                        ) : (
+                          <div className="aspect-[3/4] rounded-2xl bg-muted" />
+                        )}
+                      </div>
                 navigate("/mirror", {
                   state: {
                     preSelectedIds: todayGarments.map((g) => g.id),
