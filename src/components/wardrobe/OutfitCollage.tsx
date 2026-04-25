@@ -249,7 +249,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
   const showDebugAnchors = debugAnchors || new URLSearchParams(window.location.search).get("outfitDebugAnchors") === "1";
 
   const seenCounts: Partial<Record<VisualCategory, number>> = {};
-  const renderItems = classified.map(({ garment, visualCategory, imageUrl }, stackIndex) => {
+  let renderItems = classified.map(({ garment, visualCategory, imageUrl }, stackIndex) => {
     const duplicateIndex = seenCounts[visualCategory] ?? 0;
     seenCounts[visualCategory] = duplicateIndex + 1;
     const inferred = inferMetadata(garment, visualCategory);
@@ -287,9 +287,23 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
     };
   });
 
-  const coatRenderedWidth = renderItems.find((item) => item.visualCategory === "outerwear")?.renderedUpperWidth ?? null;
-  const dressRenderedWidth = renderItems.find((item) => item.visualCategory === "dresses")?.renderedUpperWidth ?? null;
-  const dressToCoatRatio = coatRenderedWidth && dressRenderedWidth ? dressRenderedWidth / coatRenderedWidth : null;
+  let coatRenderedWidth = renderItems.find((item) => item.visualCategory === "outerwear")?.renderedUpperWidth ?? null;
+  let dressRenderedWidth = renderItems.find((item) => item.visualCategory === "dresses")?.renderedUpperWidth ?? null;
+  let dressToCoatRatio = coatRenderedWidth && dressRenderedWidth ? dressRenderedWidth / coatRenderedWidth : null;
+
+  if (hasOuterwear && hasDress && dressToCoatRatio !== null && dressToCoatRatio < 0.75) {
+    const scaleUp = clamp(0.82 / dressToCoatRatio, 1, 1.45);
+    renderItems = renderItems.map((item) => {
+      if (item.visualCategory !== "dresses" || !item.renderedUpperWidth) return item;
+      const nextWidth = clamp(item.style.boxWidthPct * scaleUp, item.style.boxWidthPct, 118);
+      const nextHeight = clamp(item.style.boxHeightPct * Math.min(scaleUp, 1.2), item.style.boxHeightPct, 96);
+      const nextStyle = { ...item.style, width: `${nextWidth}%`, height: `${nextHeight}%`, boxWidthPct: nextWidth, boxHeightPct: nextHeight };
+      return { ...item, style: nextStyle, renderedUpperWidth: item.renderedUpperWidth * (nextWidth / item.style.boxWidthPct) };
+    });
+    coatRenderedWidth = renderItems.find((item) => item.visualCategory === "outerwear")?.renderedUpperWidth ?? null;
+    dressRenderedWidth = renderItems.find((item) => item.visualCategory === "dresses")?.renderedUpperWidth ?? null;
+    dressToCoatRatio = coatRenderedWidth && dressRenderedWidth ? dressRenderedWidth / coatRenderedWidth : null;
+  }
 
   return (
     <div className="relative w-full aspect-[3/4] bg-secondary/10 rounded-2xl overflow-hidden">
