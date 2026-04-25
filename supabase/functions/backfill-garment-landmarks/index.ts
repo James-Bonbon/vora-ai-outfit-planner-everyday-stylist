@@ -141,6 +141,7 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
   if (!isTop) return next;
 
   if (left && right && rawRatio >= minRatio && rawRatio <= maxRatio && (originalConfidence ?? 0) >= 0.5) {
+    next.layoutAnchors = null;
     next.measurementAnchors = {
       ...(next.measurementAnchors || {}),
       upperFit: {
@@ -174,6 +175,7 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
   const layoutRight = { x: clamp(centerX + half, 0, analysis.imageWidth), y: clamp(y, 0, analysis.imageHeight) };
   const source = rawWidth > 0 ? "ratio_guard" : "alpha_estimate";
   const reason = rawWidth > 0 ? "estimated_layout_scaling_ratio_guard_implausibly_narrow_ai_upper_fit" : "estimated_layout_scaling_from_alpha_bounds";
+  next.measurementAnchors = null;
   next.layoutAnchors = {
     upperFit: {
       leftUpperFitAnchor: layoutLeft,
