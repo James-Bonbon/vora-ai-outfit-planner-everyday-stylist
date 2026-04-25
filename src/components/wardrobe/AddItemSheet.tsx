@@ -367,6 +367,8 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       setHasTransparentBg(!!prefill.hasTransparentBg);
       if (prefill.processedBlob) setProcessedBlob(prefill.processedBlob);
       if (prefill.storage_zone) setStorageZoneId(prefill.storage_zone);
+      imageAnalysisRef.current = prefill.imageAnalysis || null;
+      layoutMetadataRef.current = prefill.layoutMetadata || null;
     }
   }, [prefill, open]);
 
