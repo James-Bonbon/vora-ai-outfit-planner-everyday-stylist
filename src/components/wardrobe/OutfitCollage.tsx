@@ -279,9 +279,17 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
           targetRenderedShoulderWidth,
         });
         const { boxWidthPct, boxHeightPct, anchorShiftXPct, anchorShiftYPct, rotationDeg, ...imageStyle } = style;
-        const shoulderCenter = getShoulderCenter(metadata);
-        const leftShoulder = metadata.bodyAnchors?.leftShoulder;
-        const rightShoulder = metadata.bodyAnchors?.rightShoulder;
+        const upperPair = getUpperAnchorPair(metadata, garment?.image_analysis);
+        const leftUpper = upperPair?.left;
+        const rightUpper = upperPair?.right;
+        const upperCenter = upperPair ? { x: (upperPair.left.x + upperPair.right.x) / 2, y: (upperPair.left.y + upperPair.right.y) / 2 } : null;
+        const landmarkPoints = [
+          leftUpper,
+          rightUpper,
+          toRelativePoint(metadata.necklineCenter || metadata.bodyAnchors?.necklineCenter, garment?.image_analysis),
+          toRelativePoint(metadata.waistCenter || metadata.bodyAnchors?.waistCenter, garment?.image_analysis),
+          toRelativePoint(metadata.hemCenter || metadata.bodyAnchors?.hemCenter, garment?.image_analysis),
+        ].filter(Boolean);
 
         return (
           <div key={`${garment?.id ?? imageUrl}-${duplicateIndex}`}>
@@ -293,17 +301,20 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
               className={cn("absolute object-contain object-center drop-shadow-md")}
               style={imageStyle}
             />
-            {showDebugAnchors && leftShoulder && rightShoulder && shoulderCenter && (
+            {showDebugAnchors && leftUpper && rightUpper && upperCenter && (
               <div className="absolute pointer-events-none" style={imageStyle} aria-hidden="true">
                 <div
                   className="absolute h-0.5 bg-primary"
                   style={{
-                    left: `${leftShoulder.x * 100}%`,
-                    top: `${shoulderCenter.y * 100}%`,
-                    width: `${Math.abs(rightShoulder.x - leftShoulder.x) * 100}%`,
+                    left: `${leftUpper.x * 100}%`,
+                    top: `${upperCenter.y * 100}%`,
+                    width: `${upperPair.width * 100}%`,
                   }}
                 />
-                {[leftShoulder, rightShoulder, metadata.bodyAnchors?.necklineCenter, metadata.bodyAnchors?.waistCenter, metadata.bodyAnchors?.hemCenter].filter(Boolean).map((point, pointIndex) => (
+                <span className="absolute left-1 top-1 rounded bg-background/85 px-1.5 py-0.5 text-[10px] font-medium text-foreground shadow-sm">
+                  {(upperPair.width * boxWidthPct).toFixed(1)}%
+                </span>
+                {landmarkPoints.map((point, pointIndex) => (
                   <span
                     key={pointIndex}
                     className="absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary ring-2 ring-background"
