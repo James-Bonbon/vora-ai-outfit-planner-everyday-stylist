@@ -38,7 +38,7 @@ type LayoutMetadata = {
   anchorNormalization?: string;
   anchorSources?: Record<string, "ai" | "alpha_estimate" | "ratio_guard" | string>;
   rawAiLandmarks?: any;
-  measurementAnchors?: {
+  validatedMeasurementAnchors?: {
     upperFit?: {
       leftUpperFitAnchor?: { x: number; y: number };
       rightUpperFitAnchor?: { x: number; y: number };
@@ -56,6 +56,7 @@ type LayoutMetadata = {
       notes?: string;
     };
   };
+  measurementAnchors?: LayoutMetadata["validatedMeasurementAnchors"];
   layoutAnchors?: {
     upperFit?: {
       leftUpperFitAnchor?: { x: number; y: number };
@@ -190,7 +191,7 @@ const toRelativePoint = (point: { x: number; y: number } | undefined, analysis?:
 
 const getUpperAnchorPair = (metadata: LayoutMetadata, analysis?: ImageAnalysis | null) => {
   const layoutFit = metadata.layoutAnchors?.upperFit;
-  const measurementFit = metadata.measurementAnchors?.upperFit;
+  const measurementFit = metadata.validatedMeasurementAnchors?.upperFit || metadata.measurementAnchors?.upperFit;
   const left = toRelativePoint(layoutFit?.leftUpperFitAnchor || measurementFit?.leftUpperFitAnchor || metadata.leftUpperAnchor, analysis) || toRelativePoint(metadata.bodyAnchors?.leftShoulder, analysis);
   const right = toRelativePoint(layoutFit?.rightUpperFitAnchor || measurementFit?.rightUpperFitAnchor || metadata.rightUpperAnchor, analysis) || toRelativePoint(metadata.bodyAnchors?.rightShoulder, analysis);
   if (!left || !right) return null;
@@ -203,8 +204,8 @@ const hasSufficientAnchorConfidence = (metadata: LayoutMetadata) => Number(metad
 const getRealMeasurementPair = (metadata: LayoutMetadata, analysis: ImageAnalysis | null | undefined, visualCategory: VisualCategory) => {
   const isUpperBodyGarment = ["outerwear", "dresses", "tops"].includes(visualCategory);
   if (isUpperBodyGarment) {
-    const upperFit = metadata.measurementAnchors?.upperFit;
-    if (upperFit?.source !== "ai" || Number(upperFit.confidence) < 0.5) return null;
+    const upperFit = metadata.validatedMeasurementAnchors?.upperFit || metadata.measurementAnchors?.upperFit;
+    if (!upperFit || !["ai", "human"].includes(String(upperFit.source)) || Number(upperFit.confidence) < 0.5) return null;
     const left = toRelativePoint(upperFit.leftUpperFitAnchor, analysis);
     const right = toRelativePoint(upperFit.rightUpperFitAnchor, analysis);
     if (!left || !right) return null;
@@ -215,8 +216,8 @@ const getRealMeasurementPair = (metadata: LayoutMetadata, analysis: ImageAnalysi
   }
 
   if (visualCategory === "bottoms") {
-    const waist = metadata.measurementAnchors?.waist;
-    if (waist?.source !== "ai" || Number(waist.confidence) < 0.5) return null;
+    const waist = metadata.validatedMeasurementAnchors?.waist || metadata.measurementAnchors?.waist;
+    if (!waist || !["ai", "human"].includes(String(waist.source)) || Number(waist.confidence) < 0.5) return null;
     const left = toRelativePoint(waist.leftWaistAnchor, analysis);
     const right = toRelativePoint(waist.rightWaistAnchor, analysis);
     if (!left || !right) return null;
@@ -235,7 +236,7 @@ const getUpperBodyWidthRatio = (metadata: LayoutMetadata, analysis?: ImageAnalys
     const ratio = layoutWidth > 1 && analysis?.imageWidth ? layoutWidth / analysis.imageWidth : layoutWidth;
     if (ratio > 0.08) return clamp(ratio, 0.08, 1);
   }
-  const measuredWidth = Number(metadata.measurementAnchors?.upperFit?.upperBodyFitWidth);
+  const measuredWidth = Number((metadata.validatedMeasurementAnchors?.upperFit || metadata.measurementAnchors?.upperFit)?.upperBodyFitWidth);
   if (Number.isFinite(measuredWidth) && measuredWidth > 0) {
     const ratio = measuredWidth > 1 && analysis?.imageWidth ? measuredWidth / analysis.imageWidth : measuredWidth;
     if (ratio > 0.08) return clamp(ratio, 0.08, 1);
@@ -249,7 +250,7 @@ const getUpperBodyWidthRatio = (metadata: LayoutMetadata, analysis?: ImageAnalys
 };
 
 const formatWidthAnchor = (metadata: LayoutMetadata, analysis?: ImageAnalysis | null) => {
-  const explicitWidth = Number(metadata.layoutAnchors?.upperFit?.upperBodyFitWidth || metadata.measurementAnchors?.upperFit?.upperBodyFitWidth || metadata.upperBodyWidthAnchor);
+  const explicitWidth = Number(metadata.layoutAnchors?.upperFit?.upperBodyFitWidth || (metadata.validatedMeasurementAnchors?.upperFit || metadata.measurementAnchors?.upperFit)?.upperBodyFitWidth || metadata.upperBodyWidthAnchor);
   const ratio = getUpperBodyWidthRatio(metadata, analysis);
   if (Number.isFinite(explicitWidth) && explicitWidth > 0) {
     return explicitWidth > 1 ? `${explicitWidth.toFixed(0)}px / ${(ratio ?? 0).toFixed(2)}` : explicitWidth.toFixed(2);
