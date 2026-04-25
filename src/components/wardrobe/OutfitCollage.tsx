@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 
 type OutfitCollageProps = {
   garments: any[];
+  debugAnchors?: boolean;
 };
 
 type VisualCategory = "shoes" | "bottoms" | "tops" | "outerwear" | "dresses" | "hats" | "accessories";
@@ -25,6 +26,21 @@ type LayoutMetadata = {
   lengthClass?: string;
   bulkClass?: string;
   preferredPreviewScale?: number;
+  bodyAnchors?: {
+    leftShoulder?: { x: number; y: number };
+    rightShoulder?: { x: number; y: number };
+    necklineCenter?: { x: number; y: number };
+    waistCenter?: { x: number; y: number };
+    hemCenter?: { x: number; y: number };
+  };
+};
+
+type NormalizedRenderStyle = CSSProperties & {
+  boxWidthPct: number;
+  boxHeightPct: number;
+  anchorShiftXPct: number;
+  anchorShiftYPct: number;
+  rotate: number;
 };
 
 const centeredOffsets = [
