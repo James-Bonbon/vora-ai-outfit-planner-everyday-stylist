@@ -109,7 +109,7 @@ const normalizePoint = (point: any, analysis: any) => {
 
 const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
   const rawAiLandmarks = { ...layout };
-  const next = { ...layout, rawAiLandmarks };
+  const next = { ...layout, rawAiLandmarks, validatedMeasurementAnchors: {}, layoutAnchors: {}, fitValidation: { status: "fallback", rejected: [] as string[] } };
   const confidenceBefore = Number(layout.confidence);
   const originalConfidence = Number.isFinite(confidenceBefore) ? clamp(confidenceBefore, 0, 1) : null;
   const typeText = `${layout.garmentType ?? ""} ${item.category ?? ""} ${item.name ?? ""}`.toLowerCase();
@@ -139,12 +139,12 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
   const leftWaist = normalizePoint(layout.leftWaistAnchor, analysis);
   const rightWaist = normalizePoint(layout.rightWaistAnchor, analysis);
   if (leftWaist && rightWaist && (originalConfidence ?? 0) >= 0.5) {
-    next.measurementAnchors = {
-      ...(next.measurementAnchors || {}),
+    next.validatedMeasurementAnchors = {
+      ...(next.validatedMeasurementAnchors || {}),
       waist: {
-        leftWaistAnchor: leftWaist,
-        rightWaistAnchor: rightWaist,
-        waistWidth: Math.abs(rightWaist.x - leftWaist.x),
+        leftWaistAnchor: { ...leftWaist, source: "ai", confidence: originalConfidence, notes: layout.notes || "AI waist fit span." },
+        rightWaistAnchor: { ...rightWaist, source: "ai", confidence: originalConfidence, notes: layout.notes || "AI waist fit span." },
+        waistFitWidth: Math.abs(rightWaist.x - leftWaist.x),
         confidence: originalConfidence,
         source: "ai",
         notes: layout.notes || "AI waist fit span.",
@@ -156,11 +156,11 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
 
   if (left && right && rawRatio >= measurementMinRatio && rawRatio <= measurementMaxRatio && (originalConfidence ?? 0) >= 0.5) {
     next.layoutAnchors = null;
-    next.measurementAnchors = {
-      ...(next.measurementAnchors || {}),
+    next.validatedMeasurementAnchors = {
+      ...(next.validatedMeasurementAnchors || {}),
       upperFit: {
-        leftUpperFitAnchor: left,
-        rightUpperFitAnchor: right,
+        leftUpperFitAnchor: { ...left, source: "ai", confidence: originalConfidence, notes: layout.notes || "AI measured upper-body fit width." },
+        rightUpperFitAnchor: { ...right, source: "ai", confidence: originalConfidence, notes: layout.notes || "AI measured upper-body fit width." },
         upperBodyFitWidth: rawWidth,
         confidence: originalConfidence,
         source: "ai",
@@ -172,6 +172,8 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
     next.upperBodyWidthAnchor = rawWidth;
     next.anchorNormalization = "ai_upper_fit_within_ratio_guard";
     next.anchorSources = { leftUpperAnchor: "ai", rightUpperAnchor: "ai", upperBodyWidthAnchor: "ai" };
+    next.measurementAnchors = next.validatedMeasurementAnchors;
+    next.fitValidation = { status: "ai", rejected: [] };
     next.confidenceBeforeNormalization = originalConfidence;
     next.confidenceAfterNormalization = originalConfidence;
     return next;
@@ -189,11 +191,12 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
   const layoutRight = { x: clamp(centerX + half, 0, analysis.imageWidth), y: clamp(y, 0, analysis.imageHeight) };
   const source = rawWidth > 0 ? "ratio_guard" : "alpha_estimate";
   const reason = rawWidth > 0 ? "estimated_layout_scaling_ratio_guard_implausibly_narrow_ai_upper_fit" : "estimated_layout_scaling_from_alpha_bounds";
-  next.measurementAnchors = null;
+  next.validatedMeasurementAnchors = Object.keys(next.validatedMeasurementAnchors || {}).length ? next.validatedMeasurementAnchors : null;
+  next.measurementAnchors = next.validatedMeasurementAnchors;
   next.layoutAnchors = {
     upperFit: {
-      leftUpperFitAnchor: layoutLeft,
-      rightUpperFitAnchor: layoutRight,
+      leftUpperFitAnchor: { ...layoutLeft, source, confidence: source === "ratio_guard" ? 0.49 : 0.35, notes: "Estimated layout anchor; not a measurement." },
+      rightUpperFitAnchor: { ...layoutRight, source, confidence: source === "ratio_guard" ? 0.49 : 0.35, notes: "Estimated layout anchor; not a measurement." },
       upperBodyFitWidth: Math.abs(layoutRight.x - layoutLeft.x),
       confidence: source === "ratio_guard" ? 0.49 : 0.35,
       source,
@@ -211,6 +214,7 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
   next.confidenceBeforeNormalization = originalConfidence;
   next.confidence = next.layoutAnchors.upperFit.confidence;
   next.confidenceAfterNormalization = next.confidence;
+  next.fitValidation = { status: "fallback", rejected: [reason] };
   return next;
 };
 
