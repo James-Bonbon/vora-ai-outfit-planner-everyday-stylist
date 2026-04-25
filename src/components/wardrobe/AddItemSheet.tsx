@@ -45,6 +45,21 @@ interface AddItemSheetProps {
 
 const CATEGORIES = ["Tops", "Bottoms", "Shoes", "Accessories", "Outerwear"];
 
+const inferLayoutMetadata = (category?: string | null, itemName?: string | null) => {
+  const text = `${category ?? ""} ${itemName ?? ""}`.toLowerCase();
+  if (/coat|trench|parka|outerwear/.test(text)) return { garmentType: "coat", bodyCoverage: "full_body", lengthClass: "knee", bulkClass: "bulky", preferredPreviewScale: 0.9 };
+  if (/jacket|blazer|cardigan|shacket/.test(text)) return { garmentType: "jacket", bodyCoverage: "upper_body", lengthClass: "hip", bulkClass: "medium", preferredPreviewScale: 0.78 };
+  if (/dress|gown/.test(text)) return { garmentType: "dress", bodyCoverage: "full_body", lengthClass: "midi", bulkClass: "medium", preferredPreviewScale: 0.86 };
+  if (/jumpsuit|romper|one[-\s]?piece/.test(text)) return { garmentType: "jumpsuit", bodyCoverage: "full_body", lengthClass: "full_length", bulkClass: "medium", preferredPreviewScale: 0.86 };
+  if (/trouser|pant|jean|legging|chino/.test(text)) return { garmentType: "trousers", bodyCoverage: "lower_body", lengthClass: "full_length", bulkClass: "medium", preferredPreviewScale: 0.72 };
+  if (/skirt/.test(text)) return { garmentType: "skirt", bodyCoverage: "lower_body", lengthClass: "knee", bulkClass: "light", preferredPreviewScale: 0.62 };
+  if (/shoe|sneaker|boot|heel|loafer|sandal|trainer/.test(text)) return { garmentType: "shoes", bodyCoverage: "feet", lengthClass: "cropped", bulkClass: "medium", preferredPreviewScale: 0.36 };
+  if (/bag|purse|tote|clutch|backpack|handbag/.test(text)) return { garmentType: "bag", bodyCoverage: "accessory", lengthClass: "cropped", bulkClass: "medium", preferredPreviewScale: 0.34 };
+  if (/hat|cap|beanie|beret|fedora|bucket/.test(text)) return { garmentType: "hat", bodyCoverage: "accessory", lengthClass: "cropped", bulkClass: "light", preferredPreviewScale: 0.28 };
+  if (/knit|sweater|jumper|cardigan/.test(text)) return { garmentType: "knitwear", bodyCoverage: "upper_body", lengthClass: "hip", bulkClass: "medium", preferredPreviewScale: 0.58 };
+  return { garmentType: "shirt", bodyCoverage: "upper_body", lengthClass: "hip", bulkClass: "light", preferredPreviewScale: 0.54 };
+};
+
 const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheetProps) => {
   const { user } = useAuth();
   const [file, setFile] = useState<File | null>(null);
