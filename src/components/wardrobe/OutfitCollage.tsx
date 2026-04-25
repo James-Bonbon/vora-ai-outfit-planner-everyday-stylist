@@ -50,6 +50,7 @@ export const OutfitCollage = ({ garments }: OutfitCollageProps) => {
 
   const hasTop = classified.some((item) => item.visualCategory === "tops");
   const hasOuterwear = classified.some((item) => item.visualCategory === "outerwear");
+  const hasDress = classified.some((item) => item.visualCategory === "dresses");
   const seenCounts: Partial<Record<VisualCategory, number>> = {};
 
   return (
@@ -62,13 +63,47 @@ export const OutfitCollage = ({ garments }: OutfitCollageProps) => {
         const centered = visualCategory !== "accessories";
         const style = centered ? centeredStyle(duplicateIndex) : accessoryStyle(duplicateIndex);
 
+        if (visualCategory === "outerwear" && hasDress) {
+          const leftPanelClassName =
+            "absolute top-[8%] left-1/2 -translate-x-1/2 w-[82%] h-[62%] object-contain drop-shadow-lg z-40 [clip-path:polygon(0_0,42%_0,42%_100%,0_100%)]";
+          const rightPanelClassName =
+            "absolute top-[8%] left-1/2 -translate-x-1/2 w-[82%] h-[62%] object-contain drop-shadow-lg z-40 [clip-path:polygon(58%_0,100%_0,100%_100%,58%_100%)]";
+
+          return (
+            <>
+              <img
+                key={`${garment?.id ?? imageUrl}-${duplicateIndex}-left-panel`}
+                src={imageUrl}
+                alt={baseAlt}
+                loading="lazy"
+                decoding="async"
+                className={leftPanelClassName}
+                style={style}
+              />
+              <img
+                key={`${garment?.id ?? imageUrl}-${duplicateIndex}-right-panel`}
+                src={imageUrl}
+                alt=""
+                aria-hidden="true"
+                loading="lazy"
+                decoding="async"
+                className={rightPanelClassName}
+                style={style}
+              />
+            </>
+          );
+        }
+
         const className = cn(
           visualCategory === "shoes" &&
             "absolute bottom-[5%] left-1/2 -translate-x-1/2 w-[40%] h-[20%] object-contain drop-shadow-md z-10",
           visualCategory === "bottoms" &&
             "absolute top-[40%] left-1/2 -translate-x-1/2 w-[65%] h-[55%] object-contain object-top drop-shadow-md z-20",
           visualCategory === "dresses" &&
-            "absolute top-[10%] left-1/2 -translate-x-1/2 w-[70%] h-[75%] object-contain drop-shadow-md z-30",
+            cn(
+              "absolute left-1/2 -translate-x-1/2 object-contain drop-shadow-md z-30",
+              hasOuterwear ? "top-[12%] w-[72%] h-[72%]" : "top-[10%] w-[70%] h-[75%]",
+            ),
           visualCategory === "tops" &&
             cn(
               "absolute top-[10%] left-1/2 -translate-x-1/2 w-[75%] h-[45%] object-contain drop-shadow-md z-30",
