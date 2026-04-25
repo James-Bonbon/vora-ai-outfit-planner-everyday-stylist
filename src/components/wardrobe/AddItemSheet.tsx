@@ -162,10 +162,14 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
     setPreview(rawPreview);
 
     setIsProcessingAI(true);
+    let normalizedBlobForAnalysis: Blob = f;
+    let finalBlobForAnalysis: Blob = f;
+    let bgRemovedForAnalysis = false;
 
     try {
       // 1. Get Base64 for the Surveyor
       const normalizedBlob = await normalizeToPng(f);
+      normalizedBlobForAnalysis = normalizedBlob;
       const base64 = await new Promise<string>((resolve) => {
         const b64Reader = new FileReader();
         b64Reader.onload = (ev) => resolve((ev.target?.result as string).split(",")[1]);
@@ -294,6 +298,8 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       const processedFile = new File([safeBlob], `processed_${Date.now()}.png`, { type: "image/png" });
       finalBlob = processedFile;
       bgRemoved = true;
+      finalBlobForAnalysis = finalBlob;
+      bgRemovedForAnalysis = bgRemoved;
       imageAnalysisRef.current = await calculateVisibleAlphaBounds(processedFile);
       setHasTransparentBg(true);
       setProcessedBlob(processedFile);
@@ -314,7 +320,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
     // Step 2: Auto-tag + landmark processed garment with AI
     setTagging(true);
     try {
-      const analysisBlob = bgRemoved ? finalBlob : normalizedBlob;
+      const analysisBlob = bgRemovedForAnalysis ? finalBlobForAnalysis : normalizedBlobForAnalysis;
       if (!imageAnalysisRef.current) imageAnalysisRef.current = await calculateVisibleAlphaBounds(analysisBlob);
       const { tags: data, metadata } = await analyzeProcessedGarment(analysisBlob, category, name, imageAnalysisRef.current);
 
