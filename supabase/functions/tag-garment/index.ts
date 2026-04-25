@@ -43,6 +43,12 @@ serve(async (req) => {
 - "material": best guess material (e.g. "Cotton", "Polyester", "Leather", "Denim")
 - "brand": brand if visible, otherwise null
 - "storage_zone": Based on the garment type, assign one of these exact IDs: "left_shelves" (folded items like sweaters, t-shirts), "center_hanging_shirts" (shirts, blouses, button-downs), "right_hanging_dresses" (dresses, coats, long garments), "center_drawers" (small items like socks, underwear, accessories), or "floor_storage" (shoes, bags, large accessories)
+- "layout_metadata": an object with:
+  - "garmentType": one of "coat", "jacket", "dress", "jumpsuit", "shirt", "knitwear", "trousers", "skirt", "shorts", "shoes", "bag", "hat", "accessory"
+  - "bodyCoverage": one of "full_body", "upper_body", "lower_body", "feet", "accessory"
+  - "lengthClass": one of "cropped", "waist", "hip", "thigh", "knee", "midi", "full_length"
+  - "bulkClass": one of "light", "medium", "bulky"
+  - "preferredPreviewScale": a number from 0.2 to 1.0 indicating visual importance in an editorial flat-lay preview
 Return ONLY valid JSON, no markdown.`,
           },
           {
@@ -53,7 +59,7 @@ Return ONLY valid JSON, no markdown.`,
             ],
           },
         ],
-        max_tokens: 200,
+        max_tokens: 450,
       }),
     });
 

@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { cropToBoundingBox } from "@/utils/imageProcessing";
+import { cropToBoundingBox, calculateVisibleAlphaBounds, type ImageAnalysis } from "@/utils/imageProcessing";
 import GlassCard from "@/components/GlassCard";
 // Lazy-loaded to avoid WASM pre-bundling timeout
 const loadRemoveBackground = () =>
@@ -24,6 +24,8 @@ export interface AnalyzedItem {
   brand: string;
   hasTransparentBg: boolean;
   storage_zone?: string;
+  imageAnalysis?: ImageAnalysis | null;
+  layoutMetadata?: any;
 }
 
 interface SmartCameraProps {
@@ -146,19 +148,22 @@ const SmartCamera = ({ open, onOpenChange, onAnalyzed }: SmartCameraProps) => {
           body: { imageUrl: urlData.publicUrl },
         });
         if (error) throw error;
+        const analyzed = Array.isArray(data) ? data[0] : data;
 
         const imageFile = new File([processedBlob], `capture-${i}.${ext}`, { type: contentType });
 
         results.push({
           imageFile,
           preview,
-          name: data?.name || "",
-          category: data?.category || "",
-          color: data?.color || "",
-          material: data?.material || "",
-          brand: data?.brand || "",
+          name: analyzed?.name || "",
+          category: analyzed?.category || "",
+          color: analyzed?.color || "",
+          material: analyzed?.material || "",
+          brand: analyzed?.brand || "",
           hasTransparentBg,
-          storage_zone: data?.storage_zone || undefined,
+          storage_zone: analyzed?.storage_zone || undefined,
+          imageAnalysis: await calculateVisibleAlphaBounds(processedBlob),
+          layoutMetadata: analyzed?.layout_metadata || null,
         });
       }
 

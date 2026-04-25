@@ -50,6 +50,13 @@ For EACH item, provide:
 - 'name': (brief description, e.g., "Navy Polo Shirt")
 - 'brand': (ONLY if you clearly see a logo or neck tag, otherwise null. Do not hallucinate.)
 - 'storage_zone': Based on the garment type, you MUST assign it to one of these precise IDs: 'left_shelves' (for folded items like sweaters, t-shirts), 'center_hanging_shirts' (for shirts, blouses, button-downs), 'right_hanging_dresses' (for dresses, coats, long garments), 'center_drawers' (for small items like socks, underwear, accessories), or 'floor_storage' (for shoes, bags, large accessories). Return this ID string.
+- 'layout_metadata': {
+  "garmentType": one of "coat", "jacket", "dress", "jumpsuit", "shirt", "knitwear", "trousers", "skirt", "shorts", "shoes", "bag", "hat", "accessory",
+  "bodyCoverage": one of "full_body", "upper_body", "lower_body", "feet", "accessory",
+  "lengthClass": one of "cropped", "waist", "hip", "thigh", "knee", "midi", "full_length",
+  "bulkClass": one of "light", "medium", "bulky",
+  "preferredPreviewScale": number from 0.2 to 1.0 for editorial flat-lay visual importance
+}
 - 'boundingBox': { "ymin": number, "xmin": number, "ymax": number, "xmax": number } 
   (Provide the relative coordinates from 0.0 to 1.0 representing the box around this specific item. For example, if an item is in the top left quadrant, it might be ymin: 0.0, xmin: 0.0, ymax: 0.5, xmax: 0.5)
 

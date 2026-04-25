@@ -159,10 +159,12 @@ export type Database = {
           color: string | null
           created_at: string
           id: string
+          image_analysis: Json | null
           image_url: string
           is_in_laundry: boolean
           last_laundry_reminder_at: string | null
           laundry_added_at: string | null
+          layout_metadata: Json | null
           material: string | null
           name: string | null
           notes: string | null
@@ -177,10 +179,12 @@ export type Database = {
           color?: string | null
           created_at?: string
           id?: string
+          image_analysis?: Json | null
           image_url: string
           is_in_laundry?: boolean
           last_laundry_reminder_at?: string | null
           laundry_added_at?: string | null
+          layout_metadata?: Json | null
           material?: string | null
           name?: string | null
           notes?: string | null
@@ -195,10 +199,12 @@ export type Database = {
           color?: string | null
           created_at?: string
           id?: string
+          image_analysis?: Json | null
           image_url?: string
           is_in_laundry?: boolean
           last_laundry_reminder_at?: string | null
           laundry_added_at?: string | null
+          layout_metadata?: Json | null
           material?: string | null
           name?: string | null
           notes?: string | null
