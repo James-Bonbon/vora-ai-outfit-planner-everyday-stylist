@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { addDays, format, isToday, getDay } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
-import { Snowflake, Sun, Cloud, CloudRain, RefreshCw, Pencil, Lock, ShirtIcon, Layers, Sparkles } from "lucide-react";
+import { Snowflake, Sun, Cloud, CloudRain, RefreshCw, Pencil, Lock, ShirtIcon, Layers, Sparkles, Bug } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SafeImage from "@/components/ui/SafeImage";
 import GlassCard from "@/components/GlassCard";
 import { Progress } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useWeather } from "@/hooks/useWeather";
@@ -78,6 +79,7 @@ const OutfitCalendar = () => {
   const [editingDate, setEditingDate] = useState<string | null>(null);
   const [editingSlotIndex, setEditingSlotIndex] = useState<number>(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [debugAnchors, setDebugAnchors] = useState(false);
 
   /* ---- Cached data fetch (React Query hydration pattern) ---- */
   const { data: cachedData, isLoading } = useQuery({
@@ -367,6 +369,14 @@ const OutfitCalendar = () => {
   return (
     <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
       <div className="rounded-2xl glass-card p-4">
+        {import.meta.env.DEV && (
+          <div className="mb-3 flex items-center justify-between rounded-xl border border-border bg-muted/40 px-3 py-2">
+            <span className="flex items-center gap-2 text-[11px] font-medium text-foreground">
+              <Bug className="h-3.5 w-3.5 text-primary" /> Outfit debug overlay
+            </span>
+            <Switch checked={debugAnchors} onCheckedChange={setDebugAnchors} aria-label="Toggle outfit debug overlay" />
+          </div>
+        )}
         {/* ===== TODAY'S OUTFIT CARD ===== */}
         <div className="rounded-2xl bg-card border border-border p-4 mb-4">
           <div className="flex items-center gap-2 mb-3 flex-wrap">
@@ -388,7 +398,7 @@ const OutfitCalendar = () => {
           {/* Outfit Collage Display */}
           {todayGarments.length > 0 ? (
             <div className="space-y-3">
-              <OutfitCollage garments={todayGarments} />
+              <OutfitCollage garments={todayGarments} debugAnchors={debugAnchors} />
               <Button
                 className="w-full rounded-xl gap-2"
                 onClick={() => {
@@ -466,7 +476,7 @@ const OutfitCalendar = () => {
 
                       <div className="mt-2">
                         {slotGarments.length > 0 ? (
-                          <OutfitCollage garments={slotGarments} />
+                          <OutfitCollage garments={slotGarments} debugAnchors={debugAnchors} />
                         ) : (
                           <div className="aspect-[3/4] rounded-2xl bg-muted" />
                         )}
