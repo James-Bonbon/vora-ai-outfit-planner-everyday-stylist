@@ -189,8 +189,10 @@ const toRelativePoint = (point: { x: number; y: number } | undefined, analysis?:
 };
 
 const getUpperAnchorPair = (metadata: LayoutMetadata, analysis?: ImageAnalysis | null) => {
-  const left = toRelativePoint(metadata.leftUpperAnchor, analysis) || toRelativePoint(metadata.bodyAnchors?.leftShoulder, analysis);
-  const right = toRelativePoint(metadata.rightUpperAnchor, analysis) || toRelativePoint(metadata.bodyAnchors?.rightShoulder, analysis);
+  const layoutFit = metadata.layoutAnchors?.upperFit;
+  const measurementFit = metadata.measurementAnchors?.upperFit;
+  const left = toRelativePoint(layoutFit?.leftUpperFitAnchor || measurementFit?.leftUpperFitAnchor || metadata.leftUpperAnchor, analysis) || toRelativePoint(metadata.bodyAnchors?.leftShoulder, analysis);
+  const right = toRelativePoint(layoutFit?.rightUpperFitAnchor || measurementFit?.rightUpperFitAnchor || metadata.rightUpperAnchor, analysis) || toRelativePoint(metadata.bodyAnchors?.rightShoulder, analysis);
   if (!left || !right) return null;
   const width = Math.abs(right.x - left.x);
   return width > 0.08 ? { left, right, width: clamp(width, 0.08, 1) } : null;
@@ -198,32 +200,25 @@ const getUpperAnchorPair = (metadata: LayoutMetadata, analysis?: ImageAnalysis |
 
 const hasSufficientAnchorConfidence = (metadata: LayoutMetadata) => Number(metadata.confidence) >= 0.5;
 
-const hasRealAnchorSource = (metadata: LayoutMetadata, leftKey: string, rightKey: string) => {
-  const sources = metadata.anchorSources;
-  const normalization = String(metadata.anchorNormalization || "");
-  if (normalization.includes("estimated") || normalization.includes("expanded_implausibly_narrow")) return false;
-  return !sources || (sources[leftKey] === "ai" && sources[rightKey] === "ai");
-};
-
 const getRealMeasurementPair = (metadata: LayoutMetadata, analysis: ImageAnalysis | null | undefined, visualCategory: VisualCategory) => {
-  if (!hasSufficientAnchorConfidence(metadata)) return null;
-
   const isUpperBodyGarment = ["outerwear", "dresses", "tops"].includes(visualCategory);
   if (isUpperBodyGarment) {
-    if (!hasRealAnchorSource(metadata, "leftUpperAnchor", "rightUpperAnchor")) return null;
-    const left = toRelativePoint(metadata.leftUpperAnchor, analysis);
-    const right = toRelativePoint(metadata.rightUpperAnchor, analysis);
+    const upperFit = metadata.measurementAnchors?.upperFit;
+    if (upperFit?.source !== "ai" || Number(upperFit.confidence) < 0.5) return null;
+    const left = toRelativePoint(upperFit.leftUpperFitAnchor, analysis);
+    const right = toRelativePoint(upperFit.rightUpperFitAnchor, analysis);
     if (!left || !right) return null;
     const width = Math.abs(right.x - left.x);
     return width > 0.08
-      ? { left, right, width: clamp(width, 0.08, 1), leftLabel: "L upper", rightLabel: "R upper", fullLabel: "leftUpperAnchor → rightUpperAnchor" }
+      ? { left, right, width: clamp(width, 0.08, 1), leftLabel: "L upper", rightLabel: "R upper", fullLabel: "leftUpperFitAnchor → rightUpperFitAnchor" }
       : null;
   }
 
   if (visualCategory === "bottoms") {
-    if (!hasRealAnchorSource(metadata, "leftWaistAnchor", "rightWaistAnchor")) return null;
-    const left = toRelativePoint(metadata.leftWaistAnchor, analysis);
-    const right = toRelativePoint(metadata.rightWaistAnchor, analysis);
+    const waist = metadata.measurementAnchors?.waist;
+    if (waist?.source !== "ai" || Number(waist.confidence) < 0.5) return null;
+    const left = toRelativePoint(waist.leftWaistAnchor, analysis);
+    const right = toRelativePoint(waist.rightWaistAnchor, analysis);
     if (!left || !right) return null;
     const width = Math.abs(right.x - left.x);
     return width > 0.08
