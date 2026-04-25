@@ -35,6 +35,8 @@ type LayoutMetadata = {
   waistCenter?: { x: number; y: number };
   hemCenter?: { x: number; y: number };
   confidence?: number;
+  anchorNormalization?: string;
+  anchorSources?: Record<string, "ai" | "alpha_estimate" | "ratio_guard" | string>;
   bodyAnchors?: {
     leftShoulder?: { x: number; y: number };
     rightShoulder?: { x: number; y: number };
@@ -166,11 +168,19 @@ const getUpperAnchorPair = (metadata: LayoutMetadata, analysis?: ImageAnalysis |
 
 const hasSufficientAnchorConfidence = (metadata: LayoutMetadata) => Number(metadata.confidence) >= 0.5;
 
+const hasRealAnchorSource = (metadata: LayoutMetadata, leftKey: string, rightKey: string) => {
+  const sources = metadata.anchorSources;
+  const normalization = String(metadata.anchorNormalization || "");
+  if (normalization.includes("estimated") || normalization.includes("expanded_implausibly_narrow")) return false;
+  return !sources || (sources[leftKey] === "ai" && sources[rightKey] === "ai");
+};
+
 const getRealMeasurementPair = (metadata: LayoutMetadata, analysis: ImageAnalysis | null | undefined, visualCategory: VisualCategory) => {
   if (!hasSufficientAnchorConfidence(metadata)) return null;
 
   const isUpperBodyGarment = ["outerwear", "dresses", "tops"].includes(visualCategory);
   if (isUpperBodyGarment) {
+    if (!hasRealAnchorSource(metadata, "leftUpperAnchor", "rightUpperAnchor")) return null;
     const left = toRelativePoint(metadata.leftUpperAnchor, analysis);
     const right = toRelativePoint(metadata.rightUpperAnchor, analysis);
     if (!left || !right) return null;
@@ -181,6 +191,7 @@ const getRealMeasurementPair = (metadata: LayoutMetadata, analysis: ImageAnalysi
   }
 
   if (visualCategory === "bottoms") {
+    if (!hasRealAnchorSource(metadata, "leftWaistAnchor", "rightWaistAnchor")) return null;
     const left = toRelativePoint(metadata.leftWaistAnchor, analysis);
     const right = toRelativePoint(metadata.rightWaistAnchor, analysis);
     if (!left || !right) return null;
