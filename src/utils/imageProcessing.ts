@@ -99,6 +99,17 @@ export interface CroppedGarment {
   category: string;
 }
 
+export interface ImageAnalysis {
+  imageWidth: number;
+  imageHeight: number;
+  visibleX: number;
+  visibleY: number;
+  visibleWidth: number;
+  visibleHeight: number;
+  visibleWidthRatio: number;
+  visibleHeightRatio: number;
+}
+
 /**
  * Scans an image for non-transparent pixels and crops to their bounding box,
  * removing excess transparent padding around garments.
@@ -190,6 +201,69 @@ export async function cropToBoundingBox(
       "image/png",
     );
   });
+}
+
+export async function calculateVisibleAlphaBounds(file: Blob): Promise<ImageAnalysis | null> {
+  const bitmap = await createImageBitmap(file);
+  const { width, height } = bitmap;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    bitmap.close();
+    return null;
+  }
+
+  ctx.drawImage(bitmap, 0, 0);
+  const { data } = ctx.getImageData(0, 0, width, height);
+
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const alpha = data[(y * width + x) * 4 + 3];
+      if (alpha > 10) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  bitmap.close();
+
+  if (maxX < minX || maxY < minY) {
+    return {
+      imageWidth: width,
+      imageHeight: height,
+      visibleX: 0,
+      visibleY: 0,
+      visibleWidth: width,
+      visibleHeight: height,
+      visibleWidthRatio: 1,
+      visibleHeightRatio: 1,
+    };
+  }
+
+  const visibleWidth = maxX - minX + 1;
+  const visibleHeight = maxY - minY + 1;
+
+  return {
+    imageWidth: width,
+    imageHeight: height,
+    visibleX: minX,
+    visibleY: minY,
+    visibleWidth,
+    visibleHeight,
+    visibleWidthRatio: visibleWidth / width,
+    visibleHeightRatio: visibleHeight / height,
+  };
 }
 
 export const sliceImageByBoundingBoxes = async (
