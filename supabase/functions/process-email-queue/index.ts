@@ -11,7 +11,23 @@ type EmailQueueMessage = {
   msg_id: number
   read_ct?: number
   enqueued_at?: string
-  message: Record<string, unknown>
+  message: EmailPayload
+}
+
+type EmailPayload = Record<string, unknown> & {
+  run_id?: string
+  to?: string
+  from?: string
+  sender_domain?: string
+  subject?: string
+  html?: string
+  text?: string
+  purpose?: string
+  label?: string
+  idempotency_key?: string
+  unsubscribe_token?: string
+  message_id?: string
+  queued_at?: string
 }
 
 // Check if an error is a rate-limit (429) response.
@@ -208,7 +224,7 @@ Deno.serve(async (req) => {
       // Drop expired messages (TTL exceeded).
       // Prefer payload.queued_at when present; fall back to PGMQ's enqueued_at
       // which is always set by the queue.
-      const queuedAt = payload.queued_at ?? msg.enqueued_at
+      const queuedAt = typeof payload.queued_at === 'string' ? payload.queued_at : msg.enqueued_at
       if (queuedAt) {
         const ageMs = Date.now() - new Date(queuedAt).getTime()
         const maxAgeMs = ttlMinutes[queue] * 60 * 1000
