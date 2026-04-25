@@ -230,6 +230,16 @@ const getRealMeasurementPair = (metadata: LayoutMetadata, analysis: ImageAnalysi
 };
 
 const getUpperBodyWidthRatio = (metadata: LayoutMetadata, analysis?: ImageAnalysis | null) => {
+  const layoutWidth = Number(metadata.layoutAnchors?.upperFit?.upperBodyFitWidth);
+  if (Number.isFinite(layoutWidth) && layoutWidth > 0) {
+    const ratio = layoutWidth > 1 && analysis?.imageWidth ? layoutWidth / analysis.imageWidth : layoutWidth;
+    if (ratio > 0.08) return clamp(ratio, 0.08, 1);
+  }
+  const measuredWidth = Number(metadata.measurementAnchors?.upperFit?.upperBodyFitWidth);
+  if (Number.isFinite(measuredWidth) && measuredWidth > 0) {
+    const ratio = measuredWidth > 1 && analysis?.imageWidth ? measuredWidth / analysis.imageWidth : measuredWidth;
+    if (ratio > 0.08) return clamp(ratio, 0.08, 1);
+  }
   const explicitWidth = Number(metadata.upperBodyWidthAnchor);
   if (Number.isFinite(explicitWidth) && explicitWidth > 0) {
     const ratio = explicitWidth > 1 && analysis?.imageWidth ? explicitWidth / analysis.imageWidth : explicitWidth;
@@ -239,7 +249,7 @@ const getUpperBodyWidthRatio = (metadata: LayoutMetadata, analysis?: ImageAnalys
 };
 
 const formatWidthAnchor = (metadata: LayoutMetadata, analysis?: ImageAnalysis | null) => {
-  const explicitWidth = Number(metadata.upperBodyWidthAnchor);
+  const explicitWidth = Number(metadata.layoutAnchors?.upperFit?.upperBodyFitWidth || metadata.measurementAnchors?.upperFit?.upperBodyFitWidth || metadata.upperBodyWidthAnchor);
   const ratio = getUpperBodyWidthRatio(metadata, analysis);
   if (Number.isFinite(explicitWidth) && explicitWidth > 0) {
     return explicitWidth > 1 ? `${explicitWidth.toFixed(0)}px / ${(ratio ?? 0).toFixed(2)}` : explicitWidth.toFixed(2);
