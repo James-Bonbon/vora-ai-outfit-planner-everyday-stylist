@@ -343,7 +343,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
                   }}
                 />
                 <span className="absolute left-1 top-1 rounded bg-background/85 px-1.5 py-0.5 text-[10px] font-medium text-foreground shadow-sm">
-                  {(upperPair.width * boxWidthPct).toFixed(1)}%
+                  {visualCategory}: {(renderedUpperWidth ?? upperPair.width * boxWidthPct).toFixed(1)}%
                 </span>
                 {landmarkPoints.map((point, pointIndex) => (
                   <span
@@ -357,6 +357,13 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
           </div>
         );
       })}
+      {showDebugAnchors && hasOuterwear && hasDress && (
+        <div className="absolute bottom-2 left-2 right-2 z-[90] rounded bg-background/90 px-2 py-1 text-[10px] font-medium leading-4 text-foreground shadow-sm">
+          <div>coat width: {coatRenderedWidth?.toFixed(1) ?? "—"}%</div>
+          <div>dress width: {dressRenderedWidth?.toFixed(1) ?? "—"}%</div>
+          <div>dress/coat: {dressToCoatRatio ? dressToCoatRatio.toFixed(2) : "—"}</div>
+        </div>
+      )}
     </div>
   );
 };
