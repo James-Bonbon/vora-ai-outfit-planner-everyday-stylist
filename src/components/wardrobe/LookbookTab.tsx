@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Plus, Loader2, Sparkles, Trash2, Wand2 } from "lucide-react";
 import { toast } from "sonner";
-import { OutfitFlatLay } from "@/components/OutfitFlatLay";
+import OutfitCollage from "@/components/wardrobe/OutfitCollage";
 import { generateSmartOutfit } from "@/utils/stylingEngine";
 import type { ClosetItem } from "@/types/wardrobe";
 
@@ -125,7 +125,7 @@ export const LookbookTab = ({ items, imageUrls }: { items: ClosetItem[]; imageUr
                   </Button>
                 </div>
                 {garmentsWithUrls.length > 0 ? (
-                  <OutfitFlatLay garments={garmentsWithUrls} onTryOnMake={() => {}} className="pointer-events-none" />
+                  <OutfitCollage garments={garmentsWithUrls} />
                 ) : (
                   <p className="text-xs text-muted-foreground">Items no longer in closet.</p>
                 )}

@@ -1,28 +1,73 @@
+Final Implementation Plan: Dynamic CSS Outfit Collage
 
-## UI Polish Plan — 4 Targeted Fixes
+1. Create `src/components/wardrobe/OutfitCollage.tsx`
+- Add a reusable visual-only component accepting `{ garments: any[] }`.
+- Render one unified canvas:
+  - `relative w-full aspect-[3/4] bg-secondary/10 rounded-2xl overflow-hidden flex items-center justify-center`
+- Normalize category/name text to classify items into:
+  - shoes
+  - bottoms
+  - tops/sweaters
+  - outerwear
+  - dresses
+  - hats
+  - bags/other accessories
+- Do not use `mix-blend-multiply`.
 
-### Fix 1 — Garment title contrast (`SheetTitle` in `GarmentDetailSheet.tsx`, line 288)
-The `SheetTitle` uses `font-outfit` only and inherits `text-foreground` from the shared component. The faded look comes from `bg-background` not matching the screenshot context. Add explicit `text-foreground` and bump weight to ensure contrast across themes:
-- Change `<SheetTitle className="font-outfit">` → `<SheetTitle className="font-outfit text-foreground font-semibold">`.
-- Audit `DetailRow` (line 54-62) — `text-foreground` is already set; no change needed.
+2. Apply exact centered body-item CSS
+- All core body items must include `left-1/2 -translate-x-1/2` so absolute positioning does not jam items against the left edge.
+- Shoes:
+  - `absolute bottom-[5%] left-1/2 -translate-x-1/2 w-[40%] h-[20%] object-contain drop-shadow-md z-10`
+- Bottoms:
+  - `absolute bottom-[15%] left-1/2 -translate-x-1/2 w-[65%] h-[50%] object-contain drop-shadow-md z-20`
+- Tops/Sweaters without outerwear:
+  - `absolute top-[10%] left-1/2 -translate-x-1/2 w-[70%] h-[50%] object-contain drop-shadow-md z-30`
+- Outerwear without top:
+  - `absolute top-[8%] left-1/2 -translate-x-1/2 w-[75%] h-[55%] object-contain drop-shadow-lg z-40`
+- Dresses:
+  - `absolute top-[10%] left-1/2 -translate-x-1/2 w-[70%] h-[75%] object-contain drop-shadow-md z-30`
 
-### Fix 2 — SmartCamera duplicate close button (`SmartCamera.tsx`, line 198)
-The shared `SheetContent` always renders a built-in Radix Close at `absolute right-4 top-4`, sitting behind the RotateCcw button. The custom top-left X (line 202) is sufficient.
-- Add `[&>button.absolute]:hidden` to the `SheetContent` className on line 198 — hides only the auto-rendered Radix close inside this one camera sheet. No other sheets affected.
+3. Apply split-style overlap for top + outerwear
+- If both a top and outerwear exist, avoid a strict 50/50 seam.
+- Top renders underneath and starts at 40%:
+  - `absolute top-[10%] left-1/2 -translate-x-1/2 w-[70%] h-[50%] object-contain drop-shadow-md z-30 [clip-path:polygon(40%_0,100%_0,100%_100%,40%_100%)]`
+- Outerwear renders above and extends to 55%:
+  - `absolute top-[8%] left-1/2 -translate-x-1/2 w-[75%] h-[55%] object-contain drop-shadow-lg z-40 [clip-path:polygon(0_0,55%_0,55%_100%,0_100%)]`
+- Outerwear keeps the higher z-index and stronger shadow to hide the seam and create depth.
 
-### Fix 3 — Garment detail modal background + z-index (`GarmentDetailSheet.tsx`)
-- **Beige background restore** (line 293): the `SafeImage` wrapper currently uses `bg-card` which is dark. Change to `bg-[#F5F5F0]` to restore the beige studio canvas:
-  `wrapperClassName="w-full rounded-2xl bg-[#F5F5F0]"`.
-- **Z-index bleed-through**: the `WardrobeMap` rendered *inside the sheet* (line 376) is the source of "grid + green rectangle" — but the report describes them bleeding through *from beneath*. The Radix overlay is `z-50` and Sheet content is `z-50`. Likely cause: the dialog's portal places it correctly, but the `WardrobeMap` SVG inside the sheet has its own absolute-positioned highlight. Confirm by adding `relative z-[60]` wrapper around the modal content and ensuring `SheetOverlay` is opaque enough. Recommended fix:
-  - Bump `SheetContent` to `z-[60]` on line 286 only for this sheet: add `className="... z-[60]"`.
-  - Ensure the WardrobeMap container has `overflow-hidden rounded-xl` so its internal grid stays clipped.
+4. Separate hats from bags/accessories
+- Hats must render near the head, not the torso:
+  - `absolute top-[2%] left-1/2 -translate-x-1/2 w-[40%] h-[20%] object-contain drop-shadow-md z-50`
+- Bags/other accessories render to the side:
+  - `absolute top-[40%] right-[5%] w-[35%] h-[35%] object-contain drop-shadow-xl z-50`
 
-### Fix 4 — Action button icon colors (`GarmentDetailSheet.tsx`, lines 364, 402, 410)
-Locate (line 364), Wash It (line 402), and Help Me Clean (line 410) icons currently use `text-primary` (gold/yellow). When the outline button's hover/active state fills with `accent` (also gold), icons disappear.
-- Change all three `<Icon className="w-4 h-4 text-primary" />` → `<Icon className="w-4 h-4 text-foreground" />` to match the Edit Details icon (line 353), which has no color override and inherits foreground.
+5. Add duplicate-category collision offsets
+- Track how many garments have already rendered per visual category.
+- Add cascading offsets for repeated categories so two tops, two bags, two shoes, etc. do not eclipse each other.
+- Example offsets:
+  - first item: no added offset
+  - second item: `translate-x-4 translate-y-4`
+  - third item: `-translate-x-4 translate-y-6`
+- For centered core body items, combine offsets carefully so they preserve `left-1/2 -translate-x-1/2` centering behavior. This can be done with inline `transform: translateX(calc(-50% + offsetX)) translateY(offsetY)` or equivalent class composition.
+- For hats and accessories, vary top/left/right slightly for duplicates so they cascade naturally.
 
-### Files touched
-- `src/components/wardrobe/GarmentDetailSheet.tsx` (4 small className edits)
-- `src/components/wardrobe/SmartCamera.tsx` (1 className edit)
+6. Update Lookbook display
+- In `src/components/wardrobe/LookbookTab.tsx`, replace the current saved outfit preview using `OutfitFlatLay` with `<OutfitCollage garments={garmentsWithUrls} />`.
+- Keep outfit names, delete buttons, empty state, drawer creation, AI auto-fill, and save logic unchanged.
 
-No new components, no layout changes, no behavior changes.
+7. Update Stylist Look Detail view with guardrail
+- In `src/pages/MirrorPage.tsx`, import `OutfitCollage`.
+- Build collage-ready garment objects for `selectedLook` by combining `lookGarments` metadata with existing signed image URLs.
+- Place `<OutfitCollage>` at the top of the selected Look Detail view as the hero visual.
+- Do not delete the rich “Garments in this look” list. The 64x64 thumbnail rows with brand/title/category/color/material text must remain fully intact below the collage.
+
+8. Optional consistency update for home outfit preview
+- In `src/components/home/OutfitCalendar.tsx`, use `OutfitCollage` for visual outfit preview while keeping a separate explicit “See it on me” button/action.
+- This keeps the new collage language consistent while preserving the existing cost-control pattern for VTON generation.
+
+Technical notes
+- No database changes required.
+- No backend changes required.
+- No payment changes required.
+- Existing signed image URL flows remain unchanged.
+- `OutfitFlatLay` can remain available for contexts where its built-in VTON CTA is useful.

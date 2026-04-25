@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { addDays, format, isToday, getDay } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
-import { Snowflake, Sun, Cloud, CloudRain, RefreshCw, Pencil, Lock, ShirtIcon, Layers } from "lucide-react";
+import { Snowflake, Sun, Cloud, CloudRain, RefreshCw, Pencil, Lock, ShirtIcon, Layers, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SafeImage from "@/components/ui/SafeImage";
 import GlassCard from "@/components/GlassCard";
@@ -13,7 +13,7 @@ import { getCachedSignedUrls } from "@/utils/signedUrlCache";
 import { WeatherWidget } from "@/components/WeatherWidget";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
-import { OutfitFlatLay } from "@/components/OutfitFlatLay";
+import OutfitCollage from "@/components/wardrobe/OutfitCollage";
 import { useNavigate } from "react-router-dom";
 import {
   generateSmartOutfit,
@@ -383,20 +383,26 @@ const OutfitCalendar = () => {
             </span>
           </div>
 
-          {/* Flat-Lay Display */}
+          {/* Outfit Collage Display */}
           {todayGarments.length > 0 ? (
-            <OutfitFlatLay
-              garments={todayGarments}
-              onTryOnMake={() => {
-                // Navigate to AI Stylist with garments pre-selected
-                navigate("/mirror", {
-                  state: {
-                    preSelectedIds: todayGarments.map((g) => g.id),
-                    vibe: todayOccasion,
-                  },
-                });
-              }}
-            />
+            <div className="space-y-3">
+              <OutfitCollage garments={todayGarments} />
+              <Button
+                className="w-full rounded-xl gap-2"
+                onClick={() => {
+                  // Navigate to AI Stylist with garments pre-selected
+                  navigate("/mirror", {
+                    state: {
+                      preSelectedIds: todayGarments.map((g) => g.id),
+                      vibe: todayOccasion,
+                    },
+                  });
+                }}
+              >
+                <Sparkles className="w-4 h-4" />
+                See it on me
+              </Button>
+            </div>
           ) : (
             <div className="flex gap-2 justify-center py-4">
               <div className="w-20 h-24 rounded-xl bg-muted flex items-center justify-center">
@@ -456,28 +462,11 @@ const OutfitCalendar = () => {
                         <span className="text-[9px] text-muted-foreground capitalize">{occasion}</span>
                       </div>
 
-                      <div className="flex gap-1.5 mt-2">
+                      <div className="mt-2">
                         {slotGarments.length > 0 ? (
-                          slotGarments.slice(0, 2).map((g) => (
-                            <div
-                              key={g.id}
-                              className="w-[52px] h-[64px] rounded-lg overflow-hidden bg-white p-1.5 border border-black/10 flex items-center justify-center"
-                            >
-                              <SafeImage
-                                src={g.image_url}
-                                alt={g.name || "Garment"}
-                                aspectRatio=""
-                                fit="contain"
-                                className="mix-blend-multiply drop-shadow-sm"
-                                wrapperClassName="w-full h-full"
-                              />
-                            </div>
-                          ))
+                          <OutfitCollage garments={slotGarments} />
                         ) : (
-                          <>
-                            <div className="w-[52px] h-[64px] rounded-lg bg-muted" />
-                            <div className="w-[52px] h-[64px] rounded-lg bg-muted" />
-                          </>
+                          <div className="aspect-[3/4] rounded-2xl bg-muted" />
                         )}
                       </div>
 

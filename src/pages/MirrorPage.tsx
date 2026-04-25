@@ -28,6 +28,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 import { ignoreToastInteractOutside } from "@/lib/radixToastGuard";
+import OutfitCollage from "@/components/wardrobe/OutfitCollage";
 
 import { toast } from "sonner";
 import {
@@ -129,6 +130,12 @@ const MirrorPage = () => {
   const lookUrls = looksData?.urls ?? {};
 
   const hasItems = items.length > 0;
+  const selectedLookCollageGarments = lookGarments
+    .map((g) => ({
+      ...g,
+      image_url: imageUrls[g.id],
+    }))
+    .filter((g) => Boolean(g.image_url));
 
   const toggleItem = (id: string) => {
     setSelectedIds((prev) => {
@@ -522,6 +529,12 @@ const MirrorPage = () => {
         <>
           {selectedLook ? (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+              {selectedLookCollageGarments.length > 0 && (
+                <GlassCard className="p-3 mb-3 overflow-hidden">
+                  <OutfitCollage garments={selectedLookCollageGarments} />
+                </GlassCard>
+              )}
+
               <GlassCard className="p-0 overflow-hidden">
                 <SafeImage
                   src={lookUrls[selectedLook.id]}
