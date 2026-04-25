@@ -399,6 +399,11 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
         const upperPair = getUpperAnchorPair(metadata, garment?.image_analysis);
         const measurementPair = getRealMeasurementPair(metadata, garment?.image_analysis, visualCategory);
         const layoutSource = metadata.layoutAnchors?.upperFit?.source;
+        const fitSource = measurementPair ? ((metadata.validatedMeasurementAnchors?.upperFit || metadata.validatedMeasurementAnchors?.waist || metadata.measurementAnchors?.upperFit || metadata.measurementAnchors?.waist) as any)?.source : layoutSource || "fallback";
+        const renderedRatios = {
+          upperWidth: renderedUpperWidth ?? null,
+          dressToCoat: visualCategory === "dresses" ? dressToCoatRatio : null,
+        };
         const measurementCenter = measurementPair ? { x: (measurementPair.left.x + measurementPair.right.x) / 2, y: (measurementPair.left.y + measurementPair.right.y) / 2 } : null;
         const landmarkPoints = [
           measurementPair?.left,
@@ -444,6 +449,8 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
                   <span className="block">{metadata.garmentType || visualCategory}</span>
                   <span className="block">{measurementPair.fullLabel}</span>
                   <span className="block">measured fit: {formatWidthAnchor(metadata, garment?.image_analysis)}</span>
+                  <span className="block">source: {fitSource}</span>
+                  <span className="block">confidence: {((metadata.validatedMeasurementAnchors?.upperFit || metadata.validatedMeasurementAnchors?.waist || metadata.measurementAnchors?.upperFit || metadata.measurementAnchors?.waist) as any)?.confidence?.toFixed?.(2) ?? "—"}</span>
                   <span className="block">rendered: {(renderedUpperWidth ?? measurementPair.width * boxWidthPct).toFixed(1)}%</span>
                 </span>
                 {landmarkPoints.map((point, pointIndex) => (
@@ -460,8 +467,15 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
                 <span className="block">{metadata.garmentType || visualCategory}</span>
                 <span className="block">estimated layout scaling</span>
                 <span className="block">source: {layoutSource}</span>
+                <span className="block">confidence: {metadata.layoutAnchors?.upperFit?.confidence?.toFixed?.(2) ?? "—"}</span>
                 <span className="block">width: {formatWidthAnchor(metadata, garment?.image_analysis)}</span>
               </div>
+            )}
+            {showDebugAnchors && (
+              <details className="absolute right-1 top-1 z-[91] max-w-[58%] rounded bg-background/90 px-1.5 py-0.5 text-[8px] leading-3 text-foreground shadow-sm" style={imageStyle}>
+                <summary className="cursor-pointer font-medium">QA</summary>
+                <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify({ rawAiLandmarks: metadata.rawAiLandmarks, validatedMeasurementAnchors: metadata.validatedMeasurementAnchors || metadata.measurementAnchors, layoutAnchors: metadata.layoutAnchors, fitSource, renderedRatios }, null, 2)}</pre>
+              </details>
             )}
           </div>
         );
