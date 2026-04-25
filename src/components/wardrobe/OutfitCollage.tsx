@@ -171,6 +171,15 @@ const getUpperBodyWidthRatio = (metadata: LayoutMetadata, analysis?: ImageAnalys
   return getUpperAnchorPair(metadata, analysis)?.width || getShoulderWidthRatio(metadata);
 };
 
+const formatWidthAnchor = (metadata: LayoutMetadata, analysis?: ImageAnalysis | null) => {
+  const explicitWidth = Number(metadata.upperBodyWidthAnchor);
+  const ratio = getUpperBodyWidthRatio(metadata, analysis);
+  if (Number.isFinite(explicitWidth) && explicitWidth > 0) {
+    return explicitWidth > 1 ? `${explicitWidth.toFixed(0)}px / ${(ratio ?? 0).toFixed(2)}` : explicitWidth.toFixed(2);
+  }
+  return ratio ? ratio.toFixed(2) : "—";
+};
+
 const getShoulderCenter = (metadata: LayoutMetadata) => {
   const left = metadata.bodyAnchors?.leftShoulder;
   const right = metadata.bodyAnchors?.rightShoulder;
@@ -342,8 +351,10 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
                     width: `${upperPair.width * 100}%`,
                   }}
                 />
-                <span className="absolute left-1 top-1 rounded bg-background/85 px-1.5 py-0.5 text-[10px] font-medium text-foreground shadow-sm">
-                  {visualCategory}: {(renderedUpperWidth ?? upperPair.width * boxWidthPct).toFixed(1)}%
+                <span className="absolute left-1 top-1 z-[95] max-w-[92%] rounded bg-background/90 px-1.5 py-0.5 text-[9px] font-medium leading-3 text-foreground shadow-sm">
+                  <span className="block">{metadata.garmentType || visualCategory}</span>
+                  <span className="block">anchor: {formatWidthAnchor(metadata, garment?.image_analysis)}</span>
+                  <span className="block">rendered: {(renderedUpperWidth ?? upperPair.width * boxWidthPct).toFixed(1)}%</span>
                 </span>
                 {landmarkPoints.map((point, pointIndex) => (
                   <span
@@ -361,7 +372,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
         <div className="absolute bottom-2 left-2 right-2 z-[90] rounded bg-background/90 px-2 py-1 text-[10px] font-medium leading-4 text-foreground shadow-sm">
           <div>coat width: {coatRenderedWidth?.toFixed(1) ?? "—"}%</div>
           <div>dress width: {dressRenderedWidth?.toFixed(1) ?? "—"}%</div>
-          <div>dress/coat: {dressToCoatRatio ? dressToCoatRatio.toFixed(2) : "—"}</div>
+          <div>dress/coat upperBodyWidth ratio: {dressToCoatRatio ? dressToCoatRatio.toFixed(2) : "—"}</div>
         </div>
       )}
     </div>
