@@ -28,6 +28,8 @@ type LayoutMetadata = {
   preferredPreviewScale?: number;
   leftUpperAnchor?: { x: number; y: number };
   rightUpperAnchor?: { x: number; y: number };
+  leftWaistAnchor?: { x: number; y: number };
+  rightWaistAnchor?: { x: number; y: number };
   upperBodyWidthAnchor?: number;
   necklineCenter?: { x: number; y: number };
   waistCenter?: { x: number; y: number };
@@ -160,6 +162,35 @@ const getUpperAnchorPair = (metadata: LayoutMetadata, analysis?: ImageAnalysis |
   if (!left || !right) return null;
   const width = Math.abs(right.x - left.x);
   return width > 0.08 ? { left, right, width: clamp(width, 0.08, 1) } : null;
+};
+
+const hasSufficientAnchorConfidence = (metadata: LayoutMetadata) => Number(metadata.confidence) >= 0.5;
+
+const getRealMeasurementPair = (metadata: LayoutMetadata, analysis: ImageAnalysis | null | undefined, visualCategory: VisualCategory) => {
+  if (!hasSufficientAnchorConfidence(metadata)) return null;
+
+  const isUpperBodyGarment = ["outerwear", "dresses", "tops"].includes(visualCategory);
+  if (isUpperBodyGarment) {
+    const left = toRelativePoint(metadata.leftUpperAnchor, analysis);
+    const right = toRelativePoint(metadata.rightUpperAnchor, analysis);
+    if (!left || !right) return null;
+    const width = Math.abs(right.x - left.x);
+    return width > 0.08
+      ? { left, right, width: clamp(width, 0.08, 1), leftLabel: "L upper", rightLabel: "R upper", fullLabel: "leftUpperAnchor → rightUpperAnchor" }
+      : null;
+  }
+
+  if (visualCategory === "bottoms") {
+    const left = toRelativePoint(metadata.leftWaistAnchor, analysis);
+    const right = toRelativePoint(metadata.rightWaistAnchor, analysis);
+    if (!left || !right) return null;
+    const width = Math.abs(right.x - left.x);
+    return width > 0.08
+      ? { left, right, width: clamp(width, 0.08, 1), leftLabel: "L waist", rightLabel: "R waist", fullLabel: "leftWaistAnchor → rightWaistAnchor" }
+      : null;
+  }
+
+  return null;
 };
 
 const getUpperBodyWidthRatio = (metadata: LayoutMetadata, analysis?: ImageAnalysis | null) => {
@@ -320,12 +351,11 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
         const baseAlt = garment?.name || garment?.category || "Garment";
         const { boxWidthPct, boxHeightPct, anchorShiftXPct, anchorShiftYPct, rotationDeg, ...imageStyle } = style;
         const upperPair = getUpperAnchorPair(metadata, garment?.image_analysis);
-        const leftUpper = upperPair?.left;
-        const rightUpper = upperPair?.right;
-        const upperCenter = upperPair ? { x: (upperPair.left.x + upperPair.right.x) / 2, y: (upperPair.left.y + upperPair.right.y) / 2 } : null;
+        const measurementPair = getRealMeasurementPair(metadata, garment?.image_analysis, visualCategory);
+        const measurementCenter = measurementPair ? { x: (measurementPair.left.x + measurementPair.right.x) / 2, y: (measurementPair.left.y + measurementPair.right.y) / 2 } : null;
         const landmarkPoints = [
-          leftUpper,
-          rightUpper,
+          measurementPair?.left,
+          measurementPair?.right,
           toRelativePoint(metadata.necklineCenter || metadata.bodyAnchors?.necklineCenter, garment?.image_analysis),
           toRelativePoint(metadata.waistCenter || metadata.bodyAnchors?.waistCenter, garment?.image_analysis),
           toRelativePoint(metadata.hemCenter || metadata.bodyAnchors?.hemCenter, garment?.image_analysis),
@@ -341,25 +371,38 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
               className={cn("absolute object-contain object-center drop-shadow-md")}
               style={imageStyle}
             />
-            {showDebugAnchors && leftUpper && rightUpper && upperCenter && (
+            {showDebugAnchors && measurementPair && measurementCenter && (
               <div className="absolute pointer-events-none" style={imageStyle} aria-hidden="true">
                 <div
-                  className="absolute h-0.5 bg-primary"
+                  className="absolute z-[92] h-0.5 bg-primary"
                   style={{
-                    left: `${leftUpper.x * 100}%`,
-                    top: `${upperCenter.y * 100}%`,
-                    width: `${upperPair.width * 100}%`,
+                    left: `${measurementPair.left.x * 100}%`,
+                    top: `${measurementCenter.y * 100}%`,
+                    width: `${measurementPair.width * 100}%`,
                   }}
                 />
-                <span className="absolute left-1 top-1 z-[95] max-w-[92%] rounded bg-background/90 px-1.5 py-0.5 text-[9px] font-medium leading-3 text-foreground shadow-sm">
+                <span
+                  className="absolute z-[93] -translate-x-full -translate-y-[140%] rounded bg-background/90 px-1 py-0.5 text-[8px] font-medium leading-none text-foreground shadow-sm"
+                  style={{ left: `${measurementPair.left.x * 100}%`, top: `${measurementPair.left.y * 100}%` }}
+                >
+                  {measurementPair.leftLabel}
+                </span>
+                <span
+                  className="absolute z-[93] translate-x-1 -translate-y-[140%] rounded bg-background/90 px-1 py-0.5 text-[8px] font-medium leading-none text-foreground shadow-sm"
+                  style={{ left: `${measurementPair.right.x * 100}%`, top: `${measurementPair.right.y * 100}%` }}
+                >
+                  {measurementPair.rightLabel}
+                </span>
+                <span className="absolute bottom-1 left-1 z-[91] max-w-[92%] rounded bg-background/90 px-1.5 py-0.5 text-[9px] font-medium leading-3 text-foreground shadow-sm">
                   <span className="block">{metadata.garmentType || visualCategory}</span>
+                  <span className="block">{measurementPair.fullLabel}</span>
                   <span className="block">anchor: {formatWidthAnchor(metadata, garment?.image_analysis)}</span>
-                  <span className="block">rendered: {(renderedUpperWidth ?? upperPair.width * boxWidthPct).toFixed(1)}%</span>
+                  <span className="block">rendered: {(renderedUpperWidth ?? measurementPair.width * boxWidthPct).toFixed(1)}%</span>
                 </span>
                 {landmarkPoints.map((point, pointIndex) => (
                   <span
                     key={pointIndex}
-                    className="absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary ring-2 ring-background"
+                    className="absolute z-[96] h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary ring-2 ring-background"
                     style={{ left: `${point!.x * 100}%`, top: `${point!.y * 100}%` }}
                   />
                 ))}
