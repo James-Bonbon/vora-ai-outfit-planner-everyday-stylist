@@ -26,6 +26,13 @@ type LayoutMetadata = {
   lengthClass?: string;
   bulkClass?: string;
   preferredPreviewScale?: number;
+  leftUpperAnchor?: { x: number; y: number };
+  rightUpperAnchor?: { x: number; y: number };
+  upperBodyWidthAnchor?: number;
+  necklineCenter?: { x: number; y: number };
+  waistCenter?: { x: number; y: number };
+  hemCenter?: { x: number; y: number };
+  confidence?: number;
   bodyAnchors?: {
     leftShoulder?: { x: number; y: number };
     rightShoulder?: { x: number; y: number };
@@ -127,11 +134,41 @@ const getTargetVisibleHeight = (visualCategory: VisualCategory, metadata: Layout
 };
 
 const getShoulderWidthRatio = (metadata: LayoutMetadata) => {
+  const explicitWidth = Number(metadata.upperBodyWidthAnchor);
+  if (Number.isFinite(explicitWidth) && explicitWidth > 0 && explicitWidth <= 1) return clamp(explicitWidth, 0.08, 1);
   const left = metadata.bodyAnchors?.leftShoulder;
   const right = metadata.bodyAnchors?.rightShoulder;
   if (!left || !right) return null;
   const shoulderWidth = Math.abs(Number(right.x) - Number(left.x));
   return Number.isFinite(shoulderWidth) && shoulderWidth > 0.08 ? clamp(shoulderWidth, 0.08, 1) : null;
+};
+
+const toRelativePoint = (point: { x: number; y: number } | undefined, analysis?: ImageAnalysis | null) => {
+  if (!point) return null;
+  const x = Number(point.x);
+  const y = Number(point.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return {
+    x: clamp(x > 1 && analysis?.imageWidth ? x / analysis.imageWidth : x, 0, 1),
+    y: clamp(y > 1 && analysis?.imageHeight ? y / analysis.imageHeight : y, 0, 1),
+  };
+};
+
+const getUpperAnchorPair = (metadata: LayoutMetadata, analysis?: ImageAnalysis | null) => {
+  const left = toRelativePoint(metadata.leftUpperAnchor, analysis) || toRelativePoint(metadata.bodyAnchors?.leftShoulder, analysis);
+  const right = toRelativePoint(metadata.rightUpperAnchor, analysis) || toRelativePoint(metadata.bodyAnchors?.rightShoulder, analysis);
+  if (!left || !right) return null;
+  const width = Math.abs(right.x - left.x);
+  return width > 0.08 ? { left, right, width: clamp(width, 0.08, 1) } : null;
+};
+
+const getUpperBodyWidthRatio = (metadata: LayoutMetadata, analysis?: ImageAnalysis | null) => {
+  const explicitWidth = Number(metadata.upperBodyWidthAnchor);
+  if (Number.isFinite(explicitWidth) && explicitWidth > 0) {
+    const ratio = explicitWidth > 1 && analysis?.imageWidth ? explicitWidth / analysis.imageWidth : explicitWidth;
+    if (ratio > 0.08) return clamp(ratio, 0.08, 1);
+  }
+  return getUpperAnchorPair(metadata, analysis)?.width || getShoulderWidthRatio(metadata);
 };
 
 const getShoulderCenter = (metadata: LayoutMetadata) => {
@@ -167,11 +204,12 @@ const getNormalizedStyle = ({
   const preferredScale = clamp(Number(metadata.preferredPreviewScale) || 0.55, 0.2, 1);
   const intendedVisibleWidth = clamp(intendedVisibleHeight * visibleAspect * (0.82 + preferredScale * 0.24), 22, 66);
   const boxHeight = clamp(intendedVisibleHeight / visibleHeightRatio, 22, 88);
-  const shoulderWidthRatio = getShoulderWidthRatio(metadata);
-  const shoulderBoxWidth = shoulderWidthRatio && targetRenderedShoulderWidth
-    ? targetRenderedShoulderWidth / shoulderWidthRatio
+  const confidence = Number(metadata.confidence ?? 0.75);
+  const upperBodyWidthRatio = confidence >= 0.5 ? getUpperBodyWidthRatio(metadata, analysis) : null;
+  const upperAnchorBoxWidth = upperBodyWidthRatio && targetRenderedShoulderWidth
+    ? targetRenderedShoulderWidth / upperBodyWidthRatio
     : null;
-  const boxWidth = clamp(Math.max(intendedVisibleWidth / visibleWidthRatio, shoulderBoxWidth || 0), 22, shoulderBoxWidth ? 112 : 92);
+  const boxWidth = clamp(Math.max(intendedVisibleWidth / visibleWidthRatio, upperAnchorBoxWidth || 0), 22, upperAnchorBoxWidth ? 112 : 92);
   const visibleCenterX = analysis?.imageWidth && analysis?.visibleWidth
     ? ((analysis.visibleX ?? 0) + analysis.visibleWidth / 2) / analysis.imageWidth
     : 0.5;
