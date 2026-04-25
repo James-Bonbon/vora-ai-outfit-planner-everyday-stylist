@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Camera, Loader2, Sparkles, Search, RefreshCw, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { normalizeToPng, sliceImageByBoundingBoxes, filterBoundingBoxes, BoundingBox, CroppedGarment } from "@/utils/imageProcessing";
+import { normalizeToPng, sliceImageByBoundingBoxes, filterBoundingBoxes, calculateVisibleAlphaBounds, BoundingBox, CroppedGarment, ImageAnalysis } from "@/utils/imageProcessing";
 import { createThumbnail } from "@/utils/createThumbnail";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -24,6 +24,8 @@ export interface PrefillData {
   /** Processed blob after bg removal (for manual uploads) */
   processedBlob?: Blob;
   storage_zone?: string;
+  imageAnalysis?: ImageAnalysis | null;
+  layoutMetadata?: any;
 }
 
 const STORAGE_ZONES = [
@@ -107,6 +109,8 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
   };
 
   const imageBase64Ref = useRef<string | null>(null);
+  const imageAnalysisRef = useRef<ImageAnalysis | null>(null);
+  const layoutMetadataRef = useRef<any>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -235,6 +239,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       const processedFile = new File([safeBlob], `processed_${Date.now()}.png`, { type: "image/png" });
       finalBlob = processedFile;
       bgRemoved = true;
+      imageAnalysisRef.current = await calculateVisibleAlphaBounds(processedFile);
       setHasTransparentBg(true);
       setProcessedBlob(processedFile);
 
@@ -267,6 +272,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       if (data?.material) setMaterial(data.material);
       if (data?.brand) setBrand(data.brand || "");
       if (data?.storage_zone) setStorageZoneId(data.storage_zone);
+      if (data?.layout_metadata) layoutMetadataRef.current = data.layout_metadata;
       toast.success("AI tagged your item! ✨");
 
       if (data?.brand) {
