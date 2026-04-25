@@ -91,7 +91,7 @@ const OutfitCalendar = () => {
 
       const [profileRes, closetRes, roleRes, outfitRes, eventsRes] = await Promise.all([
         supabase.from("profiles").select("subscription_tier").eq("user_id", user!.id).maybeSingle(),
-        supabase.from("closet_items").select("id, name, image_url, thumbnail_url, category, created_at, is_in_laundry").eq("user_id", user!.id),
+        supabase.from("closet_items").select("id, name, image_url, thumbnail_url, category, created_at, is_in_laundry, image_analysis, layout_metadata").eq("user_id", user!.id),
         supabase.from("user_roles").select("role").eq("user_id", user!.id).eq("role", "admin").maybeSingle(),
         supabase.from("outfit_calendar").select("*").eq("user_id", user!.id).gte("date", today).lte("date", end).order("date"),
         supabase.from("user_calendar_events").select("id, title, start_time, end_time, location").eq("user_id", user!.id).gte("start_time", today + "T00:00:00Z").lte("start_time", end + "T23:59:59Z").order("start_time"),
@@ -138,7 +138,7 @@ const OutfitCalendar = () => {
     (async () => {
       const { data } = await supabase
         .from("closet_items")
-        .select("id, name, image_url, thumbnail_url, category")
+          .select("id, name, image_url, thumbnail_url, category, image_analysis, layout_metadata")
         .in("id", unique);
       if (!data) return;
 
