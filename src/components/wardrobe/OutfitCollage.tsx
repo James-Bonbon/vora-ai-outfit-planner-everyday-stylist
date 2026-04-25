@@ -244,40 +244,57 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
     .sort((a, b) => visualOrder[a.visualCategory] - visualOrder[b.visualCategory]);
 
   const hasOuterwear = classified.some((item) => item.visualCategory === "outerwear");
+  const hasDress = classified.some((item) => item.visualCategory === "dresses");
   const coatHeight = hasOuterwear ? 64 : undefined;
   const showDebugAnchors = debugAnchors || new URLSearchParams(window.location.search).get("outfitDebugAnchors") === "1";
 
   const seenCounts: Partial<Record<VisualCategory, number>> = {};
+  const renderItems = classified.map(({ garment, visualCategory, imageUrl }, stackIndex) => {
+    const duplicateIndex = seenCounts[visualCategory] ?? 0;
+    seenCounts[visualCategory] = duplicateIndex + 1;
+    const inferred = inferMetadata(garment, visualCategory);
+    const metadata = {
+      ...inferred,
+      bodyAnchors: inferred.bodyAnchors || estimateBodyAnchors(garment?.image_analysis, visualCategory),
+    };
+    const intendedVisibleHeight = getTargetVisibleHeight(visualCategory, metadata, coatHeight);
+    const targetRenderedShoulderWidth = visualCategory === "outerwear"
+      ? 44
+      : visualCategory === "dresses"
+        ? (hasOuterwear ? 41 : 38)
+        : visualCategory === "tops"
+          ? (hasOuterwear ? 36 : 34)
+          : undefined;
+    const layout = stackLayouts[Math.min(stackIndex, stackLayouts.length - 1)];
+    const style = getNormalizedStyle({
+      analysis: garment?.image_analysis,
+      duplicateIndex,
+      intendedVisibleHeight,
+      layout,
+      metadata,
+      stackIndex,
+      targetRenderedShoulderWidth,
+    });
+    const upperWidthRatio = getUpperBodyWidthRatio(metadata, garment?.image_analysis);
+    return {
+      garment,
+      visualCategory,
+      imageUrl,
+      duplicateIndex,
+      metadata,
+      style,
+      renderedUpperWidth: upperWidthRatio ? upperWidthRatio * style.boxWidthPct : null,
+    };
+  });
+
+  const coatRenderedWidth = renderItems.find((item) => item.visualCategory === "outerwear")?.renderedUpperWidth ?? null;
+  const dressRenderedWidth = renderItems.find((item) => item.visualCategory === "dresses")?.renderedUpperWidth ?? null;
+  const dressToCoatRatio = coatRenderedWidth && dressRenderedWidth ? dressRenderedWidth / coatRenderedWidth : null;
 
   return (
     <div className="relative w-full aspect-[3/4] bg-secondary/10 rounded-2xl overflow-hidden">
-      {classified.map(({ garment, visualCategory, imageUrl }, stackIndex) => {
-        const duplicateIndex = seenCounts[visualCategory] ?? 0;
-        seenCounts[visualCategory] = duplicateIndex + 1;
-
+      {renderItems.map(({ garment, visualCategory, imageUrl, duplicateIndex, metadata, style, renderedUpperWidth }) => {
         const baseAlt = garment?.name || garment?.category || "Garment";
-        const layout = stackLayouts[Math.min(stackIndex, stackLayouts.length - 1)];
-        const metadata = {
-          ...inferMetadata(garment, visualCategory),
-          bodyAnchors: inferMetadata(garment, visualCategory).bodyAnchors || estimateBodyAnchors(garment?.image_analysis, visualCategory),
-        };
-        const intendedVisibleHeight = getTargetVisibleHeight(visualCategory, metadata, coatHeight);
-        const targetRenderedShoulderWidth = visualCategory === "outerwear"
-          ? 44
-          : visualCategory === "dresses"
-            ? (hasOuterwear ? 40 : 38)
-            : visualCategory === "tops"
-              ? (hasOuterwear ? 36 : 34)
-              : undefined;
-        const style = getNormalizedStyle({
-          analysis: garment?.image_analysis,
-          duplicateIndex,
-          intendedVisibleHeight,
-          layout,
-          metadata,
-          stackIndex,
-          targetRenderedShoulderWidth,
-        });
         const { boxWidthPct, boxHeightPct, anchorShiftXPct, anchorShiftYPct, rotationDeg, ...imageStyle } = style;
         const upperPair = getUpperAnchorPair(metadata, garment?.image_analysis);
         const leftUpper = upperPair?.left;
