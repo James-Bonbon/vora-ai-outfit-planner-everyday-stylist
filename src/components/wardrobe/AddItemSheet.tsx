@@ -69,6 +69,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
     preview: string;
     category: string;
     name: string;
+    imageAnalysis?: ImageAnalysis | null;
   }
   const [batchEdits, setBatchEdits] = useState<BatchEditItem[]>([]);
 
@@ -98,6 +99,8 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
     setSavedItemId(null);
     setIsBatchMode(false);
     setBatchItems([]);
+    imageAnalysisRef.current = null;
+    layoutMetadataRef.current = null;
 
     // Destroy object URLs to prevent RAM leaks
     batchEdits.forEach(item => {
