@@ -37,6 +37,36 @@ type LayoutMetadata = {
   confidence?: number;
   anchorNormalization?: string;
   anchorSources?: Record<string, "ai" | "alpha_estimate" | "ratio_guard" | string>;
+  rawAiLandmarks?: any;
+  measurementAnchors?: {
+    upperFit?: {
+      leftUpperFitAnchor?: { x: number; y: number };
+      rightUpperFitAnchor?: { x: number; y: number };
+      upperBodyFitWidth?: number;
+      confidence?: number;
+      source?: string;
+      notes?: string;
+    };
+    waist?: {
+      leftWaistAnchor?: { x: number; y: number };
+      rightWaistAnchor?: { x: number; y: number };
+      waistWidth?: number;
+      confidence?: number;
+      source?: string;
+      notes?: string;
+    };
+  };
+  layoutAnchors?: {
+    upperFit?: {
+      leftUpperFitAnchor?: { x: number; y: number };
+      rightUpperFitAnchor?: { x: number; y: number };
+      upperBodyFitWidth?: number;
+      confidence?: number;
+      source?: string;
+      normalizationReason?: string;
+      notes?: string;
+    };
+  };
   bodyAnchors?: {
     leftShoulder?: { x: number; y: number };
     rightShoulder?: { x: number; y: number };
