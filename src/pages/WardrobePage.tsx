@@ -150,6 +150,7 @@ const WardrobePage = () => {
   const [bulkQueue, setBulkQueue] = useState<AnalyzedItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<GarmentDisplay | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [backfillingLandmarks, setBackfillingLandmarks] = useState(false);
 
   // Smart Laundry state
   const [needsLaundryReview, setNeedsLaundryReview] = useState<ClosetItem[]>([]);
@@ -435,7 +436,27 @@ const WardrobePage = () => {
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ["closet"] });
     queryClient.invalidateQueries({ queryKey: ["closet-items"] });
+    queryClient.invalidateQueries({ queryKey: ["lookbook"] });
+    queryClient.invalidateQueries({ queryKey: ["outfit-calendar-data"] });
     if (activeTab === "dream") queryClient.invalidateQueries({ queryKey: ["dream", user?.id] });
+  };
+
+  const handleBackfillLandmarks = async () => {
+    if (!user || backfillingLandmarks) return;
+    setBackfillingLandmarks(true);
+    const toastId = toast.loading("Backfilling garment landmarks...");
+    try {
+      const { data, error } = await supabase.functions.invoke("backfill-garment-landmarks", {
+        body: { limit: 30 },
+      });
+      if (error) throw error;
+      handleRefresh();
+      toast.success(`Updated ${data?.results?.filter((r: any) => r.status === "updated").length ?? 0} garment landmarks.`, { id: toastId });
+    } catch (error: any) {
+      toast.error(error?.message || "Landmark backfill failed.", { id: toastId });
+    } finally {
+      setBackfillingLandmarks(false);
+    }
   };
 
   return (
@@ -445,6 +466,16 @@ const WardrobePage = () => {
         <h1 className="text-2xl font-bold text-foreground font-outfit">Wardrobe</h1>
         {activeTab === "closet" && (
           <div className="flex gap-2">
+            <Button
+              size="icon"
+              variant="outline"
+              className="w-9 h-9 rounded-xl border-border hover:bg-muted shrink-0 shadow-sm"
+              onClick={handleBackfillLandmarks}
+              disabled={backfillingLandmarks}
+              title="Backfill garment landmarks"
+            >
+              {backfillingLandmarks ? <Loader2 className="!w-4 !h-4 animate-spin" /> : <Server className="!w-4 !h-4 text-foreground" />}
+            </Button>
             <Button
               size="icon"
               variant="outline"
