@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { cropToBoundingBox, calculateVisibleAlphaBounds, type ImageAnalysis } from "@/utils/imageProcessing";
+import { cropToBoundingBox, calculateVisibleAlphaBounds, mergeLayoutMetadataWithAnchors, type ImageAnalysis } from "@/utils/imageProcessing";
 import GlassCard from "@/components/GlassCard";
 // Lazy-loaded to avoid WASM pre-bundling timeout
 const loadRemoveBackground = () =>
@@ -152,6 +152,8 @@ const SmartCamera = ({ open, onOpenChange, onAnalyzed }: SmartCameraProps) => {
 
         const imageFile = new File([processedBlob], `capture-${i}.${ext}`, { type: contentType });
 
+        const imageAnalysis = await calculateVisibleAlphaBounds(processedBlob);
+
         results.push({
           imageFile,
           preview,
@@ -162,8 +164,8 @@ const SmartCamera = ({ open, onOpenChange, onAnalyzed }: SmartCameraProps) => {
           brand: analyzed?.brand || "",
           hasTransparentBg,
           storage_zone: analyzed?.storage_zone || undefined,
-          imageAnalysis: await calculateVisibleAlphaBounds(processedBlob),
-          layoutMetadata: analyzed?.layout_metadata || null,
+          imageAnalysis,
+          layoutMetadata: mergeLayoutMetadataWithAnchors(analyzed?.layout_metadata, imageAnalysis, analyzed?.category, analyzed?.name),
         });
       }
 

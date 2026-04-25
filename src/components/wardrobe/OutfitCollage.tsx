@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 
 type OutfitCollageProps = {
   garments: any[];
+  debugAnchors?: boolean;
 };
 
 type VisualCategory = "shoes" | "bottoms" | "tops" | "outerwear" | "dresses" | "hats" | "accessories";
@@ -25,6 +26,21 @@ type LayoutMetadata = {
   lengthClass?: string;
   bulkClass?: string;
   preferredPreviewScale?: number;
+  bodyAnchors?: {
+    leftShoulder?: { x: number; y: number };
+    rightShoulder?: { x: number; y: number };
+    necklineCenter?: { x: number; y: number };
+    waistCenter?: { x: number; y: number };
+    hemCenter?: { x: number; y: number };
+  };
+};
+
+type NormalizedRenderStyle = CSSProperties & {
+  boxWidthPct: number;
+  boxHeightPct: number;
+  anchorShiftXPct: number;
+  anchorShiftYPct: number;
+  rotationDeg: number;
 };
 
 const centeredOffsets = [
@@ -79,6 +95,27 @@ const inferMetadata = (garment: any, visualCategory: VisualCategory): LayoutMeta
   return { garmentType: "shirt", bodyCoverage: "upper_body", lengthClass: "hip", bulkClass: "light", preferredPreviewScale: 0.56 };
 };
 
+const estimateBodyAnchors = (analysis: ImageAnalysis | null | undefined, visualCategory: VisualCategory): LayoutMetadata["bodyAnchors"] | undefined => {
+  if (!analysis?.imageWidth || !analysis?.imageHeight || !analysis.visibleWidth || !analysis.visibleHeight) return undefined;
+  if (!(["outerwear", "dresses", "tops"] as VisualCategory[]).includes(visualCategory)) return undefined;
+  const left = (analysis.visibleX ?? 0) / analysis.imageWidth;
+  const top = (analysis.visibleY ?? 0) / analysis.imageHeight;
+  const width = analysis.visibleWidth / analysis.imageWidth;
+  const height = analysis.visibleHeight / analysis.imageHeight;
+  const centerX = left + width / 2;
+  const shoulderFactor = visualCategory === "outerwear" ? 0.78 : visualCategory === "dresses" ? 0.72 : 0.7;
+  const shoulderY = top + height * (visualCategory === "outerwear" ? 0.18 : 0.16);
+  const halfShoulder = (width * shoulderFactor) / 2;
+
+  return {
+    leftShoulder: { x: clamp(centerX - halfShoulder, 0, 1), y: clamp(shoulderY, 0, 1) },
+    rightShoulder: { x: clamp(centerX + halfShoulder, 0, 1), y: clamp(shoulderY, 0, 1) },
+    necklineCenter: { x: centerX, y: clamp(top + height * 0.12, 0, 1) },
+    waistCenter: { x: centerX, y: clamp(top + height * (visualCategory === "dresses" ? 0.46 : 0.58), 0, 1) },
+    hemCenter: { x: centerX, y: clamp(top + height * 0.94, 0, 1) },
+  };
+};
+
 const getTargetVisibleHeight = (visualCategory: VisualCategory, metadata: LayoutMetadata, coatHeight?: number) => {
   if (visualCategory === "outerwear") return metadata.garmentType === "jacket" ? 58 : 64;
   if (visualCategory === "dresses") return coatHeight ? clamp(coatHeight * 0.94, coatHeight * 0.85, coatHeight * 1.1) : 62;
@@ -89,6 +126,21 @@ const getTargetVisibleHeight = (visualCategory: VisualCategory, metadata: Layout
   return 26;
 };
 
+const getShoulderWidthRatio = (metadata: LayoutMetadata) => {
+  const left = metadata.bodyAnchors?.leftShoulder;
+  const right = metadata.bodyAnchors?.rightShoulder;
+  if (!left || !right) return null;
+  const shoulderWidth = Math.abs(Number(right.x) - Number(left.x));
+  return Number.isFinite(shoulderWidth) && shoulderWidth > 0.08 ? clamp(shoulderWidth, 0.08, 1) : null;
+};
+
+const getShoulderCenter = (metadata: LayoutMetadata) => {
+  const left = metadata.bodyAnchors?.leftShoulder;
+  const right = metadata.bodyAnchors?.rightShoulder;
+  if (!left || !right) return null;
+  return { x: (Number(left.x) + Number(right.x)) / 2, y: (Number(left.y) + Number(right.y)) / 2 };
+};
+
 const getNormalizedStyle = ({
   analysis,
   duplicateIndex,
@@ -96,6 +148,7 @@ const getNormalizedStyle = ({
   layout,
   metadata,
   stackIndex,
+  targetRenderedShoulderWidth,
 }: {
   analysis?: ImageAnalysis | null;
   duplicateIndex: number;
@@ -103,7 +156,8 @@ const getNormalizedStyle = ({
   layout: (typeof stackLayouts)[number];
   metadata: LayoutMetadata;
   stackIndex: number;
-}): CSSProperties => {
+  targetRenderedShoulderWidth?: number;
+}): NormalizedRenderStyle => {
   const offset = centeredOffsets[duplicateIndex % centeredOffsets.length];
   const overflowOffset = Math.max(0, stackIndex - stackLayouts.length + 1) * 10;
   const visibleHeightRatio = clamp(Number(analysis?.visibleHeightRatio) || 1, 0.18, 1);
@@ -113,7 +167,11 @@ const getNormalizedStyle = ({
   const preferredScale = clamp(Number(metadata.preferredPreviewScale) || 0.55, 0.2, 1);
   const intendedVisibleWidth = clamp(intendedVisibleHeight * visibleAspect * (0.82 + preferredScale * 0.24), 22, 66);
   const boxHeight = clamp(intendedVisibleHeight / visibleHeightRatio, 22, 88);
-  const boxWidth = clamp(intendedVisibleWidth / visibleWidthRatio, 22, 88);
+  const shoulderWidthRatio = getShoulderWidthRatio(metadata);
+  const shoulderBoxWidth = shoulderWidthRatio && targetRenderedShoulderWidth
+    ? targetRenderedShoulderWidth / shoulderWidthRatio
+    : null;
+  const boxWidth = clamp(Math.max(intendedVisibleWidth / visibleWidthRatio, shoulderBoxWidth || 0), 22, shoulderBoxWidth ? 112 : 92);
   const visibleCenterX = analysis?.imageWidth && analysis?.visibleWidth
     ? ((analysis.visibleX ?? 0) + analysis.visibleWidth / 2) / analysis.imageWidth
     : 0.5;
@@ -121,17 +179,25 @@ const getNormalizedStyle = ({
     ? ((analysis.visibleY ?? 0) + analysis.visibleHeight / 2) / analysis.imageHeight
     : 0.5;
 
+  const anchorShiftXPct = (0.5 - visibleCenterX) * 100;
+  const anchorShiftYPct = (0.5 - visibleCenterY) * 100;
+
   return {
     left: `${layout.x}%`,
     top: `${layout.y}%`,
     width: `${boxWidth}%`,
     height: `${boxHeight}%`,
     zIndex: layout.zIndex,
-    transform: `translate(${offset.x + overflowOffset}px, ${offset.y + overflowOffset}px) translate(${(0.5 - visibleCenterX) * 100}%, ${(0.5 - visibleCenterY) * 100}%) rotate(${layout.rotate}deg)`,
+    transform: `translate(${offset.x + overflowOffset}px, ${offset.y + overflowOffset}px) translate(${anchorShiftXPct}%, ${anchorShiftYPct}%) rotate(${layout.rotate}deg)`,
+    boxWidthPct: boxWidth,
+    boxHeightPct: boxHeight,
+    anchorShiftXPct,
+    anchorShiftYPct,
+    rotationDeg: layout.rotate,
   };
 };
 
-export const OutfitCollage = ({ garments }: OutfitCollageProps) => {
+export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageProps) => {
   if (!garments || garments.length === 0) return null;
 
   const classified = garments
@@ -139,7 +205,9 @@ export const OutfitCollage = ({ garments }: OutfitCollageProps) => {
     .filter((item) => item.imageUrl)
     .sort((a, b) => visualOrder[a.visualCategory] - visualOrder[b.visualCategory]);
 
-  const coatHeight = classified.some((item) => item.visualCategory === "outerwear") ? 64 : undefined;
+  const hasOuterwear = classified.some((item) => item.visualCategory === "outerwear");
+  const coatHeight = hasOuterwear ? 64 : undefined;
+  const showDebugAnchors = debugAnchors || new URLSearchParams(window.location.search).get("outfitDebugAnchors") === "1";
 
   const seenCounts: Partial<Record<VisualCategory, number>> = {};
 
@@ -151,8 +219,18 @@ export const OutfitCollage = ({ garments }: OutfitCollageProps) => {
 
         const baseAlt = garment?.name || garment?.category || "Garment";
         const layout = stackLayouts[Math.min(stackIndex, stackLayouts.length - 1)];
-        const metadata = inferMetadata(garment, visualCategory);
+        const metadata = {
+          ...inferMetadata(garment, visualCategory),
+          bodyAnchors: inferMetadata(garment, visualCategory).bodyAnchors || estimateBodyAnchors(garment?.image_analysis, visualCategory),
+        };
         const intendedVisibleHeight = getTargetVisibleHeight(visualCategory, metadata, coatHeight);
+        const targetRenderedShoulderWidth = visualCategory === "outerwear"
+          ? 44
+          : visualCategory === "dresses"
+            ? (hasOuterwear ? 40 : 38)
+            : visualCategory === "tops"
+              ? (hasOuterwear ? 36 : 34)
+              : undefined;
         const style = getNormalizedStyle({
           analysis: garment?.image_analysis,
           duplicateIndex,
@@ -160,18 +238,43 @@ export const OutfitCollage = ({ garments }: OutfitCollageProps) => {
           layout,
           metadata,
           stackIndex,
+          targetRenderedShoulderWidth,
         });
+        const { boxWidthPct, boxHeightPct, anchorShiftXPct, anchorShiftYPct, rotationDeg, ...imageStyle } = style;
+        const shoulderCenter = getShoulderCenter(metadata);
+        const leftShoulder = metadata.bodyAnchors?.leftShoulder;
+        const rightShoulder = metadata.bodyAnchors?.rightShoulder;
 
         return (
-          <img
-            key={`${garment?.id ?? imageUrl}-${duplicateIndex}`}
-            src={imageUrl}
-            alt={baseAlt}
-            loading="lazy"
-            decoding="async"
-            className={cn("absolute object-contain object-center drop-shadow-md")}
-            style={style}
-          />
+          <div key={`${garment?.id ?? imageUrl}-${duplicateIndex}`}>
+            <img
+              src={imageUrl}
+              alt={baseAlt}
+              loading="lazy"
+              decoding="async"
+              className={cn("absolute object-contain object-center drop-shadow-md")}
+              style={imageStyle}
+            />
+            {showDebugAnchors && leftShoulder && rightShoulder && shoulderCenter && (
+              <div className="absolute pointer-events-none" style={imageStyle} aria-hidden="true">
+                <div
+                  className="absolute h-0.5 bg-primary"
+                  style={{
+                    left: `${leftShoulder.x * 100}%`,
+                    top: `${shoulderCenter.y * 100}%`,
+                    width: `${Math.abs(rightShoulder.x - leftShoulder.x) * 100}%`,
+                  }}
+                />
+                {[leftShoulder, rightShoulder, metadata.bodyAnchors?.necklineCenter, metadata.bodyAnchors?.waistCenter, metadata.bodyAnchors?.hemCenter].filter(Boolean).map((point, pointIndex) => (
+                  <span
+                    key={pointIndex}
+                    className="absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary ring-2 ring-background"
+                    style={{ left: `${point!.x * 100}%`, top: `${point!.y * 100}%` }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         );
       })}
     </div>

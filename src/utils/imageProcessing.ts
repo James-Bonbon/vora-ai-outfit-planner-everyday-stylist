@@ -108,7 +108,81 @@ export interface ImageAnalysis {
   visibleHeight: number;
   visibleWidthRatio: number;
   visibleHeightRatio: number;
+  visibleAlphaBounds?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
 }
+
+export interface BodyAnchorPoint {
+  x: number;
+  y: number;
+}
+
+export interface BodyAnchors {
+  leftShoulder?: BodyAnchorPoint;
+  rightShoulder?: BodyAnchorPoint;
+  necklineCenter?: BodyAnchorPoint;
+  waistCenter?: BodyAnchorPoint;
+  hemCenter?: BodyAnchorPoint;
+  visibleAlphaBounds?: ImageAnalysis["visibleAlphaBounds"];
+}
+
+export const normalizeBodyAnchors = (anchors?: BodyAnchors | null): BodyAnchors | null => {
+  if (!anchors) return null;
+  const normalizePoint = (point?: BodyAnchorPoint) => {
+    if (!point || !Number.isFinite(Number(point.x)) || !Number.isFinite(Number(point.y))) return undefined;
+    return { x: Math.max(0, Math.min(1, Number(point.x))), y: Math.max(0, Math.min(1, Number(point.y))) };
+  };
+  return {
+    leftShoulder: normalizePoint(anchors.leftShoulder),
+    rightShoulder: normalizePoint(anchors.rightShoulder),
+    necklineCenter: normalizePoint(anchors.necklineCenter),
+    waistCenter: normalizePoint(anchors.waistCenter),
+    hemCenter: normalizePoint(anchors.hemCenter),
+    visibleAlphaBounds: anchors.visibleAlphaBounds,
+  };
+};
+
+export const estimateBodyAnchors = (analysis?: ImageAnalysis | null, category?: string | null, itemName?: string | null): BodyAnchors | null => {
+  if (!analysis?.imageWidth || !analysis?.imageHeight) return null;
+  const text = `${category ?? ""} ${itemName ?? ""}`.toLowerCase();
+  const isOuterwear = /coat|jacket|blazer|trench|parka|outerwear|cardigan/.test(text);
+  const isDress = /dress|gown|jumpsuit|romper|one[-\s]?piece/.test(text);
+  const isUpper = isOuterwear || isDress || /top|shirt|blouse|tee|t-shirt|knit|sweater|jumper|hoodie/.test(text);
+  if (!isUpper) {
+    return { visibleAlphaBounds: analysis.visibleAlphaBounds };
+  }
+
+  const left = analysis.visibleX / analysis.imageWidth;
+  const top = analysis.visibleY / analysis.imageHeight;
+  const width = analysis.visibleWidth / analysis.imageWidth;
+  const height = analysis.visibleHeight / analysis.imageHeight;
+  const cx = left + width / 2;
+  const shoulderFactor = isOuterwear ? 0.78 : isDress ? 0.7 : 0.72;
+  const shoulderY = top + height * (isOuterwear ? 0.18 : 0.16);
+  const shoulderHalf = (width * shoulderFactor) / 2;
+
+  return normalizeBodyAnchors({
+    leftShoulder: { x: cx - shoulderHalf, y: shoulderY },
+    rightShoulder: { x: cx + shoulderHalf, y: shoulderY },
+    necklineCenter: { x: cx, y: top + height * 0.12 },
+    waistCenter: { x: cx, y: top + height * (isDress ? 0.46 : 0.58) },
+    hemCenter: { x: cx, y: top + height * 0.94 },
+    visibleAlphaBounds: analysis.visibleAlphaBounds,
+  });
+};
+
+export const mergeLayoutMetadataWithAnchors = (metadata: any, analysis?: ImageAnalysis | null, category?: string | null, itemName?: string | null) => {
+  const normalizedAnchors = normalizeBodyAnchors(metadata?.bodyAnchors || metadata?.body_anchors);
+  return {
+    ...(metadata || {}),
+    bodyAnchors: normalizedAnchors || estimateBodyAnchors(analysis, category, itemName),
+    visibleAlphaBounds: analysis?.visibleAlphaBounds,
+  };
+};
 
 /**
  * Scans an image for non-transparent pixels and crops to their bounding box,
@@ -248,6 +322,7 @@ export async function calculateVisibleAlphaBounds(file: Blob): Promise<ImageAnal
       visibleHeight: height,
       visibleWidthRatio: 1,
       visibleHeightRatio: 1,
+      visibleAlphaBounds: { x: 0, y: 0, width, height },
     };
   }
 
@@ -263,6 +338,7 @@ export async function calculateVisibleAlphaBounds(file: Blob): Promise<ImageAnal
     visibleHeight,
     visibleWidthRatio: visibleWidth / width,
     visibleHeightRatio: visibleHeight / height,
+    visibleAlphaBounds: { x: minX, y: minY, width: visibleWidth, height: visibleHeight },
   };
 }
 

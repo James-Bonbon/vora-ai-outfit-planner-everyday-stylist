@@ -49,6 +49,7 @@ serve(async (req) => {
   - "lengthClass": one of "cropped", "waist", "hip", "thigh", "knee", "midi", "full_length"
   - "bulkClass": one of "light", "medium", "bulky"
   - "preferredPreviewScale": a number from 0.2 to 1.0 indicating visual importance in an editorial flat-lay preview
+  - "bodyAnchors": for coats, jackets, dresses, shirts, sweaters, and other upper-body garments, estimate semantic landmarks as relative image coordinates from 0 to 1: { "leftShoulder": {"x": number, "y": number}, "rightShoulder": {"x": number, "y": number}, "necklineCenter": {"x": number, "y": number}, "waistCenter": {"x": number, "y": number} or null, "hemCenter": {"x": number, "y": number} or null }. Shoulders must sit on the real garment shoulder seam/outer shoulder, not the transparent PNG canvas edge.
 Return ONLY valid JSON, no markdown.`,
           },
           {

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Camera, Loader2, Sparkles, Search, RefreshCw, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { normalizeToPng, sliceImageByBoundingBoxes, filterBoundingBoxes, calculateVisibleAlphaBounds, BoundingBox, CroppedGarment, ImageAnalysis } from "@/utils/imageProcessing";
+import { normalizeToPng, sliceImageByBoundingBoxes, filterBoundingBoxes, calculateVisibleAlphaBounds, mergeLayoutMetadataWithAnchors, BoundingBox, CroppedGarment, ImageAnalysis } from "@/utils/imageProcessing";
 import { createThumbnail } from "@/utils/createThumbnail";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -301,7 +301,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       if (data?.material) setMaterial(data.material);
       if (data?.brand) setBrand(data.brand || "");
       if (data?.storage_zone) setStorageZoneId(data.storage_zone);
-      if (data?.layout_metadata) layoutMetadataRef.current = data.layout_metadata;
+      layoutMetadataRef.current = mergeLayoutMetadataWithAnchors(data?.layout_metadata, imageAnalysisRef.current, data?.category || category, data?.name || name);
       toast.success("AI tagged your item! ✨");
 
       if (data?.brand) {
@@ -435,6 +435,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       if (!layoutMetadataRef.current) {
         layoutMetadataRef.current = inferLayoutMetadata(category, name);
       }
+      layoutMetadataRef.current = mergeLayoutMetadataWithAnchors(layoutMetadataRef.current, imageAnalysisRef.current, category, name);
 
       const insertPayload: any = {
         user_id: user.id,
@@ -539,7 +540,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
           category: item.category,
           storage_zone_id: storageZoneId || null,
           image_analysis: item.imageAnalysis || null,
-          layout_metadata: inferLayoutMetadata(item.category, item.name),
+          layout_metadata: mergeLayoutMetadataWithAnchors(inferLayoutMetadata(item.category, item.name), item.imageAnalysis || null, item.category, item.name),
         });
       }
 
