@@ -1,4 +1,4 @@
-import { Fragment, type CSSProperties } from "react";
+import { type CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 
 type OutfitCollageProps = {
@@ -27,19 +27,6 @@ const classifyGarment = (garment: any): VisualCategory => {
 };
 
 const getImageUrl = (garment: any) => garment?.image_url || garment?.thumbnail_url || garment?.url || "";
-
-const centeredStyle = (index: number): CSSProperties => {
-  const offset = centeredOffsets[index % centeredOffsets.length];
-  return {
-    transform: `translateX(calc(-50% + ${offset.x}px)) translateY(${offset.y}px)`,
-  };
-};
-
-const accessoryStyle = (index: number): CSSProperties => {
-  if (index % 3 === 1) return { top: "46%", right: "auto", left: "5%", transform: "translate(12px, 12px)" };
-  if (index % 3 === 2) return { top: "34%", right: "12%", transform: "translate(-10px, 18px)" };
-  return {};
-};
 
 const visualOrder: Record<VisualCategory, number> = {
   outerwear: 1,
