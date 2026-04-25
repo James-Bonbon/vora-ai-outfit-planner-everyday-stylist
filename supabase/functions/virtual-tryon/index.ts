@@ -159,6 +159,21 @@ async function fetchAsDataUrl(url: string): Promise<string> {
   return `data:${ct};base64,${btoa(binary)}`;
 }
 
+async function canLoadImageUrl(url: string): Promise<{ url: string; ok: boolean; status: number }> {
+  try {
+    const head = await fetch(url, { method: "HEAD" });
+    if (head.ok) return { url, ok: true, status: head.status };
+
+    // Some storage/CDN routes reject HEAD even when the image is readable via GET.
+    // Fall back to a tiny ranged GET so valid public/signed image URLs are not blocked.
+    const get = await fetch(url, { headers: { Range: "bytes=0-0" } });
+    await get.body?.cancel();
+    return { url, ok: get.ok, status: get.status };
+  } catch {
+    return { url, ok: false, status: 0 };
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -224,16 +239,7 @@ serve(async (req) => {
 
     // Pre-flight HEAD check
     const urlsToCheck = [selfieUrl, ...garmentUrls];
-    const headChecks = await Promise.all(
-      urlsToCheck.map(async (u) => {
-        try {
-          const r = await fetch(u, { method: "HEAD" });
-          return { url: u, ok: r.ok, status: r.status };
-        } catch {
-          return { url: u, ok: false, status: 0 };
-        }
-      }),
-    );
+    const headChecks = await Promise.all(urlsToCheck.map(canLoadImageUrl));
     const broken = headChecks.filter((c) => !c.ok);
     if (broken.length > 0) {
       const isSelfie = broken.some((b) => b.url === selfieUrl);
