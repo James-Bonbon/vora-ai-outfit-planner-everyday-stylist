@@ -66,7 +66,7 @@ export const OutfitCollage = ({ garments }: OutfitCollageProps) => {
           visualCategory === "shoes" &&
             "absolute bottom-[5%] left-1/2 -translate-x-1/2 w-[40%] h-[20%] object-contain drop-shadow-md z-10",
           visualCategory === "bottoms" &&
-            "absolute bottom-[15%] left-1/2 -translate-x-1/2 w-[65%] h-[50%] object-contain drop-shadow-md z-20",
+            "absolute top-[40%] left-1/2 -translate-x-1/2 w-[65%] h-[55%] object-contain object-top drop-shadow-md z-20",
           visualCategory === "dresses" &&
             "absolute top-[10%] left-1/2 -translate-x-1/2 w-[70%] h-[75%] object-contain drop-shadow-md z-30",
           visualCategory === "tops" &&
