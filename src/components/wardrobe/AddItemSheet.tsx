@@ -425,6 +425,8 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
         brand: brand || null,
         notes: careData ? JSON.stringify(careData) : null,
         storage_zone_id: storageZoneId,
+        image_analysis: imageAnalysisRef.current,
+        layout_metadata: layoutMetadataRef.current,
       }).select("*").single();
 
       if (dbError) throw dbError;
@@ -512,6 +514,8 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
           name: item.name,
           category: item.category,
           storage_zone_id: storageZoneId || null,
+          image_analysis: item.imageAnalysis || null,
+          layout_metadata: inferLayoutMetadata(item.category, item.name),
         });
       }
 
