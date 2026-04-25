@@ -170,6 +170,8 @@ const hasSufficientAnchorConfidence = (metadata: LayoutMetadata) => Number(metad
 
 const hasRealAnchorSource = (metadata: LayoutMetadata, leftKey: string, rightKey: string) => {
   const sources = metadata.anchorSources;
+  const normalization = String(metadata.anchorNormalization || "");
+  if (normalization.includes("estimated") || normalization.includes("expanded_implausibly_narrow")) return false;
   return !sources || (sources[leftKey] === "ai" && sources[rightKey] === "ai");
 };
 
