@@ -290,8 +290,7 @@ const getNormalizedStyle = ({
   const preferredScale = clamp(Number(metadata.preferredPreviewScale) || 0.55, 0.2, 1);
   const intendedVisibleWidth = clamp(intendedVisibleHeight * visibleAspect * (0.82 + preferredScale * 0.24), 22, 66);
   const boxHeight = clamp(intendedVisibleHeight / visibleHeightRatio, 22, 88);
-  const confidence = Number(metadata.confidence ?? 0.75);
-  const upperBodyWidthRatio = confidence >= 0.5 ? getUpperBodyWidthRatio(metadata, analysis) : null;
+  const upperBodyWidthRatio = getUpperBodyWidthRatio(metadata, analysis);
   const upperAnchorBoxWidth = upperBodyWidthRatio && targetRenderedShoulderWidth
     ? targetRenderedShoulderWidth / upperBodyWidthRatio
     : null;
