@@ -97,10 +97,23 @@ const normalizePoint = (point: any, analysis: any) => {
 
 const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
   const next = { ...layout };
+  const confidenceBefore = Number(next.confidence);
+  const originalConfidence = Number.isFinite(confidenceBefore) ? clamp(confidenceBefore, 0, 1) : null;
+  const anchorSources: Record<string, "ai" | "alpha_estimate" | "ratio_guard"> = {
+    ...(typeof next.anchorSources === "object" && next.anchorSources ? next.anchorSources : {}),
+  };
   const typeText = `${next.garmentType ?? ""} ${item.category ?? ""} ${item.name ?? ""}`.toLowerCase();
   const isDress = /\bdress|gown|jumpsuit|romper|one[-\s]?piece\b/.test(typeText);
   const isOuterwear = /\bouterwear|coat|jacket|blazer|trench|parka|cardigan\b/.test(typeText);
   const isTop = isDress || isOuterwear || /\btop|shirt|blouse|tee|knit|sweater|hoodie\b/.test(typeText);
+  const leftWaist = normalizePoint(next.leftWaistAnchor, analysis);
+  const rightWaist = normalizePoint(next.rightWaistAnchor, analysis);
+  if (leftWaist && rightWaist) {
+    next.leftWaistAnchor = leftWaist;
+    next.rightWaistAnchor = rightWaist;
+    anchorSources.leftWaistAnchor = "ai";
+    anchorSources.rightWaistAnchor = "ai";
+  }
   if (isDress) {
     next.garmentType = "dress";
     next.bodyCoverage = next.bodyCoverage || "full_body";
@@ -123,6 +136,10 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
     next.leftUpperAnchor = left;
     next.rightUpperAnchor = right;
     next.upperBodyWidthAnchor = currentWidth;
+    next.anchorNormalization = "ai_within_ratio_guard";
+    next.anchorSources = { ...anchorSources, leftUpperAnchor: "ai", rightUpperAnchor: "ai", upperBodyWidthAnchor: "ai" };
+    next.confidenceBeforeNormalization = originalConfidence;
+    next.confidenceAfterNormalization = originalConfidence ?? next.confidence ?? null;
     return next;
   }
 
@@ -141,7 +158,12 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
   next.leftUpperAnchor = { x: clamp(centerX - half, 0, analysis.imageWidth), y: clamp(y, 0, analysis.imageHeight) };
   next.rightUpperAnchor = { x: clamp(centerX + half, 0, analysis.imageWidth), y: clamp(y, 0, analysis.imageHeight) };
   next.upperBodyWidthAnchor = Math.abs(next.rightUpperAnchor.x - next.leftUpperAnchor.x);
-  next.anchorNormalization = currentWidth > 0 ? "expanded_implausibly_narrow_ai_upper_anchor" : "estimated_from_alpha_bounds";
+  const estimatedSource = currentWidth > 0 ? "ratio_guard" : "alpha_estimate";
+  next.anchorNormalization = currentWidth > 0 ? "estimated_ratio_guard_expanded_implausibly_narrow_ai_upper_anchor" : "estimated_from_alpha_bounds";
+  next.anchorSources = { ...anchorSources, leftUpperAnchor: estimatedSource, rightUpperAnchor: estimatedSource, upperBodyWidthAnchor: estimatedSource };
+  next.confidenceBeforeNormalization = originalConfidence;
+  next.confidence = Math.min(originalConfidence ?? 0.45, currentWidth > 0 ? 0.49 : 0.35);
+  next.confidenceAfterNormalization = next.confidence;
   return next;
 };
 
