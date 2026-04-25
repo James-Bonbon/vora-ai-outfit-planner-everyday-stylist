@@ -28,6 +28,8 @@ type LayoutMetadata = {
   preferredPreviewScale?: number;
   leftUpperAnchor?: { x: number; y: number };
   rightUpperAnchor?: { x: number; y: number };
+  leftWaistAnchor?: { x: number; y: number };
+  rightWaistAnchor?: { x: number; y: number };
   upperBodyWidthAnchor?: number;
   necklineCenter?: { x: number; y: number };
   waistCenter?: { x: number; y: number };
@@ -160,6 +162,35 @@ const getUpperAnchorPair = (metadata: LayoutMetadata, analysis?: ImageAnalysis |
   if (!left || !right) return null;
   const width = Math.abs(right.x - left.x);
   return width > 0.08 ? { left, right, width: clamp(width, 0.08, 1) } : null;
+};
+
+const hasSufficientAnchorConfidence = (metadata: LayoutMetadata) => Number(metadata.confidence) >= 0.5;
+
+const getRealMeasurementPair = (metadata: LayoutMetadata, analysis: ImageAnalysis | null | undefined, visualCategory: VisualCategory) => {
+  if (!hasSufficientAnchorConfidence(metadata)) return null;
+
+  const isUpperBodyGarment = ["outerwear", "dresses", "tops"].includes(visualCategory);
+  if (isUpperBodyGarment) {
+    const left = toRelativePoint(metadata.leftUpperAnchor, analysis);
+    const right = toRelativePoint(metadata.rightUpperAnchor, analysis);
+    if (!left || !right) return null;
+    const width = Math.abs(right.x - left.x);
+    return width > 0.08
+      ? { left, right, width: clamp(width, 0.08, 1), leftLabel: "L upper", rightLabel: "R upper", fullLabel: "leftUpperAnchor → rightUpperAnchor" }
+      : null;
+  }
+
+  if (visualCategory === "bottoms") {
+    const left = toRelativePoint(metadata.leftWaistAnchor, analysis);
+    const right = toRelativePoint(metadata.rightWaistAnchor, analysis);
+    if (!left || !right) return null;
+    const width = Math.abs(right.x - left.x);
+    return width > 0.08
+      ? { left, right, width: clamp(width, 0.08, 1), leftLabel: "L waist", rightLabel: "R waist", fullLabel: "leftWaistAnchor → rightWaistAnchor" }
+      : null;
+  }
+
+  return null;
 };
 
 const getUpperBodyWidthRatio = (metadata: LayoutMetadata, analysis?: ImageAnalysis | null) => {
