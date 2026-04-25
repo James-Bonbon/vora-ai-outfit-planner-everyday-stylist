@@ -12,6 +12,8 @@ export interface ClosetItem {
   laundry_added_at: string | null;
   last_laundry_reminder_at: string | null;
   storage_zone_id: string | null;
+  image_analysis?: any;
+  layout_metadata?: any;
   created_at: string;
 }
 
