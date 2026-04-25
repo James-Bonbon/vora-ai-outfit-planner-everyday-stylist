@@ -148,6 +148,7 @@ const getNormalizedStyle = ({
   layout,
   metadata,
   stackIndex,
+  targetRenderedShoulderWidth,
 }: {
   analysis?: ImageAnalysis | null;
   duplicateIndex: number;
@@ -167,8 +168,8 @@ const getNormalizedStyle = ({
   const intendedVisibleWidth = clamp(intendedVisibleHeight * visibleAspect * (0.82 + preferredScale * 0.24), 22, 66);
   const boxHeight = clamp(intendedVisibleHeight / visibleHeightRatio, 22, 88);
   const shoulderWidthRatio = getShoulderWidthRatio(metadata);
-  const shoulderBoxWidth = shoulderWidthRatio && arguments[0].targetRenderedShoulderWidth
-    ? arguments[0].targetRenderedShoulderWidth / shoulderWidthRatio
+  const shoulderBoxWidth = shoulderWidthRatio && targetRenderedShoulderWidth
+    ? targetRenderedShoulderWidth / shoulderWidthRatio
     : null;
   const boxWidth = clamp(Math.max(intendedVisibleWidth / visibleWidthRatio, shoulderBoxWidth || 0), 22, 92);
   const visibleCenterX = analysis?.imageWidth && analysis?.visibleWidth
@@ -192,7 +193,7 @@ const getNormalizedStyle = ({
     boxHeightPct: boxHeight,
     anchorShiftXPct,
     anchorShiftYPct,
-    rotate: layout.rotate,
+    rotationDeg: layout.rotate,
   };
 };
 
