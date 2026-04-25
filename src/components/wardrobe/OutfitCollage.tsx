@@ -6,6 +6,26 @@ type OutfitCollageProps = {
 };
 
 type VisualCategory = "shoes" | "bottoms" | "tops" | "outerwear" | "dresses" | "hats" | "accessories";
+type BodyCoverage = "full_body" | "upper_body" | "lower_body" | "feet" | "accessory";
+
+type ImageAnalysis = {
+  imageWidth?: number;
+  imageHeight?: number;
+  visibleX?: number;
+  visibleY?: number;
+  visibleWidth?: number;
+  visibleHeight?: number;
+  visibleWidthRatio?: number;
+  visibleHeightRatio?: number;
+};
+
+type LayoutMetadata = {
+  garmentType?: string;
+  bodyCoverage?: BodyCoverage;
+  lengthClass?: string;
+  bulkClass?: string;
+  preferredPreviewScale?: number;
+};
 
 const centeredOffsets = [
   { x: 0, y: 0 },
@@ -39,47 +59,75 @@ const visualOrder: Record<VisualCategory, number> = {
 };
 
 const stackLayouts = [
-  {
-    className: "absolute top-[8%] left-[18%] w-[58%] h-[58%] object-contain object-center drop-shadow-md z-10",
-    rotate: -5,
-  },
-  {
-    className: "absolute top-[18%] left-[30%] w-[56%] h-[56%] object-contain object-center drop-shadow-md z-20",
-    rotate: 3,
-  },
-  {
-    className: "absolute top-[28%] left-[42%] w-[50%] h-[50%] object-contain object-center drop-shadow-md z-30",
-    rotate: -2,
-  },
-  {
-    className: "absolute top-[42%] left-[20%] w-[52%] h-[48%] object-contain object-center drop-shadow-md z-40",
-    rotate: 4,
-  },
-  {
-    className: "absolute top-[56%] left-[48%] w-[34%] h-[28%] object-contain object-center drop-shadow-md z-50",
-    rotate: -7,
-  },
-  {
-    className: "absolute top-[58%] left-[8%] w-[36%] h-[30%] object-contain object-center drop-shadow-md z-60",
-    rotate: 6,
-  },
+  { x: 18, y: 8, rotate: -5, zIndex: 10 },
+  { x: 30, y: 18, rotate: 3, zIndex: 20 },
+  { x: 42, y: 28, rotate: -2, zIndex: 30 },
+  { x: 20, y: 42, rotate: 4, zIndex: 40 },
+  { x: 48, y: 56, rotate: -7, zIndex: 50 },
+  { x: 8, y: 58, rotate: 6, zIndex: 60 },
 ];
 
-const categoryClassName: Partial<Record<VisualCategory, string>> = {
-  outerwear: "w-[64%] h-[62%]",
-  dresses: "w-[60%] h-[68%]",
-  tops: "w-[52%] h-[48%]",
-  bottoms: "w-[50%] h-[58%]",
-  shoes: "w-[34%] h-[28%]",
-  hats: "w-[30%] h-[24%]",
-  accessories: "w-[32%] h-[30%]",
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const inferMetadata = (garment: any, visualCategory: VisualCategory): LayoutMetadata => {
+  if (garment?.layout_metadata) return garment.layout_metadata;
+  if (visualCategory === "outerwear") return { garmentType: "coat", bodyCoverage: "full_body", lengthClass: "knee", bulkClass: "bulky", preferredPreviewScale: 0.9 };
+  if (visualCategory === "dresses") return { garmentType: "dress", bodyCoverage: "full_body", lengthClass: "midi", bulkClass: "medium", preferredPreviewScale: 0.86 };
+  if (visualCategory === "bottoms") return { garmentType: "trousers", bodyCoverage: "lower_body", lengthClass: "full_length", bulkClass: "medium", preferredPreviewScale: 0.72 };
+  if (visualCategory === "shoes") return { garmentType: "shoes", bodyCoverage: "feet", lengthClass: "cropped", bulkClass: "medium", preferredPreviewScale: 0.36 };
+  if (visualCategory === "hats" || visualCategory === "accessories") return { garmentType: "accessory", bodyCoverage: "accessory", lengthClass: "cropped", bulkClass: "light", preferredPreviewScale: 0.32 };
+  return { garmentType: "shirt", bodyCoverage: "upper_body", lengthClass: "hip", bulkClass: "light", preferredPreviewScale: 0.56 };
 };
 
-const stackStyle = (stackIndex: number, duplicateIndex: number, rotate: number): CSSProperties => {
+const getTargetVisibleHeight = (visualCategory: VisualCategory, metadata: LayoutMetadata, coatHeight?: number) => {
+  if (visualCategory === "outerwear") return metadata.garmentType === "jacket" ? 58 : 64;
+  if (visualCategory === "dresses") return coatHeight ? clamp(coatHeight * 0.94, coatHeight * 0.85, coatHeight * 1.1) : 62;
+  if (metadata.bodyCoverage === "full_body") return 61;
+  if (metadata.bodyCoverage === "upper_body") return 44;
+  if (metadata.bodyCoverage === "lower_body") return 54;
+  if (metadata.bodyCoverage === "feet") return 24;
+  return 26;
+};
+
+const getNormalizedStyle = ({
+  analysis,
+  duplicateIndex,
+  intendedVisibleHeight,
+  layout,
+  metadata,
+  stackIndex,
+}: {
+  analysis?: ImageAnalysis | null;
+  duplicateIndex: number;
+  intendedVisibleHeight: number;
+  layout: (typeof stackLayouts)[number];
+  metadata: LayoutMetadata;
+  stackIndex: number;
+}): CSSProperties => {
   const offset = centeredOffsets[duplicateIndex % centeredOffsets.length];
   const overflowOffset = Math.max(0, stackIndex - stackLayouts.length + 1) * 10;
+  const visibleHeightRatio = clamp(Number(analysis?.visibleHeightRatio) || 1, 0.18, 1);
+  const visibleWidthRatio = clamp(Number(analysis?.visibleWidthRatio) || 1, 0.18, 1);
+  const imageRatio = analysis?.imageWidth && analysis?.imageHeight ? analysis.imageWidth / analysis.imageHeight : 1;
+  const visibleAspect = analysis?.visibleWidth && analysis?.visibleHeight ? analysis.visibleWidth / analysis.visibleHeight : imageRatio;
+  const preferredScale = clamp(Number(metadata.preferredPreviewScale) || 0.55, 0.2, 1);
+  const intendedVisibleWidth = clamp(intendedVisibleHeight * visibleAspect * (0.82 + preferredScale * 0.24), 22, 66);
+  const boxHeight = clamp(intendedVisibleHeight / visibleHeightRatio, 22, 88);
+  const boxWidth = clamp(intendedVisibleWidth / visibleWidthRatio, 22, 88);
+  const visibleCenterX = analysis?.imageWidth && analysis?.visibleWidth
+    ? ((analysis.visibleX ?? 0) + analysis.visibleWidth / 2) / analysis.imageWidth
+    : 0.5;
+  const visibleCenterY = analysis?.imageHeight && analysis?.visibleHeight
+    ? ((analysis.visibleY ?? 0) + analysis.visibleHeight / 2) / analysis.imageHeight
+    : 0.5;
+
   return {
-    transform: `translate(${offset.x + overflowOffset}px, ${offset.y + overflowOffset}px) rotate(${rotate}deg)`,
+    left: `${layout.x}%`,
+    top: `${layout.y}%`,
+    width: `${boxWidth}%`,
+    height: `${boxHeight}%`,
+    zIndex: layout.zIndex,
+    transform: `translate(${offset.x + overflowOffset}px, ${offset.y + overflowOffset}px) translate(${(0.5 - visibleCenterX) * 100}%, ${(0.5 - visibleCenterY) * 100}%) rotate(${layout.rotate}deg)`,
   };
 };
 
