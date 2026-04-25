@@ -1,3 +1,5 @@
+import { buildGarmentFitMetadata } from "@/utils/garmentFitIntelligence";
+
 export interface BoundingBox {
   category: string;
   ymin: number;
@@ -114,6 +116,10 @@ export interface ImageAnalysis {
     width: number;
     height: number;
   };
+  alphaProfileRows?: number[];
+  alphaProfileColumns?: number[];
+  centerline?: { x: number; y: number };
+  visibleExtents?: { top: number; bottom: number; left: number; right: number };
 }
 
 export interface BodyAnchorPoint {
@@ -239,12 +245,13 @@ export const normalizeGarmentLandmarks = (metadata: any, analysis?: ImageAnalysi
 export const mergeLayoutMetadataWithAnchors = (metadata: any, analysis?: ImageAnalysis | null, category?: string | null, itemName?: string | null) => {
   const normalizedAnchors = normalizeBodyAnchors(metadata?.bodyAnchors || metadata?.body_anchors);
   const landmarks = normalizeGarmentLandmarks(metadata, analysis, category, itemName);
-  return {
+  const legacy = {
     ...(metadata || {}),
     bodyAnchors: normalizedAnchors || estimateBodyAnchors(analysis, category, itemName),
     visibleAlphaBounds: analysis?.visibleAlphaBounds,
     ...(landmarks || {}),
   };
+  return buildGarmentFitMetadata({ metadata: legacy, analysis, category, name: itemName });
 };
 
 /**
