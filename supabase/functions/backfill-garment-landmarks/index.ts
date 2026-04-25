@@ -247,7 +247,7 @@ serve(async (req) => {
         }
 
         const imageAnalysis = calculateVisibleAlphaBounds(imageBytes);
-        const prompt = `Analyze this already background-removed garment PNG for outfit preview scaling. Return ONLY a JSON object named layout_metadata with these fields: garmentType, bodyCoverage, lengthClass, bulkClass, preferredPreviewScale, leftUpperAnchor and rightUpperAnchor as PIXEL coordinates on the actual visible upper-body span (shoulder seam, strap, upper bodice, or coat shoulder span; not transparent canvas edges), upperBodyWidthAnchor as the pixel distance between those anchors, necklineCenter if visible, waistCenter if visible, hemCenter if visible, confidence from 0 to 1. Use upper-body anchors rather than strict shoulders because garments can be sleeveless, strapless, one-shoulder, or asymmetric. Canvas size is ${imageAnalysis.imageWidth}x${imageAnalysis.imageHeight}. Visible alpha bounds are ${JSON.stringify(imageAnalysis.visibleAlphaBounds)}. Item context: category=${item.category ?? "unknown"}, name=${item.name ?? "unknown"}. If the item name says dress, garmentType must be dress and bodyCoverage should usually be full_body.`;
+        const prompt = `Analyze this already background-removed garment PNG for outfit preview scaling. Return ONLY a JSON object named layout_metadata with these fields: garmentType, bodyCoverage, lengthClass, bulkClass, preferredPreviewScale, leftUpperFitAnchor and rightUpperFitAnchor as PIXEL coordinates, upperBodyFitWidth as the pixel distance between them, necklineCenter if visible, waistCenter if visible, hemCenter if visible, confidence from 0 to 1, and notes explaining exactly what was measured. For dresses, especially asymmetric or sleeveless dresses, do NOT measure literal shoulder seams. Detect upperBodyFitWidth: the visual width across the upper bodice/chest/armhole area that corresponds to the wearer's upper torso. For coats/tops, use the visible upper-body fit span, not transparent canvas edges. If confidence is low, the span is ambiguous, or the span is implausibly narrow for the garment, return the best estimate but set confidence below 0.5 and explain why in notes. Canvas size is ${imageAnalysis.imageWidth}x${imageAnalysis.imageHeight}. Visible alpha bounds are ${JSON.stringify(imageAnalysis.visibleAlphaBounds)}. Item context: category=${item.category ?? "unknown"}, name=${item.name ?? "unknown"}. If the item name says dress, garmentType must be dress and bodyCoverage should usually be full_body.`;
 
         const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
@@ -270,6 +270,7 @@ serve(async (req) => {
         const nextMetadata = {
           ...(item.layout_metadata || {}),
           ...layout,
+          rawAiLandmarks: rawLayout,
           rawAiLayoutMetadata: rawLayout,
           visibleAlphaBounds: imageAnalysis.visibleAlphaBounds,
         };
