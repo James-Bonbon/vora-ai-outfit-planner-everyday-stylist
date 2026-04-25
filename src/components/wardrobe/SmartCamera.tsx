@@ -148,21 +148,22 @@ const SmartCamera = ({ open, onOpenChange, onAnalyzed }: SmartCameraProps) => {
           body: { imageUrl: urlData.publicUrl },
         });
         if (error) throw error;
+        const analyzed = Array.isArray(data) ? data[0] : data;
 
         const imageFile = new File([processedBlob], `capture-${i}.${ext}`, { type: contentType });
 
         results.push({
           imageFile,
           preview,
-          name: data?.name || "",
-          category: data?.category || "",
-          color: data?.color || "",
-          material: data?.material || "",
-          brand: data?.brand || "",
+          name: analyzed?.name || "",
+          category: analyzed?.category || "",
+          color: analyzed?.color || "",
+          material: analyzed?.material || "",
+          brand: analyzed?.brand || "",
           hasTransparentBg,
-          storage_zone: data?.storage_zone || undefined,
+          storage_zone: analyzed?.storage_zone || undefined,
           imageAnalysis: await calculateVisibleAlphaBounds(processedBlob),
-          layoutMetadata: data?.layout_metadata || null,
+          layoutMetadata: analyzed?.layout_metadata || null,
         });
       }
 
