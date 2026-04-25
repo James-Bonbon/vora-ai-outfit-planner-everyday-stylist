@@ -397,7 +397,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
                   <span className="block">{metadata.garmentType || visualCategory}</span>
                   <span className="block">{measurementPair.fullLabel}</span>
                   <span className="block">anchor: {formatWidthAnchor(metadata, garment?.image_analysis)}</span>
-                  <span className="block">rendered: {(renderedUpperWidth ?? upperPair.width * boxWidthPct).toFixed(1)}%</span>
+                  <span className="block">rendered: {(renderedUpperWidth ?? measurementPair.width * boxWidthPct).toFixed(1)}%</span>
                 </span>
                 {landmarkPoints.map((point, pointIndex) => (
                   <span
