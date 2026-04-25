@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { Fragment, type CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 
 type OutfitCollageProps = {
@@ -64,15 +64,25 @@ export const OutfitCollage = ({ garments }: OutfitCollageProps) => {
         const style = centered ? centeredStyle(duplicateIndex) : accessoryStyle(duplicateIndex);
 
         if (visualCategory === "outerwear" && hasDress) {
+          const backLayerClassName =
+            "absolute top-[8%] left-1/2 -translate-x-1/2 w-[82%] h-[68%] object-contain object-top drop-shadow-lg z-20 opacity-80";
           const leftPanelClassName =
-            "absolute top-[8%] left-1/2 -translate-x-1/2 w-[82%] h-[62%] object-contain drop-shadow-lg z-40 [clip-path:polygon(0_0,42%_0,42%_100%,0_100%)]";
+            "absolute top-[8%] left-1/2 -translate-x-1/2 w-[82%] h-[68%] object-contain object-top drop-shadow-lg z-40 [clip-path:polygon(0_0,43%_0,43%_100%,0_100%)]";
           const rightPanelClassName =
-            "absolute top-[8%] left-1/2 -translate-x-1/2 w-[82%] h-[62%] object-contain drop-shadow-lg z-40 [clip-path:polygon(58%_0,100%_0,100%_100%,58%_100%)]";
+            "absolute top-[8%] left-1/2 -translate-x-1/2 w-[82%] h-[68%] object-contain object-top drop-shadow-lg z-40 [clip-path:polygon(57%_0,100%_0,100%_100%,57%_100%)]";
 
           return (
-            <>
+            <Fragment key={`${garment?.id ?? imageUrl}-${duplicateIndex}-open-coat`}>
               <img
-                key={`${garment?.id ?? imageUrl}-${duplicateIndex}-left-panel`}
+                src={imageUrl}
+                alt=""
+                aria-hidden="true"
+                loading="lazy"
+                decoding="async"
+                className={backLayerClassName}
+                style={style}
+              />
+              <img
                 src={imageUrl}
                 alt={baseAlt}
                 loading="lazy"
@@ -81,7 +91,6 @@ export const OutfitCollage = ({ garments }: OutfitCollageProps) => {
                 style={style}
               />
               <img
-                key={`${garment?.id ?? imageUrl}-${duplicateIndex}-right-panel`}
                 src={imageUrl}
                 alt=""
                 aria-hidden="true"
@@ -90,7 +99,7 @@ export const OutfitCollage = ({ garments }: OutfitCollageProps) => {
                 className={rightPanelClassName}
                 style={style}
               />
-            </>
+            </Fragment>
           );
         }
 
@@ -101,8 +110,8 @@ export const OutfitCollage = ({ garments }: OutfitCollageProps) => {
             "absolute top-[40%] left-1/2 -translate-x-1/2 w-[65%] h-[55%] object-contain object-top drop-shadow-md z-20",
           visualCategory === "dresses" &&
             cn(
-              "absolute left-1/2 -translate-x-1/2 object-contain drop-shadow-md z-30",
-              hasOuterwear ? "top-[12%] w-[72%] h-[72%]" : "top-[10%] w-[70%] h-[75%]",
+              "absolute left-1/2 -translate-x-1/2 object-contain object-top drop-shadow-md z-30",
+              hasOuterwear ? "top-[14%] w-[68%] h-[72%]" : "top-[10%] w-[70%] h-[75%]",
             ),
           visualCategory === "tops" &&
             cn(
