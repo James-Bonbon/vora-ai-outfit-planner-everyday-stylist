@@ -212,7 +212,7 @@ serve(async (req) => {
 
         const aiData = await aiRes.json();
         const parsed = JSON.parse(cleanJson(aiData.choices?.[0]?.message?.content || "{}"));
-        const layout = parsed.layout_metadata || parsed;
+        const layout = normalizeUpperAnchors(parsed.layout_metadata || parsed, imageAnalysis, item);
         const nextMetadata = {
           ...(item.layout_metadata || {}),
           ...layout,
