@@ -106,6 +106,8 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
   const isTop = isDress || isOuterwear || /\btop|shirt|blouse|tee|knit|sweater|hoodie\b/.test(typeText);
   const minRatio = isOuterwear ? 0.44 : isDress ? 0.44 : 0.32;
   const maxRatio = isOuterwear ? 0.72 : isDress ? 0.64 : 0.62;
+  const measurementMinRatio = isOuterwear ? 0.34 : isDress ? 0.3 : 0.25;
+  const measurementMaxRatio = isOuterwear ? 0.78 : isDress ? 0.72 : 0.68;
 
   const left = normalizePoint(layout.leftUpperFitAnchor || layout.leftUpperAnchor, analysis);
   const right = normalizePoint(layout.rightUpperFitAnchor || layout.rightUpperAnchor, analysis);
@@ -140,7 +142,7 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
 
   if (!isTop) return next;
 
-  if (left && right && rawRatio >= minRatio && rawRatio <= maxRatio && (originalConfidence ?? 0) >= 0.5) {
+  if (left && right && rawRatio >= measurementMinRatio && rawRatio <= measurementMaxRatio && (originalConfidence ?? 0) >= 0.5) {
     next.layoutAnchors = null;
     next.measurementAnchors = {
       ...(next.measurementAnchors || {}),
