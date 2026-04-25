@@ -429,6 +429,13 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
         console.warn("[AddItemSheet] thumbnail generation failed", thumbErr);
       }
 
+      if (!imageAnalysisRef.current) {
+        imageAnalysisRef.current = await calculateVisibleAlphaBounds(uploadBlob);
+      }
+      if (!layoutMetadataRef.current) {
+        layoutMetadataRef.current = inferLayoutMetadata(category, name);
+      }
+
       const insertPayload: any = {
         user_id: user.id,
         image_url: filePath,
