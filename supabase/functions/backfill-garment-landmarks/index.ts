@@ -101,17 +101,21 @@ serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceKey);
     const body = await req.json().catch(() => ({}));
-    const limit = Math.max(1, Math.min(Number(body.limit) || 20, 50));
+    const limit = Math.max(1, Math.min(Number(body.limit) || 20, 300));
+    const targetIds = Array.isArray(body.itemIds) ? body.itemIds.filter((id: unknown) => typeof id === "string") : [];
+    const force = Boolean(body.force);
 
-    const { data: rows, error: selectError } = await admin
+    let query = admin
       .from("closet_items")
       .select("id, name, category, image_url, image_analysis, layout_metadata")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(300);
+    if (targetIds.length > 0) query = query.in("id", targetIds);
+    const { data: rows, error: selectError } = await query;
     if (selectError) throw selectError;
 
-    const candidates = (rows || []).filter((item: any) => !hasUpperAnchors(item.layout_metadata)).slice(0, limit);
+    const candidates = (rows || []).filter((item: any) => force || !hasUpperAnchors(item.layout_metadata) || !hasImageAnalysis(item.image_analysis)).slice(0, limit);
     const results: any[] = [];
 
     for (const item of candidates) {
