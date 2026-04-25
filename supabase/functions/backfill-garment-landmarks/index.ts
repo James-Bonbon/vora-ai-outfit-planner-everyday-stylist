@@ -86,8 +86,8 @@ const calculateVisibleAlphaBounds = (bytes: Uint8Array) => {
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 const normalizePoint = (point: any, analysis: any) => {
-  const x = Number(point?.x);
-  const y = Number(point?.y);
+  const x = Number(Array.isArray(point) ? point[0] : point?.x);
+  const y = Number(Array.isArray(point) ? point[1] : point?.y);
   if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
   return {
     x: clamp(x <= 1 ? x * analysis.imageWidth : x, 0, analysis.imageWidth),
