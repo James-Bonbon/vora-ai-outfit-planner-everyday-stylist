@@ -83,6 +83,68 @@ const calculateVisibleAlphaBounds = (bytes: Uint8Array) => {
   };
 };
 
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const normalizePoint = (point: any, analysis: any) => {
+  const x = Number(point?.x);
+  const y = Number(point?.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return {
+    x: clamp(x <= 1 ? x * analysis.imageWidth : x, 0, analysis.imageWidth),
+    y: clamp(y <= 1 ? y * analysis.imageHeight : y, 0, analysis.imageHeight),
+  };
+};
+
+const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
+  const next = { ...layout };
+  const typeText = `${next.garmentType ?? ""} ${item.category ?? ""} ${item.name ?? ""}`.toLowerCase();
+  const isDress = /\bdress|gown|jumpsuit|romper|one[-\s]?piece\b/.test(typeText);
+  const isOuterwear = /\bouterwear|coat|jacket|blazer|trench|parka|cardigan\b/.test(typeText);
+  const isTop = isDress || isOuterwear || /\btop|shirt|blouse|tee|knit|sweater|hoodie\b/.test(typeText);
+  if (isDress) {
+    next.garmentType = "dress";
+    next.bodyCoverage = next.bodyCoverage || "full_body";
+    next.lengthClass = next.lengthClass || "midi";
+  }
+  if (!isTop) return next;
+
+  const left = normalizePoint(next.leftUpperAnchor, analysis);
+  const right = normalizePoint(next.rightUpperAnchor, analysis);
+  const currentWidth = Number(next.upperBodyWidthAnchor) > 0
+    ? Number(next.upperBodyWidthAnchor)
+    : left && right
+      ? Math.abs(right.x - left.x)
+      : 0;
+  const currentRatio = currentWidth / analysis.imageWidth;
+  const minRatio = isOuterwear ? 0.44 : isDress ? 0.44 : 0.32;
+  const maxRatio = isOuterwear ? 0.72 : isDress ? 0.64 : 0.62;
+
+  if (currentRatio >= minRatio && currentRatio <= maxRatio && left && right) {
+    next.leftUpperAnchor = left;
+    next.rightUpperAnchor = right;
+    next.upperBodyWidthAnchor = currentWidth;
+    return next;
+  }
+
+  const centerX = left && right
+    ? (left.x + right.x) / 2
+    : analysis.visibleX + analysis.visibleWidth / 2;
+  const y = left && right
+    ? (left.y + right.y) / 2
+    : analysis.visibleY + analysis.visibleHeight * (isOuterwear ? 0.16 : 0.12);
+  const targetWidth = clamp(
+    Math.max(currentWidth, analysis.imageWidth * minRatio),
+    analysis.imageWidth * minRatio,
+    Math.min(analysis.visibleWidth, analysis.imageWidth * maxRatio),
+  );
+  const half = targetWidth / 2;
+  next.leftUpperAnchor = { x: clamp(centerX - half, 0, analysis.imageWidth), y: clamp(y, 0, analysis.imageHeight) };
+  next.rightUpperAnchor = { x: clamp(centerX + half, 0, analysis.imageWidth), y: clamp(y, 0, analysis.imageHeight) };
+  next.upperBodyWidthAnchor = Math.abs(next.rightUpperAnchor.x - next.leftUpperAnchor.x);
+  next.anchorNormalization = currentWidth > 0 ? "expanded_implausibly_narrow_ai_upper_anchor" : "estimated_from_alpha_bounds";
+  return next;
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
