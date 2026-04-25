@@ -96,73 +96,104 @@ const normalizePoint = (point: any, analysis: any) => {
 };
 
 const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
-  const next = { ...layout };
-  const confidenceBefore = Number(next.confidence);
+  const rawAiLandmarks = { ...layout };
+  const next = { ...layout, rawAiLandmarks };
+  const confidenceBefore = Number(layout.confidence);
   const originalConfidence = Number.isFinite(confidenceBefore) ? clamp(confidenceBefore, 0, 1) : null;
-  const anchorSources: Record<string, "ai" | "alpha_estimate" | "ratio_guard"> = {
-    ...(typeof next.anchorSources === "object" && next.anchorSources ? next.anchorSources : {}),
-  };
-  const typeText = `${next.garmentType ?? ""} ${item.category ?? ""} ${item.name ?? ""}`.toLowerCase();
+  const typeText = `${layout.garmentType ?? ""} ${item.category ?? ""} ${item.name ?? ""}`.toLowerCase();
   const isDress = /\bdress|gown|jumpsuit|romper|one[-\s]?piece\b/.test(typeText);
   const isOuterwear = /\bouterwear|coat|jacket|blazer|trench|parka|cardigan\b/.test(typeText);
   const isTop = isDress || isOuterwear || /\btop|shirt|blouse|tee|knit|sweater|hoodie\b/.test(typeText);
-  const leftWaist = normalizePoint(next.leftWaistAnchor, analysis);
-  const rightWaist = normalizePoint(next.rightWaistAnchor, analysis);
-  if (leftWaist && rightWaist) {
-    next.leftWaistAnchor = leftWaist;
-    next.rightWaistAnchor = rightWaist;
-    anchorSources.leftWaistAnchor = "ai";
-    anchorSources.rightWaistAnchor = "ai";
-  }
+  const minRatio = isOuterwear ? 0.44 : isDress ? 0.44 : 0.32;
+  const maxRatio = isOuterwear ? 0.72 : isDress ? 0.64 : 0.62;
+
+  const left = normalizePoint(layout.leftUpperFitAnchor || layout.leftUpperAnchor, analysis);
+  const right = normalizePoint(layout.rightUpperFitAnchor || layout.rightUpperAnchor, analysis);
+  const rawWidth = Number(layout.upperBodyFitWidth || layout.upperBodyWidthAnchor) > 0
+    ? Number(layout.upperBodyFitWidth || layout.upperBodyWidthAnchor)
+    : left && right
+      ? Math.abs(right.x - left.x)
+      : 0;
+  const rawRatio = rawWidth / analysis.imageWidth;
+
   if (isDress) {
     next.garmentType = "dress";
     next.bodyCoverage = next.bodyCoverage || "full_body";
     next.lengthClass = next.lengthClass || "midi";
   }
+
+  const leftWaist = normalizePoint(layout.leftWaistAnchor, analysis);
+  const rightWaist = normalizePoint(layout.rightWaistAnchor, analysis);
+  if (leftWaist && rightWaist && (originalConfidence ?? 0) >= 0.5) {
+    next.measurementAnchors = {
+      ...(next.measurementAnchors || {}),
+      waist: {
+        leftWaistAnchor: leftWaist,
+        rightWaistAnchor: rightWaist,
+        waistWidth: Math.abs(rightWaist.x - leftWaist.x),
+        confidence: originalConfidence,
+        source: "ai",
+        notes: layout.notes || "AI waist fit span.",
+      },
+    };
+  }
+
   if (!isTop) return next;
 
-  const left = normalizePoint(next.leftUpperAnchor, analysis);
-  const right = normalizePoint(next.rightUpperAnchor, analysis);
-  const currentWidth = Number(next.upperBodyWidthAnchor) > 0
-    ? Number(next.upperBodyWidthAnchor)
-    : left && right
-      ? Math.abs(right.x - left.x)
-      : 0;
-  const currentRatio = currentWidth / analysis.imageWidth;
-  const minRatio = isOuterwear ? 0.44 : isDress ? 0.44 : 0.32;
-  const maxRatio = isOuterwear ? 0.72 : isDress ? 0.64 : 0.62;
-
-  if (currentRatio >= minRatio && currentRatio <= maxRatio && left && right) {
+  if (left && right && rawRatio >= minRatio && rawRatio <= maxRatio && (originalConfidence ?? 0) >= 0.5) {
+    next.measurementAnchors = {
+      ...(next.measurementAnchors || {}),
+      upperFit: {
+        leftUpperFitAnchor: left,
+        rightUpperFitAnchor: right,
+        upperBodyFitWidth: rawWidth,
+        confidence: originalConfidence,
+        source: "ai",
+        notes: layout.notes || "AI measured upper-body fit width.",
+      },
+    };
     next.leftUpperAnchor = left;
     next.rightUpperAnchor = right;
-    next.upperBodyWidthAnchor = currentWidth;
-    next.anchorNormalization = "ai_within_ratio_guard";
-    next.anchorSources = { ...anchorSources, leftUpperAnchor: "ai", rightUpperAnchor: "ai", upperBodyWidthAnchor: "ai" };
+    next.upperBodyWidthAnchor = rawWidth;
+    next.anchorNormalization = "ai_upper_fit_within_ratio_guard";
+    next.anchorSources = { leftUpperAnchor: "ai", rightUpperAnchor: "ai", upperBodyWidthAnchor: "ai" };
     next.confidenceBeforeNormalization = originalConfidence;
-    next.confidenceAfterNormalization = originalConfidence ?? next.confidence ?? null;
+    next.confidenceAfterNormalization = originalConfidence;
     return next;
   }
 
-  const centerX = left && right
-    ? (left.x + right.x) / 2
-    : analysis.visibleX + analysis.visibleWidth / 2;
-  const y = left && right
-    ? (left.y + right.y) / 2
-    : analysis.visibleY + analysis.visibleHeight * (isOuterwear ? 0.16 : 0.12);
+  const centerX = left && right ? (left.x + right.x) / 2 : analysis.visibleX + analysis.visibleWidth / 2;
+  const y = left && right ? (left.y + right.y) / 2 : analysis.visibleY + analysis.visibleHeight * (isOuterwear ? 0.16 : 0.12);
   const targetWidth = clamp(
-    Math.max(currentWidth, analysis.imageWidth * minRatio),
+    Math.max(rawWidth, analysis.imageWidth * minRatio),
     analysis.imageWidth * minRatio,
     Math.min(analysis.visibleWidth, analysis.imageWidth * maxRatio),
   );
   const half = targetWidth / 2;
-  next.leftUpperAnchor = { x: clamp(centerX - half, 0, analysis.imageWidth), y: clamp(y, 0, analysis.imageHeight) };
-  next.rightUpperAnchor = { x: clamp(centerX + half, 0, analysis.imageWidth), y: clamp(y, 0, analysis.imageHeight) };
-  next.upperBodyWidthAnchor = Math.abs(next.rightUpperAnchor.x - next.leftUpperAnchor.x);
-  const estimatedSource = currentWidth > 0 ? "ratio_guard" : "alpha_estimate";
-  next.anchorNormalization = currentWidth > 0 ? "estimated_ratio_guard_expanded_implausibly_narrow_ai_upper_anchor" : "estimated_from_alpha_bounds";
-  next.anchorSources = { ...anchorSources, leftUpperAnchor: estimatedSource, rightUpperAnchor: estimatedSource, upperBodyWidthAnchor: estimatedSource };
+  const layoutLeft = { x: clamp(centerX - half, 0, analysis.imageWidth), y: clamp(y, 0, analysis.imageHeight) };
+  const layoutRight = { x: clamp(centerX + half, 0, analysis.imageWidth), y: clamp(y, 0, analysis.imageHeight) };
+  const source = rawWidth > 0 ? "ratio_guard" : "alpha_estimate";
+  const reason = rawWidth > 0 ? "estimated_layout_scaling_ratio_guard_implausibly_narrow_ai_upper_fit" : "estimated_layout_scaling_from_alpha_bounds";
+  next.layoutAnchors = {
+    upperFit: {
+      leftUpperFitAnchor: layoutLeft,
+      rightUpperFitAnchor: layoutRight,
+      upperBodyFitWidth: Math.abs(layoutRight.x - layoutLeft.x),
+      confidence: source === "ratio_guard" ? 0.49 : 0.35,
+      source,
+      normalizationReason: reason,
+      notes: source === "ratio_guard"
+        ? "Estimated layout scaling expanded from an implausibly narrow AI upper-fit span; not a measured shoulder/fit line."
+        : "Estimated layout scaling from visible alpha bounds; not a measured shoulder/fit line.",
+    },
+  };
+  next.leftUpperAnchor = layoutLeft;
+  next.rightUpperAnchor = layoutRight;
+  next.upperBodyWidthAnchor = next.layoutAnchors.upperFit.upperBodyFitWidth;
+  next.anchorNormalization = reason;
+  next.anchorSources = { leftUpperAnchor: source, rightUpperAnchor: source, upperBodyWidthAnchor: source };
   next.confidenceBeforeNormalization = originalConfidence;
-  next.confidence = Math.min(originalConfidence ?? 0.45, currentWidth > 0 ? 0.49 : 0.35);
+  next.confidence = next.layoutAnchors.upperFit.confidence;
   next.confidenceAfterNormalization = next.confidence;
   return next;
 };
