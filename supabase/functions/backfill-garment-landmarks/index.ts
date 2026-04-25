@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import * as UPNG from "https://esm.sh/upng-js@2.1.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,7 +20,68 @@ const hasUpperAnchors = (metadata: any) => Boolean(
   metadata?.leftUpperAnchor && metadata?.rightUpperAnchor && Number(metadata?.upperBodyWidthAnchor) > 0,
 );
 
+const hasImageAnalysis = (analysis: any) => Boolean(
+  Number(analysis?.imageWidth) > 0 &&
+  Number(analysis?.imageHeight) > 0 &&
+  Number(analysis?.visibleWidth) > 0 &&
+  Number(analysis?.visibleHeight) > 0 &&
+  Number(analysis?.visibleWidthRatio) > 0 &&
+  Number(analysis?.visibleHeightRatio) > 0
+);
+
 const cleanJson = (content: string) => content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+
+const calculateVisibleAlphaBounds = (bytes: Uint8Array) => {
+  const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  const decoded = UPNG.decode(buffer);
+  const rgba = new Uint8Array(UPNG.toRGBA8(decoded)[0]);
+  const width = decoded.width;
+  const height = decoded.height;
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const alpha = rgba[(y * width + x) * 4 + 3];
+      if (alpha > 10) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  if (maxX < minX || maxY < minY) {
+    return {
+      imageWidth: width,
+      imageHeight: height,
+      visibleX: 0,
+      visibleY: 0,
+      visibleWidth: width,
+      visibleHeight: height,
+      visibleWidthRatio: 1,
+      visibleHeightRatio: 1,
+      visibleAlphaBounds: { x: 0, y: 0, width, height },
+    };
+  }
+
+  const visibleWidth = maxX - minX + 1;
+  const visibleHeight = maxY - minY + 1;
+  return {
+    imageWidth: width,
+    imageHeight: height,
+    visibleX: minX,
+    visibleY: minY,
+    visibleWidth,
+    visibleHeight,
+    visibleWidthRatio: visibleWidth / width,
+    visibleHeightRatio: visibleHeight / height,
+    visibleAlphaBounds: { x: minX, y: minY, width: visibleWidth, height: visibleHeight },
+  };
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
