@@ -131,7 +131,8 @@ serve(async (req) => {
           imageBytes = new Uint8Array(await fileData.arrayBuffer());
         }
 
-        const prompt = `Analyze this already background-removed garment PNG for outfit preview scaling. Return ONLY a JSON object named layout_metadata with these fields: garmentType, bodyCoverage, lengthClass, visibleAlphaBounds as pixel coordinates if visible, leftUpperAnchor and rightUpperAnchor as PIXEL coordinates on the actual visible upper-body span (shoulder seam, strap, upper bodice, or coat shoulder span; not transparent canvas edges), upperBodyWidthAnchor as the pixel distance between those anchors, necklineCenter if visible, waistCenter if visible, hemCenter if visible, confidence from 0 to 1. Use upper-body anchors rather than strict shoulders because garments can be sleeveless, strapless, one-shoulder, or asymmetric. Item context: category=${item.category ?? "unknown"}, name=${item.name ?? "unknown"}.`;
+        const imageAnalysis = calculateVisibleAlphaBounds(imageBytes);
+        const prompt = `Analyze this already background-removed garment PNG for outfit preview scaling. Return ONLY a JSON object named layout_metadata with these fields: garmentType, bodyCoverage, lengthClass, bulkClass, preferredPreviewScale, leftUpperAnchor and rightUpperAnchor as PIXEL coordinates on the actual visible upper-body span (shoulder seam, strap, upper bodice, or coat shoulder span; not transparent canvas edges), upperBodyWidthAnchor as the pixel distance between those anchors, necklineCenter if visible, waistCenter if visible, hemCenter if visible, confidence from 0 to 1. Use upper-body anchors rather than strict shoulders because garments can be sleeveless, strapless, one-shoulder, or asymmetric. Canvas size is ${imageAnalysis.imageWidth}x${imageAnalysis.imageHeight}. Visible alpha bounds are ${JSON.stringify(imageAnalysis.visibleAlphaBounds)}. Item context: category=${item.category ?? "unknown"}, name=${item.name ?? "unknown"}. If the item name says dress, garmentType must be dress and bodyCoverage should usually be full_body.`;
 
         const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
@@ -153,23 +154,27 @@ serve(async (req) => {
         const nextMetadata = {
           ...(item.layout_metadata || {}),
           ...layout,
-          visibleAlphaBounds: layout.visibleAlphaBounds || item.image_analysis?.visibleAlphaBounds,
+          visibleAlphaBounds: imageAnalysis.visibleAlphaBounds,
         };
+
+        const canonicalCategory = String(nextMetadata.garmentType || "").toLowerCase() === "dress" || /\bdress\b/i.test(item.name || "")
+          ? "Dresses"
+          : item.category;
 
         const { error: updateError } = await admin
           .from("closet_items")
-          .update({ layout_metadata: nextMetadata })
+          .update({ image_analysis: imageAnalysis, layout_metadata: nextMetadata, category: canonicalCategory })
           .eq("id", item.id)
           .eq("user_id", user.id);
         if (updateError) throw updateError;
-        results.push({ id: item.id, status: "updated", confidence: nextMetadata.confidence ?? null });
+        results.push({ id: item.id, status: "updated", category: canonicalCategory, confidence: nextMetadata.confidence ?? null });
       } catch (error) {
         console.error("Landmark backfill item failed", item.id, error);
         results.push({ id: item.id, status: "failed", error: error instanceof Error ? error.message : "Unknown error" });
       }
     }
 
-    return json({ scanned: rows?.length || 0, missing: (rows || []).filter((item: any) => !hasUpperAnchors(item.layout_metadata)).length, processed: candidates.length, results });
+    return json({ scanned: rows?.length || 0, missing: (rows || []).filter((item: any) => !hasUpperAnchors(item.layout_metadata) || !hasImageAnalysis(item.image_analysis)).length, processed: candidates.length, results });
   } catch (error) {
     console.error("backfill-garment-landmarks error:", error);
     return json({ error: error instanceof Error ? error.message : "Unknown error" }, 500);
