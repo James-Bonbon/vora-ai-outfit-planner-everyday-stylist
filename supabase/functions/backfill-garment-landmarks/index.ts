@@ -32,7 +32,7 @@ const hasImageAnalysis = (analysis: any) => Boolean(
 const cleanJson = (content: string) => content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
 
 const calculateVisibleAlphaBounds = (bytes: Uint8Array) => {
-  const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
   const decoded = UPNG.decode(buffer);
   const rgba = new Uint8Array(UPNG.toRGBA8(decoded)[0]);
   const width = decoded.width;
