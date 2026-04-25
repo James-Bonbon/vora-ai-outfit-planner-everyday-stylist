@@ -397,6 +397,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
         const { boxWidthPct, boxHeightPct, anchorShiftXPct, anchorShiftYPct, rotationDeg, ...imageStyle } = style;
         const upperPair = getUpperAnchorPair(metadata, garment?.image_analysis);
         const measurementPair = getRealMeasurementPair(metadata, garment?.image_analysis, visualCategory);
+        const layoutSource = metadata.layoutAnchors?.upperFit?.source;
         const measurementCenter = measurementPair ? { x: (measurementPair.left.x + measurementPair.right.x) / 2, y: (measurementPair.left.y + measurementPair.right.y) / 2 } : null;
         const landmarkPoints = [
           measurementPair?.left,
@@ -451,6 +452,14 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
                     style={{ left: `${point!.x * 100}%`, top: `${point!.y * 100}%` }}
                   />
                 ))}
+              </div>
+            )}
+            {showDebugAnchors && !measurementPair && layoutSource && (
+              <div className="absolute bottom-1 left-1 z-[91] max-w-[92%] rounded bg-background/90 px-1.5 py-0.5 text-[9px] font-medium leading-3 text-foreground shadow-sm" style={imageStyle}>
+                <span className="block">{metadata.garmentType || visualCategory}</span>
+                <span className="block">estimated layout scaling</span>
+                <span className="block">source: {layoutSource}</span>
+                <span className="block">width: {formatWidthAnchor(metadata, garment?.image_analysis)}</span>
               </div>
             )}
           </div>
