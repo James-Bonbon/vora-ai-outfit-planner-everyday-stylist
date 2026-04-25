@@ -311,15 +311,12 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       setIsProcessingAI(false);
     }
 
-    // Step 2: Auto-tag with AI
+    // Step 2: Auto-tag + landmark processed garment with AI
     setTagging(true);
     try {
-      const base64 = imageBase64Ref.current;
-      const { data, error } = await supabase.functions.invoke("tag-garment", {
-        body: { imageBase64: base64 },
-      });
-
-      if (error) throw error;
+      const analysisBlob = bgRemoved ? finalBlob : normalizedBlob;
+      if (!imageAnalysisRef.current) imageAnalysisRef.current = await calculateVisibleAlphaBounds(analysisBlob);
+      const { tags: data, metadata } = await analyzeProcessedGarment(analysisBlob, category, name, imageAnalysisRef.current);
 
       if (data?.name) setName(data.name);
       if (data?.category) setCategory(data.category);
@@ -327,9 +324,10 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
       if (data?.material) setMaterial(data.material);
       if (data?.brand) setBrand(data.brand || "");
       if (data?.storage_zone) setStorageZoneId(data.storage_zone);
-      layoutMetadataRef.current = mergeLayoutMetadataWithAnchors(data?.layout_metadata, imageAnalysisRef.current, data?.category || category, data?.name || name);
+      layoutMetadataRef.current = metadata;
       toast.success("AI tagged your item! ✨");
 
+      const base64 = imageBase64Ref.current;
       if (data?.brand) {
         triggerProductLookup(base64, data.brand, data.name, data.category, data.color, data.material);
       }
