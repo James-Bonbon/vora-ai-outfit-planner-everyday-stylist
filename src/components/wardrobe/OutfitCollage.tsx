@@ -139,6 +139,8 @@ export const OutfitCollage = ({ garments }: OutfitCollageProps) => {
     .filter((item) => item.imageUrl)
     .sort((a, b) => visualOrder[a.visualCategory] - visualOrder[b.visualCategory]);
 
+  const coatHeight = classified.some((item) => item.visualCategory === "outerwear") ? 64 : undefined;
+
   const seenCounts: Partial<Record<VisualCategory, number>> = {};
 
   return (
@@ -149,8 +151,16 @@ export const OutfitCollage = ({ garments }: OutfitCollageProps) => {
 
         const baseAlt = garment?.name || garment?.category || "Garment";
         const layout = stackLayouts[Math.min(stackIndex, stackLayouts.length - 1)];
-        const className = cn(layout.className, categoryClassName[visualCategory]);
-        const style = stackStyle(stackIndex, duplicateIndex, layout.rotate);
+        const metadata = inferMetadata(garment, visualCategory);
+        const intendedVisibleHeight = getTargetVisibleHeight(visualCategory, metadata, coatHeight);
+        const style = getNormalizedStyle({
+          analysis: garment?.image_analysis,
+          duplicateIndex,
+          intendedVisibleHeight,
+          layout,
+          metadata,
+          stackIndex,
+        });
 
         return (
           <img
@@ -159,7 +169,7 @@ export const OutfitCollage = ({ garments }: OutfitCollageProps) => {
             alt={baseAlt}
             loading="lazy"
             decoding="async"
-            className={className}
+            className={cn("absolute object-contain object-center drop-shadow-md")}
             style={style}
           />
         );
