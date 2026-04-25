@@ -429,7 +429,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
         console.warn("[AddItemSheet] thumbnail generation failed", thumbErr);
       }
 
-      const { data: insertData, error: dbError } = await supabase.from("closet_items").insert({
+      const insertPayload: any = {
         user_id: user.id,
         image_url: filePath,
         thumbnail_url: thumbPath,
@@ -442,7 +442,9 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
         storage_zone_id: storageZoneId,
         image_analysis: imageAnalysisRef.current,
         layout_metadata: layoutMetadataRef.current,
-      }).select("*").single();
+      };
+
+      const { data: insertData, error: dbError } = await supabase.from("closet_items").insert(insertPayload).select("*").single();
 
       if (dbError) throw dbError;
 
