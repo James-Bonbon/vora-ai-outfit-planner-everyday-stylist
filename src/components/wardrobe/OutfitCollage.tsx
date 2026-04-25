@@ -40,7 +40,7 @@ type NormalizedRenderStyle = CSSProperties & {
   boxHeightPct: number;
   anchorShiftXPct: number;
   anchorShiftYPct: number;
-  rotate: number;
+  rotationDeg: number;
 };
 
 const centeredOffsets = [
@@ -93,6 +93,27 @@ const inferMetadata = (garment: any, visualCategory: VisualCategory): LayoutMeta
   if (visualCategory === "shoes") return { garmentType: "shoes", bodyCoverage: "feet", lengthClass: "cropped", bulkClass: "medium", preferredPreviewScale: 0.36 };
   if (visualCategory === "hats" || visualCategory === "accessories") return { garmentType: "accessory", bodyCoverage: "accessory", lengthClass: "cropped", bulkClass: "light", preferredPreviewScale: 0.32 };
   return { garmentType: "shirt", bodyCoverage: "upper_body", lengthClass: "hip", bulkClass: "light", preferredPreviewScale: 0.56 };
+};
+
+const estimateBodyAnchors = (analysis: ImageAnalysis | null | undefined, visualCategory: VisualCategory): LayoutMetadata["bodyAnchors"] | undefined => {
+  if (!analysis?.imageWidth || !analysis?.imageHeight || !analysis.visibleWidth || !analysis.visibleHeight) return undefined;
+  if (!(["outerwear", "dresses", "tops"] as VisualCategory[]).includes(visualCategory)) return undefined;
+  const left = (analysis.visibleX ?? 0) / analysis.imageWidth;
+  const top = (analysis.visibleY ?? 0) / analysis.imageHeight;
+  const width = analysis.visibleWidth / analysis.imageWidth;
+  const height = analysis.visibleHeight / analysis.imageHeight;
+  const centerX = left + width / 2;
+  const shoulderFactor = visualCategory === "outerwear" ? 0.78 : visualCategory === "dresses" ? 0.72 : 0.7;
+  const shoulderY = top + height * (visualCategory === "outerwear" ? 0.18 : 0.16);
+  const halfShoulder = (width * shoulderFactor) / 2;
+
+  return {
+    leftShoulder: { x: clamp(centerX - halfShoulder, 0, 1), y: clamp(shoulderY, 0, 1) },
+    rightShoulder: { x: clamp(centerX + halfShoulder, 0, 1), y: clamp(shoulderY, 0, 1) },
+    necklineCenter: { x: centerX, y: clamp(top + height * 0.12, 0, 1) },
+    waistCenter: { x: centerX, y: clamp(top + height * (visualCategory === "dresses" ? 0.46 : 0.58), 0, 1) },
+    hemCenter: { x: centerX, y: clamp(top + height * 0.94, 0, 1) },
+  };
 };
 
 const getTargetVisibleHeight = (visualCategory: VisualCategory, metadata: LayoutMetadata, coatHeight?: number) => {
