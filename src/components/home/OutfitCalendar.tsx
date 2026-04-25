@@ -114,6 +114,8 @@ const OutfitCalendar = () => {
             category: item.category,
             created_at: item.created_at,
             is_in_laundry: item.is_in_laundry,
+            image_analysis: item.image_analysis,
+            layout_metadata: item.layout_metadata,
             source: "closet" as const,
           };
         }));

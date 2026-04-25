@@ -244,40 +244,71 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
     .sort((a, b) => visualOrder[a.visualCategory] - visualOrder[b.visualCategory]);
 
   const hasOuterwear = classified.some((item) => item.visualCategory === "outerwear");
+  const hasDress = classified.some((item) => item.visualCategory === "dresses");
   const coatHeight = hasOuterwear ? 64 : undefined;
   const showDebugAnchors = debugAnchors || new URLSearchParams(window.location.search).get("outfitDebugAnchors") === "1";
 
   const seenCounts: Partial<Record<VisualCategory, number>> = {};
+  let renderItems = classified.map(({ garment, visualCategory, imageUrl }, stackIndex) => {
+    const duplicateIndex = seenCounts[visualCategory] ?? 0;
+    seenCounts[visualCategory] = duplicateIndex + 1;
+    const inferred = inferMetadata(garment, visualCategory);
+    const metadata = {
+      ...inferred,
+      bodyAnchors: inferred.bodyAnchors || estimateBodyAnchors(garment?.image_analysis, visualCategory),
+    };
+    const intendedVisibleHeight = getTargetVisibleHeight(visualCategory, metadata, coatHeight);
+    const targetRenderedShoulderWidth = visualCategory === "outerwear"
+      ? 44
+      : visualCategory === "dresses"
+        ? (hasOuterwear ? 41 : 38)
+        : visualCategory === "tops"
+          ? (hasOuterwear ? 36 : 34)
+          : undefined;
+    const layout = stackLayouts[Math.min(stackIndex, stackLayouts.length - 1)];
+    const style = getNormalizedStyle({
+      analysis: garment?.image_analysis,
+      duplicateIndex,
+      intendedVisibleHeight,
+      layout,
+      metadata,
+      stackIndex,
+      targetRenderedShoulderWidth,
+    });
+    const upperWidthRatio = getUpperBodyWidthRatio(metadata, garment?.image_analysis);
+    return {
+      garment,
+      visualCategory,
+      imageUrl,
+      duplicateIndex,
+      metadata,
+      style,
+      renderedUpperWidth: upperWidthRatio ? upperWidthRatio * style.boxWidthPct : null,
+    };
+  });
+
+  let coatRenderedWidth = renderItems.find((item) => item.visualCategory === "outerwear")?.renderedUpperWidth ?? null;
+  let dressRenderedWidth = renderItems.find((item) => item.visualCategory === "dresses")?.renderedUpperWidth ?? null;
+  let dressToCoatRatio = coatRenderedWidth && dressRenderedWidth ? dressRenderedWidth / coatRenderedWidth : null;
+
+  if (hasOuterwear && hasDress && dressToCoatRatio !== null && dressToCoatRatio < 0.75) {
+    const scaleUp = clamp(0.82 / dressToCoatRatio, 1, 1.45);
+    renderItems = renderItems.map((item) => {
+      if (item.visualCategory !== "dresses" || !item.renderedUpperWidth) return item;
+      const nextWidth = clamp(item.style.boxWidthPct * scaleUp, item.style.boxWidthPct, 118);
+      const nextHeight = clamp(item.style.boxHeightPct * Math.min(scaleUp, 1.2), item.style.boxHeightPct, 96);
+      const nextStyle = { ...item.style, width: `${nextWidth}%`, height: `${nextHeight}%`, boxWidthPct: nextWidth, boxHeightPct: nextHeight };
+      return { ...item, style: nextStyle, renderedUpperWidth: item.renderedUpperWidth * (nextWidth / item.style.boxWidthPct) };
+    });
+    coatRenderedWidth = renderItems.find((item) => item.visualCategory === "outerwear")?.renderedUpperWidth ?? null;
+    dressRenderedWidth = renderItems.find((item) => item.visualCategory === "dresses")?.renderedUpperWidth ?? null;
+    dressToCoatRatio = coatRenderedWidth && dressRenderedWidth ? dressRenderedWidth / coatRenderedWidth : null;
+  }
 
   return (
     <div className="relative w-full aspect-[3/4] bg-secondary/10 rounded-2xl overflow-hidden">
-      {classified.map(({ garment, visualCategory, imageUrl }, stackIndex) => {
-        const duplicateIndex = seenCounts[visualCategory] ?? 0;
-        seenCounts[visualCategory] = duplicateIndex + 1;
-
+      {renderItems.map(({ garment, visualCategory, imageUrl, duplicateIndex, metadata, style, renderedUpperWidth }) => {
         const baseAlt = garment?.name || garment?.category || "Garment";
-        const layout = stackLayouts[Math.min(stackIndex, stackLayouts.length - 1)];
-        const metadata = {
-          ...inferMetadata(garment, visualCategory),
-          bodyAnchors: inferMetadata(garment, visualCategory).bodyAnchors || estimateBodyAnchors(garment?.image_analysis, visualCategory),
-        };
-        const intendedVisibleHeight = getTargetVisibleHeight(visualCategory, metadata, coatHeight);
-        const targetRenderedShoulderWidth = visualCategory === "outerwear"
-          ? 44
-          : visualCategory === "dresses"
-            ? (hasOuterwear ? 40 : 38)
-            : visualCategory === "tops"
-              ? (hasOuterwear ? 36 : 34)
-              : undefined;
-        const style = getNormalizedStyle({
-          analysis: garment?.image_analysis,
-          duplicateIndex,
-          intendedVisibleHeight,
-          layout,
-          metadata,
-          stackIndex,
-          targetRenderedShoulderWidth,
-        });
         const { boxWidthPct, boxHeightPct, anchorShiftXPct, anchorShiftYPct, rotationDeg, ...imageStyle } = style;
         const upperPair = getUpperAnchorPair(metadata, garment?.image_analysis);
         const leftUpper = upperPair?.left;
@@ -312,7 +343,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
                   }}
                 />
                 <span className="absolute left-1 top-1 rounded bg-background/85 px-1.5 py-0.5 text-[10px] font-medium text-foreground shadow-sm">
-                  {(upperPair.width * boxWidthPct).toFixed(1)}%
+                  {visualCategory}: {(renderedUpperWidth ?? upperPair.width * boxWidthPct).toFixed(1)}%
                 </span>
                 {landmarkPoints.map((point, pointIndex) => (
                   <span
@@ -326,6 +357,13 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
           </div>
         );
       })}
+      {showDebugAnchors && hasOuterwear && hasDress && (
+        <div className="absolute bottom-2 left-2 right-2 z-[90] rounded bg-background/90 px-2 py-1 text-[10px] font-medium leading-4 text-foreground shadow-sm">
+          <div>coat width: {coatRenderedWidth?.toFixed(1) ?? "—"}%</div>
+          <div>dress width: {dressRenderedWidth?.toFixed(1) ?? "—"}%</div>
+          <div>dress/coat: {dressToCoatRatio ? dressToCoatRatio.toFixed(2) : "—"}</div>
+        </div>
+      )}
     </div>
   );
 };
