@@ -180,12 +180,22 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
 
             if (response.ok) {
               const bgRemovedBlob = await response.blob();
-              processedBatch.push({ blob: bgRemovedBlob, category: item.category });
+              processedBatch.push({
+                blob: bgRemovedBlob,
+                category: item.category,
+                imageAnalysis: await calculateVisibleAlphaBounds(bgRemovedBlob),
+              } as CroppedGarment & { imageAnalysis?: ImageAnalysis | null });
             } else {
-              processedBatch.push(item);
+              processedBatch.push({
+                ...item,
+                imageAnalysis: await calculateVisibleAlphaBounds(item.blob),
+              } as CroppedGarment & { imageAnalysis?: ImageAnalysis | null });
             }
           } catch (err) {
-            processedBatch.push(item);
+            processedBatch.push({
+              ...item,
+              imageAnalysis: await calculateVisibleAlphaBounds(item.blob),
+            } as CroppedGarment & { imageAnalysis?: ImageAnalysis | null });
           }
         }
 
@@ -196,7 +206,8 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
           blob: item.blob,
           preview: URL.createObjectURL(item.blob),
           category: item.category || "Tops",
-          name: `${item.category || 'Item'} ${idx + 1}`
+          name: `${item.category || 'Item'} ${idx + 1}`,
+          imageAnalysis: (item as any).imageAnalysis || null,
         }));
         setBatchEdits(editableItems);
         
