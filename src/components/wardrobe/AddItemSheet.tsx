@@ -85,6 +85,7 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
     category: string;
     name: string;
     imageAnalysis?: ImageAnalysis | null;
+    layoutMetadata?: any;
   }
   const [batchEdits, setBatchEdits] = useState<BatchEditItem[]>([]);
 
@@ -129,6 +130,22 @@ const AddItemSheet = ({ open, onOpenChange, onItemAdded, prefill }: AddItemSheet
   const imageBase64Ref = useRef<string | null>(null);
   const imageAnalysisRef = useRef<ImageAnalysis | null>(null);
   const layoutMetadataRef = useRef<any>(null);
+
+  const blobToBase64 = async (blob: Blob) => new Promise<string>((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (ev) => resolve((ev.target?.result as string).split(",")[1]);
+    reader.readAsDataURL(blob);
+  });
+
+  const analyzeProcessedGarment = async (blob: Blob, fallbackCategory?: string, fallbackName?: string, analysis?: ImageAnalysis | null) => {
+    const imageBase64 = await blobToBase64(blob);
+    const { data, error } = await supabase.functions.invoke("tag-garment", { body: { imageBase64, mimeType: "image/png" } });
+    if (error) throw error;
+    return {
+      tags: data,
+      metadata: mergeLayoutMetadataWithAnchors(data?.layout_metadata, analysis, data?.category || fallbackCategory, data?.name || fallbackName),
+    };
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
