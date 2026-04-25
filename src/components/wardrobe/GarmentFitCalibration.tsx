@@ -1,0 +1,138 @@
+import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { Check, X } from "lucide-react";
+
+type Props = {
+  itemId: string;
+  imageUrl: string;
+  layoutMetadata: any;
+  imageAnalysis: any;
+  onSaved: () => void;
+};
+
+const editableKeys = ["leftUpperFitAnchor", "rightUpperFitAnchor", "leftWaistAnchor", "rightWaistAnchor"] as const;
+
+const getInitialAnchors = (metadata: any) => ({
+  leftUpperFitAnchor: metadata?.validatedMeasurementAnchors?.upperFit?.leftUpperFitAnchor || metadata?.measurementAnchors?.upperFit?.leftUpperFitAnchor || metadata?.layoutAnchors?.upperFit?.leftUpperFitAnchor || metadata?.leftUpperAnchor,
+  rightUpperFitAnchor: metadata?.validatedMeasurementAnchors?.upperFit?.rightUpperFitAnchor || metadata?.measurementAnchors?.upperFit?.rightUpperFitAnchor || metadata?.layoutAnchors?.upperFit?.rightUpperFitAnchor || metadata?.rightUpperAnchor,
+  leftWaistAnchor: metadata?.validatedMeasurementAnchors?.waist?.leftWaistAnchor || metadata?.measurementAnchors?.waist?.leftWaistAnchor || metadata?.leftWaistAnchor,
+  rightWaistAnchor: metadata?.validatedMeasurementAnchors?.waist?.rightWaistAnchor || metadata?.measurementAnchors?.waist?.rightWaistAnchor || metadata?.rightWaistAnchor,
+});
+
+export const GarmentFitCalibration = ({ itemId, imageUrl, layoutMetadata, imageAnalysis, onSaved }: Props) => {
+  const [anchors, setAnchors] = useState(getInitialAnchors(layoutMetadata));
+  const [dragging, setDragging] = useState<keyof typeof anchors | null>(null);
+  const [saving, setSaving] = useState(false);
+  const imageWidth = Number(imageAnalysis?.imageWidth) || 1;
+  const imageHeight = Number(imageAnalysis?.imageHeight) || 1;
+
+  const groups = useMemo(() => {
+    const upperWidth = anchors.leftUpperFitAnchor && anchors.rightUpperFitAnchor ? Math.abs(anchors.rightUpperFitAnchor.x - anchors.leftUpperFitAnchor.x) : undefined;
+    const waistWidth = anchors.leftWaistAnchor && anchors.rightWaistAnchor ? Math.abs(anchors.rightWaistAnchor.x - anchors.leftWaistAnchor.x) : undefined;
+    return {
+      upperFit: anchors.leftUpperFitAnchor && anchors.rightUpperFitAnchor ? {
+        leftUpperFitAnchor: { ...anchors.leftUpperFitAnchor, source: "human", confidence: 1, notes: "Human calibrated anchor." },
+        rightUpperFitAnchor: { ...anchors.rightUpperFitAnchor, source: "human", confidence: 1, notes: "Human calibrated anchor." },
+        upperBodyFitWidth: upperWidth,
+        source: "human",
+        confidence: 1,
+        notes: "Human-approved upper fit width.",
+      } : undefined,
+      waist: anchors.leftWaistAnchor && anchors.rightWaistAnchor ? {
+        leftWaistAnchor: { ...anchors.leftWaistAnchor, source: "human", confidence: 1, notes: "Human calibrated anchor." },
+        rightWaistAnchor: { ...anchors.rightWaistAnchor, source: "human", confidence: 1, notes: "Human calibrated anchor." },
+        waistFitWidth: waistWidth,
+        source: "human",
+        confidence: 1,
+        notes: "Human-approved waist fit width.",
+      } : undefined,
+    };
+  }, [anchors]);
+
+  const updateFromPointer = (key: keyof typeof anchors, event: React.PointerEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setAnchors((prev) => ({
+      ...prev,
+      [key]: {
+        x: Math.max(0, Math.min(imageWidth, ((event.clientX - rect.left) / rect.width) * imageWidth)),
+        y: Math.max(0, Math.min(imageHeight, ((event.clientY - rect.top) / rect.height) * imageHeight)),
+        source: "human",
+        confidence: 1,
+        notes: "Human calibrated anchor.",
+      },
+    }));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const nextMetadata = {
+        ...(layoutMetadata || {}),
+        validatedMeasurementAnchors: Object.fromEntries(Object.entries(groups).filter(([, value]) => Boolean(value))),
+        measurementAnchors: Object.fromEntries(Object.entries(groups).filter(([, value]) => Boolean(value))),
+        fitValidation: { status: "human", rejected: [] },
+      };
+      const { error } = await supabase.from("closet_items").update({ layout_metadata: nextMetadata }).eq("id", itemId);
+      if (error) throw error;
+      toast.success("Fit calibration saved");
+      onSaved();
+    } catch (error) {
+      console.error("Calibration save failed", error);
+      toast.error("Failed to save calibration");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3 rounded-2xl bg-card p-3">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold text-foreground">Garment Fit Intelligence</h3>
+        <Button size="sm" className="h-8 rounded-xl gap-1" onClick={handleSave} disabled={saving}>
+          <Check className="h-3 w-3" /> Save
+        </Button>
+      </div>
+      <div
+        className="relative aspect-square overflow-hidden rounded-xl bg-flatlay touch-none"
+        onPointerMove={(event) => dragging && updateFromPointer(dragging, event)}
+        onPointerUp={() => setDragging(null)}
+        onPointerLeave={() => setDragging(null)}
+      >
+        <img src={imageUrl} alt="Garment calibration" className="absolute inset-0 h-full w-full object-contain" draggable={false} />
+        {editableKeys.map((key) => {
+          const point = anchors[key];
+          if (!point) return null;
+          const left = `${(point.x / imageWidth) * 100}%`;
+          const top = `${(point.y / imageHeight) * 100}%`;
+          return (
+            <button
+              key={key}
+              type="button"
+              className="absolute z-10 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary ring-2 ring-background"
+              style={{ left, top }}
+              onPointerDown={(event) => {
+                event.currentTarget.setPointerCapture(event.pointerId);
+                setDragging(key);
+              }}
+              aria-label={key}
+            />
+          );
+        })}
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-[10px] text-muted-foreground">
+        {editableKeys.map((key) => (
+          <div key={key} className="flex items-center justify-between rounded-lg bg-background px-2 py-1">
+            <span>{key.replace("Anchor", "")}</span>
+            <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => setAnchors((prev) => ({ ...prev, [key]: undefined }))}>
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default GarmentFitCalibration;

@@ -13,6 +13,7 @@ import type { GarmentDisplay } from "@/types/wardrobe";
 import { useAuth } from "@/hooks/useAuth";
 import { WardrobeMap } from "@/components/wardrobe/WardrobeMap";
 import { ignoreToastInteractOutside } from "@/lib/radixToastGuard";
+import GarmentFitCalibration from "@/components/wardrobe/GarmentFitCalibration";
 
 const CATEGORIES = ["Tops", "Bottoms", "Shoes", "Accessories", "Outerwear"];
 
@@ -121,6 +122,7 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate, pre
   const [laundryUpdating, setLaundryUpdating] = useState(false);
   const [closetSvg, setClosetSvg] = useState<string | null>(null);
   const [storageZoneId, setStorageZoneId] = useState<string | null>(null);
+  const [showCalibration, setShowCalibration] = useState(false);
 
   // Edit mode state
   const [isEditing, setIsEditing] = useState(false);
@@ -155,6 +157,7 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate, pre
     setIsEditing(false);
     setIsInLaundry(!isDream ? ((item as any).is_in_laundry ?? false) : false);
     setStorageZoneId(!isDream ? ((item as any).storage_zone_id ?? null) : null);
+    setShowCalibration(false);
 
     // Populate edit fields
     if (!isDream) {
@@ -450,7 +453,23 @@ const GarmentDetailSheet = ({ item, open, onOpenChange, onDeleted, onLocate, pre
                   <MapPin className="w-4 h-4" /> Locate
                 </Button>
               )}
+              <Button variant="outline" className="rounded-xl gap-2" onClick={() => setShowCalibration((value) => !value)}>
+                Fit
+              </Button>
             </div>
+          )}
+
+          {!isDream && showCalibration && imageUrl && (
+            <GarmentFitCalibration
+              itemId={item.id}
+              imageUrl={imageUrl}
+              layoutMetadata={(item as any).layout_metadata}
+              imageAnalysis={(item as any).image_analysis}
+              onSaved={async () => {
+                await invalidateCaches();
+                onDeleted();
+              }}
+            />
           )}
 
           {/* Storage zone label */}

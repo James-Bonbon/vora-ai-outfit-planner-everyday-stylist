@@ -58,10 +58,13 @@ For EACH item, provide:
   "preferredPreviewScale": number from 0.2 to 1.0 for editorial flat-lay visual importance,
   "visibleAlphaBounds": tight visible garment bounds if discernible, as pixel coordinates {"x": number, "y": number, "width": number, "height": number},
   "leftUpperFitAnchor" and "rightUpperFitAnchor": pixel coordinates for the actual visible upper-body fit span, not transparent canvas edges,
-  "upperBodyFitWidth": pixel distance between leftUpperFitAnchor and rightUpperFitAnchor,
+  "necklineCenter", "leftWaistAnchor", "rightWaistAnchor", "hemLeft", "hemRight", "sleeveLeftEnd", "sleeveRightEnd": pixel coordinates when visible,
+  "upperBodyFitWidth", "waistFitWidth", "garmentLength": pixel measurements for upper-body garments,
+  For bottoms return "leftWaistAnchor", "rightWaistAnchor", "crotchPoint" if visible, "leftHem", "rightHem", "waistFitWidth", and "legLength".
+  For shoes/accessories return "visualLength", "visualHeight", and "anchorCenter".
   "notes": short explanation of what was measured,
-  For dresses, especially asymmetric or sleeveless dresses, do NOT measure literal shoulder seams. Detect upperBodyFitWidth across the upper bodice/chest/armhole area that corresponds to the wearer's upper torso. If the span is ambiguous or implausibly narrow, return low confidence below 0.5 and explain why in notes.
-  "necklineCenter", "waistCenter", "hemCenter": pixel coordinates if visible, otherwise null,
+  For dresses, especially asymmetric or sleeveless dresses, do NOT measure literal shoulder seams. Detect upperBodyFitWidth across the upper bodice/chest/armhole area that corresponds to the wearer's upper torso. If the span is a strap/diagonal detail, ambiguous, or implausibly narrow, return low confidence below 0.5 and explain why in notes. For coats, do not include full sleeve spread in upperBodyFitWidth; measure body fit width.
+  "waistCenter", "hemCenter": pixel coordinates if visible, otherwise null,
   "confidence": number from 0 to 1 for landmark reliability,
   "bodyAnchors": backward-compatible relative coordinates from 0 to 1 using the same upper anchors as shoulders when true shoulder seams are ambiguous.
 }

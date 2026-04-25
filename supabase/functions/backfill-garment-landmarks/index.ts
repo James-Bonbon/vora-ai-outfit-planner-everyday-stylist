@@ -41,11 +41,15 @@ const calculateVisibleAlphaBounds = (bytes: Uint8Array) => {
   let minY = height;
   let maxX = -1;
   let maxY = -1;
+  const alphaProfileRows = Array.from({ length: height }, () => 0);
+  const alphaProfileColumns = Array.from({ length: width }, () => 0);
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const alpha = rgba[(y * width + x) * 4 + 3];
       if (alpha > 10) {
+        alphaProfileRows[y] += 1;
+        alphaProfileColumns[x] += 1;
         if (x < minX) minX = x;
         if (x > maxX) maxX = x;
         if (y < minY) minY = y;
@@ -65,6 +69,10 @@ const calculateVisibleAlphaBounds = (bytes: Uint8Array) => {
       visibleWidthRatio: 1,
       visibleHeightRatio: 1,
       visibleAlphaBounds: { x: 0, y: 0, width, height },
+      alphaProfileRows,
+      alphaProfileColumns,
+      centerline: { x: width / 2, y: height / 2 },
+      visibleExtents: { top: 0, bottom: height - 1, left: 0, right: width - 1 },
     };
   }
 
@@ -80,6 +88,10 @@ const calculateVisibleAlphaBounds = (bytes: Uint8Array) => {
     visibleWidthRatio: visibleWidth / width,
     visibleHeightRatio: visibleHeight / height,
     visibleAlphaBounds: { x: minX, y: minY, width: visibleWidth, height: visibleHeight },
+    alphaProfileRows,
+    alphaProfileColumns,
+    centerline: { x: minX + visibleWidth / 2, y: minY + visibleHeight / 2 },
+    visibleExtents: { top: minY, bottom: maxY, left: minX, right: maxX },
   };
 };
 
@@ -97,7 +109,7 @@ const normalizePoint = (point: any, analysis: any) => {
 
 const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
   const rawAiLandmarks = { ...layout };
-  const next = { ...layout, rawAiLandmarks };
+  const next = { ...layout, rawAiLandmarks, validatedMeasurementAnchors: {}, layoutAnchors: {}, fitValidation: { status: "fallback", rejected: [] as string[] } };
   const confidenceBefore = Number(layout.confidence);
   const originalConfidence = Number.isFinite(confidenceBefore) ? clamp(confidenceBefore, 0, 1) : null;
   const typeText = `${layout.garmentType ?? ""} ${item.category ?? ""} ${item.name ?? ""}`.toLowerCase();
@@ -127,12 +139,12 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
   const leftWaist = normalizePoint(layout.leftWaistAnchor, analysis);
   const rightWaist = normalizePoint(layout.rightWaistAnchor, analysis);
   if (leftWaist && rightWaist && (originalConfidence ?? 0) >= 0.5) {
-    next.measurementAnchors = {
-      ...(next.measurementAnchors || {}),
+    next.validatedMeasurementAnchors = {
+      ...(next.validatedMeasurementAnchors || {}),
       waist: {
-        leftWaistAnchor: leftWaist,
-        rightWaistAnchor: rightWaist,
-        waistWidth: Math.abs(rightWaist.x - leftWaist.x),
+        leftWaistAnchor: { ...leftWaist, source: "ai", confidence: originalConfidence, notes: layout.notes || "AI waist fit span." },
+        rightWaistAnchor: { ...rightWaist, source: "ai", confidence: originalConfidence, notes: layout.notes || "AI waist fit span." },
+        waistFitWidth: Math.abs(rightWaist.x - leftWaist.x),
         confidence: originalConfidence,
         source: "ai",
         notes: layout.notes || "AI waist fit span.",
@@ -144,11 +156,11 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
 
   if (left && right && rawRatio >= measurementMinRatio && rawRatio <= measurementMaxRatio && (originalConfidence ?? 0) >= 0.5) {
     next.layoutAnchors = null;
-    next.measurementAnchors = {
-      ...(next.measurementAnchors || {}),
+    next.validatedMeasurementAnchors = {
+      ...(next.validatedMeasurementAnchors || {}),
       upperFit: {
-        leftUpperFitAnchor: left,
-        rightUpperFitAnchor: right,
+        leftUpperFitAnchor: { ...left, source: "ai", confidence: originalConfidence, notes: layout.notes || "AI measured upper-body fit width." },
+        rightUpperFitAnchor: { ...right, source: "ai", confidence: originalConfidence, notes: layout.notes || "AI measured upper-body fit width." },
         upperBodyFitWidth: rawWidth,
         confidence: originalConfidence,
         source: "ai",
@@ -160,6 +172,8 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
     next.upperBodyWidthAnchor = rawWidth;
     next.anchorNormalization = "ai_upper_fit_within_ratio_guard";
     next.anchorSources = { leftUpperAnchor: "ai", rightUpperAnchor: "ai", upperBodyWidthAnchor: "ai" };
+    next.measurementAnchors = next.validatedMeasurementAnchors;
+    next.fitValidation = { status: "ai", rejected: [] };
     next.confidenceBeforeNormalization = originalConfidence;
     next.confidenceAfterNormalization = originalConfidence;
     return next;
@@ -177,11 +191,12 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
   const layoutRight = { x: clamp(centerX + half, 0, analysis.imageWidth), y: clamp(y, 0, analysis.imageHeight) };
   const source = rawWidth > 0 ? "ratio_guard" : "alpha_estimate";
   const reason = rawWidth > 0 ? "estimated_layout_scaling_ratio_guard_implausibly_narrow_ai_upper_fit" : "estimated_layout_scaling_from_alpha_bounds";
-  next.measurementAnchors = null;
+  next.validatedMeasurementAnchors = Object.keys(next.validatedMeasurementAnchors || {}).length ? next.validatedMeasurementAnchors : null;
+  next.measurementAnchors = next.validatedMeasurementAnchors;
   next.layoutAnchors = {
     upperFit: {
-      leftUpperFitAnchor: layoutLeft,
-      rightUpperFitAnchor: layoutRight,
+      leftUpperFitAnchor: { ...layoutLeft, source, confidence: source === "ratio_guard" ? 0.49 : 0.35, notes: "Estimated layout anchor; not a measurement." },
+      rightUpperFitAnchor: { ...layoutRight, source, confidence: source === "ratio_guard" ? 0.49 : 0.35, notes: "Estimated layout anchor; not a measurement." },
       upperBodyFitWidth: Math.abs(layoutRight.x - layoutLeft.x),
       confidence: source === "ratio_guard" ? 0.49 : 0.35,
       source,
@@ -199,6 +214,7 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
   next.confidenceBeforeNormalization = originalConfidence;
   next.confidence = next.layoutAnchors.upperFit.confidence;
   next.confidenceAfterNormalization = next.confidence;
+  next.fitValidation = { status: "fallback", rejected: [reason] };
   return next;
 };
 
@@ -251,7 +267,14 @@ serve(async (req) => {
         }
 
         const imageAnalysis = calculateVisibleAlphaBounds(imageBytes);
-        const prompt = `Analyze this already background-removed garment PNG for outfit preview scaling. Return ONLY a JSON object named layout_metadata with these fields: garmentType, bodyCoverage, lengthClass, bulkClass, preferredPreviewScale, leftUpperFitAnchor and rightUpperFitAnchor as PIXEL coordinates, upperBodyFitWidth as the pixel distance between them, necklineCenter if visible, waistCenter if visible, hemCenter if visible, confidence from 0 to 1, and notes explaining exactly what was measured. For dresses, especially asymmetric or sleeveless dresses, do NOT measure literal shoulder seams. Detect upperBodyFitWidth: the visual width across the upper bodice/chest/armhole area that corresponds to the wearer's upper torso. For coats/tops, use the visible upper-body fit span, not transparent canvas edges. If confidence is low, the span is ambiguous, or the span is implausibly narrow for the garment, return the best estimate but set confidence below 0.5 and explain why in notes. Canvas size is ${imageAnalysis.imageWidth}x${imageAnalysis.imageHeight}. Visible alpha bounds are ${JSON.stringify(imageAnalysis.visibleAlphaBounds)}. Item context: category=${item.category ?? "unknown"}, name=${item.name ?? "unknown"}. If the item name says dress, garmentType must be dress and bodyCoverage should usually be full_body.`;
+        const prompt = `Analyze this already background-removed garment PNG for garment fit intelligence. Return ONLY a JSON object named layout_metadata. Use PIXEL coordinates in the ${imageAnalysis.imageWidth}x${imageAnalysis.imageHeight} canvas. Visible alpha bounds are ${JSON.stringify(imageAnalysis.visibleAlphaBounds)}. Item context: category=${item.category ?? "unknown"}, name=${item.name ?? "unknown"}.
+
+Return garmentType, bodyCoverage, lengthClass, bulkClass, preferredPreviewScale, confidence, notes, and garment-specific landmarks:
+- tops/coats/jackets/dresses: leftUpperFitAnchor, rightUpperFitAnchor, necklineCenter, leftWaistAnchor, rightWaistAnchor, hemLeft, hemRight, sleeveLeftEnd, sleeveRightEnd, upperBodyFitWidth, waistFitWidth, garmentLength
+- bottoms: leftWaistAnchor, rightWaistAnchor, crotchPoint if visible, leftHem, rightHem, waistFitWidth, legLength
+- shoes/accessories: visualLength, visualHeight, anchorCenter
+
+For dresses, especially asymmetric or sleeveless dresses, do NOT measure literal shoulder seams. Detect upperBodyFitWidth across the upper bodice/chest/armhole area corresponding to the wearer's upper torso. Reject strap-only or diagonal decorative spans by setting confidence below 0.5 and explaining why. For coats, do not include full sleeve spread in upperBodyFitWidth; measure body fit width. If confidence is low, ambiguous, or implausible, return the best candidate with confidence below 0.5 and notes.`;
 
         const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
