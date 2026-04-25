@@ -13,6 +13,8 @@ export interface ClosetItem {
   name: string | null;
   category: string | null;
   is_in_laundry: boolean;
+  image_analysis?: any;
+  layout_metadata?: any;
 }
 
 export interface SavedLook {
@@ -95,7 +97,7 @@ export function useClosetItems() {
     queryFn: async () => {
       const { data } = await supabase
         .from("closet_items")
-        .select("id, image_url, thumbnail_url, name, category, is_in_laundry")
+        .select("id, image_url, thumbnail_url, name, category, is_in_laundry, image_analysis, layout_metadata")
         .eq("user_id", user!.id)
         .order("created_at", { ascending: false });
 
@@ -206,7 +208,7 @@ export function useLookGarments(garmentIds: string[] | null) {
       const [closetRes, dreamRes] = await Promise.all([
         supabase
           .from("closet_items")
-          .select("id, name, category, color, material, brand")
+          .select("id, name, category, color, material, brand, image_analysis, layout_metadata")
           .in("id", garmentIds),
         supabase
           .from("dream_items")
