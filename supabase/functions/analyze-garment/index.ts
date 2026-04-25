@@ -55,7 +55,8 @@ For EACH item, provide:
   "bodyCoverage": one of "full_body", "upper_body", "lower_body", "feet", "accessory",
   "lengthClass": one of "cropped", "waist", "hip", "thigh", "knee", "midi", "full_length",
   "bulkClass": one of "light", "medium", "bulky",
-  "preferredPreviewScale": number from 0.2 to 1.0 for editorial flat-lay visual importance
+  "preferredPreviewScale": number from 0.2 to 1.0 for editorial flat-lay visual importance,
+  "bodyAnchors": for coats, jackets, dresses, shirts, sweaters, and other upper-body garments, estimate semantic landmarks as relative coordinates from 0 to 1 in the image: { "leftShoulder": {"x": number, "y": number}, "rightShoulder": {"x": number, "y": number}, "necklineCenter": {"x": number, "y": number}, "waistCenter": {"x": number, "y": number} or null, "hemCenter": {"x": number, "y": number} or null }. Shoulders must mark the actual garment shoulder/outer shoulder seam, not the transparent canvas bounds.
 }
 - 'boundingBox': { "ymin": number, "xmin": number, "ymax": number, "xmax": number } 
   (Provide the relative coordinates from 0.0 to 1.0 representing the box around this specific item. For example, if an item is in the top left quadrant, it might be ymin: 0.0, xmin: 0.0, ymax: 0.5, xmax: 0.5)
