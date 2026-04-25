@@ -234,10 +234,12 @@ serve(async (req) => {
 
         const aiData = await aiRes.json();
         const parsed = JSON.parse(cleanJson(aiData.choices?.[0]?.message?.content || "{}"));
-        const layout = normalizeUpperAnchors(parsed.layout_metadata || parsed, imageAnalysis, item);
+        const rawLayout = parsed.layout_metadata || parsed;
+        const layout = normalizeUpperAnchors(rawLayout, imageAnalysis, item);
         const nextMetadata = {
           ...(item.layout_metadata || {}),
           ...layout,
+          rawAiLayoutMetadata: rawLayout,
           visibleAlphaBounds: imageAnalysis.visibleAlphaBounds,
         };
 
@@ -251,7 +253,17 @@ serve(async (req) => {
           .eq("id", item.id)
           .eq("user_id", user.id);
         if (updateError) throw updateError;
-        results.push({ id: item.id, status: "updated", category: canonicalCategory, confidence: nextMetadata.confidence ?? null });
+        results.push({
+          id: item.id,
+          status: "updated",
+          category: canonicalCategory,
+          rawAiLayoutMetadata: rawLayout,
+          normalizedMetadata: nextMetadata,
+          anchorNormalization: nextMetadata.anchorNormalization ?? null,
+          anchorSources: nextMetadata.anchorSources ?? null,
+          confidenceBeforeNormalization: nextMetadata.confidenceBeforeNormalization ?? rawLayout?.confidence ?? null,
+          confidenceAfterNormalization: nextMetadata.confidence ?? null,
+        });
       } catch (error) {
         console.error("Landmark backfill item failed", item.id, error);
         results.push({ id: item.id, status: "failed", error: error instanceof Error ? error.message : "Unknown error" });
