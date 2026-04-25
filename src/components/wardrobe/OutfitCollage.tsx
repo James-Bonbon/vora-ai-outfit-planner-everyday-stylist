@@ -171,7 +171,7 @@ const getNormalizedStyle = ({
   const shoulderBoxWidth = shoulderWidthRatio && targetRenderedShoulderWidth
     ? targetRenderedShoulderWidth / shoulderWidthRatio
     : null;
-  const boxWidth = clamp(Math.max(intendedVisibleWidth / visibleWidthRatio, shoulderBoxWidth || 0), 22, 92);
+  const boxWidth = clamp(Math.max(intendedVisibleWidth / visibleWidthRatio, shoulderBoxWidth || 0), 22, shoulderBoxWidth ? 112 : 92);
   const visibleCenterX = analysis?.imageWidth && analysis?.visibleWidth
     ? ((analysis.visibleX ?? 0) + analysis.visibleWidth / 2) / analysis.imageWidth
     : 0.5;
@@ -197,7 +197,7 @@ const getNormalizedStyle = ({
   };
 };
 
-export const OutfitCollage = ({ garments }: OutfitCollageProps) => {
+export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageProps) => {
   if (!garments || garments.length === 0) return null;
 
   const classified = garments
@@ -205,7 +205,9 @@ export const OutfitCollage = ({ garments }: OutfitCollageProps) => {
     .filter((item) => item.imageUrl)
     .sort((a, b) => visualOrder[a.visualCategory] - visualOrder[b.visualCategory]);
 
-  const coatHeight = classified.some((item) => item.visualCategory === "outerwear") ? 64 : undefined;
+  const hasOuterwear = classified.some((item) => item.visualCategory === "outerwear");
+  const coatHeight = hasOuterwear ? 64 : undefined;
+  const showDebugAnchors = debugAnchors || new URLSearchParams(window.location.search).get("outfitDebugAnchors") === "1";
 
   const seenCounts: Partial<Record<VisualCategory, number>> = {};
 
@@ -217,8 +219,18 @@ export const OutfitCollage = ({ garments }: OutfitCollageProps) => {
 
         const baseAlt = garment?.name || garment?.category || "Garment";
         const layout = stackLayouts[Math.min(stackIndex, stackLayouts.length - 1)];
-        const metadata = inferMetadata(garment, visualCategory);
+        const metadata = {
+          ...inferMetadata(garment, visualCategory),
+          bodyAnchors: inferMetadata(garment, visualCategory).bodyAnchors || estimateBodyAnchors(garment?.image_analysis, visualCategory),
+        };
         const intendedVisibleHeight = getTargetVisibleHeight(visualCategory, metadata, coatHeight);
+        const targetRenderedShoulderWidth = visualCategory === "outerwear"
+          ? 44
+          : visualCategory === "dresses"
+            ? (hasOuterwear ? 40 : 38)
+            : visualCategory === "tops"
+              ? (hasOuterwear ? 36 : 34)
+              : undefined;
         const style = getNormalizedStyle({
           analysis: garment?.image_analysis,
           duplicateIndex,
@@ -226,18 +238,43 @@ export const OutfitCollage = ({ garments }: OutfitCollageProps) => {
           layout,
           metadata,
           stackIndex,
+          targetRenderedShoulderWidth,
         });
+        const { boxWidthPct, boxHeightPct, anchorShiftXPct, anchorShiftYPct, rotationDeg, ...imageStyle } = style;
+        const shoulderCenter = getShoulderCenter(metadata);
+        const leftShoulder = metadata.bodyAnchors?.leftShoulder;
+        const rightShoulder = metadata.bodyAnchors?.rightShoulder;
 
         return (
-          <img
-            key={`${garment?.id ?? imageUrl}-${duplicateIndex}`}
-            src={imageUrl}
-            alt={baseAlt}
-            loading="lazy"
-            decoding="async"
-            className={cn("absolute object-contain object-center drop-shadow-md")}
-            style={style}
-          />
+          <div key={`${garment?.id ?? imageUrl}-${duplicateIndex}`}>
+            <img
+              src={imageUrl}
+              alt={baseAlt}
+              loading="lazy"
+              decoding="async"
+              className={cn("absolute object-contain object-center drop-shadow-md")}
+              style={imageStyle}
+            />
+            {showDebugAnchors && leftShoulder && rightShoulder && shoulderCenter && (
+              <div className="absolute pointer-events-none" style={imageStyle} aria-hidden="true">
+                <div
+                  className="absolute h-0.5 bg-primary"
+                  style={{
+                    left: `${leftShoulder.x * 100}%`,
+                    top: `${shoulderCenter.y * 100}%`,
+                    width: `${Math.abs(rightShoulder.x - leftShoulder.x) * 100}%`,
+                  }}
+                />
+                {[leftShoulder, rightShoulder, metadata.bodyAnchors?.necklineCenter, metadata.bodyAnchors?.waistCenter, metadata.bodyAnchors?.hemCenter].filter(Boolean).map((point, pointIndex) => (
+                  <span
+                    key={pointIndex}
+                    className="absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary ring-2 ring-background"
+                    style={{ left: `${point!.x * 100}%`, top: `${point!.y * 100}%` }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         );
       })}
     </div>
