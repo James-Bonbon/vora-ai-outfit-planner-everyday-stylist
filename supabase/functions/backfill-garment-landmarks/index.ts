@@ -41,11 +41,15 @@ const calculateVisibleAlphaBounds = (bytes: Uint8Array) => {
   let minY = height;
   let maxX = -1;
   let maxY = -1;
+  const alphaProfileRows = Array.from({ length: height }, () => 0);
+  const alphaProfileColumns = Array.from({ length: width }, () => 0);
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const alpha = rgba[(y * width + x) * 4 + 3];
       if (alpha > 10) {
+        alphaProfileRows[y] += 1;
+        alphaProfileColumns[x] += 1;
         if (x < minX) minX = x;
         if (x > maxX) maxX = x;
         if (y < minY) minY = y;
@@ -65,6 +69,10 @@ const calculateVisibleAlphaBounds = (bytes: Uint8Array) => {
       visibleWidthRatio: 1,
       visibleHeightRatio: 1,
       visibleAlphaBounds: { x: 0, y: 0, width, height },
+      alphaProfileRows,
+      alphaProfileColumns,
+      centerline: { x: width / 2, y: height / 2 },
+      visibleExtents: { top: 0, bottom: height - 1, left: 0, right: width - 1 },
     };
   }
 
@@ -80,6 +88,10 @@ const calculateVisibleAlphaBounds = (bytes: Uint8Array) => {
     visibleWidthRatio: visibleWidth / width,
     visibleHeightRatio: visibleHeight / height,
     visibleAlphaBounds: { x: minX, y: minY, width: visibleWidth, height: visibleHeight },
+    alphaProfileRows,
+    alphaProfileColumns,
+    centerline: { x: minX + visibleWidth / 2, y: minY + visibleHeight / 2 },
+    visibleExtents: { top: minY, bottom: maxY, left: minX, right: maxX },
   };
 };
 
