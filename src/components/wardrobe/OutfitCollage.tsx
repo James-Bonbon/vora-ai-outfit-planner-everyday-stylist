@@ -20,7 +20,7 @@ const classifyGarment = (garment: any): VisualCategory => {
   if (/\b(hat|cap|beanie|beret|fedora|bucket)\b/.test(text)) return "hats";
   if (/\b(bag|purse|tote|clutch|backpack|handbag|accessor|belt|scarf|jewelry|jewellery|sunglasses)\b/.test(text)) return "accessories";
   if (/\b(shoe|sneaker|boot|heel|loafer|sandal|trainer)\b/.test(text)) return "shoes";
-  if (/\b(dress|gown|jumpsuit|romper|one[-\s]?piece)\b/.test(text)) return "dresses";
+  if (/\b(dress|dresses|gown|jumpsuit|romper|one[-\s]?piece)\b/.test(text)) return "dresses";
   if (/\b(outerwear|jacket|coat|blazer|trench|parka|cardigan|shacket)\b/.test(text)) return "outerwear";
   if (/\b(bottom|trouser|pant|jean|skirt|short|chino|sweatpant|legging)\b/.test(text)) return "bottoms";
   return "tops";
@@ -65,11 +65,11 @@ export const OutfitCollage = ({ garments }: OutfitCollageProps) => {
 
         if (visualCategory === "outerwear" && hasDress) {
           const backLayerClassName =
-            "absolute top-[8%] left-1/2 -translate-x-1/2 w-[82%] h-[68%] object-contain object-top drop-shadow-lg z-20 opacity-80";
+            "absolute top-[8%] left-1/2 -translate-x-1/2 w-[82%] h-[78%] object-contain object-top drop-shadow-lg z-20 opacity-80";
           const leftPanelClassName =
-            "absolute top-[8%] left-1/2 -translate-x-1/2 w-[82%] h-[68%] object-contain object-top drop-shadow-lg z-40 [clip-path:polygon(0_0,43%_0,43%_100%,0_100%)]";
+            "absolute top-[8%] left-1/2 -translate-x-1/2 w-[82%] h-[78%] object-contain object-top drop-shadow-lg z-40 [clip-path:polygon(0_0,40%_0,40%_100%,0_100%)]";
           const rightPanelClassName =
-            "absolute top-[8%] left-1/2 -translate-x-1/2 w-[82%] h-[68%] object-contain object-top drop-shadow-lg z-40 [clip-path:polygon(57%_0,100%_0,100%_100%,57%_100%)]";
+            "absolute top-[8%] left-1/2 -translate-x-1/2 w-[82%] h-[78%] object-contain object-top drop-shadow-lg z-40 [clip-path:polygon(60%_0,100%_0,100%_100%,60%_100%)]";
 
           return (
             <Fragment key={`${garment?.id ?? imageUrl}-${duplicateIndex}-open-coat`}>
@@ -110,8 +110,8 @@ export const OutfitCollage = ({ garments }: OutfitCollageProps) => {
             "absolute top-[40%] left-1/2 -translate-x-1/2 w-[65%] h-[55%] object-contain object-top drop-shadow-md z-20",
           visualCategory === "dresses" &&
             cn(
-              "absolute left-1/2 -translate-x-1/2 object-contain object-top drop-shadow-md z-30",
-              hasOuterwear ? "top-[14%] w-[68%] h-[72%]" : "top-[10%] w-[70%] h-[75%]",
+              "absolute top-[10%] left-1/2 -translate-x-1/2 object-contain object-top drop-shadow-md z-30",
+              hasOuterwear ? "w-[78%] h-[82%]" : "w-[70%] h-[75%]",
             ),
           visualCategory === "tops" &&
             cn(
