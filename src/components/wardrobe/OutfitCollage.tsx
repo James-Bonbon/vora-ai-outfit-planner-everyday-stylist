@@ -472,16 +472,20 @@ const getNormalizedStyle = ({
   };
 };
 
-const getItemVisualBounds = (style: NormalizedRenderStyle): ItemBounds => {
+const getItemVisualBounds = (style: NormalizedRenderStyle, analysis?: ImageAnalysis | null): ItemBounds => {
   const left = Number.parseFloat(String(style.left ?? 0));
   const top = Number.parseFloat(String(style.top ?? 0));
   const translatedLeft = left + (style.offsetXPct / 100) * style.boxWidthPct;
   const translatedTop = top + (style.offsetYPct / 100) * style.boxHeightPct;
   const imageRect = getObjectContainRect(style.boxWidthPct, style.boxHeightPct, style.imageRatio);
-  const imageLeft = translatedLeft + (imageRect.left / 100) * style.boxWidthPct;
-  const imageTop = translatedTop + (imageRect.top / 100) * style.boxHeightPct;
-  const imageWidth = (imageRect.width / 100) * style.boxWidthPct;
-  const imageHeight = (imageRect.height / 100) * style.boxHeightPct;
+  const visibleLeftRatio = analysis?.imageWidth && analysis?.visibleWidth ? clamp((analysis.visibleX ?? 0) / analysis.imageWidth, 0, 1) : 0;
+  const visibleTopRatio = analysis?.imageHeight && analysis?.visibleHeight ? clamp((analysis.visibleY ?? 0) / analysis.imageHeight, 0, 1) : 0;
+  const visibleWidthRatio = analysis?.imageWidth && analysis?.visibleWidth ? clamp(analysis.visibleWidth / analysis.imageWidth, 0.05, 1) : 1;
+  const visibleHeightRatio = analysis?.imageHeight && analysis?.visibleHeight ? clamp(analysis.visibleHeight / analysis.imageHeight, 0.05, 1) : 1;
+  const imageLeft = translatedLeft + ((imageRect.left + visibleLeftRatio * imageRect.width) / 100) * style.boxWidthPct;
+  const imageTop = translatedTop + ((imageRect.top + visibleTopRatio * imageRect.height) / 100) * style.boxHeightPct;
+  const imageWidth = ((imageRect.width * visibleWidthRatio) / 100) * style.boxWidthPct;
+  const imageHeight = ((imageRect.height * visibleHeightRatio) / 100) * style.boxHeightPct;
   const center = { x: translatedLeft + style.boxWidthPct / 2, y: translatedTop + style.boxHeightPct / 2 };
   const corners = [
     { x: imageLeft, y: imageTop },
@@ -502,7 +506,7 @@ const normalizeOutfitGroup = (items: Array<{ style: NormalizedRenderStyle }>): G
   const targetOccupancyPct = items.length <= 2 ? 78 : items.length <= 4 ? 80 : 82;
   if (!items.length) return { canvasCenter, boundingBox: null, groupCenter: null, translateX: 0, translateY: 0, scale: 1, safePaddingPct, targetOccupancyPct, occupancyWidthPct: 0, occupancyHeightPct: 0 };
 
-  const boxes = items.map(({ style }) => getItemVisualBounds(style));
+  const boxes = items.map(({ style, garment }: { style: NormalizedRenderStyle; garment?: any }) => getItemVisualBounds(style, garment?.image_analysis));
 
   const rawBox = boxes.reduce(
     (acc, box) => ({
