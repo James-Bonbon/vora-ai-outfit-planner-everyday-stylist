@@ -406,6 +406,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
       duplicateIndex,
       metadata,
       style,
+      upperFitWidthRatio: upperWidthRatio,
       renderedUpperWidth: upperWidthRatio ? upperWidthRatio * style.boxWidthPct : null,
     };
   });
@@ -414,14 +415,26 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
   let dressRenderedWidth = renderItems.find((item) => item.visualCategory === "dresses")?.renderedUpperWidth ?? null;
   let dressToCoatRatio = coatRenderedWidth && dressRenderedWidth ? dressRenderedWidth / coatRenderedWidth : null;
 
-  if (hasOuterwear && hasDress && dressToCoatRatio !== null && dressToCoatRatio < 0.75) {
-    const scaleUp = clamp(0.82 / dressToCoatRatio, 1, 1.45);
+  if (hasOuterwear && hasDress && coatRenderedWidth && dressToCoatRatio !== null && (dressToCoatRatio < 0.85 || dressToCoatRatio > 0.95)) {
+    const targetDressRenderedFitWidth = coatRenderedWidth * 0.9;
     renderItems = renderItems.map((item) => {
-      if (item.visualCategory !== "dresses" || !item.renderedUpperWidth) return item;
-      const nextWidth = clamp(item.style.boxWidthPct * scaleUp, item.style.boxWidthPct, 118);
-      const nextHeight = clamp(item.style.boxHeightPct * Math.min(scaleUp, 1.2), item.style.boxHeightPct, 96);
-      const nextStyle = { ...item.style, width: `${nextWidth}%`, height: `${nextHeight}%`, boxWidthPct: nextWidth, boxHeightPct: nextHeight };
-      return { ...item, style: nextStyle, renderedUpperWidth: item.renderedUpperWidth * (nextWidth / item.style.boxWidthPct) };
+      if (item.visualCategory !== "dresses" || !item.upperFitWidthRatio) return item;
+      const calculatedImageBoxWidth = targetDressRenderedFitWidth / item.upperFitWidthRatio;
+      const nextWidth = clamp(calculatedImageBoxWidth, 22, item.style.fitSource === "human" ? 138 : 124);
+      const scale = nextWidth / Math.max(item.style.boxWidthPct, 1);
+      const nextHeight = clamp(item.style.boxHeightPct * clamp(scale, 0.86, 1.28), 22, 104);
+      const finalRenderedFitWidth = item.upperFitWidthRatio * nextWidth;
+      const nextStyle = {
+        ...item.style,
+        width: `${nextWidth}%`,
+        height: `${nextHeight}%`,
+        boxWidthPct: nextWidth,
+        boxHeightPct: nextHeight,
+        targetRenderedFitWidth: targetDressRenderedFitWidth,
+        calculatedImageBoxWidth,
+        finalRenderedFitWidth,
+      };
+      return { ...item, style: nextStyle, renderedUpperWidth: finalRenderedFitWidth };
     });
     coatRenderedWidth = renderItems.find((item) => item.visualCategory === "outerwear")?.renderedUpperWidth ?? null;
     dressRenderedWidth = renderItems.find((item) => item.visualCategory === "dresses")?.renderedUpperWidth ?? null;
