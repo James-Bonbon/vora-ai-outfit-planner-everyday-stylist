@@ -495,7 +495,7 @@ const normalizeOutfitGroup = (items: Array<{ style: NormalizedRenderStyle }>): G
   const safeCanvas = 100 - 20;
   const targetWidth = safeCanvas * targetOccupancy;
   const targetHeight = safeCanvas * targetOccupancy;
-  const scale = clamp(Math.min(targetWidth / Math.max(boundingBox.width, 1), targetHeight / Math.max(boundingBox.height, 1), 1), 0.18, 1);
+  const scale = clamp(Math.min(targetWidth / Math.max(boundingBox.width, 1), targetHeight / Math.max(boundingBox.height, 1), 1), 0.04, 1);
   return {
     canvasCenter,
     boundingBox,
@@ -641,9 +641,9 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
       const minimumRequiredDressBoxWidth = item.style.boxWidthPct * minimumRequiredDressBoxScale;
       const boxWidthBeforeClamp = Math.max(item.style.boxWidthPct, requiredDressBoxWidth);
       const boxHeightBeforeClamp = Math.max(item.style.boxHeightPct, requiredDressBoxHeight);
-      const maxDressBoxWidth = Math.max(220, requiredDressBoxWidth, minimumRequiredDressBoxWidth);
+      const maxDressBoxWidth = Math.max(1000, requiredDressBoxWidth, minimumRequiredDressBoxWidth);
       const nextWidth = clamp(boxWidthBeforeClamp, minimumRequiredDressBoxWidth, maxDressBoxWidth);
-      const nextHeight = clamp(boxHeightBeforeClamp, item.style.boxHeightPct * minimumRequiredDressBoxScale, 220);
+      const nextHeight = clamp(boxHeightBeforeClamp, item.style.boxHeightPct * minimumRequiredDressBoxScale, 1000);
       const finalRenderedFitWidth = item.upperFitWidthRatio * nextWidth;
       const nextStyle = {
         ...item.style,
