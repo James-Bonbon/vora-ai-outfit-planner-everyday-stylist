@@ -320,9 +320,13 @@ const toRelativePoint = (point: { x: number; y: number } | undefined, analysis?:
 };
 
 const getPrioritizedUpperFit = (metadata: LayoutMetadata) => {
-  const validated = metadata.validatedMeasurementAnchors?.upperFit;
-  const measurement = metadata.measurementAnchors?.upperFit;
-  const layout = metadata.layoutAnchors?.upperFit;
+  return getPrioritizedFitGroup(metadata, "upperFit");
+};
+
+const getPrioritizedFitGroup = (metadata: LayoutMetadata, anchorType: FitAnchorType) => {
+  const validated = metadata.validatedMeasurementAnchors?.[anchorType];
+  const measurement = metadata.measurementAnchors?.[anchorType];
+  const layout = metadata.layoutAnchors?.[anchorType] || (anchorType === "lowerHemFit" ? metadata.layoutAnchors?.length : undefined);
   const human = [validated, measurement].find((group) => group?.source === "human");
   const ai = [validated, measurement].find((group) => group?.source === "ai");
   if (human) return { group: human, source: "human", isMeasurement: true };
@@ -331,6 +335,38 @@ const getPrioritizedUpperFit = (metadata: LayoutMetadata) => {
   if (layout?.source === "ratio_guard") return { group: layout, source: "ratio_guard", isMeasurement: false };
   if (layout) return { group: layout, source: layout.source || "fallback", isMeasurement: false };
   return null;
+};
+
+const getFitWidthFromGroup = (group: FitGroup | undefined, anchorType: FitAnchorType, analysis?: ImageAnalysis | null) => {
+  const widthKey: Record<FitAnchorType, string[]> = {
+    upperFit: ["upperBodyFitWidth"],
+    waist: ["waistFitWidth", "waistWidth"],
+    lowerHemFit: ["lowerHemFitWidth", "hemFitWidth"],
+    hipFit: ["hipFitWidth"],
+    lengthFit: ["lengthFitHeight"],
+  };
+  for (const key of widthKey[anchorType]) {
+    const ratio = widthToRatio(Number(group?.[key]), anchorType === "lengthFit" ? { imageWidth: analysis?.imageHeight } as ImageAnalysis : analysis);
+    if (ratio) return ratio;
+  }
+  const pair = getAnchorPairFromGroup(group, anchorType, analysis);
+  return pair?.width ?? null;
+};
+
+const getAnchorPairFromGroup = (group: FitGroup | undefined, anchorType: FitAnchorType, analysis?: ImageAnalysis | null) => {
+  const keys: Record<FitAnchorType, [string, string, string, string]> = {
+    upperFit: ["leftUpperFitAnchor", "rightUpperFitAnchor", "L upper", "R upper"],
+    waist: ["leftWaistAnchor", "rightWaistAnchor", "L waist", "R waist"],
+    lowerHemFit: ["leftLowerHemFitAnchor", "rightLowerHemFitAnchor", "L hem", "R hem"],
+    hipFit: ["leftHipFitAnchor", "rightHipFitAnchor", "L hip", "R hip"],
+    lengthFit: ["topLengthFitAnchor", "bottomLengthFitAnchor", "Top length", "Bottom length"],
+  };
+  const [leftKey, rightKey, leftLabel, rightLabel] = keys[anchorType];
+  const left = toRelativePoint(group?.[leftKey], analysis);
+  const right = toRelativePoint(group?.[rightKey], analysis);
+  if (!left || !right) return null;
+  const width = anchorType === "lengthFit" ? Math.abs(right.y - left.y) : Math.abs(right.x - left.x);
+  return width > 0.08 ? { left, right, width: clamp(width, 0.08, 1), leftLabel, rightLabel, fullLabel: `${leftKey} → ${rightKey}`, source: group?.source, confidence: group?.confidence, validationStatus: group?.validationStatus || (group?.source === "human" || group?.source === "ai" ? "validated" : "estimated") } : null;
 };
 
 const widthToRatio = (width: number, analysis?: ImageAnalysis | null) => {
