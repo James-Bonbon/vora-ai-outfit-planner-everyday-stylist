@@ -20,6 +20,27 @@ const hasUpperAnchors = (metadata: any) => Boolean(
   metadata?.leftUpperAnchor && metadata?.rightUpperAnchor && Number(metadata?.upperBodyWidthAnchor) > 0,
 );
 
+const classifyFitFamily = (item: any) => {
+  const text = `${item?.layout_metadata?.garmentType ?? ""} ${item?.category ?? ""} ${item?.name ?? ""}`.toLowerCase();
+  if (/shoe|sneaker|boot|heel|loafer|sandal|trainer|bag|purse|tote|clutch|backpack|handbag|accessor|belt|scarf|jewelry|jewellery|sunglasses|hat|cap|beanie/.test(text)) return "accessory";
+  if (/dress|gown|jumpsuit|romper|one[-\s]?piece/.test(text)) return "dresses";
+  if (/outerwear|coat|jacket|blazer|trench|parka|cardigan|shacket/.test(text)) return "outerwear";
+  if (/trouser|pant|jean|legging|chino|skirt|short(?![-\s]?sleeve)|bottom/.test(text)) return "bottoms";
+  if (/top|shirt|blouse|tee|t-shirt|knit|sweater|jumper|hoodie/.test(text)) return "tops";
+  return "accessory";
+};
+
+const hasRequiredFitAnchors = (item: any) => {
+  const family = classifyFitFamily(item);
+  const v = item?.layout_metadata?.validatedMeasurementAnchors || {};
+  const m = item?.layout_metadata?.measurementAnchors || {};
+  const l = item?.layout_metadata?.layoutAnchors || {};
+  const has = (key: string) => Boolean(v[key] || m[key] || l[key]);
+  if (family === "accessory") return hasImageAnalysis(item?.image_analysis);
+  if (family === "bottoms") return has("waist") && has("lengthFit");
+  return has("upperFit") && has("lowerHemFit") && has("lengthFit");
+};
+
 const hasImageAnalysis = (analysis: any) => Boolean(
   Number(analysis?.imageWidth) > 0 &&
   Number(analysis?.imageHeight) > 0 &&
@@ -144,7 +165,11 @@ const buildAlphaProfileLayout = (analysis: any, isTop: boolean, isOuterwear: boo
   const hem = scanAlphaBand(analysis, isBottom ? 0.68 : 0.78, 0.96, 0.12, 0.82, "hem");
   if (upper) layout.upperFit = { leftUpperFitAnchor: { x: upper.left, y: upper.y, source: "alpha_profile", confidence, notes }, rightUpperFitAnchor: { x: upper.right, y: upper.y, source: "alpha_profile", confidence, notes }, upperBodyFitWidth: upper.width, confidence, source: "alpha_profile", notes };
   if (waist) layout.waist = { leftWaistAnchor: { x: waist.left, y: waist.y, source: "alpha_profile", confidence, notes }, rightWaistAnchor: { x: waist.right, y: waist.y, source: "alpha_profile", confidence, notes }, waistFitWidth: waist.width, confidence, source: "alpha_profile", notes };
-  if (hem) layout.length = { leftHemAnchor: { x: hem.left, y: hem.y, source: "alpha_profile", confidence, notes }, rightHemAnchor: { x: hem.right, y: hem.y, source: "alpha_profile", confidence, notes }, hemFitWidth: hem.width, confidence, source: "alpha_profile", notes };
+  if (hem) layout.lowerHemFit = { leftLowerHemFitAnchor: { x: hem.left, y: hem.y, source: "alpha_profile", confidence, notes }, rightLowerHemFitAnchor: { x: hem.right, y: hem.y, source: "alpha_profile", confidence, notes }, lowerHemFitWidth: hem.width, confidence, source: "alpha_profile", validationStatus: "estimated", notes };
+  if (analysis?.visibleAlphaBounds) {
+    const b = analysis.visibleAlphaBounds;
+    layout.lengthFit = { topLengthFitAnchor: { x: b.x + b.width / 2, y: b.y, source: "alpha_profile", confidence, notes }, bottomLengthFitAnchor: { x: b.x + b.width / 2, y: b.y + b.height, source: "alpha_profile", confidence, notes }, lengthFitHeight: b.height, confidence, source: "alpha_profile", validationStatus: "estimated", notes };
+  }
   return Object.keys(layout).length ? layout : null;
 };
 
