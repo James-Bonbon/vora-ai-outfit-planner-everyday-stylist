@@ -117,6 +117,8 @@ export const GarmentFitCalibration = ({ itemId, imageUrl, layoutMetadata, imageA
       const staleLayoutAnchors = { ...(layoutMetadata?.layoutAnchors || {}) };
       if (validatedMeasurementAnchors.upperFit) delete staleLayoutAnchors.upperFit;
       if (validatedMeasurementAnchors.waist) delete staleLayoutAnchors.waist;
+      if (validatedMeasurementAnchors.lowerHemFit) delete staleLayoutAnchors.lowerHemFit;
+      if (validatedMeasurementAnchors.lengthFit) delete staleLayoutAnchors.lengthFit;
       const humanUpper = validatedMeasurementAnchors.upperFit as any;
       const humanWaist = validatedMeasurementAnchors.waist as any;
       const nextMetadata = {
@@ -129,7 +131,7 @@ export const GarmentFitCalibration = ({ itemId, imageUrl, layoutMetadata, imageA
         upperBodyWidthAnchor: humanUpper?.upperBodyFitWidth ?? layoutMetadata?.upperBodyWidthAnchor,
         leftWaistAnchor: humanWaist?.leftWaistAnchor || layoutMetadata?.leftWaistAnchor,
         rightWaistAnchor: humanWaist?.rightWaistAnchor || layoutMetadata?.rightWaistAnchor,
-        fitValidation: { status: "human", rejected: [] },
+        fitValidation: { status: "human", rejected: [], anchorGroups: Object.fromEntries(Object.entries(validatedMeasurementAnchors).map(([key, value]: any) => [key, { source: value?.source, confidence: value?.confidence, validationStatus: value?.validationStatus || "validated" }])) },
         confidence: 1,
       };
       const { error } = await supabase.from("closet_items").update({ layout_metadata: nextMetadata }).eq("id", itemId);
