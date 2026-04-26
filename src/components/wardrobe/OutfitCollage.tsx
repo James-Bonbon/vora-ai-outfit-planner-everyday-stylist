@@ -143,6 +143,21 @@ type GroupNormalization = {
   scale: number;
 };
 
+type ItemBounds = { left: number; top: number; right: number; bottom: number; width: number; height: number; center: { x: number; y: number } };
+
+type CompositionMetrics = {
+  selectedLayoutTemplate: string;
+  garmentCenters: Record<string, { x: number; y: number }>;
+  garmentBounds: Record<string, ItemBounds>;
+  pairMetrics: Array<{
+    a: string;
+    b: string;
+    horizontalOverlapPct: number;
+    verticalOverlapPct: number;
+    centerDistance: number;
+  }>;
+};
+
 const centeredOffsets = [
   { x: 0, y: 0 },
   { x: 16, y: 16 },
