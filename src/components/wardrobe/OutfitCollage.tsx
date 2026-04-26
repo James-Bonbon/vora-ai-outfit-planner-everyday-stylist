@@ -873,10 +873,16 @@ const getGarmentFitSummary = (item: RenderItem, relationshipDebug: ReturnType<ty
   const allAnchors = [...required, ...optional];
   const present = allAnchors.flatMap((anchorType) => {
     const group = getPrioritizedFitGroup(item.metadata, anchorType);
-    return group ? [`${formatAnchorName(anchorType)} (${group.source})`] : [];
+    return group && group.group.validationStatus !== "failed" ? [`${formatAnchorName(anchorType)} (${group.source}, ${Number(group.group.confidence ?? 0).toFixed(2)})`] : [];
   });
   const missingRequired = required.filter((anchorType) => !getPrioritizedFitGroup(item.metadata, anchorType)).map(formatAnchorName);
   const missingOptional = optional.filter((anchorType) => !getPrioritizedFitGroup(item.metadata, anchorType)).map((anchorType) => `${formatAnchorName(anchorType)} optional`);
+  const invalid = (item.metadata.invalidAnchors || item.metadata.fitValidation?.invalidAnchors || [])
+    .map((entry) => `${formatAnchorName(entry.anchor as FitAnchorType)}: ${entry.reasons.join(", ")}`);
+  const usedForSizing = allAnchors.filter((anchorType) => {
+    const group = getPrioritizedFitGroup(item.metadata, anchorType);
+    return group?.isMeasurement && group.source !== "ratio_guard" && Number(group.group.confidence) >= 0.5;
+  }).map(formatAnchorName);
   const relationshipScale = Number(item.style.sizingDebug?.relationshipScale || item.style.sizingDebug?.requiredDressBoxScale || 1);
   const resizeActionNeeded = Number.isFinite(relationshipScale) && Math.abs(relationshipScale - 1) > 0.02;
   const compared = relationshipDebug?.comparedAnchors;
@@ -895,8 +901,10 @@ const getGarmentFitSummary = (item: RenderItem, relationshipDebug: ReturnType<ty
     required: required.map(formatAnchorName),
     present,
     missing: [...missingRequired, ...missingOptional],
+    invalid,
+    usedForSizing,
     confidence: Number(item.metadata.confidence ?? item.style.sizingDebug?.upperFitWidthRatio ?? 0),
-    status: missingRequired.length ? "Needs calibration" : "OK",
+    status: item.metadata.fitValidation?.status || (missingRequired.length ? "Needs calibration" : "OK"),
     resizeActionNeeded,
     resizeReason,
   };
