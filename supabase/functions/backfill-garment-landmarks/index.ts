@@ -221,13 +221,14 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
 
   const alphaLayout = buildAlphaProfileLayout(analysis, isTop, isOuterwear, isDress, isBottom);
   if (!next.validatedMeasurementAnchors?.waist && alphaLayout?.waist) next.layoutAnchors.waist = alphaLayout.waist;
-  if (alphaLayout?.length) next.layoutAnchors.length = alphaLayout.length;
+  if (!next.validatedMeasurementAnchors?.lowerHemFit && alphaLayout?.lowerHemFit) next.layoutAnchors.lowerHemFit = alphaLayout.lowerHemFit;
+  if (!next.validatedMeasurementAnchors?.lengthFit && alphaLayout?.lengthFit) next.layoutAnchors.lengthFit = alphaLayout.lengthFit;
 
   if (!isTop) {
     if (isBottom && alphaLayout) {
       next.anchorNormalization = "estimated_layout_scaling_from_alpha_profile";
-      next.anchorSources = { leftWaistAnchor: "alpha_profile", rightWaistAnchor: "alpha_profile", hemWidthAnchor: "alpha_profile" };
-      next.confidence = alphaLayout.waist?.confidence || alphaLayout.length?.confidence || 0.42;
+      next.anchorSources = { leftWaistAnchor: "alpha_profile", rightWaistAnchor: "alpha_profile", lowerHemFit: "alpha_profile", lengthFit: "alpha_profile" };
+      next.confidence = alphaLayout.waist?.confidence || alphaLayout.lengthFit?.confidence || 0.42;
       next.confidenceAfterNormalization = next.confidence;
       next.fitValidation = { status: "fallback", rejected: ["alpha_profile_layout_only"] };
     }
@@ -346,7 +347,7 @@ serve(async (req) => {
     const { data: rows, error: selectError } = await query;
     if (selectError) throw selectError;
 
-    const candidates = (rows || []).filter((item: any) => force || !hasUpperAnchors(item.layout_metadata) || !hasImageAnalysis(item.image_analysis)).slice(0, limit);
+    const candidates = (rows || []).filter((item: any) => force || !hasRequiredFitAnchors(item) || !hasUpperAnchors(item.layout_metadata) || !hasImageAnalysis(item.image_analysis)).slice(0, limit);
     const results: any[] = [];
 
     for (const item of candidates) {
@@ -425,7 +426,7 @@ For dresses, especially asymmetric or sleeveless dresses, do NOT measure literal
       }
     }
 
-    return json({ scanned: rows?.length || 0, missing: (rows || []).filter((item: any) => !hasUpperAnchors(item.layout_metadata) || !hasImageAnalysis(item.image_analysis)).length, processed: candidates.length, results });
+    return json({ scanned: rows?.length || 0, missing: (rows || []).filter((item: any) => !hasRequiredFitAnchors(item) || !hasUpperAnchors(item.layout_metadata) || !hasImageAnalysis(item.image_analysis)).length, processed: candidates.length, results });
   } catch (error) {
     console.error("backfill-garment-landmarks error:", error);
     return json({ error: error instanceof Error ? error.message : "Unknown error" }, 500);
