@@ -88,7 +88,7 @@ describe("OutfitCollage calibrated fit sizing", () => {
     const narrowDressWidth = getDressWidth(narrow.container);
 
     expect(narrowDressWidth).toBeGreaterThan(wideDressWidth);
-    expect(narrow.container.textContent).toContain("source: human");
+    expect(narrow.container.textContent).toContain('"source": "human"');
     expect(narrow.container.textContent).toMatch(/final dress\/coat fit ratio: 0\.(8[5-9]|9[0-5])/);
     act(() => narrow.root.unmount());
     narrow.container.remove();
