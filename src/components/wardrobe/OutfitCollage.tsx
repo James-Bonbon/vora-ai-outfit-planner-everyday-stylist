@@ -82,6 +82,8 @@ type NormalizedRenderStyle = CSSProperties & {
   finalRenderedFitWidth?: number | null;
   sizingDebug?: {
     upperFitSource?: string;
+    lengthFitSource?: string | null;
+    lengthFitRatio?: number | null;
     upperFitWidthRatio?: number | null;
     targetDressToCoatRatio?: number | null;
     minimumDressToCoatRatio?: number | null;
