@@ -39,48 +39,20 @@ type LayoutMetadata = {
   anchorSources?: Record<string, "ai" | "alpha_profile" | "alpha_estimate" | "ratio_guard" | string>;
   rawAiLandmarks?: any;
   validatedMeasurementAnchors?: {
-    upperFit?: {
-      leftUpperFitAnchor?: { x: number; y: number };
-      rightUpperFitAnchor?: { x: number; y: number };
-      upperBodyFitWidth?: number;
-      confidence?: number;
-      source?: string;
-      notes?: string;
-    };
-    waist?: {
-      leftWaistAnchor?: { x: number; y: number };
-      rightWaistAnchor?: { x: number; y: number };
-      waistWidth?: number;
-      confidence?: number;
-      source?: string;
-      notes?: string;
-    };
+    upperFit?: FitGroup;
+    waist?: FitGroup;
+    lowerHemFit?: FitGroup;
+    hipFit?: FitGroup;
+    lengthFit?: FitGroup;
   };
   measurementAnchors?: LayoutMetadata["validatedMeasurementAnchors"];
   layoutAnchors?: {
-    upperFit?: {
-      leftUpperFitAnchor?: { x: number; y: number };
-      rightUpperFitAnchor?: { x: number; y: number };
-      upperBodyFitWidth?: number;
-      confidence?: number;
-      source?: string;
-      normalizationReason?: string;
-      notes?: string;
-    };
-    waist?: {
-      leftWaistAnchor?: { x: number; y: number };
-      rightWaistAnchor?: { x: number; y: number };
-      waistFitWidth?: number;
-      confidence?: number;
-      source?: string;
-      notes?: string;
-    };
-    length?: {
-      confidence?: number;
-      source?: string;
-      notes?: string;
-      hemFitWidth?: number;
-    };
+    upperFit?: FitGroup;
+    waist?: FitGroup;
+    lowerHemFit?: FitGroup;
+    hipFit?: FitGroup;
+    lengthFit?: FitGroup;
+    length?: FitGroup;
   };
   bodyAnchors?: {
     leftShoulder?: { x: number; y: number };
@@ -90,6 +62,9 @@ type LayoutMetadata = {
     hemCenter?: { x: number; y: number };
   };
 };
+
+type FitGroup = Record<string, any> & { confidence?: number; source?: string; notes?: string; validationStatus?: string; failureReason?: string };
+type FitAnchorType = "upperFit" | "waist" | "lowerHemFit" | "hipFit" | "lengthFit";
 
 type NormalizedRenderStyle = CSSProperties & {
   boxWidthPct: number;
