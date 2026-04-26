@@ -573,24 +573,12 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
       )}
       {renderItems.map(({ garment, visualCategory, imageUrl, duplicateIndex, metadata, style, renderedUpperWidth }) => {
         const baseAlt = garment?.name || garment?.category || "Garment";
-        const { boxWidthPct, boxHeightPct, anchorShiftXPct, anchorShiftYPct, rotationDeg, fitSource: styleFitSource, upperFitWidthRatio, targetRenderedFitWidth, calculatedImageBoxWidth, finalRenderedFitWidth, ...imageStyle } = style;
-        const upperPair = getUpperAnchorPair(metadata, garment?.image_analysis);
+        const { boxWidthPct, boxHeightPct, offsetXPct, offsetYPct, anchorShiftXPct, anchorShiftYPct, rotationDeg, imageRatio, fitSource: styleFitSource, upperFitWidthRatio, targetRenderedFitWidth, calculatedImageBoxWidth, finalRenderedFitWidth, ...imageStyle } = style;
         const measurementPair = getRealMeasurementPair(metadata, garment?.image_analysis, visualCategory);
         const layoutGroup = metadata.layoutAnchors?.upperFit || metadata.layoutAnchors?.waist || metadata.layoutAnchors?.length;
         const layoutSource = layoutGroup?.source;
         const prioritizedUpperFit = getPrioritizedUpperFit(metadata);
         const fitSource = prioritizedUpperFit?.source || (measurementPair ? ((metadata.validatedMeasurementAnchors?.waist || metadata.measurementAnchors?.waist) as any)?.source : layoutSource) || styleFitSource || "fallback";
-        const finalFitWidth = finalRenderedFitWidth ?? renderedUpperWidth ?? (upperFitWidthRatio ? upperFitWidthRatio * boxWidthPct : null);
-        const renderedRatios = {
-          source: fitSource,
-          calibratedUpperFitWidth: prioritizedUpperFit?.group?.upperBodyFitWidth ?? null,
-          upperFitWidthRatio: upperFitWidthRatio ?? null,
-          targetRenderedFitWidth: targetRenderedFitWidth ?? null,
-          calculatedImageBoxWidth: calculatedImageBoxWidth ?? null,
-          finalRenderedFitWidth: finalFitWidth,
-          dressToCoat: visualCategory === "dresses" ? dressToCoatRatio : null,
-          finalDressToCoatFitRatio: visualCategory === "dresses" ? dressToCoatRatio : null,
-        };
         const measurementCenter = measurementPair ? { x: (measurementPair.left.x + measurementPair.right.x) / 2, y: (measurementPair.left.y + measurementPair.right.y) / 2 } : null;
         const landmarkPoints = [
           measurementPair?.left,
