@@ -1120,17 +1120,25 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
           <summary className="cursor-pointer font-medium">Sizing engine QA</summary>
           <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify(sizingEngineDebug, null, 2)}</pre>
         </details>
+        <details open>
+          <summary className="cursor-pointer font-medium">Relationship QA</summary>
+          <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify(relationshipDebug, null, 2)}</pre>
+        </details>
         <details>
           <summary className="cursor-pointer font-medium">Garment fit QA</summary>
           <pre className="mt-1 max-h-52 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify(renderItems.map((item) => {
             const metadata = item.metadata;
             const measurementPair = getRealMeasurementPair(metadata, item.garment?.image_analysis, item.visualCategory);
             const prioritizedUpperFit = getPrioritizedUpperFit(metadata);
-            const layoutGroup = metadata.layoutAnchors?.upperFit || metadata.layoutAnchors?.waist || metadata.layoutAnchors?.length;
+            const layoutGroup = metadata.layoutAnchors?.upperFit || metadata.layoutAnchors?.waist || metadata.layoutAnchors?.lowerHemFit || metadata.layoutAnchors?.lengthFit || metadata.layoutAnchors?.length;
             const fitSource = prioritizedUpperFit?.source || (measurementPair ? ((metadata.validatedMeasurementAnchors?.waist || metadata.measurementAnchors?.waist) as any)?.source : layoutGroup?.source) || item.style.fitSource || "fallback";
             return {
               garment: item.garment?.name || item.garment?.category,
               source: fitSource,
+              anchorGroups: (["upperFit", "waist", "lowerHemFit", "hipFit", "lengthFit"] as FitAnchorType[]).map((anchorType) => {
+                const group = getPrioritizedFitGroup(metadata, anchorType);
+                return { anchorType, source: group?.source || null, confidence: group?.group?.confidence ?? null, validationStatus: group?.group?.validationStatus || (group?.isMeasurement ? "validated" : group ? "estimated" : null), failureReason: group?.group?.failureReason || null, widthRatio: getFitWidthFromGroup(group?.group, anchorType, item.garment?.image_analysis) };
+              }),
               measuredWidthSpace: "source_image_or_calibrated_anchor_space_not_rotated_screen_space",
               anchorMapping: "source image coordinates → normalized image coordinates → object-contain rendered box coordinates → shared garment wrapper transform",
               calibratedUpperFitWidth: prioritizedUpperFit?.group?.upperBodyFitWidth ?? null,
