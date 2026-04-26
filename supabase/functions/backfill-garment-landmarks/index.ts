@@ -259,7 +259,8 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
 
   const leftWaist = normalizePoint(layout.leftWaistAnchor, analysis);
   const rightWaist = normalizePoint(layout.rightWaistAnchor, analysis);
-  if (leftWaist && rightWaist && (originalConfidence ?? 0) >= 0.5) {
+  const waistValidation = validateAnchorPair(leftWaist, rightWaist, analysis, 0.16, 0.72, isBottom ? 0 : 0.3, isBottom ? 0.24 : 0.68);
+  if (leftWaist && rightWaist && waistValidation.valid && (originalConfidence ?? 0) >= 0.5) {
     next.validatedMeasurementAnchors = {
       ...(next.validatedMeasurementAnchors || {}),
       waist: {
@@ -271,6 +272,8 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
         notes: layout.notes || "AI waist fit span.",
       },
     };
+  } else if (leftWaist || rightWaist) {
+    next.fitValidation.rejected.push(...waistValidation.reasons.map((reason) => `waist:${reason}`));
   }
 
   const alphaLayout = buildAlphaProfileLayout(analysis, isTop, isOuterwear, isDress, isBottom);
@@ -289,7 +292,8 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
     return next;
   }
 
-  if (!next.validatedMeasurementAnchors?.upperFit && left && right && rawRatio >= measurementMinRatio && rawRatio <= measurementMaxRatio && (originalConfidence ?? 0) >= 0.5) {
+  const upperValidation = validateAnchorPair(left, right, analysis, measurementMinRatio, measurementMaxRatio, 0.04, 0.38);
+  if (!next.validatedMeasurementAnchors?.upperFit && left && right && upperValidation.valid && (originalConfidence ?? 0) >= 0.5) {
     next.validatedMeasurementAnchors = {
       ...(next.validatedMeasurementAnchors || {}),
       upperFit: {
@@ -311,6 +315,8 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
     next.confidenceBeforeNormalization = originalConfidence;
     next.confidenceAfterNormalization = originalConfidence;
     return next;
+  } else if (left || right) {
+    next.fitValidation.rejected.push(...upperValidation.reasons.map((reason) => `upperFit:${reason}`));
   }
 
   if (alphaLayout?.upperFit) {
