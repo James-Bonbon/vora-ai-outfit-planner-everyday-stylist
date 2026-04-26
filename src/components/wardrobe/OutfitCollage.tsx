@@ -700,6 +700,8 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
             <div>coat width: {coatRenderedWidth?.toFixed(1) ?? "—"}%</div>
             <div>dress width: {dressRenderedWidth?.toFixed(1) ?? "—"}%</div>
             <div>final dress/coat fit ratio: {dressToCoatRatio ? dressToCoatRatio.toFixed(2) : "—"}</div>
+            <div>target dress/coat fit ratio: {targetDressToCoatRatio.toFixed(2)}</div>
+            <div>minimum dress/coat fit ratio: {minimumDressToCoatRatio.toFixed(2)}</div>
           </div>
         )}
         <details open={compositionQaOpen} onToggle={(event) => setCompositionQaOpen(event.currentTarget.open)}>
@@ -714,6 +716,10 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
             finalGroupScale: groupNormalization.scale,
             boundingBoxIncludes: "garment visual boxes and measurement overlay only; labels and below-canvas panels excluded",
           }, null, 2)}</pre>
+        </details>
+        <details open>
+          <summary className="cursor-pointer font-medium">Sizing engine QA</summary>
+          <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify(sizingEngineDebug, null, 2)}</pre>
         </details>
         <details>
           <summary className="cursor-pointer font-medium">Garment fit QA</summary>
@@ -732,6 +738,9 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
               upperFitWidthRatio: item.style.upperFitWidthRatio ?? null,
               targetRenderedFitWidth: item.style.targetRenderedFitWidth ?? null,
               calculatedImageBoxWidth: item.style.calculatedImageBoxWidth ?? null,
+              requiredDressBoxWidth: item.style.sizingDebug?.requiredDressBoxWidth ?? null,
+              boxWidthBeforeClamp: item.style.sizingDebug?.boxWidthBeforeClamp ?? null,
+              boxWidthAfterClamp: item.style.sizingDebug?.boxWidthAfterClamp ?? item.style.boxWidthPct ?? null,
               finalRenderedFitWidth: item.style.finalRenderedFitWidth ?? item.renderedUpperWidth ?? null,
               rawAiLandmarks: metadata.rawAiLandmarks,
               validatedMeasurementAnchors: metadata.validatedMeasurementAnchors || metadata.measurementAnchors,
