@@ -111,11 +111,27 @@ type NormalizedRenderStyle = CSSProperties & {
     targetDressToCoatRatio?: number | null;
     minimumDressToCoatRatio?: number | null;
     requiredDressBoxWidth?: number | null;
+    requiredDressBoxHeight?: number | null;
+    requiredDressBoxScale?: number | null;
     minimumRequiredDressBoxWidth?: number | null;
     boxWidthBeforeClamp?: number | null;
+    boxHeightBeforeClamp?: number | null;
     boxWidthAfterClamp?: number | null;
+    boxHeightAfterClamp?: number | null;
     finalRenderedFitWidth?: number | null;
+    renderedFitLineLength?: number | null;
   };
+};
+
+type RenderItem = {
+  garment: any;
+  visualCategory: VisualCategory;
+  imageUrl: string;
+  duplicateIndex: number;
+  metadata: LayoutMetadata;
+  style: NormalizedRenderStyle;
+  upperFitWidthRatio: number | null | undefined;
+  renderedUpperWidth: number | null;
 };
 
 type GroupNormalization = {
@@ -478,6 +494,61 @@ const normalizeOutfitGroup = (items: Array<{ style: NormalizedRenderStyle }>): G
     translateX: canvasCenter.x - groupCenter.x * scale,
     translateY: canvasCenter.y - groupCenter.y * scale,
     scale,
+  };
+};
+
+const mapMeasurementPointToCanvas = (point: { x: number; y: number }, style: NormalizedRenderStyle, groupNormalization: GroupNormalization) => {
+  const mapped = mapImagePointToBox(point, style);
+  const left = Number.parseFloat(String(style.left ?? 0));
+  const top = Number.parseFloat(String(style.top ?? 0));
+  const translatedLeft = left + (style.offsetXPct / 100) * style.boxWidthPct;
+  const translatedTop = top + (style.offsetYPct / 100) * style.boxHeightPct;
+  const localPoint = {
+    x: translatedLeft + (mapped.x / 100) * style.boxWidthPct,
+    y: translatedTop + (mapped.y / 100) * style.boxHeightPct,
+  };
+  const center = { x: translatedLeft + style.boxWidthPct / 2, y: translatedTop + style.boxHeightPct / 2 };
+  const rotated = rotatePoint(localPoint, center, style.rotationDeg);
+  return {
+    x: groupNormalization.translateX + rotated.x * groupNormalization.scale,
+    y: groupNormalization.translateY + rotated.y * groupNormalization.scale,
+    objectContainRect: mapped.imageRect,
+  };
+};
+
+const getCanvasDistance = (left: { x: number; y: number }, right: { x: number; y: number }) => {
+  const dx = right.x - left.x;
+  const dy = (right.y - left.y) / canvasAspectRatio;
+  return Math.sqrt(dx * dx + dy * dy);
+};
+
+const getRenderedMeasurement = (item: RenderItem | undefined, groupNormalization: GroupNormalization) => {
+  if (!item) return null;
+  const measurementPair = getRealMeasurementPair(item.metadata, item.garment?.image_analysis, item.visualCategory);
+  if (!measurementPair) return null;
+  const leftCanvas = mapMeasurementPointToCanvas(measurementPair.left, item.style, groupNormalization);
+  const rightCanvas = mapMeasurementPointToCanvas(measurementPair.right, item.style, groupNormalization);
+  const renderedFitLineLength = getCanvasDistance(leftCanvas, rightCanvas);
+  return {
+    localFitRatio: measurementPair.width,
+    sourceLeftAnchor: measurementPair.left,
+    sourceRightAnchor: measurementPair.right,
+    finalLeftAnchorCanvasPoint: { x: leftCanvas.x, y: leftCanvas.y },
+    finalRightAnchorCanvasPoint: { x: rightCanvas.x, y: rightCanvas.y },
+    objectContainRect: leftCanvas.objectContainRect,
+    renderedFitLineLength,
+  };
+};
+
+const getRenderedSizingMetrics = (items: RenderItem[], groupNormalization: GroupNormalization) => {
+  const coatItem = items.find((item) => item.visualCategory === "outerwear");
+  const dressItem = items.find((item) => item.visualCategory === "dresses");
+  const coat = getRenderedMeasurement(coatItem, groupNormalization);
+  const dress = getRenderedMeasurement(dressItem, groupNormalization);
+  return {
+    coat,
+    dress,
+    ratio: coat?.renderedFitLineLength && dress?.renderedFitLineLength ? dress.renderedFitLineLength / coat.renderedFitLineLength : null,
   };
 };
 
