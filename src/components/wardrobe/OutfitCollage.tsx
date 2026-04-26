@@ -219,6 +219,15 @@ const rotatePoint = (point: { x: number; y: number }, center: { x: number; y: nu
   return { x: center.x + dx * cos - dy * sin, y: center.y + dx * sin + dy * cos };
 };
 
+const rotateCanvasPoint = (point: { x: number; y: number }, center: { x: number; y: number }, rotationDeg: number) => {
+  const rotated = rotatePoint(
+    { x: point.x, y: point.y / canvasAspectRatio },
+    { x: center.x, y: center.y / canvasAspectRatio },
+    rotationDeg
+  );
+  return { x: rotated.x, y: rotated.y * canvasAspectRatio };
+};
+
 const inferMetadata = (garment: any, visualCategory: VisualCategory): LayoutMetadata => {
   if (garment?.layout_metadata) return garment.layout_metadata;
   if (visualCategory === "outerwear") return { garmentType: "coat", bodyCoverage: "full_body", lengthClass: "knee", bulkClass: "bulky", preferredPreviewScale: 0.9 };
@@ -464,7 +473,7 @@ const normalizeOutfitGroup = (items: Array<{ style: NormalizedRenderStyle }>): G
       { x: imageLeft + imageWidth, y: imageTop },
       { x: imageLeft + imageWidth, y: imageTop + imageHeight },
       { x: imageLeft, y: imageTop + imageHeight },
-    ].map((point) => rotatePoint(point, center, style.rotationDeg));
+    ].map((point) => rotateCanvasPoint(point, center, style.rotationDeg));
     return corners.reduce(
       (acc, point) => ({ left: Math.min(acc.left, point.x), top: Math.min(acc.top, point.y), right: Math.max(acc.right, point.x), bottom: Math.max(acc.bottom, point.y) }),
       { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity }
@@ -482,11 +491,11 @@ const normalizeOutfitGroup = (items: Array<{ style: NormalizedRenderStyle }>): G
   );
   const boundingBox = { ...rawBox, width: rawBox.right - rawBox.left, height: rawBox.bottom - rawBox.top };
   const groupCenter = { x: boundingBox.left + boundingBox.width / 2, y: boundingBox.top + boundingBox.height / 2 };
-  const targetOccupancy = items.length <= 2 ? 0.72 : items.length <= 4 ? 0.8 : 0.85;
-  const safeCanvas = 100 - 14;
+  const targetOccupancy = items.length <= 2 ? 0.82 : items.length <= 4 ? 0.84 : 0.86;
+  const safeCanvas = 100 - 20;
   const targetWidth = safeCanvas * targetOccupancy;
   const targetHeight = safeCanvas * targetOccupancy;
-  const scale = clamp(Math.min(targetWidth / Math.max(boundingBox.width, 1), targetHeight / Math.max(boundingBox.height, 1)), 0.62, 1.34);
+  const scale = clamp(Math.min(targetWidth / Math.max(boundingBox.width, 1), targetHeight / Math.max(boundingBox.height, 1), 1), 0.04, 1);
   return {
     canvasCenter,
     boundingBox,
@@ -508,7 +517,7 @@ const mapMeasurementPointToCanvas = (point: { x: number; y: number }, style: Nor
     y: translatedTop + (mapped.y / 100) * style.boxHeightPct,
   };
   const center = { x: translatedLeft + style.boxWidthPct / 2, y: translatedTop + style.boxHeightPct / 2 };
-  const rotated = rotatePoint(localPoint, center, style.rotationDeg);
+  const rotated = rotateCanvasPoint(localPoint, center, style.rotationDeg);
   return {
     x: groupNormalization.translateX + rotated.x * groupNormalization.scale,
     y: groupNormalization.translateY + rotated.y * groupNormalization.scale,
@@ -550,6 +559,15 @@ const getRenderedSizingMetrics = (items: RenderItem[], groupNormalization: Group
     dress,
     ratio: coat?.renderedFitLineLength && dress?.renderedFitLineLength ? dress.renderedFitLineLength / coat.renderedFitLineLength : null,
   };
+};
+
+const getTransformedGroupBounds = (boundingBox: GroupNormalization["boundingBox"], groupNormalization: GroupNormalization) => {
+  if (!boundingBox) return null;
+  const left = groupNormalization.translateX + boundingBox.left * groupNormalization.scale;
+  const top = groupNormalization.translateY + boundingBox.top * groupNormalization.scale;
+  const right = groupNormalization.translateX + boundingBox.right * groupNormalization.scale;
+  const bottom = groupNormalization.translateY + boundingBox.bottom * groupNormalization.scale;
+  return { left, top, right, bottom, width: right - left, height: bottom - top };
 };
 
 export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageProps) => {
@@ -623,9 +641,9 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
       const minimumRequiredDressBoxWidth = item.style.boxWidthPct * minimumRequiredDressBoxScale;
       const boxWidthBeforeClamp = Math.max(item.style.boxWidthPct, requiredDressBoxWidth);
       const boxHeightBeforeClamp = Math.max(item.style.boxHeightPct, requiredDressBoxHeight);
-      const maxDressBoxWidth = Math.max(220, requiredDressBoxWidth, minimumRequiredDressBoxWidth);
+      const maxDressBoxWidth = Math.max(1000, requiredDressBoxWidth, minimumRequiredDressBoxWidth);
       const nextWidth = clamp(boxWidthBeforeClamp, minimumRequiredDressBoxWidth, maxDressBoxWidth);
-      const nextHeight = clamp(boxHeightBeforeClamp, item.style.boxHeightPct * minimumRequiredDressBoxScale, 220);
+      const nextHeight = clamp(boxHeightBeforeClamp, item.style.boxHeightPct * minimumRequiredDressBoxScale, 1000);
       const finalRenderedFitWidth = item.upperFitWidthRatio * nextWidth;
       const nextStyle = {
         ...item.style,
@@ -664,6 +682,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
   const coatRenderedWidth = renderedSizingMetrics.coat?.renderedFitLineLength ?? null;
   const dressRenderedWidth = renderedSizingMetrics.dress?.renderedFitLineLength ?? null;
   const dressToCoatRatio = renderedSizingMetrics.ratio;
+  const transformedGroupBounds = getTransformedGroupBounds(groupNormalization.boundingBox, groupNormalization);
   const sizingEngineDebug = {
     coatUpperFitSource: coatFitItem?.style.sizingDebug?.upperFitSource || coatFitItem?.style.fitSource || null,
     dressUpperFitSource: dressFitItem?.style.sizingDebug?.upperFitSource || dressFitItem?.style.fitSource || null,
@@ -683,6 +702,9 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
     finalRenderedCoatFitLine: coatRenderedWidth,
     finalRenderedDressFitLine: dressRenderedWidth,
     finalRenderedRatio: dressToCoatRatio,
+    transformedGroupBounds,
+    finalGroupScale: groupNormalization.scale,
+    finalGroupTranslate: { x: groupNormalization.translateX, y: groupNormalization.translateY },
     passFailBasis: "rendered fit line only",
     coatRenderedMeasurement: renderedSizingMetrics.coat,
     dressRenderedMeasurement: renderedSizingMetrics.dress,
@@ -798,6 +820,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
             canvasSize: { widthPct: 100, heightPct: 100, aspectRatio: canvasAspectRatio },
             canvasCenter: groupNormalization.canvasCenter,
             groupBoundingBox: groupNormalization.boundingBox,
+            transformedGroupBounds,
             groupCenter: groupNormalization.groupCenter,
             finalTranslateX: groupNormalization.translateX,
             finalTranslateY: groupNormalization.translateY,
