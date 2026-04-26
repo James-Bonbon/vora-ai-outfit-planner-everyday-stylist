@@ -666,7 +666,8 @@ const fitItemIntoZone = (item: RenderItem, zoneName: ZoneName, fillRatio = 0.9):
   const zone = fourZoneRects[zoneName];
   const fitZone = item.visualCategory === "outerwear" && zoneName === "topLeft" ? makeZone(8, 16, 54, 88) : zone;
   const bounds = getItemVisualBounds(item.style, item.garment?.image_analysis, item.visualCategory);
-  const scale = clamp(Math.min((fitZone.width * fillRatio) / Math.max(bounds.width, 1), (fitZone.height * fillRatio) / Math.max(bounds.height, 1)), 0.55, 2.35);
+  const maxScale = ["outerwear", "dresses", "tops", "bottoms"].includes(item.visualCategory) ? 1 : 1.45;
+  const scale = clamp(Math.min((fitZone.width * fillRatio) / Math.max(bounds.width, 1), (fitZone.height * fillRatio) / Math.max(bounds.height, 1)), 0.55, maxScale);
   const nextStyle = {
     ...item.style,
     width: `${item.style.boxWidthPct * scale}%`,
