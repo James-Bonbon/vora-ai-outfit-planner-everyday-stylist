@@ -384,18 +384,24 @@ const getNormalizedStyle = ({
   const anchorShiftXPct = (0.5 - visibleCenterX) * 100;
   const anchorShiftYPct = (0.5 - visibleCenterY) * 100;
 
+  const offsetXPct = anchorShiftXPct + ((offset.x + overflowOffset) / Math.max(boxWidth, 1)) * 100;
+  const offsetYPct = anchorShiftYPct + ((offset.y + overflowOffset) / Math.max(boxHeight, 1)) * 100;
+
   return {
     left: `${layout.x}%`,
     top: `${layout.y}%`,
     width: `${boxWidth}%`,
     height: `${boxHeight}%`,
     zIndex: layout.zIndex,
-    transform: `translate(${offset.x + overflowOffset}px, ${offset.y + overflowOffset}px) translate(${anchorShiftXPct}%, ${anchorShiftYPct}%) rotate(${layout.rotate}deg)`,
+    transform: `translate(${offsetXPct}%, ${offsetYPct}%) rotate(${layout.rotate}deg)`,
     boxWidthPct: boxWidth,
     boxHeightPct: boxHeight,
+    offsetXPct,
+    offsetYPct,
     anchorShiftXPct,
     anchorShiftYPct,
     rotationDeg: layout.rotate,
+    imageRatio,
     fitSource,
     upperFitWidthRatio: upperBodyWidthRatio,
     targetRenderedFitWidth: targetRenderedShoulderWidth ?? null,
