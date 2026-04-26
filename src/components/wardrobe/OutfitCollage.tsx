@@ -662,13 +662,30 @@ const withVisualCenter = (item: RenderItem, targetCenter: { x: number; y: number
   return { ...item, style: { ...item.style, left: `${nextLeft}%`, top: `${nextTop}%` } };
 };
 
+const fitItemIntoZone = (item: RenderItem, zoneName: ZoneName, fillRatio = 0.9): RenderItem => {
+  const zone = fourZoneRects[zoneName];
+  const bounds = getItemVisualBounds(item.style, item.garment?.image_analysis, item.visualCategory);
+  const scale = clamp(Math.min((zone.width * fillRatio) / Math.max(bounds.width, 1), (zone.height * fillRatio) / Math.max(bounds.height, 1)), 0.55, 2.35);
+  const nextStyle = {
+    ...item.style,
+    width: `${item.style.boxWidthPct * scale}%`,
+    height: `${item.style.boxHeightPct * scale}%`,
+    boxWidthPct: item.style.boxWidthPct * scale,
+    boxHeightPct: item.style.boxHeightPct * scale,
+    finalRenderedFitWidth: item.style.finalRenderedFitWidth ? item.style.finalRenderedFitWidth * scale : item.style.finalRenderedFitWidth,
+    sizingDebug: {
+      ...item.style.sizingDebug,
+      boxWidthAfterClamp: item.style.boxWidthPct * scale,
+      boxHeightAfterClamp: item.style.boxHeightPct * scale,
+      finalRenderedFitWidth: item.style.finalRenderedFitWidth ? item.style.finalRenderedFitWidth * scale : item.style.sizingDebug?.finalRenderedFitWidth,
+    },
+  };
+  return withVisualCenter({ ...item, style: nextStyle }, zone.center);
+};
+
 const getLayoutTemplate = (items: RenderItem[]) => {
-  const hasCategory = (category: VisualCategory) => items.some((item) => item.visualCategory === category);
-  if (hasCategory("dresses") && hasCategory("outerwear")) return "diagonal_stack";
-  if (hasCategory("tops") && hasCategory("bottoms") && hasCategory("outerwear")) return "top + bottom + outerwear stacked overlap";
-  if (hasCategory("tops") && hasCategory("bottoms")) return "top + bottom vertical overlap";
-  if (hasCategory("dresses")) return "dress alone centered";
-  return "accessories/shoes editorial cluster";
+  if (items.length) return "four_zone_editorial";
+  return "empty";
 };
 
 const applyCategoryAwareComposition = (items: RenderItem[]) => {
