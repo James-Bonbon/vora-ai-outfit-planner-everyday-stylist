@@ -652,6 +652,59 @@ const getSelectedRelationshipRule = (items: RenderItem[]) => {
   return null;
 };
 
+const getRelationshipMetrics = (items: RenderItem[], groupNormalization: GroupNormalization) => {
+  const rule = getSelectedRelationshipRule(items);
+  if (!rule) return null;
+  const primary = items.find((item) => item.visualCategory === rule.a);
+  const secondary = rule.b ? items.find((item) => item.visualCategory === rule.b) : primary;
+  const primaryPair = primary ? getMeasurementPair(primary.metadata, primary.garment?.image_analysis, rule.aAnchor as FitAnchorType) || ("fallbackAAnchor" in rule ? getMeasurementPair(primary.metadata, primary.garment?.image_analysis, rule.fallbackAAnchor as FitAnchorType) : null) : null;
+  const secondaryAnchorType = (rule.bAnchor || "lengthFit") as FitAnchorType;
+  const secondaryPair = secondary ? getMeasurementPair(secondary.metadata, secondary.garment?.image_analysis, secondaryAnchorType) : null;
+  const primaryRendered = getRenderedAnchorMeasurement(primary, groupNormalization, primaryPair);
+  const secondaryRendered = getRenderedAnchorMeasurement(secondary, groupNormalization, secondaryPair);
+  const finalRatio = primaryRendered?.renderedFitLineLength && secondaryRendered?.renderedFitLineLength ? primaryRendered.renderedFitLineLength / secondaryRendered.renderedFitLineLength : null;
+  return {
+    selectedRelationshipRule: rule.id,
+    comparedAnchors: {
+      primary: { garment: primary?.garment?.name || primary?.visualCategory, category: primary?.visualCategory, anchor: primaryPair?.fullLabel || rule.aAnchor, source: primaryRendered?.source || null },
+      secondary: { garment: secondary?.garment?.name || secondary?.visualCategory, category: secondary?.visualCategory, anchor: secondaryPair?.fullLabel || secondaryAnchorType, source: secondaryRendered?.source || null },
+    },
+    renderedAnchorLineLengths: { primary: primaryRendered?.renderedFitLineLength ?? null, secondary: secondaryRendered?.renderedFitLineLength ?? null },
+    targetRatio: `${rule.target[0].toFixed(2)}–${rule.target[1].toFixed(2)}${"oversizedMax" in rule ? ` (oversized max ${rule.oversizedMax.toFixed(2)})` : ""}`,
+    finalRatio,
+    primaryRendered,
+    secondaryRendered,
+  };
+};
+
+const scaleRelationshipPrimaryToTarget = (items: RenderItem[], groupNormalization: GroupNormalization) => {
+  const metrics = getRelationshipMetrics(items, groupNormalization);
+  if (!metrics?.finalRatio) return items;
+  const rule = getSelectedRelationshipRule(items);
+  if (!rule || rule.id === "dress_alone_upperFit_lengthFit") return items;
+  const targetMid = (rule.target[0] + rule.target[1]) / 2;
+  const upperAllowed = "oversizedMax" in rule ? rule.oversizedMax : rule.target[1];
+  if (metrics.finalRatio >= rule.target[0] && metrics.finalRatio <= upperAllowed) return items;
+  const scale = clamp(targetMid / Math.max(metrics.finalRatio, 0.001), 0.72, 1.38);
+  return items.map((item) => {
+    if (item.visualCategory !== rule.a) return item;
+    const nextWidth = item.style.boxWidthPct * scale;
+    const nextHeight = item.style.boxHeightPct * scale;
+    return {
+      ...item,
+      style: {
+        ...item.style,
+        width: `${nextWidth}%`,
+        height: `${nextHeight}%`,
+        boxWidthPct: nextWidth,
+        boxHeightPct: nextHeight,
+        finalRenderedFitWidth: item.style.finalRenderedFitWidth ? item.style.finalRenderedFitWidth * scale : item.style.finalRenderedFitWidth,
+        sizingDebug: { ...item.style.sizingDebug, relationshipRule: rule.id, relationshipScale: scale, boxWidthAfterClamp: nextWidth, boxHeightAfterClamp: nextHeight } as any,
+      },
+    };
+  });
+};
+
 const getRenderedSizingMetrics = (items: RenderItem[], groupNormalization: GroupNormalization) => {
   const coatItem = items.find((item) => item.visualCategory === "outerwear");
   const dressItem = items.find((item) => item.visualCategory === "dresses");
