@@ -104,6 +104,15 @@ type NormalizedRenderStyle = CSSProperties & {
   finalRenderedFitWidth?: number | null;
 };
 
+type GroupNormalization = {
+  canvasCenter: { x: number; y: number };
+  boundingBox: { left: number; top: number; right: number; bottom: number; width: number; height: number } | null;
+  groupCenter: { x: number; y: number } | null;
+  translateX: number;
+  translateY: number;
+  scale: number;
+};
+
 const centeredOffsets = [
   { x: 0, y: 0 },
   { x: 16, y: 16 },
@@ -355,6 +364,49 @@ const getNormalizedStyle = ({
     targetRenderedFitWidth: targetRenderedShoulderWidth ?? null,
     calculatedImageBoxWidth: upperAnchorBoxWidth,
     finalRenderedFitWidth: upperBodyWidthRatio ? upperBodyWidthRatio * boxWidth : null,
+  };
+};
+
+const normalizeOutfitGroup = (items: Array<{ style: NormalizedRenderStyle }>): GroupNormalization => {
+  const canvasCenter = { x: 50, y: 50 };
+  if (!items.length) return { canvasCenter, boundingBox: null, groupCenter: null, translateX: 0, translateY: 0, scale: 1 };
+
+  const boxes = items.map(({ style }) => {
+    const left = Number.parseFloat(String(style.left ?? 0));
+    const top = Number.parseFloat(String(style.top ?? 0));
+    const visualLeft = left + (style.anchorShiftXPct / 100) * style.boxWidthPct;
+    const visualTop = top + (style.anchorShiftYPct / 100) * style.boxHeightPct;
+    return {
+      left: visualLeft,
+      top: visualTop,
+      right: visualLeft + style.boxWidthPct,
+      bottom: visualTop + style.boxHeightPct,
+    };
+  });
+
+  const rawBox = boxes.reduce(
+    (acc, box) => ({
+      left: Math.min(acc.left, box.left),
+      top: Math.min(acc.top, box.top),
+      right: Math.max(acc.right, box.right),
+      bottom: Math.max(acc.bottom, box.bottom),
+    }),
+    { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity }
+  );
+  const boundingBox = { ...rawBox, width: rawBox.right - rawBox.left, height: rawBox.bottom - rawBox.top };
+  const groupCenter = { x: boundingBox.left + boundingBox.width / 2, y: boundingBox.top + boundingBox.height / 2 };
+  const targetOccupancy = items.length <= 2 ? 0.72 : items.length <= 4 ? 0.8 : 0.85;
+  const safeCanvas = 100 - 14;
+  const targetWidth = safeCanvas * targetOccupancy;
+  const targetHeight = safeCanvas * targetOccupancy;
+  const scale = clamp(Math.min(targetWidth / Math.max(boundingBox.width, 1), targetHeight / Math.max(boundingBox.height, 1)), 0.72, 1.28);
+  return {
+    canvasCenter,
+    boundingBox,
+    groupCenter,
+    translateX: (canvasCenter.x - groupCenter.x) * scale,
+    translateY: (canvasCenter.y - groupCenter.y) * scale,
+    scale,
   };
 };
 
