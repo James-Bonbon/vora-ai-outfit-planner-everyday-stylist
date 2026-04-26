@@ -105,6 +105,17 @@ type NormalizedRenderStyle = CSSProperties & {
   targetRenderedFitWidth?: number | null;
   calculatedImageBoxWidth?: number | null;
   finalRenderedFitWidth?: number | null;
+  sizingDebug?: {
+    upperFitSource?: string;
+    upperFitWidthRatio?: number | null;
+    targetDressToCoatRatio?: number | null;
+    minimumDressToCoatRatio?: number | null;
+    requiredDressBoxWidth?: number | null;
+    minimumRequiredDressBoxWidth?: number | null;
+    boxWidthBeforeClamp?: number | null;
+    boxWidthAfterClamp?: number | null;
+    finalRenderedFitWidth?: number | null;
+  };
 };
 
 type GroupNormalization = {
