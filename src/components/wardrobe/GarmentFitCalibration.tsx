@@ -200,7 +200,7 @@ export const GarmentFitCalibration = ({ itemId, imageUrl, layoutMetadata, imageA
       <div className="grid grid-cols-2 gap-2 text-[10px] text-muted-foreground">
         {editableKeys.map((key) => (
           <div key={key} className="flex items-center justify-between rounded-lg bg-background px-2 py-1">
-            <span>{key.replace("Anchor", "")}</span>
+            <span>{key.replace("Anchor", "")}{anchors[key] ? "" : " missing"}</span>
             <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => anchors[key] ? setAnchors((prev) => ({ ...prev, [key]: undefined })) : addAnchor(key)}>
               {anchors[key] ? <X className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
             </Button>
