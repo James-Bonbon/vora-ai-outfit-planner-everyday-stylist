@@ -375,6 +375,39 @@ const getAnchorPairFromGroup = (group: FitGroup | undefined, anchorType: FitAnch
   return width > 0.08 ? { left, right, width: clamp(width, 0.08, 1), leftLabel, rightLabel, fullLabel: `${leftKey} → ${rightKey}`, source: group?.source, confidence: group?.confidence, validationStatus: group?.validationStatus || (group?.source === "human" || group?.source === "ai" ? "validated" : "estimated") } : null;
 };
 
+const pointNearGarment = (point: { x: number; y: number }, analysis?: ImageAnalysis | null, radiusPx = 10) => {
+  const fullWidth = Number(analysis?.imageWidth) || 1;
+  const fullHeight = Number(analysis?.imageHeight) || 1;
+  const x = point.x <= 1 ? point.x * fullWidth : point.x;
+  const y = point.y <= 1 ? point.y * fullHeight : point.y;
+  const mask = (analysis as any)?.alphaMask;
+  if (mask?.width && mask?.height && mask.data) {
+    const mx = clamp(Math.round((x / fullWidth) * (mask.width - 1)), 0, mask.width - 1);
+    const my = clamp(Math.round((y / fullHeight) * (mask.height - 1)), 0, mask.height - 1);
+    const rx = Math.max(1, Math.ceil((radiusPx / fullWidth) * mask.width));
+    const ry = Math.max(1, Math.ceil((radiusPx / fullHeight) * mask.height));
+    for (let yy = my - ry; yy <= my + ry; yy++) for (let xx = mx - rx; xx <= mx + rx; xx++) {
+      if (xx >= 0 && yy >= 0 && xx < mask.width && yy < mask.height && mask.data[yy * mask.width + xx] === "1") return true;
+    }
+    return false;
+  }
+  const extent = (analysis as any)?.alphaRowExtents?.[Math.round(y)];
+  return !extent || (x >= extent.left - radiusPx && x <= extent.right + radiusPx);
+};
+
+const pairValidForSizing = (pair: ReturnType<typeof getAnchorPairFromGroup>, analysis?: ImageAnalysis | null) => {
+  if (!pair || pair.source === "human") return true;
+  if (pair.validationStatus === "failed" || pair.source === "ratio_guard" || Number(pair.confidence) < 0.5) return false;
+  if (!pointNearGarment(pair.left, analysis) || !pointNearGarment(pair.right, analysis)) return false;
+  let hits = 0;
+  const samples = 16;
+  for (let index = 0; index <= samples; index++) {
+    const t = index / samples;
+    if (pointNearGarment({ x: pair.left.x + (pair.right.x - pair.left.x) * t, y: pair.left.y + (pair.right.y - pair.left.y) * t }, analysis, 8)) hits += 1;
+  }
+  return hits / (samples + 1) >= 0.42;
+};
+
 const widthToRatio = (width: number, analysis?: ImageAnalysis | null) => {
   if (!Number.isFinite(width) || width <= 0) return null;
   const ratio = width > 1 && analysis?.imageWidth ? width / analysis.imageWidth : width;
@@ -396,7 +429,8 @@ const getMeasurementPair = (metadata: LayoutMetadata, analysis: ImageAnalysis | 
   const prioritized = getPrioritizedFitGroup(metadata, anchorType);
   if (!prioritized?.group) return null;
   if (measurementsOnly && (!prioritized.isMeasurement || !["ai", "human", "alpha_profile"].includes(String(prioritized.source)) || Number(prioritized.group.confidence) < 0.5)) return null;
-  return getAnchorPairFromGroup(prioritized.group, anchorType, analysis);
+  const pair = getAnchorPairFromGroup(prioritized.group, anchorType, analysis);
+  return pairValidForSizing(pair, analysis) || prioritized.source === "ratio_guard" && !measurementsOnly ? pair : null;
 };
 
 const getRealMeasurementPair = (metadata: LayoutMetadata, analysis: ImageAnalysis | null | undefined, visualCategory: VisualCategory) => {
