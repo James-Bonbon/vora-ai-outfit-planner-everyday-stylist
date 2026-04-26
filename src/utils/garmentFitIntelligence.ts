@@ -1,4 +1,4 @@
-export type AnchorSource = "ai" | "human" | "alpha_estimate" | "ratio_guard";
+export type AnchorSource = "ai" | "human" | "alpha_profile" | "alpha_estimate" | "ratio_guard";
 
 export type FitPoint = {
   x: number;
@@ -22,6 +22,9 @@ export type ImageAnalysisForFit = {
   visibleWidth?: number;
   visibleHeight?: number;
   visibleAlphaBounds?: { x: number; y: number; width: number; height: number };
+  alphaProfileRows?: number[];
+  alphaProfileColumns?: number[];
+  alphaRowExtents?: Array<{ left: number; right: number } | null>;
 };
 
 export type FitMetadata = {
@@ -81,6 +84,46 @@ const withinVisibleBounds = (point: FitPoint | undefined, analysis?: ImageAnalys
 const pointPair = (left: FitPoint | undefined, right: FitPoint | undefined) => left && right ? Math.abs(right.x - left.x) : 0;
 
 const withPointMeta = (point: FitPoint, source: AnchorSource, confidence: number, notes?: string): FitPoint => ({ ...point, source, confidence, notes: notes || point.notes });
+
+const scanAlphaBand = (analysis: ImageAnalysisForFit | null | undefined, startPct: number, endPct: number, preferredWidthRatio: [number, number], mode: "upper" | "waist" | "hem") => {
+  if (!analysis?.imageWidth || !analysis?.imageHeight || !analysis.visibleAlphaBounds || !analysis.alphaProfileRows?.length) return null;
+  const b = analysis.visibleAlphaBounds;
+  const startY = Math.max(b.y, Math.floor(b.y + b.height * startPct));
+  const endY = Math.min(b.y + b.height - 1, Math.ceil(b.y + b.height * endPct));
+  const rows = [] as Array<{ y: number; left: number; right: number; width: number; score: number }>;
+  const rowExtents = analysis.alphaRowExtents;
+  const maxWidth = Math.max(...analysis.alphaProfileRows.slice(b.y, b.y + b.height), 1);
+  const medianTarget = analysis.imageWidth * ((preferredWidthRatio[0] + preferredWidthRatio[1]) / 2);
+  for (let y = startY; y <= endY; y++) {
+    const width = Number(analysis.alphaProfileRows[y]) || 0;
+    if (width < analysis.imageWidth * preferredWidthRatio[0] || width > analysis.imageWidth * preferredWidthRatio[1]) continue;
+    const extent = rowExtents?.[y] || { left: b.x + (b.width - width) / 2, right: b.x + (b.width + width) / 2 };
+    const sleevePenalty = mode === "upper" && width > maxWidth * 0.86 ? 0.78 : 1;
+    const targetPenalty = 1 - Math.min(0.55, Math.abs(width - medianTarget) / Math.max(medianTarget, 1));
+    const bandCenter = startY + (endY - startY) / 2;
+    const centerPenalty = 1 - Math.min(0.35, Math.abs(y - bandCenter) / Math.max(endY - startY, 1));
+    rows.push({ y, left: extent.left, right: extent.right, width, score: sleevePenalty * targetPenalty * centerPenalty });
+  }
+  rows.sort((a, b) => b.score - a.score);
+  return rows[0] || null;
+};
+
+const buildAlphaProfileAnchors = (analysis: ImageAnalysisForFit | null | undefined, family: string) => {
+  const isUpper = ["tops", "outerwear", "dresses"].includes(family);
+  const isBottoms = family === "bottoms";
+  if (!isUpper && !isBottoms) return null;
+  const confidence = 0.42;
+  const notes = "Estimated from alpha profile scan; not an AI measurement.";
+  const upperBounds: [number, number] = family === "outerwear" ? [0.34, 0.78] : family === "dresses" ? [0.32, 0.72] : [0.24, 0.68];
+  const result: FitMetadata["layoutAnchors"] = {};
+  const upper = isUpper ? scanAlphaBand(analysis, 0.1, 0.35, upperBounds, "upper") : null;
+  const waist = scanAlphaBand(analysis, isBottoms ? 0.02 : 0.38, isBottoms ? 0.18 : 0.62, [0.18, 0.72], "waist");
+  const hem = scanAlphaBand(analysis, isBottoms ? 0.68 : 0.78, 0.96, [0.12, 0.82], "hem");
+  if (upper) result!.upperFit = { leftUpperFitAnchor: { x: upper.left, y: upper.y, source: "alpha_profile", confidence, notes }, rightUpperFitAnchor: { x: upper.right, y: upper.y, source: "alpha_profile", confidence, notes }, upperBodyFitWidth: upper.width, source: "alpha_profile", confidence, notes };
+  if (waist) result!.waist = { leftWaistAnchor: { x: waist.left, y: waist.y, source: "alpha_profile", confidence, notes }, rightWaistAnchor: { x: waist.right, y: waist.y, source: "alpha_profile", confidence, notes }, waistFitWidth: waist.width, source: "alpha_profile", confidence, notes };
+  if (hem) result!.length = { leftHemAnchor: { x: hem.left, y: hem.y, source: "alpha_profile", confidence, notes }, rightHemAnchor: { x: hem.right, y: hem.y, source: "alpha_profile", confidence, notes }, hemFitWidth: hem.width, source: "alpha_profile", confidence, notes };
+  return Object.keys(result || {}).length ? result : null;
+};
 
 export const buildGarmentFitMetadata = ({
   metadata,
@@ -147,7 +190,12 @@ export const buildGarmentFitMetadata = ({
     }
   }
 
-  if (!next.validatedMeasurementAnchors!.upperFit && ["tops", "outerwear", "dresses"].includes(family) && analysis?.imageWidth && analysis?.imageHeight && analysis.visibleAlphaBounds) {
+  const alphaLayout = buildAlphaProfileAnchors(analysis, family);
+  if (!next.validatedMeasurementAnchors!.upperFit && alphaLayout?.upperFit) next.layoutAnchors!.upperFit = alphaLayout.upperFit;
+  if (!next.validatedMeasurementAnchors!.waist && alphaLayout?.waist) next.layoutAnchors!.waist = alphaLayout.waist;
+  if (alphaLayout?.length) next.layoutAnchors!.length = alphaLayout.length;
+
+  if (!next.validatedMeasurementAnchors!.upperFit && !next.layoutAnchors!.upperFit && ["tops", "outerwear", "dresses"].includes(family) && analysis?.imageWidth && analysis?.imageHeight && analysis.visibleAlphaBounds) {
     const minRatio = family === "outerwear" || family === "dresses" ? 0.44 : 0.32;
     const b = analysis.visibleAlphaBounds;
     const targetWidth = clamp(Math.max(upperWidth || 0, analysis.imageWidth * minRatio), analysis.imageWidth * minRatio, b.width);

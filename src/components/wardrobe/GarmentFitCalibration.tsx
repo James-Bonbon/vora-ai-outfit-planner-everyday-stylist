@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Check, X } from "lucide-react";
+import { Check, Plus, X } from "lucide-react";
 
 type Props = {
   itemId: string;
@@ -62,6 +62,19 @@ export const GarmentFitCalibration = ({ itemId, imageUrl, layoutMetadata, imageA
         confidence: 1,
         notes: "Human calibrated anchor.",
       },
+    }));
+  };
+
+  const addAnchor = (key: keyof typeof anchors) => {
+    const defaults: Record<keyof typeof anchors, { x: number; y: number }> = {
+      leftUpperFitAnchor: { x: imageWidth * 0.34, y: imageHeight * 0.2 },
+      rightUpperFitAnchor: { x: imageWidth * 0.66, y: imageHeight * 0.2 },
+      leftWaistAnchor: { x: imageWidth * 0.38, y: imageHeight * 0.48 },
+      rightWaistAnchor: { x: imageWidth * 0.62, y: imageHeight * 0.48 },
+    };
+    setAnchors((prev) => ({
+      ...prev,
+      [key]: { ...defaults[key], source: "human", confidence: 1, notes: "Human calibrated anchor." },
     }));
   };
 
@@ -125,8 +138,8 @@ export const GarmentFitCalibration = ({ itemId, imageUrl, layoutMetadata, imageA
         {editableKeys.map((key) => (
           <div key={key} className="flex items-center justify-between rounded-lg bg-background px-2 py-1">
             <span>{key.replace("Anchor", "")}</span>
-            <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => setAnchors((prev) => ({ ...prev, [key]: undefined }))}>
-              <X className="h-3 w-3" />
+            <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => anchors[key] ? setAnchors((prev) => ({ ...prev, [key]: undefined })) : addAnchor(key)}>
+              {anchors[key] ? <X className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
             </Button>
           </div>
         ))}

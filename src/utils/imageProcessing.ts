@@ -118,6 +118,7 @@ export interface ImageAnalysis {
   };
   alphaProfileRows?: number[];
   alphaProfileColumns?: number[];
+  alphaRowExtents?: Array<{ left: number; right: number } | null>;
   centerline?: { x: number; y: number };
   visibleExtents?: { top: number; bottom: number; left: number; right: number };
 }
@@ -369,6 +370,7 @@ export async function calculateVisibleAlphaBounds(file: Blob): Promise<ImageAnal
   let maxY = -1;
   const alphaProfileRows = Array.from({ length: height }, () => 0);
   const alphaProfileColumns = Array.from({ length: width }, () => 0);
+  const alphaRowExtents = Array.from({ length: height }, () => null as { left: number; right: number } | null);
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
@@ -376,6 +378,9 @@ export async function calculateVisibleAlphaBounds(file: Blob): Promise<ImageAnal
       if (alpha > 10) {
         alphaProfileRows[y] += 1;
         alphaProfileColumns[x] += 1;
+        alphaRowExtents[y] = alphaRowExtents[y]
+          ? { left: Math.min(alphaRowExtents[y]!.left, x), right: Math.max(alphaRowExtents[y]!.right, x) }
+          : { left: x, right: x };
         if (x < minX) minX = x;
         if (x > maxX) maxX = x;
         if (y < minY) minY = y;
@@ -399,6 +404,7 @@ export async function calculateVisibleAlphaBounds(file: Blob): Promise<ImageAnal
       visibleAlphaBounds: { x: 0, y: 0, width, height },
       alphaProfileRows,
       alphaProfileColumns,
+      alphaRowExtents,
       centerline: { x: width / 2, y: height / 2 },
       visibleExtents: { top: 0, bottom: height - 1, left: 0, right: width - 1 },
     };
@@ -419,6 +425,7 @@ export async function calculateVisibleAlphaBounds(file: Blob): Promise<ImageAnal
     visibleAlphaBounds: { x: minX, y: minY, width: visibleWidth, height: visibleHeight },
     alphaProfileRows,
     alphaProfileColumns,
+    alphaRowExtents,
     centerline: { x: minX + visibleWidth / 2, y: minY + visibleHeight / 2 },
     visibleExtents: { top: minY, bottom: maxY, left: minX, right: maxX },
   };

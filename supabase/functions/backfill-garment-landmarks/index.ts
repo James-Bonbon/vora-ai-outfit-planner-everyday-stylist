@@ -43,6 +43,7 @@ const calculateVisibleAlphaBounds = (bytes: Uint8Array) => {
   let maxY = -1;
   const alphaProfileRows = Array.from({ length: height }, () => 0);
   const alphaProfileColumns = Array.from({ length: width }, () => 0);
+  const alphaRowExtents = Array.from({ length: height }, () => null as { left: number; right: number } | null);
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
@@ -50,6 +51,9 @@ const calculateVisibleAlphaBounds = (bytes: Uint8Array) => {
       if (alpha > 10) {
         alphaProfileRows[y] += 1;
         alphaProfileColumns[x] += 1;
+        alphaRowExtents[y] = alphaRowExtents[y]
+          ? { left: Math.min(alphaRowExtents[y]!.left, x), right: Math.max(alphaRowExtents[y]!.right, x) }
+          : { left: x, right: x };
         if (x < minX) minX = x;
         if (x > maxX) maxX = x;
         if (y < minY) minY = y;
@@ -71,6 +75,7 @@ const calculateVisibleAlphaBounds = (bytes: Uint8Array) => {
       visibleAlphaBounds: { x: 0, y: 0, width, height },
       alphaProfileRows,
       alphaProfileColumns,
+      alphaRowExtents,
       centerline: { x: width / 2, y: height / 2 },
       visibleExtents: { top: 0, bottom: height - 1, left: 0, right: width - 1 },
     };
@@ -90,6 +95,7 @@ const calculateVisibleAlphaBounds = (bytes: Uint8Array) => {
     visibleAlphaBounds: { x: minX, y: minY, width: visibleWidth, height: visibleHeight },
     alphaProfileRows,
     alphaProfileColumns,
+    alphaRowExtents,
     centerline: { x: minX + visibleWidth / 2, y: minY + visibleHeight / 2 },
     visibleExtents: { top: minY, bottom: maxY, left: minX, right: maxX },
   };
@@ -107,6 +113,41 @@ const normalizePoint = (point: any, analysis: any) => {
   };
 };
 
+const scanAlphaBand = (analysis: any, startPct: number, endPct: number, minRatio: number, maxRatio: number, mode: "upper" | "waist" | "hem") => {
+  if (!analysis?.imageWidth || !analysis?.visibleAlphaBounds || !Array.isArray(analysis.alphaProfileRows)) return null;
+  const b = analysis.visibleAlphaBounds;
+  const startY = Math.max(b.y, Math.floor(b.y + b.height * startPct));
+  const endY = Math.min(b.y + b.height - 1, Math.ceil(b.y + b.height * endPct));
+  const maxWidth = Math.max(...analysis.alphaProfileRows.slice(b.y, b.y + b.height), 1);
+  const target = analysis.imageWidth * ((minRatio + maxRatio) / 2);
+  const candidates: any[] = [];
+  for (let y = startY; y <= endY; y++) {
+    const width = Number(analysis.alphaProfileRows[y]) || 0;
+    if (width < analysis.imageWidth * minRatio || width > analysis.imageWidth * maxRatio) continue;
+    const extent = analysis.alphaRowExtents?.[y] || { left: b.x + (b.width - width) / 2, right: b.x + (b.width + width) / 2 };
+    const sleevePenalty = mode === "upper" && width > maxWidth * 0.86 ? 0.78 : 1;
+    const score = sleevePenalty * (1 - Math.min(0.55, Math.abs(width - target) / Math.max(target, 1)));
+    candidates.push({ y, left: extent.left, right: extent.right, width, score });
+  }
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates[0] || null;
+};
+
+const buildAlphaProfileLayout = (analysis: any, isTop: boolean, isOuterwear: boolean, isDress: boolean, isBottom: boolean) => {
+  const confidence = 0.42;
+  const notes = "Estimated from alpha profile scan; not an AI measurement.";
+  const layout: any = {};
+  const upperMin = isOuterwear ? 0.34 : isDress ? 0.32 : 0.24;
+  const upperMax = isOuterwear ? 0.78 : isDress ? 0.72 : 0.68;
+  const upper = isTop ? scanAlphaBand(analysis, 0.1, 0.35, upperMin, upperMax, "upper") : null;
+  const waist = scanAlphaBand(analysis, isBottom ? 0.02 : 0.38, isBottom ? 0.18 : 0.62, 0.18, 0.72, "waist");
+  const hem = scanAlphaBand(analysis, isBottom ? 0.68 : 0.78, 0.96, 0.12, 0.82, "hem");
+  if (upper) layout.upperFit = { leftUpperFitAnchor: { x: upper.left, y: upper.y, source: "alpha_profile", confidence, notes }, rightUpperFitAnchor: { x: upper.right, y: upper.y, source: "alpha_profile", confidence, notes }, upperBodyFitWidth: upper.width, confidence, source: "alpha_profile", notes };
+  if (waist) layout.waist = { leftWaistAnchor: { x: waist.left, y: waist.y, source: "alpha_profile", confidence, notes }, rightWaistAnchor: { x: waist.right, y: waist.y, source: "alpha_profile", confidence, notes }, waistFitWidth: waist.width, confidence, source: "alpha_profile", notes };
+  if (hem) layout.length = { leftHemAnchor: { x: hem.left, y: hem.y, source: "alpha_profile", confidence, notes }, rightHemAnchor: { x: hem.right, y: hem.y, source: "alpha_profile", confidence, notes }, hemFitWidth: hem.width, confidence, source: "alpha_profile", notes };
+  return Object.keys(layout).length ? layout : null;
+};
+
 const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
   const rawAiLandmarks = { ...layout };
   const next = { ...layout, rawAiLandmarks, validatedMeasurementAnchors: {}, layoutAnchors: {}, fitValidation: { status: "fallback", rejected: [] as string[] } };
@@ -115,6 +156,7 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
   const typeText = `${layout.garmentType ?? ""} ${item.category ?? ""} ${item.name ?? ""}`.toLowerCase();
   const isDress = /\bdress|gown|jumpsuit|romper|one[-\s]?piece\b/.test(typeText);
   const isOuterwear = /\bouterwear|coat|jacket|blazer|trench|parka|cardigan\b/.test(typeText);
+  const isBottom = /\bbottom|trouser|pant|jean|legging|skirt|short\b/.test(typeText);
   const isTop = isDress || isOuterwear || /\btop|shirt|blouse|tee|knit|sweater|hoodie\b/.test(typeText);
   const minRatio = isOuterwear ? 0.44 : isDress ? 0.44 : 0.32;
   const maxRatio = isOuterwear ? 0.72 : isDress ? 0.64 : 0.62;
@@ -152,7 +194,20 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
     };
   }
 
-  if (!isTop) return next;
+  const alphaLayout = buildAlphaProfileLayout(analysis, isTop, isOuterwear, isDress, isBottom);
+  if (!next.validatedMeasurementAnchors?.waist && alphaLayout?.waist) next.layoutAnchors.waist = alphaLayout.waist;
+  if (alphaLayout?.length) next.layoutAnchors.length = alphaLayout.length;
+
+  if (!isTop) {
+    if (isBottom && alphaLayout) {
+      next.anchorNormalization = "estimated_layout_scaling_from_alpha_profile";
+      next.anchorSources = { leftWaistAnchor: "alpha_profile", rightWaistAnchor: "alpha_profile", hemWidthAnchor: "alpha_profile" };
+      next.confidence = alphaLayout.waist?.confidence || alphaLayout.length?.confidence || 0.42;
+      next.confidenceAfterNormalization = next.confidence;
+      next.fitValidation = { status: "fallback", rejected: ["alpha_profile_layout_only"] };
+    }
+    return next;
+  }
 
   if (left && right && rawRatio >= measurementMinRatio && rawRatio <= measurementMaxRatio && (originalConfidence ?? 0) >= 0.5) {
     next.layoutAnchors = null;
@@ -176,6 +231,22 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
     next.fitValidation = { status: "ai", rejected: [] };
     next.confidenceBeforeNormalization = originalConfidence;
     next.confidenceAfterNormalization = originalConfidence;
+    return next;
+  }
+
+  if (alphaLayout?.upperFit) {
+    next.validatedMeasurementAnchors = Object.keys(next.validatedMeasurementAnchors || {}).length ? next.validatedMeasurementAnchors : null;
+    next.measurementAnchors = next.validatedMeasurementAnchors;
+    next.layoutAnchors = { ...(next.layoutAnchors || {}), ...alphaLayout };
+    next.leftUpperAnchor = alphaLayout.upperFit.leftUpperFitAnchor;
+    next.rightUpperAnchor = alphaLayout.upperFit.rightUpperFitAnchor;
+    next.upperBodyWidthAnchor = alphaLayout.upperFit.upperBodyFitWidth;
+    next.anchorNormalization = "estimated_layout_scaling_from_alpha_profile";
+    next.anchorSources = { leftUpperAnchor: "alpha_profile", rightUpperAnchor: "alpha_profile", upperBodyWidthAnchor: "alpha_profile" };
+    next.confidenceBeforeNormalization = originalConfidence;
+    next.confidence = alphaLayout.upperFit.confidence;
+    next.confidenceAfterNormalization = next.confidence;
+    next.fitValidation = { status: "fallback", rejected: ["alpha_profile_layout_only"] };
     return next;
   }
 
