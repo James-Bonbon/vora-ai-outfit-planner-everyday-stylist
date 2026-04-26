@@ -651,6 +651,13 @@ const applyCategoryAwareComposition = (items: RenderItem[]) => {
       x: coatBounds.center.x + centerDistanceX,
       y: coatBounds.center.y + coatBounds.height * 0.12,
     });
+    const placedDress = nextItems.find((item) => item.garment === dress.garment) || dress;
+    const placedDressBounds = getItemVisualBounds(placedDress.style);
+    const overlapCorrectedDressCenterX = placedDressBounds.center.x + (coatBounds.right - targetOverlap - placedDressBounds.left);
+    updateItem(placedDress, {
+      x: overlapCorrectedDressCenterX,
+      y: coatBounds.center.y + coatBounds.height * 0.12,
+    });
   } else if ((template === "top + bottom vertical overlap" || template === "top + bottom + outerwear stacked overlap") && top && bottom) {
     updateItem(bottom, { x: 51, y: 61 });
     const movedBottom = nextItems.find((item) => item.garment === bottom.garment) || bottom;
