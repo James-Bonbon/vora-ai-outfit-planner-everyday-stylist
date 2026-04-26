@@ -567,7 +567,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
   const showDebugAnchors = debugAnchors || new URLSearchParams(window.location.search).get("outfitDebugAnchors") === "1";
 
   const seenCounts: Partial<Record<VisualCategory, number>> = {};
-  let renderItems = classified.map(({ garment, visualCategory, imageUrl }, stackIndex) => {
+  let renderItems: RenderItem[] = classified.map(({ garment, visualCategory, imageUrl }, stackIndex) => {
     const duplicateIndex = seenCounts[visualCategory] ?? 0;
     seenCounts[visualCategory] = duplicateIndex + 1;
     const inferred = inferMetadata(garment, visualCategory);
@@ -606,24 +606,26 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
     };
   });
 
-  let coatRenderedWidth = renderItems.find((item) => item.visualCategory === "outerwear")?.renderedUpperWidth ?? null;
-  let dressRenderedWidth = renderItems.find((item) => item.visualCategory === "dresses")?.renderedUpperWidth ?? null;
-  let dressToCoatRatio = coatRenderedWidth && dressRenderedWidth ? dressRenderedWidth / coatRenderedWidth : null;
   const targetDressToCoatRatio = 0.9;
   const minimumDressToCoatRatio = 0.75;
+  let groupNormalization = normalizeOutfitGroup(renderItems);
+  let renderedSizingMetrics = getRenderedSizingMetrics(renderItems, groupNormalization);
 
-  if (hasOuterwear && hasDress && coatRenderedWidth && dressToCoatRatio !== null && dressToCoatRatio < targetDressToCoatRatio) {
-    const targetDressRenderedFitWidth = coatRenderedWidth * targetDressToCoatRatio;
-    const minimumDressRenderedFitWidth = coatRenderedWidth * minimumDressToCoatRatio;
+  if (hasOuterwear && hasDress && renderedSizingMetrics.coat?.renderedFitLineLength && renderedSizingMetrics.dress?.renderedFitLineLength && renderedSizingMetrics.ratio !== null && renderedSizingMetrics.ratio < targetDressToCoatRatio) {
+    const targetDressRenderedFitLine = renderedSizingMetrics.coat.renderedFitLineLength * targetDressToCoatRatio;
+    const minimumDressRenderedFitLine = renderedSizingMetrics.coat.renderedFitLineLength * minimumDressToCoatRatio;
+    const requiredDressBoxScale = targetDressRenderedFitLine / Math.max(renderedSizingMetrics.dress.renderedFitLineLength, 0.001);
+    const minimumRequiredDressBoxScale = minimumDressRenderedFitLine / Math.max(renderedSizingMetrics.dress.renderedFitLineLength, 0.001);
     renderItems = renderItems.map((item) => {
       if (item.visualCategory !== "dresses" || !item.upperFitWidthRatio) return item;
-      const requiredDressBoxWidth = targetDressRenderedFitWidth / item.upperFitWidthRatio;
-      const minimumRequiredDressBoxWidth = minimumDressRenderedFitWidth / item.upperFitWidthRatio;
+      const requiredDressBoxWidth = item.style.boxWidthPct * requiredDressBoxScale;
+      const requiredDressBoxHeight = item.style.boxHeightPct * requiredDressBoxScale;
+      const minimumRequiredDressBoxWidth = item.style.boxWidthPct * minimumRequiredDressBoxScale;
       const boxWidthBeforeClamp = Math.max(item.style.boxWidthPct, requiredDressBoxWidth);
+      const boxHeightBeforeClamp = Math.max(item.style.boxHeightPct, requiredDressBoxHeight);
       const maxDressBoxWidth = Math.max(220, requiredDressBoxWidth, minimumRequiredDressBoxWidth);
       const nextWidth = clamp(boxWidthBeforeClamp, minimumRequiredDressBoxWidth, maxDressBoxWidth);
-      const scale = nextWidth / Math.max(item.style.boxWidthPct, 1);
-      const nextHeight = clamp(item.style.boxHeightPct * clamp(scale, 0.86, 1.42), 22, 120);
+      const nextHeight = clamp(boxHeightBeforeClamp, item.style.boxHeightPct * minimumRequiredDressBoxScale, 220);
       const finalRenderedFitWidth = item.upperFitWidthRatio * nextWidth;
       const nextStyle = {
         ...item.style,
@@ -631,7 +633,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
         height: `${nextHeight}%`,
         boxWidthPct: nextWidth,
         boxHeightPct: nextHeight,
-        targetRenderedFitWidth: targetDressRenderedFitWidth,
+        targetRenderedFitWidth: targetDressRenderedFitLine,
         calculatedImageBoxWidth: requiredDressBoxWidth,
         finalRenderedFitWidth,
         sizingDebug: {
@@ -641,21 +643,27 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
           targetDressToCoatRatio,
           minimumDressToCoatRatio,
           requiredDressBoxWidth,
+          requiredDressBoxHeight,
+          requiredDressBoxScale,
           minimumRequiredDressBoxWidth,
           boxWidthBeforeClamp,
+          boxHeightBeforeClamp,
           boxWidthAfterClamp: nextWidth,
+          boxHeightAfterClamp: nextHeight,
           finalRenderedFitWidth,
         },
       };
       return { ...item, style: nextStyle, renderedUpperWidth: finalRenderedFitWidth };
     });
-    coatRenderedWidth = renderItems.find((item) => item.visualCategory === "outerwear")?.renderedUpperWidth ?? null;
-    dressRenderedWidth = renderItems.find((item) => item.visualCategory === "dresses")?.renderedUpperWidth ?? null;
-    dressToCoatRatio = coatRenderedWidth && dressRenderedWidth ? dressRenderedWidth / coatRenderedWidth : null;
+    groupNormalization = normalizeOutfitGroup(renderItems);
+    renderedSizingMetrics = getRenderedSizingMetrics(renderItems, groupNormalization);
   }
 
   const coatFitItem = renderItems.find((item) => item.visualCategory === "outerwear");
   const dressFitItem = renderItems.find((item) => item.visualCategory === "dresses");
+  const coatRenderedWidth = renderedSizingMetrics.coat?.renderedFitLineLength ?? null;
+  const dressRenderedWidth = renderedSizingMetrics.dress?.renderedFitLineLength ?? null;
+  const dressToCoatRatio = renderedSizingMetrics.ratio;
   const sizingEngineDebug = {
     coatUpperFitSource: coatFitItem?.style.sizingDebug?.upperFitSource || coatFitItem?.style.fitSource || null,
     dressUpperFitSource: dressFitItem?.style.sizingDebug?.upperFitSource || dressFitItem?.style.fitSource || null,
@@ -664,14 +672,21 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
     targetDressToCoatRatio,
     minimumDressToCoatRatio,
     requiredDressBoxWidth: dressFitItem?.style.sizingDebug?.requiredDressBoxWidth ?? dressFitItem?.style.calculatedImageBoxWidth ?? null,
+    requiredDressBoxHeight: dressFitItem?.style.sizingDebug?.requiredDressBoxHeight ?? null,
+    requiredDressBoxScale: dressFitItem?.style.sizingDebug?.requiredDressBoxScale ?? null,
     boxWidthBeforeClamp: dressFitItem?.style.sizingDebug?.boxWidthBeforeClamp ?? null,
+    boxHeightBeforeClamp: dressFitItem?.style.sizingDebug?.boxHeightBeforeClamp ?? null,
     boxWidthAfterClamp: dressFitItem?.style.sizingDebug?.boxWidthAfterClamp ?? dressFitItem?.style.boxWidthPct ?? null,
-    finalRenderedCoatFitWidth: coatRenderedWidth,
-    finalRenderedDressFitWidth: dressRenderedWidth,
+    boxHeightAfterClamp: dressFitItem?.style.sizingDebug?.boxHeightAfterClamp ?? dressFitItem?.style.boxHeightPct ?? null,
+    coatLocalFitRatio: renderedSizingMetrics.coat?.localFitRatio ?? null,
+    dressLocalFitRatio: renderedSizingMetrics.dress?.localFitRatio ?? null,
+    finalRenderedCoatFitLine: coatRenderedWidth,
+    finalRenderedDressFitLine: dressRenderedWidth,
     finalRenderedRatio: dressToCoatRatio,
+    passFailBasis: "rendered fit line only",
+    coatRenderedMeasurement: renderedSizingMetrics.coat,
+    dressRenderedMeasurement: renderedSizingMetrics.dress,
   };
-
-  const groupNormalization = normalizeOutfitGroup(renderItems);
   const groupTransform = `translate(${groupNormalization.translateX}%, ${groupNormalization.translateY}%) scale(${groupNormalization.scale})`;
 
   return (
