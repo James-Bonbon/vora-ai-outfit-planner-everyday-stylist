@@ -148,11 +148,20 @@ type GroupNormalization = {
 };
 
 type ItemBounds = { left: number; top: number; right: number; bottom: number; width: number; height: number; center: { x: number; y: number } };
+type ZoneName = "topLeft" | "topRight" | "bottomLeft" | "bottomRight" | "rightColumn";
+type ZoneRect = { left: number; top: number; right: number; bottom: number; width: number; height: number; center: { x: number; y: number } };
 
 type CompositionMetrics = {
   selectedLayoutTemplate: string;
   garmentCenters: Record<string, { x: number; y: number }>;
   garmentBounds: Record<string, ItemBounds>;
+  garmentZoneAssignments: Array<{
+    garmentName: string;
+    category: VisualCategory;
+    assignedZone: ZoneName;
+    finalBounds: ItemBounds;
+    overlapAmount: number;
+  }>;
   pairMetrics: Array<{
     a: string;
     b: string;
@@ -205,6 +214,32 @@ const stackLayouts = [
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 const canvasAspectRatio = 3 / 4;
+
+const makeZone = (left: number, top: number, right: number, bottom: number): ZoneRect => ({
+  left,
+  top,
+  right,
+  bottom,
+  width: right - left,
+  height: bottom - top,
+  center: { x: (left + right) / 2, y: (top + bottom) / 2 },
+});
+
+const fourZoneRects: Record<ZoneName, ZoneRect> = {
+  topLeft: makeZone(8, 16, 48, 52),
+  topRight: makeZone(42, 12, 92, 52),
+  bottomLeft: makeZone(8, 52, 45, 88),
+  bottomRight: makeZone(45, 45, 92, 90),
+  rightColumn: makeZone(42, 12, 92, 90),
+};
+
+const getAssignedZone = (visualCategory: VisualCategory): ZoneName => {
+  if (visualCategory === "outerwear") return "topLeft";
+  if (visualCategory === "dresses") return "rightColumn";
+  if (visualCategory === "tops") return "topRight";
+  if (visualCategory === "bottoms") return "bottomRight";
+  return "bottomLeft";
+};
 
 const getObjectContainRect = (boxWidthPct: number, boxHeightPct: number, imageRatio: number) => {
   const boxPixelAspect = (boxWidthPct / Math.max(boxHeightPct, 1)) * canvasAspectRatio;
