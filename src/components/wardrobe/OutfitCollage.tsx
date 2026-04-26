@@ -143,6 +143,21 @@ type GroupNormalization = {
   scale: number;
 };
 
+type ItemBounds = { left: number; top: number; right: number; bottom: number; width: number; height: number; center: { x: number; y: number } };
+
+type CompositionMetrics = {
+  selectedLayoutTemplate: string;
+  garmentCenters: Record<string, { x: number; y: number }>;
+  garmentBounds: Record<string, ItemBounds>;
+  pairMetrics: Array<{
+    a: string;
+    b: string;
+    horizontalOverlapPct: number;
+    verticalOverlapPct: number;
+    centerDistance: number;
+  }>;
+};
+
 const centeredOffsets = [
   { x: 0, y: 0 },
   { x: 16, y: 16 },
@@ -453,32 +468,35 @@ const getNormalizedStyle = ({
   };
 };
 
+const getItemVisualBounds = (style: NormalizedRenderStyle): ItemBounds => {
+  const left = Number.parseFloat(String(style.left ?? 0));
+  const top = Number.parseFloat(String(style.top ?? 0));
+  const translatedLeft = left + (style.offsetXPct / 100) * style.boxWidthPct;
+  const translatedTop = top + (style.offsetYPct / 100) * style.boxHeightPct;
+  const imageRect = getObjectContainRect(style.boxWidthPct, style.boxHeightPct, style.imageRatio);
+  const imageLeft = translatedLeft + (imageRect.left / 100) * style.boxWidthPct;
+  const imageTop = translatedTop + (imageRect.top / 100) * style.boxHeightPct;
+  const imageWidth = (imageRect.width / 100) * style.boxWidthPct;
+  const imageHeight = (imageRect.height / 100) * style.boxHeightPct;
+  const center = { x: translatedLeft + style.boxWidthPct / 2, y: translatedTop + style.boxHeightPct / 2 };
+  const corners = [
+    { x: imageLeft, y: imageTop },
+    { x: imageLeft + imageWidth, y: imageTop },
+    { x: imageLeft + imageWidth, y: imageTop + imageHeight },
+    { x: imageLeft, y: imageTop + imageHeight },
+  ].map((point) => rotateCanvasPoint(point, center, style.rotationDeg));
+  const box = corners.reduce(
+    (acc, point) => ({ left: Math.min(acc.left, point.x), top: Math.min(acc.top, point.y), right: Math.max(acc.right, point.x), bottom: Math.max(acc.bottom, point.y) }),
+    { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity }
+  );
+  return { ...box, width: box.right - box.left, height: box.bottom - box.top, center: { x: (box.left + box.right) / 2, y: (box.top + box.bottom) / 2 } };
+};
+
 const normalizeOutfitGroup = (items: Array<{ style: NormalizedRenderStyle }>): GroupNormalization => {
   const canvasCenter = { x: 50, y: 50 };
   if (!items.length) return { canvasCenter, boundingBox: null, groupCenter: null, translateX: 0, translateY: 0, scale: 1 };
 
-  const boxes = items.map(({ style }) => {
-    const left = Number.parseFloat(String(style.left ?? 0));
-    const top = Number.parseFloat(String(style.top ?? 0));
-    const translatedLeft = left + (style.offsetXPct / 100) * style.boxWidthPct;
-    const translatedTop = top + (style.offsetYPct / 100) * style.boxHeightPct;
-    const imageRect = getObjectContainRect(style.boxWidthPct, style.boxHeightPct, style.imageRatio);
-    const imageLeft = translatedLeft + (imageRect.left / 100) * style.boxWidthPct;
-    const imageTop = translatedTop + (imageRect.top / 100) * style.boxHeightPct;
-    const imageWidth = (imageRect.width / 100) * style.boxWidthPct;
-    const imageHeight = (imageRect.height / 100) * style.boxHeightPct;
-    const center = { x: translatedLeft + style.boxWidthPct / 2, y: translatedTop + style.boxHeightPct / 2 };
-    const corners = [
-      { x: imageLeft, y: imageTop },
-      { x: imageLeft + imageWidth, y: imageTop },
-      { x: imageLeft + imageWidth, y: imageTop + imageHeight },
-      { x: imageLeft, y: imageTop + imageHeight },
-    ].map((point) => rotateCanvasPoint(point, center, style.rotationDeg));
-    return corners.reduce(
-      (acc, point) => ({ left: Math.min(acc.left, point.x), top: Math.min(acc.top, point.y), right: Math.max(acc.right, point.x), bottom: Math.max(acc.bottom, point.y) }),
-      { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity }
-    );
-  });
+  const boxes = items.map(({ style }) => getItemVisualBounds(style));
 
   const rawBox = boxes.reduce(
     (acc, box) => ({
@@ -568,6 +586,94 @@ const getTransformedGroupBounds = (boundingBox: GroupNormalization["boundingBox"
   const right = groupNormalization.translateX + boundingBox.right * groupNormalization.scale;
   const bottom = groupNormalization.translateY + boundingBox.bottom * groupNormalization.scale;
   return { left, top, right, bottom, width: right - left, height: bottom - top };
+};
+
+const withVisualCenter = (item: RenderItem, targetCenter: { x: number; y: number }): RenderItem => {
+  const bounds = getItemVisualBounds(item.style);
+  const dx = targetCenter.x - bounds.center.x;
+  const dy = targetCenter.y - bounds.center.y;
+  const nextLeft = Number.parseFloat(String(item.style.left ?? 0)) + dx;
+  const nextTop = Number.parseFloat(String(item.style.top ?? 0)) + dy;
+  return { ...item, style: { ...item.style, left: `${nextLeft}%`, top: `${nextTop}%` } };
+};
+
+const getLayoutTemplate = (items: RenderItem[]) => {
+  const hasCategory = (category: VisualCategory) => items.some((item) => item.visualCategory === category);
+  if (hasCategory("dresses") && hasCategory("outerwear")) return "dress + outerwear overlap";
+  if (hasCategory("tops") && hasCategory("bottoms") && hasCategory("outerwear")) return "top + bottom + outerwear stacked overlap";
+  if (hasCategory("tops") && hasCategory("bottoms")) return "top + bottom vertical overlap";
+  if (hasCategory("dresses")) return "dress alone centered";
+  return "accessories/shoes editorial cluster";
+};
+
+const applyCategoryAwareComposition = (items: RenderItem[]) => {
+  let nextItems = [...items];
+  const template = getLayoutTemplate(nextItems);
+  const updateItem = (target: RenderItem, center: { x: number; y: number }) => {
+    nextItems = nextItems.map((item) => (item === target ? withVisualCenter(item, center) : item));
+  };
+
+  const dress = nextItems.find((item) => item.visualCategory === "dresses");
+  const coat = nextItems.find((item) => item.visualCategory === "outerwear");
+  const top = nextItems.find((item) => item.visualCategory === "tops");
+  const bottom = nextItems.find((item) => item.visualCategory === "bottoms");
+
+  if (template === "dress + outerwear overlap" && dress && coat) {
+    updateItem(dress, { x: 52, y: 52 });
+    const movedDress = nextItems.find((item) => item.garment === dress.garment) || dress;
+    const dressBounds = getItemVisualBounds(movedDress.style);
+    const coatBounds = getItemVisualBounds((nextItems.find((item) => item.garment === coat.garment) || coat).style);
+    const smallerWidth = Math.min(dressBounds.width, coatBounds.width);
+    const targetOverlap = smallerWidth * 0.38;
+    const desiredCenterDistance = Math.max(coatBounds.width * 0.18, (dressBounds.width + coatBounds.width) / 2 - targetOverlap);
+    updateItem(coat, {
+      x: dressBounds.center.x - desiredCenterDistance,
+      y: dressBounds.center.y - coatBounds.height * 0.03,
+    });
+  } else if ((template === "top + bottom vertical overlap" || template === "top + bottom + outerwear stacked overlap") && top && bottom) {
+    updateItem(bottom, { x: 51, y: 61 });
+    const movedBottom = nextItems.find((item) => item.garment === bottom.garment) || bottom;
+    const bottomBounds = getItemVisualBounds(movedBottom.style);
+    const topBounds = getItemVisualBounds((nextItems.find((item) => item.garment === top.garment) || top).style);
+    const verticalOverlap = Math.min(topBounds.height, bottomBounds.height) * 0.14;
+    updateItem(top, { x: bottomBounds.center.x - bottomBounds.width * 0.03, y: bottomBounds.center.y - (topBounds.height + bottomBounds.height) / 2 + verticalOverlap });
+    if (coat) {
+      const movedTop = nextItems.find((item) => item.garment === top.garment) || top;
+      const combinedCenter = { x: (getItemVisualBounds(movedTop.style).center.x + bottomBounds.center.x) / 2, y: (getItemVisualBounds(movedTop.style).center.y + bottomBounds.center.y) / 2 };
+      const coatBounds = getItemVisualBounds(coat.style);
+      updateItem(coat, { x: combinedCenter.x - coatBounds.width * 0.22, y: combinedCenter.y - coatBounds.height * 0.02 });
+    }
+  } else if (template === "dress alone centered" && dress) {
+    updateItem(dress, { x: 50, y: 52 });
+  } else {
+    nextItems = nextItems.map((item, index) => withVisualCenter(item, { x: 50 + (index % 3 - 1) * 9, y: 52 + Math.floor(index / 3) * 8 }));
+  }
+
+  return { items: nextItems, template };
+};
+
+const getCompositionMetrics = (items: RenderItem[], selectedLayoutTemplate: string): CompositionMetrics => {
+  const keyFor = (item: RenderItem, index: number) => `${item.visualCategory}-${item.garment?.name || item.garment?.id || index}`;
+  const entries = items.map((item, index) => ({ key: keyFor(item, index), item, bounds: getItemVisualBounds(item.style) }));
+  const garmentCenters = Object.fromEntries(entries.map(({ key, bounds }) => [key, bounds.center]));
+  const garmentBounds = Object.fromEntries(entries.map(({ key, bounds }) => [key, bounds]));
+  const core = entries.filter(({ item }) => ["outerwear", "dresses", "tops", "bottoms"].includes(item.visualCategory));
+  const pairMetrics = core.flatMap((entry, index) => core.slice(index + 1).map((other) => {
+    const horizontalOverlap = Math.max(0, Math.min(entry.bounds.right, other.bounds.right) - Math.max(entry.bounds.left, other.bounds.left));
+    const verticalOverlap = Math.max(0, Math.min(entry.bounds.bottom, other.bounds.bottom) - Math.max(entry.bounds.top, other.bounds.top));
+    const smallerWidth = Math.max(1, Math.min(entry.bounds.width, other.bounds.width));
+    const smallerHeight = Math.max(1, Math.min(entry.bounds.height, other.bounds.height));
+    const dx = other.bounds.center.x - entry.bounds.center.x;
+    const dy = (other.bounds.center.y - entry.bounds.center.y) / canvasAspectRatio;
+    return {
+      a: entry.key,
+      b: other.key,
+      horizontalOverlapPct: horizontalOverlap / smallerWidth,
+      verticalOverlapPct: verticalOverlap / smallerHeight,
+      centerDistance: Math.sqrt(dx * dx + dy * dy),
+    };
+  }));
+  return { selectedLayoutTemplate, garmentCenters, garmentBounds, pairMetrics };
 };
 
 export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageProps) => {
@@ -676,6 +782,12 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
     groupNormalization = normalizeOutfitGroup(renderItems);
     renderedSizingMetrics = getRenderedSizingMetrics(renderItems, groupNormalization);
   }
+
+  const composition = applyCategoryAwareComposition(renderItems);
+  renderItems = composition.items;
+  groupNormalization = normalizeOutfitGroup(renderItems);
+  renderedSizingMetrics = getRenderedSizingMetrics(renderItems, groupNormalization);
+  const compositionMetrics = getCompositionMetrics(renderItems, composition.template);
 
   const coatFitItem = renderItems.find((item) => item.visualCategory === "outerwear");
   const dressFitItem = renderItems.find((item) => item.visualCategory === "dresses");
@@ -826,6 +938,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
             finalTranslateY: groupNormalization.translateY,
             finalGroupScale: groupNormalization.scale,
             boundingBoxIncludes: "garment visual boxes and measurement overlay only; labels and below-canvas panels excluded",
+            ...compositionMetrics,
           }, null, 2)}</pre>
         </details>
         <details open>
