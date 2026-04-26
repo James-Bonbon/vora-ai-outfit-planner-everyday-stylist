@@ -440,7 +440,7 @@ Return garmentType, bodyCoverage, lengthClass, bulkClass, preferredPreviewScale,
 - bottoms: leftWaistAnchor, rightWaistAnchor, crotchPoint if visible, leftHem, rightHem, waistFitWidth, legLength
 - shoes/accessories: visualLength, visualHeight, anchorCenter
 
-For dresses, especially asymmetric or sleeveless dresses, do NOT measure literal shoulder seams. Detect upperBodyFitWidth across the upper bodice/chest/armhole area corresponding to the wearer's upper torso. Reject strap-only or diagonal decorative spans by setting confidence below 0.5 and explaining why. For coats, do not include full sleeve spread in upperBodyFitWidth; measure body fit width. If confidence is low, ambiguous, or implausible, return the best candidate with confidence below 0.5 and notes.`;
+For dresses, especially asymmetric or sleeveless dresses, do NOT measure literal shoulder seams. Detect upperBodyFitWidth across the upper bodice/chest/armhole area corresponding to the wearer's upper torso. Never invent anchors in transparent or white empty space: every anchor must sit on visible garment pixels inside the alpha bounds, and left/right lines must cross actual garment material. If a point is ambiguous, off-garment, strap-only, diagonal decorative detail, or implausible, return null/omit that anchor and set confidence below 0.5 with notes. For coats, do not include full sleeve spread in upperBodyFitWidth; measure body fit width.`;
 
         const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
