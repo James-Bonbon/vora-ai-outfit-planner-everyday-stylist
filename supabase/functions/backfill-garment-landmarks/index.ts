@@ -156,6 +156,7 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
   const typeText = `${layout.garmentType ?? ""} ${item.category ?? ""} ${item.name ?? ""}`.toLowerCase();
   const isDress = /\bdress|gown|jumpsuit|romper|one[-\s]?piece\b/.test(typeText);
   const isOuterwear = /\bouterwear|coat|jacket|blazer|trench|parka|cardigan\b/.test(typeText);
+  const isBottom = /\bbottom|trouser|pant|jean|legging|skirt|short\b/.test(typeText);
   const isTop = isDress || isOuterwear || /\btop|shirt|blouse|tee|knit|sweater|hoodie\b/.test(typeText);
   const minRatio = isOuterwear ? 0.44 : isDress ? 0.44 : 0.32;
   const maxRatio = isOuterwear ? 0.72 : isDress ? 0.64 : 0.62;
@@ -193,7 +194,20 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
     };
   }
 
-  if (!isTop) return next;
+  const alphaLayout = buildAlphaProfileLayout(analysis, isTop, isOuterwear, isDress, isBottom);
+  if (!next.validatedMeasurementAnchors?.waist && alphaLayout?.waist) next.layoutAnchors.waist = alphaLayout.waist;
+  if (alphaLayout?.length) next.layoutAnchors.length = alphaLayout.length;
+
+  if (!isTop) {
+    if (isBottom && alphaLayout) {
+      next.anchorNormalization = "estimated_layout_scaling_from_alpha_profile";
+      next.anchorSources = { leftWaistAnchor: "alpha_profile", rightWaistAnchor: "alpha_profile", hemWidthAnchor: "alpha_profile" };
+      next.confidence = alphaLayout.waist?.confidence || alphaLayout.length?.confidence || 0.42;
+      next.confidenceAfterNormalization = next.confidence;
+      next.fitValidation = { status: "fallback", rejected: ["alpha_profile_layout_only"] };
+    }
+    return next;
+  }
 
   if (left && right && rawRatio >= measurementMinRatio && rawRatio <= measurementMaxRatio && (originalConfidence ?? 0) >= 0.5) {
     next.layoutAnchors = null;
@@ -217,6 +231,22 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
     next.fitValidation = { status: "ai", rejected: [] };
     next.confidenceBeforeNormalization = originalConfidence;
     next.confidenceAfterNormalization = originalConfidence;
+    return next;
+  }
+
+  if (alphaLayout?.upperFit) {
+    next.validatedMeasurementAnchors = Object.keys(next.validatedMeasurementAnchors || {}).length ? next.validatedMeasurementAnchors : null;
+    next.measurementAnchors = next.validatedMeasurementAnchors;
+    next.layoutAnchors = { ...(next.layoutAnchors || {}), ...alphaLayout };
+    next.leftUpperAnchor = alphaLayout.upperFit.leftUpperFitAnchor;
+    next.rightUpperAnchor = alphaLayout.upperFit.rightUpperFitAnchor;
+    next.upperBodyWidthAnchor = alphaLayout.upperFit.upperBodyFitWidth;
+    next.anchorNormalization = "estimated_layout_scaling_from_alpha_profile";
+    next.anchorSources = { leftUpperAnchor: "alpha_profile", rightUpperAnchor: "alpha_profile", upperBodyWidthAnchor: "alpha_profile" };
+    next.confidenceBeforeNormalization = originalConfidence;
+    next.confidence = alphaLayout.upperFit.confidence;
+    next.confidenceAfterNormalization = next.confidence;
+    next.fitValidation = { status: "fallback", rejected: ["alpha_profile_layout_only"] };
     return next;
   }
 
