@@ -691,60 +691,36 @@ const getLayoutTemplate = (items: RenderItem[]) => {
 const applyCategoryAwareComposition = (items: RenderItem[]) => {
   let nextItems = [...items];
   const template = getLayoutTemplate(nextItems);
-  const updateItem = (target: RenderItem, center: { x: number; y: number }) => {
-    nextItems = nextItems.map((item) => (item === target ? withVisualCenter(item, center) : item));
-  };
+  const rotationByCategory: Record<VisualCategory, number> = { outerwear: -5, dresses: 3, tops: -2, bottoms: 2, shoes: -7, hats: 5, accessories: 6 };
+  const zIndexByCategory: Record<VisualCategory, number> = { outerwear: 20, dresses: 30, tops: 30, bottoms: 25, shoes: 40, hats: 40, accessories: 40 };
+  const fillByCategory: Record<VisualCategory, number> = { outerwear: 0.94, dresses: 0.98, tops: 0.9, bottoms: 0.92, shoes: 0.68, hats: 0.62, accessories: 0.66 };
 
-  const dress = nextItems.find((item) => item.visualCategory === "dresses");
-  const coat = nextItems.find((item) => item.visualCategory === "outerwear");
-  const top = nextItems.find((item) => item.visualCategory === "tops");
-  const bottom = nextItems.find((item) => item.visualCategory === "bottoms");
-
-  if (template === "diagonal_stack" && dress && coat) {
-    nextItems = nextItems.map((item) => {
-      if (item === coat) return { ...item, style: { ...item.style, zIndex: 10, rotationDeg: -4, transform: `translate(${item.style.offsetXPct}%, ${item.style.offsetYPct}%) rotate(-4deg)` } };
-      if (item === dress) return { ...item, style: { ...item.style, zIndex: 20, rotationDeg: 3, transform: `translate(${item.style.offsetXPct}%, ${item.style.offsetYPct}%) rotate(3deg)` } };
-      return item;
+  if (template === "four_zone_editorial") {
+    nextItems = nextItems.map((item, index) => {
+      const rotationDeg = rotationByCategory[item.visualCategory] + (item.duplicateIndex % 2 ? 3 : 0);
+      const zoneName = getAssignedZone(item.visualCategory);
+      const styled = {
+        ...item,
+        style: {
+          ...item.style,
+          zIndex: zIndexByCategory[item.visualCategory] + index,
+          rotationDeg,
+          transform: `translate(${item.style.offsetXPct}%, ${item.style.offsetYPct}%) rotate(${rotationDeg}deg)`,
+        },
+      };
+      const placed = fitItemIntoZone(styled, zoneName, fillByCategory[item.visualCategory]);
+      const zone = fourZoneRects[zoneName];
+      const editorialNudge = item.visualCategory === "outerwear"
+        ? { x: zone.width * 0.12, y: zone.height * 0.04 }
+        : item.visualCategory === "dresses"
+          ? { x: -zone.width * 0.06, y: zone.height * 0.02 }
+          : item.visualCategory === "tops"
+            ? { x: -zone.width * 0.04, y: zone.height * 0.1 }
+            : item.visualCategory === "bottoms"
+              ? { x: -zone.width * 0.02, y: -zone.height * 0.03 }
+              : { x: zone.width * 0.04 * (index % 2 ? -1 : 1), y: zone.height * 0.06 };
+      return withVisualCenter(placed, { x: zone.center.x + editorialNudge.x, y: zone.center.y + editorialNudge.y });
     });
-    const styledCoat = nextItems.find((item) => item.garment === coat.garment) || coat;
-    updateItem(styledCoat, { x: 47, y: 47 });
-    const movedCoat = nextItems.find((item) => item.garment === coat.garment) || styledCoat;
-    const coatBounds = getItemVisualBounds(movedCoat.style, movedCoat.garment?.image_analysis, movedCoat.visualCategory);
-    const currentDress = nextItems.find((item) => item.garment === dress.garment) || dress;
-    const dressBounds = getItemVisualBounds(currentDress.style, currentDress.garment?.image_analysis, currentDress.visualCategory);
-    const smallerWidth = Math.min(dressBounds.width, coatBounds.width);
-    const targetOverlap = smallerWidth * 0.45;
-    const centerDistanceX = Math.max(8, (dressBounds.width + coatBounds.width) / 2 - targetOverlap);
-    updateItem(dress, {
-      x: coatBounds.center.x + centerDistanceX,
-      y: coatBounds.center.y + coatBounds.height * 0.12,
-    });
-    const placedDress = nextItems.find((item) => item.garment === dress.garment) || dress;
-    const placedDressBounds = getItemVisualBounds(placedDress.style, placedDress.garment?.image_analysis, placedDress.visualCategory);
-    const overlapCorrectedDressCenterX = placedDressBounds.center.x + (coatBounds.right - targetOverlap - placedDressBounds.left);
-    updateItem(placedDress, {
-      x: overlapCorrectedDressCenterX,
-      y: coatBounds.center.y + coatBounds.height * 0.12,
-    });
-  } else if ((template === "top + bottom vertical overlap" || template === "top + bottom + outerwear stacked overlap") && top && bottom) {
-    updateItem(bottom, { x: 51, y: 61 });
-    const movedBottom = nextItems.find((item) => item.garment === bottom.garment) || bottom;
-    const bottomBounds = getItemVisualBounds(movedBottom.style, movedBottom.garment?.image_analysis, movedBottom.visualCategory);
-    const currentTop = nextItems.find((item) => item.garment === top.garment) || top;
-    const topBounds = getItemVisualBounds(currentTop.style, currentTop.garment?.image_analysis, currentTop.visualCategory);
-    const verticalOverlap = Math.min(topBounds.height, bottomBounds.height) * 0.14;
-    updateItem(top, { x: bottomBounds.center.x - bottomBounds.width * 0.03, y: bottomBounds.center.y - (topBounds.height + bottomBounds.height) / 2 + verticalOverlap });
-    if (coat) {
-      const movedTop = nextItems.find((item) => item.garment === top.garment) || top;
-      const movedTopBounds = getItemVisualBounds(movedTop.style, movedTop.garment?.image_analysis, movedTop.visualCategory);
-      const combinedCenter = { x: (movedTopBounds.center.x + bottomBounds.center.x) / 2, y: (movedTopBounds.center.y + bottomBounds.center.y) / 2 };
-      const coatBounds = getItemVisualBounds(coat.style, coat.garment?.image_analysis, coat.visualCategory);
-      updateItem(coat, { x: combinedCenter.x - coatBounds.width * 0.22, y: combinedCenter.y - coatBounds.height * 0.02 });
-    }
-  } else if (template === "dress alone centered" && dress) {
-    updateItem(dress, { x: 50, y: 52 });
-  } else {
-    nextItems = nextItems.map((item, index) => withVisualCenter(item, { x: 50 + (index % 3 - 1) * 9, y: 52 + Math.floor(index / 3) * 8 }));
   }
 
   return { items: nextItems, template };
