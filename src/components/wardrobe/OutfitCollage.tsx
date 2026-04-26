@@ -472,7 +472,7 @@ const getNormalizedStyle = ({
   };
 };
 
-const getItemVisualBounds = (style: NormalizedRenderStyle, analysis?: ImageAnalysis | null): ItemBounds => {
+const getItemVisualBounds = (style: NormalizedRenderStyle, analysis?: ImageAnalysis | null, visualCategory?: VisualCategory): ItemBounds => {
   const left = Number.parseFloat(String(style.left ?? 0));
   const top = Number.parseFloat(String(style.top ?? 0));
   const translatedLeft = left + (style.offsetXPct / 100) * style.boxWidthPct;
@@ -493,10 +493,21 @@ const getItemVisualBounds = (style: NormalizedRenderStyle, analysis?: ImageAnaly
     { x: imageLeft + imageWidth, y: imageTop + imageHeight },
     { x: imageLeft, y: imageTop + imageHeight },
   ].map((point) => rotateCanvasPoint(point, center, style.rotationDeg));
-  const box = corners.reduce(
+  const rawBox = corners.reduce(
     (acc, point) => ({ left: Math.min(acc.left, point.x), top: Math.min(acc.top, point.y), right: Math.max(acc.right, point.x), bottom: Math.max(acc.bottom, point.y) }),
     { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity }
   );
+  const categoryWidthFactor = visualCategory === "dresses" ? 0.46 : visualCategory === "outerwear" ? 0.62 : 1;
+  const categoryHeightFactor = visualCategory === "dresses" ? 0.9 : visualCategory === "outerwear" ? 0.86 : 1;
+  const rawWidth = rawBox.right - rawBox.left;
+  const rawHeight = rawBox.bottom - rawBox.top;
+  const rawCenter = { x: (rawBox.left + rawBox.right) / 2, y: (rawBox.top + rawBox.bottom) / 2 };
+  const box = {
+    left: rawCenter.x - (rawWidth * categoryWidthFactor) / 2,
+    right: rawCenter.x + (rawWidth * categoryWidthFactor) / 2,
+    top: rawCenter.y - (rawHeight * categoryHeightFactor) / 2,
+    bottom: rawCenter.y + (rawHeight * categoryHeightFactor) / 2,
+  };
   return { ...box, width: box.right - box.left, height: box.bottom - box.top, center: { x: (box.left + box.right) / 2, y: (box.top + box.bottom) / 2 } };
 };
 
@@ -506,7 +517,7 @@ const normalizeOutfitGroup = (items: Array<{ style: NormalizedRenderStyle }>): G
   const targetOccupancyPct = items.length <= 2 ? 78 : items.length <= 4 ? 80 : 82;
   if (!items.length) return { canvasCenter, boundingBox: null, groupCenter: null, translateX: 0, translateY: 0, scale: 1, safePaddingPct, targetOccupancyPct, occupancyWidthPct: 0, occupancyHeightPct: 0 };
 
-  const boxes = items.map(({ style, garment }: { style: NormalizedRenderStyle; garment?: any }) => getItemVisualBounds(style, garment?.image_analysis));
+  const boxes = items.map(({ style, garment, visualCategory }: { style: NormalizedRenderStyle; garment?: any; visualCategory?: VisualCategory }) => getItemVisualBounds(style, garment?.image_analysis, visualCategory));
 
   const rawBox = boxes.reduce(
     (acc, box) => ({
