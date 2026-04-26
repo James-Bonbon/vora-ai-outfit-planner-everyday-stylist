@@ -1,4 +1,4 @@
-import { type CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 
 type OutfitCollageProps = {
@@ -94,9 +94,12 @@ type LayoutMetadata = {
 type NormalizedRenderStyle = CSSProperties & {
   boxWidthPct: number;
   boxHeightPct: number;
+  offsetXPct: number;
+  offsetYPct: number;
   anchorShiftXPct: number;
   anchorShiftYPct: number;
   rotationDeg: number;
+  imageRatio: number;
   fitSource?: string;
   upperFitWidthRatio?: number | null;
   targetRenderedFitWidth?: number | null;
@@ -154,6 +157,40 @@ const stackLayouts = [
 ];
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const canvasAspectRatio = 3 / 4;
+
+const getObjectContainRect = (boxWidthPct: number, boxHeightPct: number, imageRatio: number) => {
+  const boxPixelAspect = (boxWidthPct / Math.max(boxHeightPct, 1)) * canvasAspectRatio;
+  if (!Number.isFinite(imageRatio) || imageRatio <= 0 || !Number.isFinite(boxPixelAspect) || boxPixelAspect <= 0) {
+    return { left: 0, top: 0, width: 100, height: 100 };
+  }
+  if (boxPixelAspect > imageRatio) {
+    const width = clamp((imageRatio / boxPixelAspect) * 100, 0, 100);
+    return { left: (100 - width) / 2, top: 0, width, height: 100 };
+  }
+  const height = clamp((boxPixelAspect / imageRatio) * 100, 0, 100);
+  return { left: 0, top: (100 - height) / 2, width: 100, height };
+};
+
+const mapImagePointToBox = (point: { x: number; y: number }, style: NormalizedRenderStyle) => {
+  const imageRect = getObjectContainRect(style.boxWidthPct, style.boxHeightPct, style.imageRatio);
+  return {
+    x: imageRect.left + point.x * imageRect.width,
+    y: imageRect.top + point.y * imageRect.height,
+    imageRect,
+    coordinateSpace: "source_image_normalized_to_object_contain_box",
+  };
+};
+
+const rotatePoint = (point: { x: number; y: number }, center: { x: number; y: number }, rotationDeg: number) => {
+  const radians = (rotationDeg * Math.PI) / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  const dx = point.x - center.x;
+  const dy = point.y - center.y;
+  return { x: center.x + dx * cos - dy * sin, y: center.y + dx * sin + dy * cos };
+};
 
 const inferMetadata = (garment: any, visualCategory: VisualCategory): LayoutMetadata => {
   if (garment?.layout_metadata) return garment.layout_metadata;
