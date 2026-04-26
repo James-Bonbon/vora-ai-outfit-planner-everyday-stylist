@@ -783,6 +783,12 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
     renderedSizingMetrics = getRenderedSizingMetrics(renderItems, groupNormalization);
   }
 
+  const composition = applyCategoryAwareComposition(renderItems);
+  renderItems = composition.items;
+  groupNormalization = normalizeOutfitGroup(renderItems);
+  renderedSizingMetrics = getRenderedSizingMetrics(renderItems, groupNormalization);
+  const compositionMetrics = getCompositionMetrics(renderItems, composition.template);
+
   const coatFitItem = renderItems.find((item) => item.visualCategory === "outerwear");
   const dressFitItem = renderItems.find((item) => item.visualCategory === "dresses");
   const coatRenderedWidth = renderedSizingMetrics.coat?.renderedFitLineLength ?? null;
