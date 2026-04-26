@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Check, Plus, X } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 type Props = {
   itemId: string;
@@ -22,6 +23,7 @@ const getInitialAnchors = (metadata: any) => ({
 });
 
 export const GarmentFitCalibration = ({ itemId, imageUrl, layoutMetadata, imageAnalysis, onSaved }: Props) => {
+  const queryClient = useQueryClient();
   const [anchors, setAnchors] = useState(getInitialAnchors(layoutMetadata));
   const [dragging, setDragging] = useState<keyof typeof anchors | null>(null);
   const [saving, setSaving] = useState(false);
@@ -81,14 +83,35 @@ export const GarmentFitCalibration = ({ itemId, imageUrl, layoutMetadata, imageA
   const handleSave = async () => {
     setSaving(true);
     try {
+      const validatedMeasurementAnchors = Object.fromEntries(Object.entries(groups).filter(([, value]) => Boolean(value)));
+      const staleLayoutAnchors = { ...(layoutMetadata?.layoutAnchors || {}) };
+      if (validatedMeasurementAnchors.upperFit) delete staleLayoutAnchors.upperFit;
+      if (validatedMeasurementAnchors.waist) delete staleLayoutAnchors.waist;
+      const humanUpper = validatedMeasurementAnchors.upperFit as any;
+      const humanWaist = validatedMeasurementAnchors.waist as any;
       const nextMetadata = {
         ...(layoutMetadata || {}),
-        validatedMeasurementAnchors: Object.fromEntries(Object.entries(groups).filter(([, value]) => Boolean(value))),
-        measurementAnchors: Object.fromEntries(Object.entries(groups).filter(([, value]) => Boolean(value))),
+        validatedMeasurementAnchors,
+        measurementAnchors: validatedMeasurementAnchors,
+        layoutAnchors: staleLayoutAnchors,
+        leftUpperAnchor: humanUpper?.leftUpperFitAnchor || layoutMetadata?.leftUpperAnchor,
+        rightUpperAnchor: humanUpper?.rightUpperFitAnchor || layoutMetadata?.rightUpperAnchor,
+        upperBodyWidthAnchor: humanUpper?.upperBodyFitWidth ?? layoutMetadata?.upperBodyWidthAnchor,
+        leftWaistAnchor: humanWaist?.leftWaistAnchor || layoutMetadata?.leftWaistAnchor,
+        rightWaistAnchor: humanWaist?.rightWaistAnchor || layoutMetadata?.rightWaistAnchor,
         fitValidation: { status: "human", rejected: [] },
+        confidence: 1,
       };
       const { error } = await supabase.from("closet_items").update({ layout_metadata: nextMetadata }).eq("id", itemId);
       if (error) throw error;
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["closet"] }),
+        queryClient.invalidateQueries({ queryKey: ["closet-items"] }),
+        queryClient.invalidateQueries({ queryKey: ["lookbook"] }),
+        queryClient.invalidateQueries({ queryKey: ["outfit-calendar-data"] }),
+        queryClient.invalidateQueries({ queryKey: ["look-garments"] }),
+        queryClient.invalidateQueries({ queryKey: ["saved-looks"] }),
+      ]);
       toast.success("Fit calibration saved");
       onSaved();
     } catch (error) {
