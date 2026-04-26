@@ -176,6 +176,10 @@ const buildAlphaProfileLayout = (analysis: any, isTop: boolean, isOuterwear: boo
 const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
   const rawAiLandmarks = { ...layout };
   const next = { ...layout, rawAiLandmarks, validatedMeasurementAnchors: {}, layoutAnchors: {}, fitValidation: { status: "fallback", rejected: [] as string[] } };
+  const existingMeasurements = item?.layout_metadata?.validatedMeasurementAnchors || item?.layout_metadata?.measurementAnchors || {};
+  for (const key of ["upperFit", "waist", "lowerHemFit", "lengthFit"]) {
+    if (existingMeasurements?.[key]?.source === "human") next.validatedMeasurementAnchors[key] = existingMeasurements[key];
+  }
   const confidenceBefore = Number(layout.confidence);
   const originalConfidence = Number.isFinite(confidenceBefore) ? clamp(confidenceBefore, 0, 1) : null;
   const typeText = `${layout.garmentType ?? ""} ${item.category ?? ""} ${item.name ?? ""}`.toLowerCase();
@@ -236,7 +240,6 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
   }
 
   if (left && right && rawRatio >= measurementMinRatio && rawRatio <= measurementMaxRatio && (originalConfidence ?? 0) >= 0.5) {
-    next.layoutAnchors = null;
     next.validatedMeasurementAnchors = {
       ...(next.validatedMeasurementAnchors || {}),
       upperFit: {
@@ -291,6 +294,7 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
   next.validatedMeasurementAnchors = Object.keys(next.validatedMeasurementAnchors || {}).length ? next.validatedMeasurementAnchors : null;
   next.measurementAnchors = next.validatedMeasurementAnchors;
   next.layoutAnchors = {
+    ...(next.layoutAnchors || {}),
     upperFit: {
       leftUpperFitAnchor: { ...layoutLeft, source, confidence: source === "ratio_guard" ? 0.49 : 0.35, notes: "Estimated layout anchor; not a measurement." },
       rightUpperFitAnchor: { ...layoutRight, source, confidence: source === "ratio_guard" ? 0.49 : 0.35, notes: "Estimated layout anchor; not a measurement." },
