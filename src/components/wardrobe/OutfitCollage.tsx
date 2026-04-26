@@ -938,6 +938,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
             finalTranslateY: groupNormalization.translateY,
             finalGroupScale: groupNormalization.scale,
             boundingBoxIncludes: "garment visual boxes and measurement overlay only; labels and below-canvas panels excluded",
+            ...compositionMetrics,
           }, null, 2)}</pre>
         </details>
         <details open>
