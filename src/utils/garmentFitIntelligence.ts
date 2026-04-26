@@ -127,9 +127,13 @@ const buildAlphaProfileAnchors = (analysis: ImageAnalysisForFit | null | undefin
   const upper = isUpper ? scanAlphaBand(analysis, 0.1, 0.35, upperBounds, "upper") : null;
   const waist = scanAlphaBand(analysis, isBottoms ? 0.02 : 0.38, isBottoms ? 0.18 : 0.62, [0.18, 0.72], "waist");
   const hem = scanAlphaBand(analysis, isBottoms ? 0.68 : 0.78, 0.96, [0.12, 0.82], "hem");
-  if (upper) result!.upperFit = { leftUpperFitAnchor: { x: upper.left, y: upper.y, source: "alpha_profile", confidence, notes }, rightUpperFitAnchor: { x: upper.right, y: upper.y, source: "alpha_profile", confidence, notes }, upperBodyFitWidth: upper.width, source: "alpha_profile", confidence, notes };
-  if (waist) result!.waist = { leftWaistAnchor: { x: waist.left, y: waist.y, source: "alpha_profile", confidence, notes }, rightWaistAnchor: { x: waist.right, y: waist.y, source: "alpha_profile", confidence, notes }, waistFitWidth: waist.width, source: "alpha_profile", confidence, notes };
-  if (hem) result!.length = { leftHemAnchor: { x: hem.left, y: hem.y, source: "alpha_profile", confidence, notes }, rightHemAnchor: { x: hem.right, y: hem.y, source: "alpha_profile", confidence, notes }, hemFitWidth: hem.width, source: "alpha_profile", confidence, notes };
+  if (upper) result!.upperFit = { leftUpperFitAnchor: { x: upper.left, y: upper.y, source: "alpha_profile", confidence, notes }, rightUpperFitAnchor: { x: upper.right, y: upper.y, source: "alpha_profile", confidence, notes }, upperBodyFitWidth: upper.width, source: "alpha_profile", confidence, validationStatus: "estimated", notes };
+  if (waist) result!.waist = { leftWaistAnchor: { x: waist.left, y: waist.y, source: "alpha_profile", confidence, notes }, rightWaistAnchor: { x: waist.right, y: waist.y, source: "alpha_profile", confidence, notes }, waistFitWidth: waist.width, source: "alpha_profile", confidence, validationStatus: "estimated", notes };
+  if (hem) result!.lowerHemFit = { leftLowerHemFitAnchor: { x: hem.left, y: hem.y, source: "alpha_profile", confidence, notes }, rightLowerHemFitAnchor: { x: hem.right, y: hem.y, source: "alpha_profile", confidence, notes }, lowerHemFitWidth: hem.width, source: "alpha_profile", confidence, validationStatus: "estimated", notes };
+  if (analysis?.visibleAlphaBounds) {
+    const b = analysis.visibleAlphaBounds;
+    result!.lengthFit = { topLengthFitAnchor: { x: b.x + b.width / 2, y: b.y, source: "alpha_profile", confidence, notes }, bottomLengthFitAnchor: { x: b.x + b.width / 2, y: b.y + b.height, source: "alpha_profile", confidence, notes }, lengthFitHeight: b.height, source: "alpha_profile", confidence, validationStatus: "estimated", notes };
+  }
   return Object.keys(result || {}).length ? result : null;
 };
 
