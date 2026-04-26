@@ -561,6 +561,15 @@ const getRenderedSizingMetrics = (items: RenderItem[], groupNormalization: Group
   };
 };
 
+const getTransformedGroupBounds = (boundingBox: GroupNormalization["boundingBox"], groupNormalization: GroupNormalization) => {
+  if (!boundingBox) return null;
+  const left = groupNormalization.translateX + boundingBox.left * groupNormalization.scale;
+  const top = groupNormalization.translateY + boundingBox.top * groupNormalization.scale;
+  const right = groupNormalization.translateX + boundingBox.right * groupNormalization.scale;
+  const bottom = groupNormalization.translateY + boundingBox.bottom * groupNormalization.scale;
+  return { left, top, right, bottom, width: right - left, height: bottom - top };
+};
+
 export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageProps) => {
   if (!garments || garments.length === 0) return null;
   const [compositionQaOpen, setCompositionQaOpen] = useState(false);
