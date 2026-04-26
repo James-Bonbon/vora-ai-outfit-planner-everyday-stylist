@@ -640,6 +640,54 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
       })}
       </div>
     </div>
+    {showDebugAnchors && (
+      <div className="space-y-2 rounded-xl bg-background/70 p-2 text-[10px] leading-4 text-foreground">
+        {hasOuterwear && hasDress && (
+          <div className="rounded-lg bg-secondary/20 px-2 py-1 font-medium">
+            <div>coat width: {coatRenderedWidth?.toFixed(1) ?? "—"}%</div>
+            <div>dress width: {dressRenderedWidth?.toFixed(1) ?? "—"}%</div>
+            <div>final dress/coat fit ratio: {dressToCoatRatio ? dressToCoatRatio.toFixed(2) : "—"}</div>
+          </div>
+        )}
+        <details open={compositionQaOpen} onToggle={(event) => setCompositionQaOpen(event.currentTarget.open)}>
+          <summary className="cursor-pointer font-medium">Composition QA</summary>
+          <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify({
+            canvasSize: { widthPct: 100, heightPct: 100, aspectRatio: canvasAspectRatio },
+            canvasCenter: groupNormalization.canvasCenter,
+            groupBoundingBox: groupNormalization.boundingBox,
+            groupCenter: groupNormalization.groupCenter,
+            finalTranslateX: groupNormalization.translateX,
+            finalTranslateY: groupNormalization.translateY,
+            finalGroupScale: groupNormalization.scale,
+            boundingBoxIncludes: "garment visual boxes and measurement overlay only; labels and below-canvas panels excluded",
+          }, null, 2)}</pre>
+        </details>
+        <details>
+          <summary className="cursor-pointer font-medium">Garment fit QA</summary>
+          <pre className="mt-1 max-h-52 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify(renderItems.map((item) => {
+            const metadata = item.metadata;
+            const measurementPair = getRealMeasurementPair(metadata, item.garment?.image_analysis, item.visualCategory);
+            const prioritizedUpperFit = getPrioritizedUpperFit(metadata);
+            const layoutGroup = metadata.layoutAnchors?.upperFit || metadata.layoutAnchors?.waist || metadata.layoutAnchors?.length;
+            const fitSource = prioritizedUpperFit?.source || (measurementPair ? ((metadata.validatedMeasurementAnchors?.waist || metadata.measurementAnchors?.waist) as any)?.source : layoutGroup?.source) || item.style.fitSource || "fallback";
+            return {
+              garment: item.garment?.name || item.garment?.category,
+              source: fitSource,
+              measuredWidthSpace: "source_image_or_calibrated_anchor_space_not_rotated_screen_space",
+              anchorMapping: "source image coordinates → normalized image coordinates → object-contain rendered box coordinates → shared garment wrapper transform",
+              calibratedUpperFitWidth: prioritizedUpperFit?.group?.upperBodyFitWidth ?? null,
+              upperFitWidthRatio: item.style.upperFitWidthRatio ?? null,
+              targetRenderedFitWidth: item.style.targetRenderedFitWidth ?? null,
+              calculatedImageBoxWidth: item.style.calculatedImageBoxWidth ?? null,
+              finalRenderedFitWidth: item.style.finalRenderedFitWidth ?? item.renderedUpperWidth ?? null,
+              rawAiLandmarks: metadata.rawAiLandmarks,
+              validatedMeasurementAnchors: metadata.validatedMeasurementAnchors || metadata.measurementAnchors,
+              layoutAnchors: metadata.layoutAnchors,
+            };
+          }), null, 2)}</pre>
+        </details>
+      </div>
+    )}
     </div>
   );
 };
