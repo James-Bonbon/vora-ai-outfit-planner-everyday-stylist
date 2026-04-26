@@ -37,6 +37,8 @@ export const GarmentFitCalibration = ({ itemId, imageUrl, layoutMetadata, imageA
   const groups = useMemo(() => {
     const upperWidth = anchors.leftUpperFitAnchor && anchors.rightUpperFitAnchor ? Math.abs(anchors.rightUpperFitAnchor.x - anchors.leftUpperFitAnchor.x) : undefined;
     const waistWidth = anchors.leftWaistAnchor && anchors.rightWaistAnchor ? Math.abs(anchors.rightWaistAnchor.x - anchors.leftWaistAnchor.x) : undefined;
+    const lowerHemWidth = anchors.leftLowerHemFitAnchor && anchors.rightLowerHemFitAnchor ? Math.abs(anchors.rightLowerHemFitAnchor.x - anchors.leftLowerHemFitAnchor.x) : undefined;
+    const lengthHeight = anchors.topLengthFitAnchor && anchors.bottomLengthFitAnchor ? Math.abs(anchors.bottomLengthFitAnchor.y - anchors.topLengthFitAnchor.y) : undefined;
     return {
       upperFit: anchors.leftUpperFitAnchor && anchors.rightUpperFitAnchor ? {
         leftUpperFitAnchor: { ...anchors.leftUpperFitAnchor, source: "human", confidence: 1, notes: "Human calibrated anchor." },
@@ -44,6 +46,7 @@ export const GarmentFitCalibration = ({ itemId, imageUrl, layoutMetadata, imageA
         upperBodyFitWidth: upperWidth,
         source: "human",
         confidence: 1,
+        validationStatus: "validated",
         notes: "Human-approved upper fit width.",
       } : undefined,
       waist: anchors.leftWaistAnchor && anchors.rightWaistAnchor ? {
@@ -52,7 +55,26 @@ export const GarmentFitCalibration = ({ itemId, imageUrl, layoutMetadata, imageA
         waistFitWidth: waistWidth,
         source: "human",
         confidence: 1,
+        validationStatus: "validated",
         notes: "Human-approved waist fit width.",
+      } : undefined,
+      lowerHemFit: anchors.leftLowerHemFitAnchor && anchors.rightLowerHemFitAnchor ? {
+        leftLowerHemFitAnchor: { ...anchors.leftLowerHemFitAnchor, source: "human", confidence: 1, notes: "Human calibrated anchor." },
+        rightLowerHemFitAnchor: { ...anchors.rightLowerHemFitAnchor, source: "human", confidence: 1, notes: "Human calibrated anchor." },
+        lowerHemFitWidth: lowerHemWidth,
+        source: "human",
+        confidence: 1,
+        validationStatus: "validated",
+        notes: "Human-approved lower hem fit width.",
+      } : undefined,
+      lengthFit: anchors.topLengthFitAnchor && anchors.bottomLengthFitAnchor ? {
+        topLengthFitAnchor: { ...anchors.topLengthFitAnchor, source: "human", confidence: 1, notes: "Human calibrated anchor." },
+        bottomLengthFitAnchor: { ...anchors.bottomLengthFitAnchor, source: "human", confidence: 1, notes: "Human calibrated anchor." },
+        lengthFitHeight: lengthHeight,
+        source: "human",
+        confidence: 1,
+        validationStatus: "validated",
+        notes: "Human-approved length fit.",
       } : undefined,
     };
   }, [anchors]);
@@ -77,6 +99,10 @@ export const GarmentFitCalibration = ({ itemId, imageUrl, layoutMetadata, imageA
       rightUpperFitAnchor: { x: imageWidth * 0.66, y: imageHeight * 0.2 },
       leftWaistAnchor: { x: imageWidth * 0.38, y: imageHeight * 0.48 },
       rightWaistAnchor: { x: imageWidth * 0.62, y: imageHeight * 0.48 },
+        leftLowerHemFitAnchor: { x: imageWidth * 0.28, y: imageHeight * 0.86 },
+        rightLowerHemFitAnchor: { x: imageWidth * 0.72, y: imageHeight * 0.86 },
+        topLengthFitAnchor: { x: imageWidth * 0.5, y: imageHeight * 0.08 },
+        bottomLengthFitAnchor: { x: imageWidth * 0.5, y: imageHeight * 0.94 },
     };
     setAnchors((prev) => ({
       ...prev,
