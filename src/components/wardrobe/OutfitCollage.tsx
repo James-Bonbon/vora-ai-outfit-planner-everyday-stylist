@@ -1168,18 +1168,81 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
       </div>
     </div>
     {showDebugAnchors && (
-      <div className="space-y-2 rounded-xl bg-background/70 p-2 text-[10px] leading-4 text-foreground">
-        {hasOuterwear && hasDress && (
-          <div className="rounded-lg bg-secondary/20 px-2 py-1 font-medium">
-            <div>coat rendered fit line: {coatRenderedWidth?.toFixed(1) ?? "—"} canvas%</div>
-            <div>dress rendered fit line: {dressRenderedWidth?.toFixed(1) ?? "—"} canvas%</div>
-            <div>coat local fit ratio: {renderedSizingMetrics.coat?.localFitRatio?.toFixed(2) ?? "—"}</div>
-            <div>dress local fit ratio: {renderedSizingMetrics.dress?.localFitRatio?.toFixed(2) ?? "—"}</div>
-            <div>final dress/coat ratio: {dressToCoatRatio ? dressToCoatRatio.toFixed(2) : "—"}</div>
-            <div>target dress/coat fit ratio: {targetDressToCoatRatio.toFixed(2)}</div>
-            <div>minimum dress/coat fit ratio: {minimumDressToCoatRatio.toFixed(2)}</div>
+      <div className="space-y-3 rounded-xl bg-background/70 p-3 text-[11px] leading-5 text-foreground">
+        <div className="space-y-3">
+          <div className="font-semibold">Garment Fit Summary</div>
+          {garmentFitSummaries.map((summary) => (
+            <div key={summary.name} className="rounded-lg bg-secondary/20 px-2 py-2">
+              <div className="font-semibold">{summary.name}</div>
+              <div>Type: {summary.type}</div>
+              <div>Required: {summary.required.length ? summary.required.join(", ") : "visualWidth, visualLength"}</div>
+              <div>Present: {summary.present.length ? summary.present.join(", ") : "visual bounds only"}</div>
+              <div>Missing: {summary.missing.length ? summary.missing.join(", ") : "None"}</div>
+              <div>Status: {summary.status}</div>
+              <div>Confidence: {summary.confidence ? summary.confidence.toFixed(2) : "—"}</div>
+              <div>Resize: {summary.resizeActionNeeded ? "Yes" : "No"}</div>
+              <div>Reason: {summary.resizeReason}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="rounded-lg bg-secondary/20 px-2 py-2">
+          <div className="font-semibold">Relationship Check</div>
+          <div>Rule: {relationshipRuleText}</div>
+          <div>Compared: {comparedAnchorText}</div>
+          <div>Target ratio: {relationshipDebug?.targetRatio || "—"}</div>
+          <div>Current ratio: {relationshipDebug?.finalRatio != null ? relationshipDebug.finalRatio.toFixed(2) : "—"}</div>
+          <div>Status: {relationshipStatus}</div>
+          <div>Resize happened: {garmentFitSummaries.some((summary) => summary.resizeActionNeeded) ? "Yes" : "No"}</div>
+        </div>
+
+        <details>
+          <summary className="cursor-pointer font-medium">Advanced JSON</summary>
+          <div className="mt-2 space-y-2">
+            <details open={compositionQaOpen} onToggle={(event) => setCompositionQaOpen(event.currentTarget.open)}>
+              <summary className="cursor-pointer font-medium">Composition QA</summary>
+              <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify({
+                canvasSize: { widthPct: 100, heightPct: 100, aspectRatio: canvasAspectRatio },
+                canvasCenter: groupNormalization.canvasCenter,
+                groupBoundingBox: groupNormalization.boundingBox,
+                transformedGroupBounds,
+                groupCenter: groupNormalization.groupCenter,
+                finalTranslateX: groupNormalization.translateX,
+                finalTranslateY: groupNormalization.translateY,
+                finalGroupScale: groupNormalization.scale,
+                groupOccupancyWidthPct: groupNormalization.occupancyWidthPct,
+                groupOccupancyHeightPct: groupNormalization.occupancyHeightPct,
+                safePaddingPct: groupNormalization.safePaddingPct,
+                boundingBoxIncludes: "garment visual boxes and measurement overlay only; labels and below-canvas panels excluded",
+                ...compositionMetrics,
+              }, null, 2)}</pre>
+            </details>
+            <details>
+              <summary className="cursor-pointer font-medium">Sizing engine QA</summary>
+              <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify(sizingEngineDebug, null, 2)}</pre>
+            </details>
+            <details>
+              <summary className="cursor-pointer font-medium">Relationship QA</summary>
+              <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify(relationshipDebug, null, 2)}</pre>
+            </details>
+            <details>
+              <summary className="cursor-pointer font-medium">Garment fit QA</summary>
+              <pre className="mt-1 max-h-52 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify(renderItems.map((item) => ({
+                garment: item.garment?.name || item.garment?.category,
+                type: displayType(item.visualCategory),
+                anchorGroups: (["upperFit", "waist", "lowerHemFit", "hipFit", "lengthFit"] as FitAnchorType[]).map((anchorType) => {
+                  const group = getPrioritizedFitGroup(item.metadata, anchorType);
+                  return { anchorType: formatAnchorName(anchorType), source: group?.source || null, confidence: group?.group?.confidence ?? null, validationStatus: group?.group?.validationStatus || (group?.isMeasurement ? "validated" : group ? "estimated" : null), widthRatio: getFitWidthFromGroup(group?.group, anchorType, item.garment?.image_analysis) };
+                }),
+                rawAiLandmarks: item.metadata.rawAiLandmarks,
+                validatedMeasurementAnchors: item.metadata.validatedMeasurementAnchors || item.metadata.measurementAnchors,
+                layoutAnchors: item.metadata.layoutAnchors,
+              })), null, 2)}</pre>
+            </details>
           </div>
-        )}
+        </details>
+      </div>
+    )}
         <details open={compositionQaOpen} onToggle={(event) => setCompositionQaOpen(event.currentTarget.open)}>
           <summary className="cursor-pointer font-medium">Composition QA</summary>
           <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify({
