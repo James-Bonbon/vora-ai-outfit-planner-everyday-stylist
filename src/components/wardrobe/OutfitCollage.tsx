@@ -141,6 +141,10 @@ type GroupNormalization = {
   translateX: number;
   translateY: number;
   scale: number;
+  safePaddingPct: number;
+  targetOccupancyPct: number;
+  occupancyWidthPct: number;
+  occupancyHeightPct: number;
 };
 
 type ItemBounds = { left: number; top: number; right: number; bottom: number; width: number; height: number; center: { x: number; y: number } };
@@ -494,7 +498,9 @@ const getItemVisualBounds = (style: NormalizedRenderStyle): ItemBounds => {
 
 const normalizeOutfitGroup = (items: Array<{ style: NormalizedRenderStyle }>): GroupNormalization => {
   const canvasCenter = { x: 50, y: 50 };
-  if (!items.length) return { canvasCenter, boundingBox: null, groupCenter: null, translateX: 0, translateY: 0, scale: 1 };
+  const safePaddingPct = 9;
+  const targetOccupancyPct = items.length <= 2 ? 78 : items.length <= 4 ? 80 : 82;
+  if (!items.length) return { canvasCenter, boundingBox: null, groupCenter: null, translateX: 0, translateY: 0, scale: 1, safePaddingPct, targetOccupancyPct, occupancyWidthPct: 0, occupancyHeightPct: 0 };
 
   const boxes = items.map(({ style }) => getItemVisualBounds(style));
 
@@ -509,11 +515,16 @@ const normalizeOutfitGroup = (items: Array<{ style: NormalizedRenderStyle }>): G
   );
   const boundingBox = { ...rawBox, width: rawBox.right - rawBox.left, height: rawBox.bottom - rawBox.top };
   const groupCenter = { x: boundingBox.left + boundingBox.width / 2, y: boundingBox.top + boundingBox.height / 2 };
-  const targetOccupancy = items.length <= 2 ? 0.82 : items.length <= 4 ? 0.84 : 0.86;
-  const safeCanvas = 100 - 20;
-  const targetWidth = safeCanvas * targetOccupancy;
-  const targetHeight = safeCanvas * targetOccupancy;
-  const scale = clamp(Math.min(targetWidth / Math.max(boundingBox.width, 1), targetHeight / Math.max(boundingBox.height, 1), 1), 0.04, 1);
+  const safeCanvasPct = 100 - safePaddingPct * 2;
+  const scale = clamp(
+    Math.min(
+      targetOccupancyPct / Math.max(boundingBox.width, boundingBox.height, 1),
+      safeCanvasPct / Math.max(boundingBox.width, 1),
+      safeCanvasPct / Math.max(boundingBox.height, 1)
+    ),
+    0.04,
+    8
+  );
   return {
     canvasCenter,
     boundingBox,
@@ -521,6 +532,10 @@ const normalizeOutfitGroup = (items: Array<{ style: NormalizedRenderStyle }>): G
     translateX: canvasCenter.x - groupCenter.x * scale,
     translateY: canvasCenter.y - groupCenter.y * scale,
     scale,
+    safePaddingPct,
+    targetOccupancyPct,
+    occupancyWidthPct: boundingBox.width * scale,
+    occupancyHeightPct: boundingBox.height * scale,
   };
 };
 
