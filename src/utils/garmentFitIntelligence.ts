@@ -12,6 +12,8 @@ export type FitAnchorGroup = Record<string, FitPoint | number | string | undefin
   source?: AnchorSource;
   confidence?: number;
   notes?: string;
+  validationStatus?: "validated" | "estimated" | "failed";
+  failureReason?: string;
 };
 
 export type ImageAnalysisForFit = {
@@ -34,6 +36,9 @@ export type FitMetadata = {
   validatedMeasurementAnchors?: {
     upperFit?: FitAnchorGroup;
     waist?: FitAnchorGroup;
+    lowerHemFit?: FitAnchorGroup;
+    hipFit?: FitAnchorGroup;
+    lengthFit?: FitAnchorGroup;
     length?: FitAnchorGroup;
     shoe?: FitAnchorGroup;
   };
@@ -41,6 +46,9 @@ export type FitMetadata = {
   layoutAnchors?: {
     upperFit?: FitAnchorGroup;
     waist?: FitAnchorGroup;
+    lowerHemFit?: FitAnchorGroup;
+    hipFit?: FitAnchorGroup;
+    lengthFit?: FitAnchorGroup;
     length?: FitAnchorGroup;
     shoe?: FitAnchorGroup;
   };
