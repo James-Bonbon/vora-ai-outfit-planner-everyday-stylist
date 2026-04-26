@@ -588,6 +588,70 @@ const getTransformedGroupBounds = (boundingBox: GroupNormalization["boundingBox"
   return { left, top, right, bottom, width: right - left, height: bottom - top };
 };
 
+const withVisualCenter = (item: RenderItem, targetCenter: { x: number; y: number }): RenderItem => {
+  const bounds = getItemVisualBounds(item.style);
+  const dx = targetCenter.x - bounds.center.x;
+  const dy = targetCenter.y - bounds.center.y;
+  const nextLeft = Number.parseFloat(String(item.style.left ?? 0)) + dx;
+  const nextTop = Number.parseFloat(String(item.style.top ?? 0)) + dy;
+  return { ...item, style: { ...item.style, left: `${nextLeft}%`, top: `${nextTop}%` } };
+};
+
+const getLayoutTemplate = (items: RenderItem[]) => {
+  const hasCategory = (category: VisualCategory) => items.some((item) => item.visualCategory === category);
+  if (hasCategory("dresses") && hasCategory("outerwear")) return "dress + outerwear overlap";
+  if (hasCategory("tops") && hasCategory("bottoms") && hasCategory("outerwear")) return "top + bottom + outerwear stacked overlap";
+  if (hasCategory("tops") && hasCategory("bottoms")) return "top + bottom vertical overlap";
+  if (hasCategory("dresses")) return "dress alone centered";
+  return "accessories/shoes editorial cluster";
+};
+
+const applyCategoryAwareComposition = (items: RenderItem[]) => {
+  let nextItems = [...items];
+  const template = getLayoutTemplate(nextItems);
+  const updateItem = (target: RenderItem, center: { x: number; y: number }) => {
+    nextItems = nextItems.map((item) => (item === target ? withVisualCenter(item, center) : item));
+  };
+
+  const dress = nextItems.find((item) => item.visualCategory === "dresses");
+  const coat = nextItems.find((item) => item.visualCategory === "outerwear");
+  const top = nextItems.find((item) => item.visualCategory === "tops");
+  const bottom = nextItems.find((item) => item.visualCategory === "bottoms");
+
+  if (template === "dress + outerwear overlap" && dress && coat) {
+    updateItem(dress, { x: 52, y: 52 });
+    const movedDress = nextItems.find((item) => item.garment === dress.garment) || dress;
+    const dressBounds = getItemVisualBounds(movedDress.style);
+    const coatBounds = getItemVisualBounds((nextItems.find((item) => item.garment === coat.garment) || coat).style);
+    const smallerWidth = Math.min(dressBounds.width, coatBounds.width);
+    const targetOverlap = smallerWidth * 0.38;
+    const desiredCenterDistance = Math.max(coatBounds.width * 0.18, (dressBounds.width + coatBounds.width) / 2 - targetOverlap);
+    updateItem(coat, {
+      x: dressBounds.center.x - desiredCenterDistance,
+      y: dressBounds.center.y - coatBounds.height * 0.03,
+    });
+  } else if ((template === "top + bottom vertical overlap" || template === "top + bottom + outerwear stacked overlap") && top && bottom) {
+    updateItem(bottom, { x: 51, y: 61 });
+    const movedBottom = nextItems.find((item) => item.garment === bottom.garment) || bottom;
+    const bottomBounds = getItemVisualBounds(movedBottom.style);
+    const topBounds = getItemVisualBounds((nextItems.find((item) => item.garment === top.garment) || top).style);
+    const verticalOverlap = Math.min(topBounds.height, bottomBounds.height) * 0.14;
+    updateItem(top, { x: bottomBounds.center.x - bottomBounds.width * 0.03, y: bottomBounds.center.y - (topBounds.height + bottomBounds.height) / 2 + verticalOverlap });
+    if (coat) {
+      const movedTop = nextItems.find((item) => item.garment === top.garment) || top;
+      const combinedCenter = { x: (getItemVisualBounds(movedTop.style).center.x + bottomBounds.center.x) / 2, y: (getItemVisualBounds(movedTop.style).center.y + bottomBounds.center.y) / 2 };
+      const coatBounds = getItemVisualBounds(coat.style);
+      updateItem(coat, { x: combinedCenter.x - coatBounds.width * 0.22, y: combinedCenter.y - coatBounds.height * 0.02 });
+    }
+  } else if (template === "dress alone centered" && dress) {
+    updateItem(dress, { x: 50, y: 52 });
+  } else {
+    nextItems = nextItems.map((item, index) => withVisualCenter(item, { x: 50 + (index % 3 - 1) * 9, y: 52 + Math.floor(index / 3) * 8 }));
+  }
+
+  return { items: nextItems, template };
+};
+
 export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageProps) => {
   if (!garments || garments.length === 0) return null;
   const [compositionQaOpen, setCompositionQaOpen] = useState(false);
