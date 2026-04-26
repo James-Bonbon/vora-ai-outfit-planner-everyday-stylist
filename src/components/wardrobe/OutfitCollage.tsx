@@ -493,8 +493,12 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
     dressToCoatRatio = coatRenderedWidth && dressRenderedWidth ? dressRenderedWidth / coatRenderedWidth : null;
   }
 
+  const groupNormalization = normalizeOutfitGroup(renderItems);
+  const groupTransform = `translate(${groupNormalization.translateX}%, ${groupNormalization.translateY}%) scale(${groupNormalization.scale})`;
+
   return (
     <div className="relative w-full aspect-[3/4] bg-secondary/10 rounded-2xl overflow-hidden">
+      <div className="absolute inset-0 origin-center" style={{ transform: groupTransform }}>
       {renderItems.map(({ garment, visualCategory, imageUrl, duplicateIndex, metadata, style, renderedUpperWidth }) => {
         const baseAlt = garment?.name || garment?.category || "Garment";
         const { boxWidthPct, boxHeightPct, anchorShiftXPct, anchorShiftYPct, rotationDeg, fitSource: styleFitSource, upperFitWidthRatio, targetRenderedFitWidth, calculatedImageBoxWidth, finalRenderedFitWidth, ...imageStyle } = style;
@@ -597,12 +601,26 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
           </div>
         );
       })}
+      </div>
       {showDebugAnchors && hasOuterwear && hasDress && (
         <div className="absolute bottom-2 left-2 right-2 z-[90] rounded bg-background/90 px-2 py-1 text-[10px] font-medium leading-4 text-foreground shadow-sm">
           <div>coat width: {coatRenderedWidth?.toFixed(1) ?? "—"}%</div>
           <div>dress width: {dressRenderedWidth?.toFixed(1) ?? "—"}%</div>
           <div>final dress/coat fit ratio: {dressToCoatRatio ? dressToCoatRatio.toFixed(2) : "—"}</div>
         </div>
+      )}
+      {showDebugAnchors && (
+        <details className="absolute left-2 top-2 z-[95] max-w-[72%] rounded bg-background/90 px-2 py-1 text-[9px] leading-3 text-foreground shadow-sm">
+          <summary className="cursor-pointer font-medium">Composition QA</summary>
+          <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify({
+            canvasCenter: groupNormalization.canvasCenter,
+            outfitGroupBoundingBox: groupNormalization.boundingBox,
+            groupCenter: groupNormalization.groupCenter,
+            finalGroupTranslateX: groupNormalization.translateX,
+            finalGroupTranslateY: groupNormalization.translateY,
+            finalGroupScale: groupNormalization.scale,
+          }, null, 2)}</pre>
+        </details>
       )}
     </div>
   );
