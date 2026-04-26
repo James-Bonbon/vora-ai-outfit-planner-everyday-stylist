@@ -205,19 +205,28 @@ const scanAlphaBand = (analysis: any, startPct: number, endPct: number, minRatio
 };
 
 const buildAlphaProfileLayout = (analysis: any, isTop: boolean, isOuterwear: boolean, isDress: boolean, isBottom: boolean) => {
-  const confidence = 0.42;
   const notes = "Estimated from alpha profile scan; not an AI measurement.";
   const layout: any = {};
+  const confidenceFor = (candidate: any, type: "upper" | "waist" | "hem" | "length") => {
+    if (!candidate || type === "length") return 0.68;
+    const left = { x: candidate.left, y: candidate.y };
+    const right = { x: candidate.right, y: candidate.y };
+    const coverage = pairCoverage(left, right, analysis);
+    const nearby = [-3, -2, -1, 1, 2, 3].map((offset) => analysis.alphaRowExtents?.[candidate.y + offset]).filter(Boolean);
+    const stability = nearby.length ? 1 - Math.min(1, nearby.reduce((sum: number, extent: any) => sum + Math.abs(extent.left - candidate.left) + Math.abs(extent.right - candidate.right), 0) / (nearby.length * Math.max(candidate.width, 1) * 2)) : 0.4;
+    return clamp(0.3 + coverage * 0.3 + stability * 0.2 + Math.min(0.15, candidate.score * 0.15), 0.3, 0.85);
+  };
   const upperMin = isOuterwear ? 0.34 : isDress ? 0.32 : 0.24;
   const upperMax = isOuterwear ? 0.78 : isDress ? 0.72 : 0.68;
   const upper = isTop ? scanAlphaBand(analysis, 0.1, 0.35, upperMin, upperMax, "upper") : null;
   const waist = scanAlphaBand(analysis, isBottom ? 0.02 : 0.38, isBottom ? 0.18 : 0.62, 0.18, 0.72, "waist");
   const hem = scanAlphaBand(analysis, isBottom ? 0.68 : 0.78, 0.96, 0.12, 0.82, "hem");
-  if (upper) layout.upperFit = { leftUpperFitAnchor: { x: upper.left, y: upper.y, source: "alpha_profile", confidence, notes }, rightUpperFitAnchor: { x: upper.right, y: upper.y, source: "alpha_profile", confidence, notes }, upperBodyFitWidth: upper.width, confidence, source: "alpha_profile", notes };
-  if (waist) layout.waist = { leftWaistAnchor: { x: waist.left, y: waist.y, source: "alpha_profile", confidence, notes }, rightWaistAnchor: { x: waist.right, y: waist.y, source: "alpha_profile", confidence, notes }, waistFitWidth: waist.width, confidence, source: "alpha_profile", notes };
-  if (hem) layout.lowerHemFit = { leftLowerHemFitAnchor: { x: hem.left, y: hem.y, source: "alpha_profile", confidence, notes }, rightLowerHemFitAnchor: { x: hem.right, y: hem.y, source: "alpha_profile", confidence, notes }, lowerHemFitWidth: hem.width, confidence, source: "alpha_profile", validationStatus: "estimated", notes };
+  if (upper) { const confidence = confidenceFor(upper, "upper"); layout.upperFit = { leftUpperFitAnchor: { x: upper.left, y: upper.y, source: "alpha_profile", confidence, notes }, rightUpperFitAnchor: { x: upper.right, y: upper.y, source: "alpha_profile", confidence, notes }, upperBodyFitWidth: upper.width, confidence, source: "alpha_profile", validationStatus: "estimated", notes }; }
+  if (waist) { const confidence = confidenceFor(waist, "waist"); layout.waist = { leftWaistAnchor: { x: waist.left, y: waist.y, source: "alpha_profile", confidence, notes }, rightWaistAnchor: { x: waist.right, y: waist.y, source: "alpha_profile", confidence, notes }, waistFitWidth: waist.width, confidence, source: "alpha_profile", validationStatus: "estimated", notes }; }
+  if (hem) { const confidence = confidenceFor(hem, "hem"); layout.lowerHemFit = { leftLowerHemFitAnchor: { x: hem.left, y: hem.y, source: "alpha_profile", confidence, notes }, rightLowerHemFitAnchor: { x: hem.right, y: hem.y, source: "alpha_profile", confidence, notes }, lowerHemFitWidth: hem.width, confidence, source: "alpha_profile", validationStatus: "estimated", notes }; }
   if (analysis?.visibleAlphaBounds) {
     const b = analysis.visibleAlphaBounds;
+    const confidence = confidenceFor(null, "length");
     layout.lengthFit = { topLengthFitAnchor: { x: b.x + b.width / 2, y: b.y, source: "alpha_profile", confidence, notes }, bottomLengthFitAnchor: { x: b.x + b.width / 2, y: b.y + b.height, source: "alpha_profile", confidence, notes }, lengthFitHeight: b.height, confidence, source: "alpha_profile", validationStatus: "estimated", notes };
   }
   return Object.keys(layout).length ? layout : null;
