@@ -1198,8 +1198,11 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
 
         <details>
           <summary className="cursor-pointer font-medium">Advanced JSON</summary>
-          <div className="mt-2 space-y-2">
-        </div>
+          <pre className="mt-1 max-h-52 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify({ compositionMetrics, sizingEngineDebug, relationshipDebug }, null, 2)}</pre>
+        </details>
+      </div>
+    )}
+    </div>
   );
 };
 
