@@ -62,9 +62,9 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 export const classifyFitFamily = (category?: string | null, name?: string | null, garmentType?: string | null) => {
   const text = `${garmentType ?? ""} ${category ?? ""} ${name ?? ""}`.toLowerCase();
   if (/shoe|sneaker|boot|heel|loafer|sandal|trainer/.test(text)) return "shoes";
-  if (/trouser|pant|jean|legging|chino|skirt|short/.test(text)) return "bottoms";
   if (/dress|gown|jumpsuit|romper|one[-\s]?piece/.test(text)) return "dresses";
   if (/outerwear|coat|jacket|blazer|trench|parka|cardigan/.test(text)) return "outerwear";
+  if (/trouser|pant|jean|legging|chino|skirt|short(?![-\s]?sleeve)/.test(text)) return "bottoms";
   if (/top|shirt|blouse|tee|t-shirt|knit|sweater|jumper|hoodie/.test(text)) return "tops";
   return "accessory";
 };
