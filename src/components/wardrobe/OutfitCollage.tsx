@@ -457,8 +457,8 @@ const normalizeOutfitGroup = (items: Array<{ style: NormalizedRenderStyle }>): G
     canvasCenter,
     boundingBox,
     groupCenter,
-    translateX: canvasCenter.x - groupCenter.x,
-    translateY: canvasCenter.y - groupCenter.y,
+    translateX: canvasCenter.x - groupCenter.x * scale,
+    translateY: canvasCenter.y - groupCenter.y * scale,
     scale,
   };
 };
@@ -559,7 +559,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
           <span className="absolute left-0 top-1/2 z-[88] h-px w-full -translate-y-1/2 bg-primary/50" />
         </>
       )}
-      <div className="absolute inset-0 origin-center" style={{ transform: groupTransform }}>
+      <div className="absolute inset-0 origin-top-left" style={{ transform: groupTransform }}>
       {showDebugAnchors && compositionQaOpen && groupNormalization.boundingBox && (
         <div
           className="absolute z-[89] border border-primary/70"
