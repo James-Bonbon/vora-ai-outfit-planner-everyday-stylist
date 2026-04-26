@@ -1026,6 +1026,8 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
   renderedSizingMetrics = getRenderedSizingMetrics(renderItems, groupNormalization);
   const relationshipDebug = getRelationshipMetrics(renderItems, groupNormalization);
   const compositionMetrics = getCompositionMetrics(renderItems, composition.template);
+  const garmentFitSummaries = renderItems.map((item) => getGarmentFitSummary(item, relationshipDebug));
+  const relationshipStatus = getRelationshipStatus(relationshipDebug);
 
   const coatFitItem = renderItems.find((item) => item.visualCategory === "outerwear");
   const dressFitItem = renderItems.find((item) => item.visualCategory === "dresses");
