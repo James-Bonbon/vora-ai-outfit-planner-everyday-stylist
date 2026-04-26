@@ -89,7 +89,10 @@ describe("OutfitCollage calibrated fit sizing", () => {
 
     expect(narrowDressWidth).toBeGreaterThan(wideDressWidth);
     expect(narrow.container.textContent).toContain('"source": "human"');
-    expect(narrow.container.textContent).toMatch(/final dress\/coat fit ratio: 0\.(8[5-9]|9[0-5])/);
+    expect(narrow.container.textContent).toContain('"passFailBasis": "rendered fit line only"');
+    expect(narrow.container.textContent).toMatch(/final dress\/coat ratio: 0\.(8[5-9]|9[0-5])/);
+    expect(narrow.container.textContent).toContain("dress rendered fit line");
+    expect(narrow.container.textContent).toContain("dress local fit ratio");
     act(() => narrow.root.unmount());
     narrow.container.remove();
   });
