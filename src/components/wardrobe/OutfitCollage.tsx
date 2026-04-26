@@ -386,33 +386,17 @@ const getUpperAnchorPair = (metadata: LayoutMetadata, analysis?: ImageAnalysis |
 
 const hasSufficientAnchorConfidence = (metadata: LayoutMetadata) => Number(metadata.confidence) >= 0.5;
 
+const getMeasurementPair = (metadata: LayoutMetadata, analysis: ImageAnalysis | null | undefined, anchorType: FitAnchorType, measurementsOnly = false) => {
+  const prioritized = getPrioritizedFitGroup(metadata, anchorType);
+  if (!prioritized?.group) return null;
+  if (measurementsOnly && (!prioritized.isMeasurement || !["ai", "human"].includes(String(prioritized.source)) || Number(prioritized.group.confidence) < 0.5)) return null;
+  return getAnchorPairFromGroup(prioritized.group, anchorType, analysis);
+};
+
 const getRealMeasurementPair = (metadata: LayoutMetadata, analysis: ImageAnalysis | null | undefined, visualCategory: VisualCategory) => {
-  const isUpperBodyGarment = ["outerwear", "dresses", "tops"].includes(visualCategory);
-  if (isUpperBodyGarment) {
-    const upperFit = getPrioritizedUpperFit(metadata)?.isMeasurement ? getPrioritizedUpperFit(metadata)!.group : null;
-    if (!upperFit || !["ai", "human"].includes(String(upperFit.source)) || Number(upperFit.confidence) < 0.5) return null;
-    const left = toRelativePoint(upperFit.leftUpperFitAnchor, analysis);
-    const right = toRelativePoint(upperFit.rightUpperFitAnchor, analysis);
-    if (!left || !right) return null;
-    const width = Math.abs(right.x - left.x);
-    return width > 0.08
-      ? { left, right, width: clamp(width, 0.08, 1), leftLabel: "L upper", rightLabel: "R upper", fullLabel: "leftUpperFitAnchor → rightUpperFitAnchor" }
-      : null;
-  }
-
-  if (visualCategory === "bottoms") {
-    const waist = metadata.validatedMeasurementAnchors?.waist || metadata.measurementAnchors?.waist;
-    if (!waist || !["ai", "human"].includes(String(waist.source)) || Number(waist.confidence) < 0.5) return null;
-    const left = toRelativePoint(waist.leftWaistAnchor, analysis);
-    const right = toRelativePoint(waist.rightWaistAnchor, analysis);
-    if (!left || !right) return null;
-    const width = Math.abs(right.x - left.x);
-    return width > 0.08
-      ? { left, right, width: clamp(width, 0.08, 1), leftLabel: "L waist", rightLabel: "R waist", fullLabel: "leftWaistAnchor → rightWaistAnchor" }
-      : null;
-  }
-
-  return null;
+  const defaultAnchor: Partial<Record<VisualCategory, FitAnchorType>> = { outerwear: "upperFit", dresses: "upperFit", tops: "upperFit", bottoms: "waist" };
+  const anchorType = defaultAnchor[visualCategory];
+  return anchorType ? getMeasurementPair(metadata, analysis, anchorType, true) : null;
 };
 
 const getUpperBodyWidthRatio = (metadata: LayoutMetadata, analysis?: ImageAnalysis | null) => {
