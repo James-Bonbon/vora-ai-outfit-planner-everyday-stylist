@@ -612,12 +612,21 @@ const getCanvasDistance = (left: { x: number; y: number }, right: { x: number; y
 const getRenderedMeasurement = (item: RenderItem | undefined, groupNormalization: GroupNormalization) => {
   if (!item) return null;
   const measurementPair = getRealMeasurementPair(item.metadata, item.garment?.image_analysis, item.visualCategory);
+  return getRenderedAnchorMeasurement(item, groupNormalization, measurementPair);
+};
+
+const getRenderedAnchorMeasurement = (item: RenderItem | undefined, groupNormalization: GroupNormalization, measurementPair: ReturnType<typeof getAnchorPairFromGroup> | null) => {
+  if (!item) return null;
   if (!measurementPair) return null;
   const leftCanvas = mapMeasurementPointToCanvas(measurementPair.left, item.style, groupNormalization);
   const rightCanvas = mapMeasurementPointToCanvas(measurementPair.right, item.style, groupNormalization);
   const renderedFitLineLength = getCanvasDistance(leftCanvas, rightCanvas);
   return {
     localFitRatio: measurementPair.width,
+    anchorType: measurementPair.fullLabel,
+    source: measurementPair.source,
+    confidence: measurementPair.confidence,
+    validationStatus: measurementPair.validationStatus,
     sourceLeftAnchor: measurementPair.left,
     sourceRightAnchor: measurementPair.right,
     finalLeftAnchorCanvasPoint: { x: leftCanvas.x, y: leftCanvas.y },
@@ -625,6 +634,22 @@ const getRenderedMeasurement = (item: RenderItem | undefined, groupNormalization
     objectContainRect: leftCanvas.objectContainRect,
     renderedFitLineLength,
   };
+};
+
+const relationshipRules = [
+  { id: "top_bottom_lowerHem_to_waist", a: "tops", b: "bottoms", aAnchor: "lowerHemFit", fallbackAAnchor: "waist", bAnchor: "waist", target: [0.85, 1.1], oversizedMax: 1.25 },
+  { id: "outerwear_top_upperFit_to_upperFit", a: "outerwear", b: "tops", aAnchor: "upperFit", bAnchor: "upperFit", target: [1.05, 1.25] },
+  { id: "outerwear_dress_upperFit_to_upperFit", a: "dresses", b: "outerwear", aAnchor: "upperFit", bAnchor: "upperFit", target: [0.8, 0.95] },
+  { id: "dress_alone_upperFit_lengthFit", a: "dresses", b: null, aAnchor: "upperFit", bAnchor: "lengthFit", target: [0.8, 1.05] },
+] as const;
+
+const getSelectedRelationshipRule = (items: RenderItem[]) => {
+  const has = (category: VisualCategory) => items.some((item) => item.visualCategory === category);
+  if (has("tops") && has("bottoms")) return relationshipRules[0];
+  if (has("outerwear") && has("tops")) return relationshipRules[1];
+  if (has("outerwear") && has("dresses")) return relationshipRules[2];
+  if (has("dresses")) return relationshipRules[3];
+  return null;
 };
 
 const getRenderedSizingMetrics = (items: RenderItem[], groupNormalization: GroupNormalization) => {
