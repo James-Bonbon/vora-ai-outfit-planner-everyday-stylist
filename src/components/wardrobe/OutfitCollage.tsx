@@ -417,14 +417,24 @@ const normalizeOutfitGroup = (items: Array<{ style: NormalizedRenderStyle }>): G
   const boxes = items.map(({ style }) => {
     const left = Number.parseFloat(String(style.left ?? 0));
     const top = Number.parseFloat(String(style.top ?? 0));
-    const visualLeft = left + (style.anchorShiftXPct / 100) * style.boxWidthPct;
-    const visualTop = top + (style.anchorShiftYPct / 100) * style.boxHeightPct;
-    return {
-      left: visualLeft,
-      top: visualTop,
-      right: visualLeft + style.boxWidthPct,
-      bottom: visualTop + style.boxHeightPct,
-    };
+    const translatedLeft = left + (style.offsetXPct / 100) * style.boxWidthPct;
+    const translatedTop = top + (style.offsetYPct / 100) * style.boxHeightPct;
+    const imageRect = getObjectContainRect(style.boxWidthPct, style.boxHeightPct, style.imageRatio);
+    const imageLeft = translatedLeft + (imageRect.left / 100) * style.boxWidthPct;
+    const imageTop = translatedTop + (imageRect.top / 100) * style.boxHeightPct;
+    const imageWidth = (imageRect.width / 100) * style.boxWidthPct;
+    const imageHeight = (imageRect.height / 100) * style.boxHeightPct;
+    const center = { x: translatedLeft + style.boxWidthPct / 2, y: translatedTop + style.boxHeightPct / 2 };
+    const corners = [
+      { x: imageLeft, y: imageTop },
+      { x: imageLeft + imageWidth, y: imageTop },
+      { x: imageLeft + imageWidth, y: imageTop + imageHeight },
+      { x: imageLeft, y: imageTop + imageHeight },
+    ].map((point) => rotatePoint(point, center, style.rotationDeg));
+    return corners.reduce(
+      (acc, point) => ({ left: Math.min(acc.left, point.x), top: Math.min(acc.top, point.y), right: Math.max(acc.right, point.x), bottom: Math.max(acc.bottom, point.y) }),
+      { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity }
+    );
   });
 
   const rawBox = boxes.reduce(
@@ -442,13 +452,13 @@ const normalizeOutfitGroup = (items: Array<{ style: NormalizedRenderStyle }>): G
   const safeCanvas = 100 - 14;
   const targetWidth = safeCanvas * targetOccupancy;
   const targetHeight = safeCanvas * targetOccupancy;
-  const scale = clamp(Math.min(targetWidth / Math.max(boundingBox.width, 1), targetHeight / Math.max(boundingBox.height, 1)), 0.72, 1.28);
+  const scale = clamp(Math.min(targetWidth / Math.max(boundingBox.width, 1), targetHeight / Math.max(boundingBox.height, 1)), 0.62, 1.34);
   return {
     canvasCenter,
     boundingBox,
     groupCenter,
-    translateX: (canvasCenter.x - groupCenter.x) * scale,
-    translateY: (canvasCenter.y - groupCenter.y) * scale,
+    translateX: canvasCenter.x - groupCenter.x,
+    translateY: canvasCenter.y - groupCenter.y,
     scale,
   };
 };
