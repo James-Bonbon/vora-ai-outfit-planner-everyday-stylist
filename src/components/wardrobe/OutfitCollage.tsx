@@ -549,7 +549,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
         <div className="absolute bottom-2 left-2 right-2 z-[90] rounded bg-background/90 px-2 py-1 text-[10px] font-medium leading-4 text-foreground shadow-sm">
           <div>coat width: {coatRenderedWidth?.toFixed(1) ?? "—"}%</div>
           <div>dress width: {dressRenderedWidth?.toFixed(1) ?? "—"}%</div>
-          <div>dress/coat upperBodyWidth ratio: {dressToCoatRatio ? dressToCoatRatio.toFixed(2) : "—"}</div>
+          <div>final dress/coat fit ratio: {dressToCoatRatio ? dressToCoatRatio.toFixed(2) : "—"}</div>
         </div>
       )}
     </div>
