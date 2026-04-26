@@ -95,6 +95,8 @@ type NormalizedRenderStyle = CSSProperties & {
     boxHeightAfterClamp?: number | null;
     finalRenderedFitWidth?: number | null;
     renderedFitLineLength?: number | null;
+    relationshipRule?: string | null;
+    relationshipScale?: number | null;
   };
 };
 
