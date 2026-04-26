@@ -664,8 +664,9 @@ const withVisualCenter = (item: RenderItem, targetCenter: { x: number; y: number
 
 const fitItemIntoZone = (item: RenderItem, zoneName: ZoneName, fillRatio = 0.9): RenderItem => {
   const zone = fourZoneRects[zoneName];
+  const fitZone = item.visualCategory === "outerwear" && zoneName === "topLeft" ? makeZone(8, 16, 54, 88) : zone;
   const bounds = getItemVisualBounds(item.style, item.garment?.image_analysis, item.visualCategory);
-  const scale = clamp(Math.min((zone.width * fillRatio) / Math.max(bounds.width, 1), (zone.height * fillRatio) / Math.max(bounds.height, 1)), 0.55, 2.35);
+  const scale = clamp(Math.min((fitZone.width * fillRatio) / Math.max(bounds.width, 1), (fitZone.height * fillRatio) / Math.max(bounds.height, 1)), 0.55, 2.35);
   const nextStyle = {
     ...item.style,
     width: `${item.style.boxWidthPct * scale}%`,
@@ -680,7 +681,7 @@ const fitItemIntoZone = (item: RenderItem, zoneName: ZoneName, fillRatio = 0.9):
       finalRenderedFitWidth: item.style.finalRenderedFitWidth ? item.style.finalRenderedFitWidth * scale : item.style.sizingDebug?.finalRenderedFitWidth,
     },
   };
-  return withVisualCenter({ ...item, style: nextStyle }, zone.center);
+  return withVisualCenter({ ...item, style: nextStyle }, fitZone.center);
 };
 
 const getLayoutTemplate = (items: RenderItem[]) => {
@@ -711,9 +712,9 @@ const applyCategoryAwareComposition = (items: RenderItem[]) => {
       const placed = fitItemIntoZone(styled, zoneName, fillByCategory[item.visualCategory]);
       const zone = fourZoneRects[zoneName];
       const editorialNudge = item.visualCategory === "outerwear"
-        ? { x: zone.width * 0.12, y: zone.height * 0.04 }
+        ? { x: zone.width * 0.24, y: zone.height * 0.18 }
         : item.visualCategory === "dresses"
-          ? { x: -zone.width * 0.06, y: zone.height * 0.02 }
+          ? { x: -zone.width * 0.18, y: zone.height * 0.02 }
           : item.visualCategory === "tops"
             ? { x: -zone.width * 0.04, y: zone.height * 0.1 }
             : item.visualCategory === "bottoms"
