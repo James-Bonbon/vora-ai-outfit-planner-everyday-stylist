@@ -36,7 +36,7 @@ type LayoutMetadata = {
   hemCenter?: { x: number; y: number };
   confidence?: number;
   anchorNormalization?: string;
-  anchorSources?: Record<string, "ai" | "alpha_estimate" | "ratio_guard" | string>;
+  anchorSources?: Record<string, "ai" | "alpha_profile" | "alpha_estimate" | "ratio_guard" | string>;
   rawAiLandmarks?: any;
   validatedMeasurementAnchors?: {
     upperFit?: {
@@ -66,6 +66,20 @@ type LayoutMetadata = {
       source?: string;
       normalizationReason?: string;
       notes?: string;
+    };
+    waist?: {
+      leftWaistAnchor?: { x: number; y: number };
+      rightWaistAnchor?: { x: number; y: number };
+      waistFitWidth?: number;
+      confidence?: number;
+      source?: string;
+      notes?: string;
+    };
+    length?: {
+      confidence?: number;
+      source?: string;
+      notes?: string;
+      hemFitWidth?: number;
     };
   };
   bodyAnchors?: {
@@ -398,7 +412,8 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
         const { boxWidthPct, boxHeightPct, anchorShiftXPct, anchorShiftYPct, rotationDeg, ...imageStyle } = style;
         const upperPair = getUpperAnchorPair(metadata, garment?.image_analysis);
         const measurementPair = getRealMeasurementPair(metadata, garment?.image_analysis, visualCategory);
-        const layoutSource = metadata.layoutAnchors?.upperFit?.source;
+        const layoutGroup = metadata.layoutAnchors?.upperFit || metadata.layoutAnchors?.waist || metadata.layoutAnchors?.length;
+        const layoutSource = layoutGroup?.source;
         const fitSource = measurementPair ? ((metadata.validatedMeasurementAnchors?.upperFit || metadata.validatedMeasurementAnchors?.waist || metadata.measurementAnchors?.upperFit || metadata.measurementAnchors?.waist) as any)?.source : layoutSource || "fallback";
         const renderedRatios = {
           upperWidth: renderedUpperWidth ?? null,
@@ -467,7 +482,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
                 <span className="block">{metadata.garmentType || visualCategory}</span>
                 <span className="block">estimated layout scaling</span>
                 <span className="block">source: {layoutSource}</span>
-                <span className="block">confidence: {metadata.layoutAnchors?.upperFit?.confidence?.toFixed?.(2) ?? "—"}</span>
+                <span className="block">confidence: {layoutGroup?.confidence?.toFixed?.(2) ?? "—"}</span>
                 <span className="block">width: {formatWidthAnchor(metadata, garment?.image_analysis)}</span>
               </div>
             )}
