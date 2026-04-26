@@ -614,7 +614,7 @@ const withVisualCenter = (item: RenderItem, targetCenter: { x: number; y: number
 
 const getLayoutTemplate = (items: RenderItem[]) => {
   const hasCategory = (category: VisualCategory) => items.some((item) => item.visualCategory === category);
-  if (hasCategory("dresses") && hasCategory("outerwear")) return "dress + outerwear overlap";
+  if (hasCategory("dresses") && hasCategory("outerwear")) return "diagonal_stack";
   if (hasCategory("tops") && hasCategory("bottoms") && hasCategory("outerwear")) return "top + bottom + outerwear stacked overlap";
   if (hasCategory("tops") && hasCategory("bottoms")) return "top + bottom vertical overlap";
   if (hasCategory("dresses")) return "dress alone centered";
@@ -633,17 +633,23 @@ const applyCategoryAwareComposition = (items: RenderItem[]) => {
   const top = nextItems.find((item) => item.visualCategory === "tops");
   const bottom = nextItems.find((item) => item.visualCategory === "bottoms");
 
-  if (template === "dress + outerwear overlap" && dress && coat) {
-    updateItem(dress, { x: 52, y: 52 });
-    const movedDress = nextItems.find((item) => item.garment === dress.garment) || dress;
-    const dressBounds = getItemVisualBounds(movedDress.style);
-    const coatBounds = getItemVisualBounds((nextItems.find((item) => item.garment === coat.garment) || coat).style);
+  if (template === "diagonal_stack" && dress && coat) {
+    nextItems = nextItems.map((item) => {
+      if (item === coat) return { ...item, style: { ...item.style, zIndex: 10, rotationDeg: -4, transform: `translate(${item.style.offsetXPct}%, ${item.style.offsetYPct}%) rotate(-4deg)` } };
+      if (item === dress) return { ...item, style: { ...item.style, zIndex: 20, rotationDeg: 3, transform: `translate(${item.style.offsetXPct}%, ${item.style.offsetYPct}%) rotate(3deg)` } };
+      return item;
+    });
+    const styledCoat = nextItems.find((item) => item.garment === coat.garment) || coat;
+    updateItem(styledCoat, { x: 47, y: 47 });
+    const movedCoat = nextItems.find((item) => item.garment === coat.garment) || styledCoat;
+    const coatBounds = getItemVisualBounds(movedCoat.style);
+    const dressBounds = getItemVisualBounds((nextItems.find((item) => item.garment === dress.garment) || dress).style);
     const smallerWidth = Math.min(dressBounds.width, coatBounds.width);
-    const targetOverlap = smallerWidth * 0.38;
-    const desiredCenterDistance = Math.max(coatBounds.width * 0.18, (dressBounds.width + coatBounds.width) / 2 - targetOverlap);
-    updateItem(coat, {
-      x: dressBounds.center.x - desiredCenterDistance,
-      y: dressBounds.center.y - coatBounds.height * 0.03,
+    const targetOverlap = smallerWidth * 0.45;
+    const centerDistanceX = Math.max(8, (dressBounds.width + coatBounds.width) / 2 - targetOverlap);
+    updateItem(dress, {
+      x: coatBounds.center.x + centerDistanceX,
+      y: coatBounds.center.y + coatBounds.height * 0.12,
     });
   } else if ((template === "top + bottom vertical overlap" || template === "top + bottom + outerwear stacked overlap") && top && bottom) {
     updateItem(bottom, { x: 51, y: 61 });
