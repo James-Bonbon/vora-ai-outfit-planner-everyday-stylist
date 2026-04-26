@@ -73,7 +73,8 @@ const renderCollage = (upperBodyFitWidth: number) => {
 
 const getDressWidth = (container: HTMLElement) => {
   const image = container.querySelector('img[alt="Asymmetric black dress"]') as HTMLImageElement | null;
-  return Number(image?.style.width.replace("%", ""));
+  const wrapper = image?.parentElement as HTMLDivElement | null;
+  return Number(wrapper?.style.width.replace("%", ""));
 };
 
 describe("OutfitCollage calibrated fit sizing", () => {
@@ -87,7 +88,7 @@ describe("OutfitCollage calibrated fit sizing", () => {
     const narrowDressWidth = getDressWidth(narrow.container);
 
     expect(narrowDressWidth).toBeGreaterThan(wideDressWidth);
-    expect(narrow.container.textContent).toContain("source: human");
+    expect(narrow.container.textContent).toContain('"source": "human"');
     expect(narrow.container.textContent).toMatch(/final dress\/coat fit ratio: 0\.(8[5-9]|9[0-5])/);
     act(() => narrow.root.unmount());
     narrow.container.remove();

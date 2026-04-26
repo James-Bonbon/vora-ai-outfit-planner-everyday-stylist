@@ -1,4 +1,4 @@
-import { type CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 
 type OutfitCollageProps = {
@@ -94,9 +94,12 @@ type LayoutMetadata = {
 type NormalizedRenderStyle = CSSProperties & {
   boxWidthPct: number;
   boxHeightPct: number;
+  offsetXPct: number;
+  offsetYPct: number;
   anchorShiftXPct: number;
   anchorShiftYPct: number;
   rotationDeg: number;
+  imageRatio: number;
   fitSource?: string;
   upperFitWidthRatio?: number | null;
   targetRenderedFitWidth?: number | null;
@@ -154,6 +157,40 @@ const stackLayouts = [
 ];
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const canvasAspectRatio = 3 / 4;
+
+const getObjectContainRect = (boxWidthPct: number, boxHeightPct: number, imageRatio: number) => {
+  const boxPixelAspect = (boxWidthPct / Math.max(boxHeightPct, 1)) * canvasAspectRatio;
+  if (!Number.isFinite(imageRatio) || imageRatio <= 0 || !Number.isFinite(boxPixelAspect) || boxPixelAspect <= 0) {
+    return { left: 0, top: 0, width: 100, height: 100 };
+  }
+  if (boxPixelAspect > imageRatio) {
+    const width = clamp((imageRatio / boxPixelAspect) * 100, 0, 100);
+    return { left: (100 - width) / 2, top: 0, width, height: 100 };
+  }
+  const height = clamp((boxPixelAspect / imageRatio) * 100, 0, 100);
+  return { left: 0, top: (100 - height) / 2, width: 100, height };
+};
+
+const mapImagePointToBox = (point: { x: number; y: number }, style: NormalizedRenderStyle) => {
+  const imageRect = getObjectContainRect(style.boxWidthPct, style.boxHeightPct, style.imageRatio);
+  return {
+    x: imageRect.left + point.x * imageRect.width,
+    y: imageRect.top + point.y * imageRect.height,
+    imageRect,
+    coordinateSpace: "source_image_normalized_to_object_contain_box",
+  };
+};
+
+const rotatePoint = (point: { x: number; y: number }, center: { x: number; y: number }, rotationDeg: number) => {
+  const radians = (rotationDeg * Math.PI) / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  const dx = point.x - center.x;
+  const dy = point.y - center.y;
+  return { x: center.x + dx * cos - dy * sin, y: center.y + dx * sin + dy * cos };
+};
 
 const inferMetadata = (garment: any, visualCategory: VisualCategory): LayoutMetadata => {
   if (garment?.layout_metadata) return garment.layout_metadata;
@@ -347,18 +384,24 @@ const getNormalizedStyle = ({
   const anchorShiftXPct = (0.5 - visibleCenterX) * 100;
   const anchorShiftYPct = (0.5 - visibleCenterY) * 100;
 
+  const offsetXPct = anchorShiftXPct + ((offset.x + overflowOffset) / Math.max(boxWidth, 1)) * 100;
+  const offsetYPct = anchorShiftYPct + ((offset.y + overflowOffset) / Math.max(boxHeight, 1)) * 100;
+
   return {
     left: `${layout.x}%`,
     top: `${layout.y}%`,
     width: `${boxWidth}%`,
     height: `${boxHeight}%`,
     zIndex: layout.zIndex,
-    transform: `translate(${offset.x + overflowOffset}px, ${offset.y + overflowOffset}px) translate(${anchorShiftXPct}%, ${anchorShiftYPct}%) rotate(${layout.rotate}deg)`,
+    transform: `translate(${offsetXPct}%, ${offsetYPct}%) rotate(${layout.rotate}deg)`,
     boxWidthPct: boxWidth,
     boxHeightPct: boxHeight,
+    offsetXPct,
+    offsetYPct,
     anchorShiftXPct,
     anchorShiftYPct,
     rotationDeg: layout.rotate,
+    imageRatio,
     fitSource,
     upperFitWidthRatio: upperBodyWidthRatio,
     targetRenderedFitWidth: targetRenderedShoulderWidth ?? null,
@@ -374,14 +417,24 @@ const normalizeOutfitGroup = (items: Array<{ style: NormalizedRenderStyle }>): G
   const boxes = items.map(({ style }) => {
     const left = Number.parseFloat(String(style.left ?? 0));
     const top = Number.parseFloat(String(style.top ?? 0));
-    const visualLeft = left + (style.anchorShiftXPct / 100) * style.boxWidthPct;
-    const visualTop = top + (style.anchorShiftYPct / 100) * style.boxHeightPct;
-    return {
-      left: visualLeft,
-      top: visualTop,
-      right: visualLeft + style.boxWidthPct,
-      bottom: visualTop + style.boxHeightPct,
-    };
+    const translatedLeft = left + (style.offsetXPct / 100) * style.boxWidthPct;
+    const translatedTop = top + (style.offsetYPct / 100) * style.boxHeightPct;
+    const imageRect = getObjectContainRect(style.boxWidthPct, style.boxHeightPct, style.imageRatio);
+    const imageLeft = translatedLeft + (imageRect.left / 100) * style.boxWidthPct;
+    const imageTop = translatedTop + (imageRect.top / 100) * style.boxHeightPct;
+    const imageWidth = (imageRect.width / 100) * style.boxWidthPct;
+    const imageHeight = (imageRect.height / 100) * style.boxHeightPct;
+    const center = { x: translatedLeft + style.boxWidthPct / 2, y: translatedTop + style.boxHeightPct / 2 };
+    const corners = [
+      { x: imageLeft, y: imageTop },
+      { x: imageLeft + imageWidth, y: imageTop },
+      { x: imageLeft + imageWidth, y: imageTop + imageHeight },
+      { x: imageLeft, y: imageTop + imageHeight },
+    ].map((point) => rotatePoint(point, center, style.rotationDeg));
+    return corners.reduce(
+      (acc, point) => ({ left: Math.min(acc.left, point.x), top: Math.min(acc.top, point.y), right: Math.max(acc.right, point.x), bottom: Math.max(acc.bottom, point.y) }),
+      { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity }
+    );
   });
 
   const rawBox = boxes.reduce(
@@ -399,19 +452,20 @@ const normalizeOutfitGroup = (items: Array<{ style: NormalizedRenderStyle }>): G
   const safeCanvas = 100 - 14;
   const targetWidth = safeCanvas * targetOccupancy;
   const targetHeight = safeCanvas * targetOccupancy;
-  const scale = clamp(Math.min(targetWidth / Math.max(boundingBox.width, 1), targetHeight / Math.max(boundingBox.height, 1)), 0.72, 1.28);
+  const scale = clamp(Math.min(targetWidth / Math.max(boundingBox.width, 1), targetHeight / Math.max(boundingBox.height, 1)), 0.62, 1.34);
   return {
     canvasCenter,
     boundingBox,
     groupCenter,
-    translateX: (canvasCenter.x - groupCenter.x) * scale,
-    translateY: (canvasCenter.y - groupCenter.y) * scale,
+    translateX: canvasCenter.x - groupCenter.x * scale,
+    translateY: canvasCenter.y - groupCenter.y * scale,
     scale,
   };
 };
 
 export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageProps) => {
   if (!garments || garments.length === 0) return null;
+  const [compositionQaOpen, setCompositionQaOpen] = useState(false);
 
   const classified = garments
     .map((garment) => ({ garment, visualCategory: classifyGarment(garment), imageUrl: getImageUrl(garment) }))
@@ -497,28 +551,34 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
   const groupTransform = `translate(${groupNormalization.translateX}%, ${groupNormalization.translateY}%) scale(${groupNormalization.scale})`;
 
   return (
+    <div className="w-full space-y-2">
     <div className="relative w-full aspect-[3/4] bg-secondary/10 rounded-2xl overflow-hidden">
-      <div className="absolute inset-0 origin-center" style={{ transform: groupTransform }}>
+      {showDebugAnchors && compositionQaOpen && (
+        <>
+          <span className="absolute left-1/2 top-0 z-[88] h-full w-px -translate-x-1/2 bg-primary/50" />
+          <span className="absolute left-0 top-1/2 z-[88] h-px w-full -translate-y-1/2 bg-primary/50" />
+        </>
+      )}
+      <div className="absolute inset-0 origin-top-left" style={{ transform: groupTransform }}>
+      {showDebugAnchors && compositionQaOpen && groupNormalization.boundingBox && (
+        <div
+          className="absolute z-[89] border border-primary/70"
+          style={{
+            left: `${groupNormalization.boundingBox.left}%`,
+            top: `${groupNormalization.boundingBox.top}%`,
+            width: `${groupNormalization.boundingBox.width}%`,
+            height: `${groupNormalization.boundingBox.height}%`,
+          }}
+        />
+      )}
       {renderItems.map(({ garment, visualCategory, imageUrl, duplicateIndex, metadata, style, renderedUpperWidth }) => {
         const baseAlt = garment?.name || garment?.category || "Garment";
-        const { boxWidthPct, boxHeightPct, anchorShiftXPct, anchorShiftYPct, rotationDeg, fitSource: styleFitSource, upperFitWidthRatio, targetRenderedFitWidth, calculatedImageBoxWidth, finalRenderedFitWidth, ...imageStyle } = style;
-        const upperPair = getUpperAnchorPair(metadata, garment?.image_analysis);
+        const { boxWidthPct, boxHeightPct, offsetXPct, offsetYPct, anchorShiftXPct, anchorShiftYPct, rotationDeg, imageRatio, fitSource: styleFitSource, upperFitWidthRatio, targetRenderedFitWidth, calculatedImageBoxWidth, finalRenderedFitWidth, ...imageStyle } = style;
         const measurementPair = getRealMeasurementPair(metadata, garment?.image_analysis, visualCategory);
         const layoutGroup = metadata.layoutAnchors?.upperFit || metadata.layoutAnchors?.waist || metadata.layoutAnchors?.length;
         const layoutSource = layoutGroup?.source;
         const prioritizedUpperFit = getPrioritizedUpperFit(metadata);
         const fitSource = prioritizedUpperFit?.source || (measurementPair ? ((metadata.validatedMeasurementAnchors?.waist || metadata.measurementAnchors?.waist) as any)?.source : layoutSource) || styleFitSource || "fallback";
-        const finalFitWidth = finalRenderedFitWidth ?? renderedUpperWidth ?? (upperFitWidthRatio ? upperFitWidthRatio * boxWidthPct : null);
-        const renderedRatios = {
-          source: fitSource,
-          calibratedUpperFitWidth: prioritizedUpperFit?.group?.upperBodyFitWidth ?? null,
-          upperFitWidthRatio: upperFitWidthRatio ?? null,
-          targetRenderedFitWidth: targetRenderedFitWidth ?? null,
-          calculatedImageBoxWidth: calculatedImageBoxWidth ?? null,
-          finalRenderedFitWidth: finalFitWidth,
-          dressToCoat: visualCategory === "dresses" ? dressToCoatRatio : null,
-          finalDressToCoatFitRatio: visualCategory === "dresses" ? dressToCoatRatio : null,
-        };
         const measurementCenter = measurementPair ? { x: (measurementPair.left.x + measurementPair.right.x) / 2, y: (measurementPair.left.y + measurementPair.right.y) / 2 } : null;
         const landmarkPoints = [
           measurementPair?.left,
@@ -527,101 +587,107 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
           toRelativePoint(metadata.waistCenter || metadata.bodyAnchors?.waistCenter, garment?.image_analysis),
           toRelativePoint(metadata.hemCenter || metadata.bodyAnchors?.hemCenter, garment?.image_analysis),
         ].filter(Boolean);
+        const mappedMeasurement = measurementPair
+          ? { left: mapImagePointToBox(measurementPair.left, style), right: mapImagePointToBox(measurementPair.right, style) }
+          : null;
+        const mappedLandmarks = landmarkPoints.map((point) => mapImagePointToBox(point!, style));
 
         return (
-          <div key={`${garment?.id ?? imageUrl}-${duplicateIndex}`}>
+          <div key={`${garment?.id ?? imageUrl}-${duplicateIndex}`} className="absolute" style={imageStyle}>
             <img
               src={imageUrl}
               alt={baseAlt}
               loading="lazy"
               decoding="async"
-              className={cn("absolute object-contain object-center drop-shadow-md")}
-              style={imageStyle}
+              className={cn("absolute inset-0 h-full w-full object-contain object-center drop-shadow-md")}
             />
-            {showDebugAnchors && measurementPair && measurementCenter && (
-              <div className="absolute pointer-events-none" style={imageStyle} aria-hidden="true">
-                <div
-                  className="absolute z-[92] h-0.5 bg-primary"
-                  style={{
-                    left: `${measurementPair.left.x * 100}%`,
-                    top: `${measurementCenter.y * 100}%`,
-                    width: `${measurementPair.width * 100}%`,
-                  }}
-                />
+            {showDebugAnchors && measurementPair && measurementCenter && mappedMeasurement && (
+              <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+                <svg className="absolute inset-0 z-[92] h-full w-full overflow-visible">
+                  <line
+                    x1={`${mappedMeasurement.left.x}%`}
+                    y1={`${mappedMeasurement.left.y}%`}
+                    x2={`${mappedMeasurement.right.x}%`}
+                    y2={`${mappedMeasurement.right.y}%`}
+                    stroke="hsl(var(--primary))"
+                    strokeWidth="1.5"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </svg>
                 <span
                   className="absolute z-[93] -translate-x-full -translate-y-[140%] rounded bg-background/90 px-1 py-0.5 text-[8px] font-medium leading-none text-foreground shadow-sm"
-                  style={{ left: `${measurementPair.left.x * 100}%`, top: `${measurementPair.left.y * 100}%` }}
+                  style={{ left: `${mappedMeasurement.left.x}%`, top: `${mappedMeasurement.left.y}%` }}
                 >
                   {measurementPair.leftLabel}
                 </span>
                 <span
                   className="absolute z-[93] translate-x-1 -translate-y-[140%] rounded bg-background/90 px-1 py-0.5 text-[8px] font-medium leading-none text-foreground shadow-sm"
-                  style={{ left: `${measurementPair.right.x * 100}%`, top: `${measurementPair.right.y * 100}%` }}
+                  style={{ left: `${mappedMeasurement.right.x}%`, top: `${mappedMeasurement.right.y}%` }}
                 >
                   {measurementPair.rightLabel}
                 </span>
-                <span className="absolute bottom-1 left-1 z-[91] max-w-[92%] rounded bg-background/90 px-1.5 py-0.5 text-[9px] font-medium leading-3 text-foreground shadow-sm">
-                  <span className="block">{metadata.garmentType || visualCategory}</span>
-                  <span className="block">{measurementPair.fullLabel}</span>
-                  <span className="block">measured fit: {formatWidthAnchor(metadata, garment?.image_analysis)}</span>
-                  <span className="block">source: {fitSource}</span>
-                  <span className="block">confidence: {((metadata.validatedMeasurementAnchors?.upperFit || metadata.validatedMeasurementAnchors?.waist || metadata.measurementAnchors?.upperFit || metadata.measurementAnchors?.waist) as any)?.confidence?.toFixed?.(2) ?? "—"}</span>
-                  <span className="block">upperFitWidthRatio: {upperFitWidthRatio?.toFixed?.(3) ?? "—"}</span>
-                  <span className="block">targetRenderedFitWidth: {targetRenderedFitWidth?.toFixed?.(1) ?? "—"}%</span>
-                  <span className="block">calculatedImageBoxWidth: {calculatedImageBoxWidth?.toFixed?.(1) ?? "—"}%</span>
-                  <span className="block">finalRenderedFitWidth: {(finalFitWidth ?? measurementPair.width * boxWidthPct).toFixed(1)}%</span>
-                </span>
-                {landmarkPoints.map((point, pointIndex) => (
+                {mappedLandmarks.map((point, pointIndex) => (
                   <span
                     key={pointIndex}
                     className="absolute z-[96] h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary ring-2 ring-background"
-                    style={{ left: `${point!.x * 100}%`, top: `${point!.y * 100}%` }}
+                    style={{ left: `${point.x}%`, top: `${point.y}%` }}
                   />
                 ))}
               </div>
-            )}
-            {showDebugAnchors && !measurementPair && layoutSource && (
-              <div className="absolute bottom-1 left-1 z-[91] max-w-[92%] rounded bg-background/90 px-1.5 py-0.5 text-[9px] font-medium leading-3 text-foreground shadow-sm" style={imageStyle}>
-                <span className="block">{metadata.garmentType || visualCategory}</span>
-                <span className="block">estimated layout scaling</span>
-                <span className="block">source: {layoutSource}</span>
-                <span className="block">confidence: {layoutGroup?.confidence?.toFixed?.(2) ?? "—"}</span>
-                <span className="block">width: {formatWidthAnchor(metadata, garment?.image_analysis)}</span>
-                <span className="block">upperFitWidthRatio: {upperFitWidthRatio?.toFixed?.(3) ?? "—"}</span>
-                <span className="block">calculatedImageBoxWidth: {calculatedImageBoxWidth?.toFixed?.(1) ?? "—"}%</span>
-                <span className="block">finalRenderedFitWidth: {finalFitWidth?.toFixed?.(1) ?? "—"}%</span>
-              </div>
-            )}
-            {showDebugAnchors && (
-              <details className="absolute right-1 top-1 z-[91] max-w-[58%] rounded bg-background/90 px-1.5 py-0.5 text-[8px] leading-3 text-foreground shadow-sm" style={imageStyle}>
-                <summary className="cursor-pointer font-medium">QA</summary>
-                <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify({ rawAiLandmarks: metadata.rawAiLandmarks, validatedMeasurementAnchors: metadata.validatedMeasurementAnchors || metadata.measurementAnchors, layoutAnchors: metadata.layoutAnchors, fitSource, renderedRatios }, null, 2)}</pre>
-              </details>
             )}
           </div>
         );
       })}
       </div>
-      {showDebugAnchors && hasOuterwear && hasDress && (
-        <div className="absolute bottom-2 left-2 right-2 z-[90] rounded bg-background/90 px-2 py-1 text-[10px] font-medium leading-4 text-foreground shadow-sm">
-          <div>coat width: {coatRenderedWidth?.toFixed(1) ?? "—"}%</div>
-          <div>dress width: {dressRenderedWidth?.toFixed(1) ?? "—"}%</div>
-          <div>final dress/coat fit ratio: {dressToCoatRatio ? dressToCoatRatio.toFixed(2) : "—"}</div>
-        </div>
-      )}
-      {showDebugAnchors && (
-        <details className="absolute left-2 top-2 z-[95] max-w-[72%] rounded bg-background/90 px-2 py-1 text-[9px] leading-3 text-foreground shadow-sm">
+    </div>
+    {showDebugAnchors && (
+      <div className="space-y-2 rounded-xl bg-background/70 p-2 text-[10px] leading-4 text-foreground">
+        {hasOuterwear && hasDress && (
+          <div className="rounded-lg bg-secondary/20 px-2 py-1 font-medium">
+            <div>coat width: {coatRenderedWidth?.toFixed(1) ?? "—"}%</div>
+            <div>dress width: {dressRenderedWidth?.toFixed(1) ?? "—"}%</div>
+            <div>final dress/coat fit ratio: {dressToCoatRatio ? dressToCoatRatio.toFixed(2) : "—"}</div>
+          </div>
+        )}
+        <details open={compositionQaOpen} onToggle={(event) => setCompositionQaOpen(event.currentTarget.open)}>
           <summary className="cursor-pointer font-medium">Composition QA</summary>
-          <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify({
+          <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify({
+            canvasSize: { widthPct: 100, heightPct: 100, aspectRatio: canvasAspectRatio },
             canvasCenter: groupNormalization.canvasCenter,
-            outfitGroupBoundingBox: groupNormalization.boundingBox,
+            groupBoundingBox: groupNormalization.boundingBox,
             groupCenter: groupNormalization.groupCenter,
-            finalGroupTranslateX: groupNormalization.translateX,
-            finalGroupTranslateY: groupNormalization.translateY,
+            finalTranslateX: groupNormalization.translateX,
+            finalTranslateY: groupNormalization.translateY,
             finalGroupScale: groupNormalization.scale,
+            boundingBoxIncludes: "garment visual boxes and measurement overlay only; labels and below-canvas panels excluded",
           }, null, 2)}</pre>
         </details>
-      )}
+        <details>
+          <summary className="cursor-pointer font-medium">Garment fit QA</summary>
+          <pre className="mt-1 max-h-52 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify(renderItems.map((item) => {
+            const metadata = item.metadata;
+            const measurementPair = getRealMeasurementPair(metadata, item.garment?.image_analysis, item.visualCategory);
+            const prioritizedUpperFit = getPrioritizedUpperFit(metadata);
+            const layoutGroup = metadata.layoutAnchors?.upperFit || metadata.layoutAnchors?.waist || metadata.layoutAnchors?.length;
+            const fitSource = prioritizedUpperFit?.source || (measurementPair ? ((metadata.validatedMeasurementAnchors?.waist || metadata.measurementAnchors?.waist) as any)?.source : layoutGroup?.source) || item.style.fitSource || "fallback";
+            return {
+              garment: item.garment?.name || item.garment?.category,
+              source: fitSource,
+              measuredWidthSpace: "source_image_or_calibrated_anchor_space_not_rotated_screen_space",
+              anchorMapping: "source image coordinates → normalized image coordinates → object-contain rendered box coordinates → shared garment wrapper transform",
+              calibratedUpperFitWidth: prioritizedUpperFit?.group?.upperBodyFitWidth ?? null,
+              upperFitWidthRatio: item.style.upperFitWidthRatio ?? null,
+              targetRenderedFitWidth: item.style.targetRenderedFitWidth ?? null,
+              calculatedImageBoxWidth: item.style.calculatedImageBoxWidth ?? null,
+              finalRenderedFitWidth: item.style.finalRenderedFitWidth ?? item.renderedUpperWidth ?? null,
+              rawAiLandmarks: metadata.rawAiLandmarks,
+              validatedMeasurementAnchors: metadata.validatedMeasurementAnchors || metadata.measurementAnchors,
+              layoutAnchors: metadata.layoutAnchors,
+            };
+          }), null, 2)}</pre>
+        </details>
+      </div>
+    )}
     </div>
   );
 };
