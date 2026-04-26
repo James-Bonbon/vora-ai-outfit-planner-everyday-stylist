@@ -682,6 +682,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
   const coatRenderedWidth = renderedSizingMetrics.coat?.renderedFitLineLength ?? null;
   const dressRenderedWidth = renderedSizingMetrics.dress?.renderedFitLineLength ?? null;
   const dressToCoatRatio = renderedSizingMetrics.ratio;
+  const transformedGroupBounds = getTransformedGroupBounds(groupNormalization.boundingBox, groupNormalization);
   const sizingEngineDebug = {
     coatUpperFitSource: coatFitItem?.style.sizingDebug?.upperFitSource || coatFitItem?.style.fitSource || null,
     dressUpperFitSource: dressFitItem?.style.sizingDebug?.upperFitSource || dressFitItem?.style.fitSource || null,
@@ -701,6 +702,9 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
     finalRenderedCoatFitLine: coatRenderedWidth,
     finalRenderedDressFitLine: dressRenderedWidth,
     finalRenderedRatio: dressToCoatRatio,
+    transformedGroupBounds,
+    finalGroupScale: groupNormalization.scale,
+    finalGroupTranslate: { x: groupNormalization.translateX, y: groupNormalization.translateY },
     passFailBasis: "rendered fit line only",
     coatRenderedMeasurement: renderedSizingMetrics.coat,
     dressRenderedMeasurement: renderedSizingMetrics.dress,
@@ -816,6 +820,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
             canvasSize: { widthPct: 100, heightPct: 100, aspectRatio: canvasAspectRatio },
             canvasCenter: groupNormalization.canvasCenter,
             groupBoundingBox: groupNormalization.boundingBox,
+            transformedGroupBounds,
             groupCenter: groupNormalization.groupCenter,
             finalTranslateX: groupNormalization.translateX,
             finalTranslateY: groupNormalization.translateY,
