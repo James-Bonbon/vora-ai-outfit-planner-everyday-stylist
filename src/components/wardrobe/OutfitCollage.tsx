@@ -97,6 +97,11 @@ type NormalizedRenderStyle = CSSProperties & {
   anchorShiftXPct: number;
   anchorShiftYPct: number;
   rotationDeg: number;
+  fitSource?: string;
+  upperFitWidthRatio?: number | null;
+  targetRenderedFitWidth?: number | null;
+  calculatedImageBoxWidth?: number | null;
+  finalRenderedFitWidth?: number | null;
 };
 
 const centeredOffsets = [
@@ -203,11 +208,30 @@ const toRelativePoint = (point: { x: number; y: number } | undefined, analysis?:
   };
 };
 
+const getPrioritizedUpperFit = (metadata: LayoutMetadata) => {
+  const validated = metadata.validatedMeasurementAnchors?.upperFit;
+  const measurement = metadata.measurementAnchors?.upperFit;
+  const layout = metadata.layoutAnchors?.upperFit;
+  const human = [validated, measurement].find((group) => group?.source === "human");
+  const ai = [validated, measurement].find((group) => group?.source === "ai");
+  if (human) return { group: human, source: "human", isMeasurement: true };
+  if (ai) return { group: ai, source: "ai", isMeasurement: true };
+  if (layout?.source === "alpha_profile") return { group: layout, source: "alpha_profile", isMeasurement: false };
+  if (layout?.source === "ratio_guard") return { group: layout, source: "ratio_guard", isMeasurement: false };
+  if (layout) return { group: layout, source: layout.source || "fallback", isMeasurement: false };
+  return null;
+};
+
+const widthToRatio = (width: number, analysis?: ImageAnalysis | null) => {
+  if (!Number.isFinite(width) || width <= 0) return null;
+  const ratio = width > 1 && analysis?.imageWidth ? width / analysis.imageWidth : width;
+  return ratio > 0.08 ? clamp(ratio, 0.08, 1) : null;
+};
+
 const getUpperAnchorPair = (metadata: LayoutMetadata, analysis?: ImageAnalysis | null) => {
-  const layoutFit = metadata.layoutAnchors?.upperFit;
-  const measurementFit = metadata.validatedMeasurementAnchors?.upperFit || metadata.measurementAnchors?.upperFit;
-  const left = toRelativePoint(layoutFit?.leftUpperFitAnchor || measurementFit?.leftUpperFitAnchor || metadata.leftUpperAnchor, analysis) || toRelativePoint(metadata.bodyAnchors?.leftShoulder, analysis);
-  const right = toRelativePoint(layoutFit?.rightUpperFitAnchor || measurementFit?.rightUpperFitAnchor || metadata.rightUpperAnchor, analysis) || toRelativePoint(metadata.bodyAnchors?.rightShoulder, analysis);
+  const prioritizedFit = getPrioritizedUpperFit(metadata)?.group;
+  const left = toRelativePoint(prioritizedFit?.leftUpperFitAnchor || metadata.leftUpperAnchor, analysis) || toRelativePoint(metadata.bodyAnchors?.leftShoulder, analysis);
+  const right = toRelativePoint(prioritizedFit?.rightUpperFitAnchor || metadata.rightUpperAnchor, analysis) || toRelativePoint(metadata.bodyAnchors?.rightShoulder, analysis);
   if (!left || !right) return null;
   const width = Math.abs(right.x - left.x);
   return width > 0.08 ? { left, right, width: clamp(width, 0.08, 1) } : null;
@@ -218,7 +242,7 @@ const hasSufficientAnchorConfidence = (metadata: LayoutMetadata) => Number(metad
 const getRealMeasurementPair = (metadata: LayoutMetadata, analysis: ImageAnalysis | null | undefined, visualCategory: VisualCategory) => {
   const isUpperBodyGarment = ["outerwear", "dresses", "tops"].includes(visualCategory);
   if (isUpperBodyGarment) {
-    const upperFit = metadata.validatedMeasurementAnchors?.upperFit || metadata.measurementAnchors?.upperFit;
+    const upperFit = getPrioritizedUpperFit(metadata)?.isMeasurement ? getPrioritizedUpperFit(metadata)!.group : null;
     if (!upperFit || !["ai", "human"].includes(String(upperFit.source)) || Number(upperFit.confidence) < 0.5) return null;
     const left = toRelativePoint(upperFit.leftUpperFitAnchor, analysis);
     const right = toRelativePoint(upperFit.rightUpperFitAnchor, analysis);
@@ -245,26 +269,18 @@ const getRealMeasurementPair = (metadata: LayoutMetadata, analysis: ImageAnalysi
 };
 
 const getUpperBodyWidthRatio = (metadata: LayoutMetadata, analysis?: ImageAnalysis | null) => {
-  const layoutWidth = Number(metadata.layoutAnchors?.upperFit?.upperBodyFitWidth);
-  if (Number.isFinite(layoutWidth) && layoutWidth > 0) {
-    const ratio = layoutWidth > 1 && analysis?.imageWidth ? layoutWidth / analysis.imageWidth : layoutWidth;
-    if (ratio > 0.08) return clamp(ratio, 0.08, 1);
-  }
-  const measuredWidth = Number((metadata.validatedMeasurementAnchors?.upperFit || metadata.measurementAnchors?.upperFit)?.upperBodyFitWidth);
-  if (Number.isFinite(measuredWidth) && measuredWidth > 0) {
-    const ratio = measuredWidth > 1 && analysis?.imageWidth ? measuredWidth / analysis.imageWidth : measuredWidth;
-    if (ratio > 0.08) return clamp(ratio, 0.08, 1);
-  }
+  const prioritizedFit = getPrioritizedUpperFit(metadata)?.group;
+  const prioritizedWidth = Number(prioritizedFit?.upperBodyFitWidth);
+  const prioritizedRatio = widthToRatio(prioritizedWidth, analysis);
+  if (prioritizedRatio) return prioritizedRatio;
   const explicitWidth = Number(metadata.upperBodyWidthAnchor);
-  if (Number.isFinite(explicitWidth) && explicitWidth > 0) {
-    const ratio = explicitWidth > 1 && analysis?.imageWidth ? explicitWidth / analysis.imageWidth : explicitWidth;
-    if (ratio > 0.08) return clamp(ratio, 0.08, 1);
-  }
+  const explicitRatio = widthToRatio(explicitWidth, analysis);
+  if (explicitRatio) return explicitRatio;
   return getUpperAnchorPair(metadata, analysis)?.width || getShoulderWidthRatio(metadata);
 };
 
 const formatWidthAnchor = (metadata: LayoutMetadata, analysis?: ImageAnalysis | null) => {
-  const explicitWidth = Number(metadata.layoutAnchors?.upperFit?.upperBodyFitWidth || (metadata.validatedMeasurementAnchors?.upperFit || metadata.measurementAnchors?.upperFit)?.upperBodyFitWidth || metadata.upperBodyWidthAnchor);
+  const explicitWidth = Number(getPrioritizedUpperFit(metadata)?.group?.upperBodyFitWidth || metadata.upperBodyWidthAnchor);
   const ratio = getUpperBodyWidthRatio(metadata, analysis);
   if (Number.isFinite(explicitWidth) && explicitWidth > 0) {
     return explicitWidth > 1 ? `${explicitWidth.toFixed(0)}px / ${(ratio ?? 0).toFixed(2)}` : explicitWidth.toFixed(2);
@@ -306,10 +322,12 @@ const getNormalizedStyle = ({
   const intendedVisibleWidth = clamp(intendedVisibleHeight * visibleAspect * (0.82 + preferredScale * 0.24), 22, 66);
   const boxHeight = clamp(intendedVisibleHeight / visibleHeightRatio, 22, 88);
   const upperBodyWidthRatio = getUpperBodyWidthRatio(metadata, analysis);
+  const fitSource = getPrioritizedUpperFit(metadata)?.source || (upperBodyWidthRatio ? "legacy" : "fallback");
   const upperAnchorBoxWidth = upperBodyWidthRatio && targetRenderedShoulderWidth
     ? targetRenderedShoulderWidth / upperBodyWidthRatio
     : null;
-  const boxWidth = clamp(Math.max(intendedVisibleWidth / visibleWidthRatio, upperAnchorBoxWidth || 0), 22, upperAnchorBoxWidth ? 112 : 92);
+  const widthClampMax = upperAnchorBoxWidth ? (fitSource === "human" ? 166 : 122) : 92;
+  const boxWidth = clamp(Math.max(intendedVisibleWidth / visibleWidthRatio, upperAnchorBoxWidth || 0), 22, widthClampMax);
   const visibleCenterX = analysis?.imageWidth && analysis?.visibleWidth
     ? ((analysis.visibleX ?? 0) + analysis.visibleWidth / 2) / analysis.imageWidth
     : 0.5;
@@ -332,6 +350,11 @@ const getNormalizedStyle = ({
     anchorShiftXPct,
     anchorShiftYPct,
     rotationDeg: layout.rotate,
+    fitSource,
+    upperFitWidthRatio: upperBodyWidthRatio,
+    targetRenderedFitWidth: targetRenderedShoulderWidth ?? null,
+    calculatedImageBoxWidth: upperAnchorBoxWidth,
+    finalRenderedFitWidth: upperBodyWidthRatio ? upperBodyWidthRatio * boxWidth : null,
   };
 };
 
@@ -383,6 +406,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
       duplicateIndex,
       metadata,
       style,
+      upperFitWidthRatio: upperWidthRatio,
       renderedUpperWidth: upperWidthRatio ? upperWidthRatio * style.boxWidthPct : null,
     };
   });
@@ -391,14 +415,26 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
   let dressRenderedWidth = renderItems.find((item) => item.visualCategory === "dresses")?.renderedUpperWidth ?? null;
   let dressToCoatRatio = coatRenderedWidth && dressRenderedWidth ? dressRenderedWidth / coatRenderedWidth : null;
 
-  if (hasOuterwear && hasDress && dressToCoatRatio !== null && dressToCoatRatio < 0.75) {
-    const scaleUp = clamp(0.82 / dressToCoatRatio, 1, 1.45);
+  if (hasOuterwear && hasDress && coatRenderedWidth && dressToCoatRatio !== null && (dressToCoatRatio < 0.85 || dressToCoatRatio > 0.95)) {
+    const targetDressRenderedFitWidth = coatRenderedWidth * 0.9;
     renderItems = renderItems.map((item) => {
-      if (item.visualCategory !== "dresses" || !item.renderedUpperWidth) return item;
-      const nextWidth = clamp(item.style.boxWidthPct * scaleUp, item.style.boxWidthPct, 118);
-      const nextHeight = clamp(item.style.boxHeightPct * Math.min(scaleUp, 1.2), item.style.boxHeightPct, 96);
-      const nextStyle = { ...item.style, width: `${nextWidth}%`, height: `${nextHeight}%`, boxWidthPct: nextWidth, boxHeightPct: nextHeight };
-      return { ...item, style: nextStyle, renderedUpperWidth: item.renderedUpperWidth * (nextWidth / item.style.boxWidthPct) };
+      if (item.visualCategory !== "dresses" || !item.upperFitWidthRatio) return item;
+      const calculatedImageBoxWidth = targetDressRenderedFitWidth / item.upperFitWidthRatio;
+      const nextWidth = clamp(calculatedImageBoxWidth, 22, item.style.fitSource === "human" ? 166 : 124);
+      const scale = nextWidth / Math.max(item.style.boxWidthPct, 1);
+      const nextHeight = clamp(item.style.boxHeightPct * clamp(scale, 0.86, 1.28), 22, 104);
+      const finalRenderedFitWidth = item.upperFitWidthRatio * nextWidth;
+      const nextStyle = {
+        ...item.style,
+        width: `${nextWidth}%`,
+        height: `${nextHeight}%`,
+        boxWidthPct: nextWidth,
+        boxHeightPct: nextHeight,
+        targetRenderedFitWidth: targetDressRenderedFitWidth,
+        calculatedImageBoxWidth,
+        finalRenderedFitWidth,
+      };
+      return { ...item, style: nextStyle, renderedUpperWidth: finalRenderedFitWidth };
     });
     coatRenderedWidth = renderItems.find((item) => item.visualCategory === "outerwear")?.renderedUpperWidth ?? null;
     dressRenderedWidth = renderItems.find((item) => item.visualCategory === "dresses")?.renderedUpperWidth ?? null;
@@ -409,15 +445,23 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
     <div className="relative w-full aspect-[3/4] bg-secondary/10 rounded-2xl overflow-hidden">
       {renderItems.map(({ garment, visualCategory, imageUrl, duplicateIndex, metadata, style, renderedUpperWidth }) => {
         const baseAlt = garment?.name || garment?.category || "Garment";
-        const { boxWidthPct, boxHeightPct, anchorShiftXPct, anchorShiftYPct, rotationDeg, ...imageStyle } = style;
+        const { boxWidthPct, boxHeightPct, anchorShiftXPct, anchorShiftYPct, rotationDeg, fitSource: styleFitSource, upperFitWidthRatio, targetRenderedFitWidth, calculatedImageBoxWidth, finalRenderedFitWidth, ...imageStyle } = style;
         const upperPair = getUpperAnchorPair(metadata, garment?.image_analysis);
         const measurementPair = getRealMeasurementPair(metadata, garment?.image_analysis, visualCategory);
         const layoutGroup = metadata.layoutAnchors?.upperFit || metadata.layoutAnchors?.waist || metadata.layoutAnchors?.length;
         const layoutSource = layoutGroup?.source;
-        const fitSource = measurementPair ? ((metadata.validatedMeasurementAnchors?.upperFit || metadata.validatedMeasurementAnchors?.waist || metadata.measurementAnchors?.upperFit || metadata.measurementAnchors?.waist) as any)?.source : layoutSource || "fallback";
+        const prioritizedUpperFit = getPrioritizedUpperFit(metadata);
+        const fitSource = prioritizedUpperFit?.source || (measurementPair ? ((metadata.validatedMeasurementAnchors?.waist || metadata.measurementAnchors?.waist) as any)?.source : layoutSource) || styleFitSource || "fallback";
+        const finalFitWidth = finalRenderedFitWidth ?? renderedUpperWidth ?? (upperFitWidthRatio ? upperFitWidthRatio * boxWidthPct : null);
         const renderedRatios = {
-          upperWidth: renderedUpperWidth ?? null,
+          source: fitSource,
+          calibratedUpperFitWidth: prioritizedUpperFit?.group?.upperBodyFitWidth ?? null,
+          upperFitWidthRatio: upperFitWidthRatio ?? null,
+          targetRenderedFitWidth: targetRenderedFitWidth ?? null,
+          calculatedImageBoxWidth: calculatedImageBoxWidth ?? null,
+          finalRenderedFitWidth: finalFitWidth,
           dressToCoat: visualCategory === "dresses" ? dressToCoatRatio : null,
+          finalDressToCoatFitRatio: visualCategory === "dresses" ? dressToCoatRatio : null,
         };
         const measurementCenter = measurementPair ? { x: (measurementPair.left.x + measurementPair.right.x) / 2, y: (measurementPair.left.y + measurementPair.right.y) / 2 } : null;
         const landmarkPoints = [
@@ -466,7 +510,10 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
                   <span className="block">measured fit: {formatWidthAnchor(metadata, garment?.image_analysis)}</span>
                   <span className="block">source: {fitSource}</span>
                   <span className="block">confidence: {((metadata.validatedMeasurementAnchors?.upperFit || metadata.validatedMeasurementAnchors?.waist || metadata.measurementAnchors?.upperFit || metadata.measurementAnchors?.waist) as any)?.confidence?.toFixed?.(2) ?? "—"}</span>
-                  <span className="block">rendered: {(renderedUpperWidth ?? measurementPair.width * boxWidthPct).toFixed(1)}%</span>
+                  <span className="block">upperFitWidthRatio: {upperFitWidthRatio?.toFixed?.(3) ?? "—"}</span>
+                  <span className="block">targetRenderedFitWidth: {targetRenderedFitWidth?.toFixed?.(1) ?? "—"}%</span>
+                  <span className="block">calculatedImageBoxWidth: {calculatedImageBoxWidth?.toFixed?.(1) ?? "—"}%</span>
+                  <span className="block">finalRenderedFitWidth: {(finalFitWidth ?? measurementPair.width * boxWidthPct).toFixed(1)}%</span>
                 </span>
                 {landmarkPoints.map((point, pointIndex) => (
                   <span
@@ -484,6 +531,9 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
                 <span className="block">source: {layoutSource}</span>
                 <span className="block">confidence: {layoutGroup?.confidence?.toFixed?.(2) ?? "—"}</span>
                 <span className="block">width: {formatWidthAnchor(metadata, garment?.image_analysis)}</span>
+                <span className="block">upperFitWidthRatio: {upperFitWidthRatio?.toFixed?.(3) ?? "—"}</span>
+                <span className="block">calculatedImageBoxWidth: {calculatedImageBoxWidth?.toFixed?.(1) ?? "—"}%</span>
+                <span className="block">finalRenderedFitWidth: {finalFitWidth?.toFixed?.(1) ?? "—"}%</span>
               </div>
             )}
             {showDebugAnchors && (
@@ -499,7 +549,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
         <div className="absolute bottom-2 left-2 right-2 z-[90] rounded bg-background/90 px-2 py-1 text-[10px] font-medium leading-4 text-foreground shadow-sm">
           <div>coat width: {coatRenderedWidth?.toFixed(1) ?? "—"}%</div>
           <div>dress width: {dressRenderedWidth?.toFixed(1) ?? "—"}%</div>
-          <div>dress/coat upperBodyWidth ratio: {dressToCoatRatio ? dressToCoatRatio.toFixed(2) : "—"}</div>
+          <div>final dress/coat fit ratio: {dressToCoatRatio ? dressToCoatRatio.toFixed(2) : "—"}</div>
         </div>
       )}
     </div>
