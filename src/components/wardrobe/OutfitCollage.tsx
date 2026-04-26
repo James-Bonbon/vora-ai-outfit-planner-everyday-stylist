@@ -468,32 +468,35 @@ const getNormalizedStyle = ({
   };
 };
 
+const getItemVisualBounds = (style: NormalizedRenderStyle): ItemBounds => {
+  const left = Number.parseFloat(String(style.left ?? 0));
+  const top = Number.parseFloat(String(style.top ?? 0));
+  const translatedLeft = left + (style.offsetXPct / 100) * style.boxWidthPct;
+  const translatedTop = top + (style.offsetYPct / 100) * style.boxHeightPct;
+  const imageRect = getObjectContainRect(style.boxWidthPct, style.boxHeightPct, style.imageRatio);
+  const imageLeft = translatedLeft + (imageRect.left / 100) * style.boxWidthPct;
+  const imageTop = translatedTop + (imageRect.top / 100) * style.boxHeightPct;
+  const imageWidth = (imageRect.width / 100) * style.boxWidthPct;
+  const imageHeight = (imageRect.height / 100) * style.boxHeightPct;
+  const center = { x: translatedLeft + style.boxWidthPct / 2, y: translatedTop + style.boxHeightPct / 2 };
+  const corners = [
+    { x: imageLeft, y: imageTop },
+    { x: imageLeft + imageWidth, y: imageTop },
+    { x: imageLeft + imageWidth, y: imageTop + imageHeight },
+    { x: imageLeft, y: imageTop + imageHeight },
+  ].map((point) => rotateCanvasPoint(point, center, style.rotationDeg));
+  const box = corners.reduce(
+    (acc, point) => ({ left: Math.min(acc.left, point.x), top: Math.min(acc.top, point.y), right: Math.max(acc.right, point.x), bottom: Math.max(acc.bottom, point.y) }),
+    { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity }
+  );
+  return { ...box, width: box.right - box.left, height: box.bottom - box.top, center: { x: (box.left + box.right) / 2, y: (box.top + box.bottom) / 2 } };
+};
+
 const normalizeOutfitGroup = (items: Array<{ style: NormalizedRenderStyle }>): GroupNormalization => {
   const canvasCenter = { x: 50, y: 50 };
   if (!items.length) return { canvasCenter, boundingBox: null, groupCenter: null, translateX: 0, translateY: 0, scale: 1 };
 
-  const boxes = items.map(({ style }) => {
-    const left = Number.parseFloat(String(style.left ?? 0));
-    const top = Number.parseFloat(String(style.top ?? 0));
-    const translatedLeft = left + (style.offsetXPct / 100) * style.boxWidthPct;
-    const translatedTop = top + (style.offsetYPct / 100) * style.boxHeightPct;
-    const imageRect = getObjectContainRect(style.boxWidthPct, style.boxHeightPct, style.imageRatio);
-    const imageLeft = translatedLeft + (imageRect.left / 100) * style.boxWidthPct;
-    const imageTop = translatedTop + (imageRect.top / 100) * style.boxHeightPct;
-    const imageWidth = (imageRect.width / 100) * style.boxWidthPct;
-    const imageHeight = (imageRect.height / 100) * style.boxHeightPct;
-    const center = { x: translatedLeft + style.boxWidthPct / 2, y: translatedTop + style.boxHeightPct / 2 };
-    const corners = [
-      { x: imageLeft, y: imageTop },
-      { x: imageLeft + imageWidth, y: imageTop },
-      { x: imageLeft + imageWidth, y: imageTop + imageHeight },
-      { x: imageLeft, y: imageTop + imageHeight },
-    ].map((point) => rotateCanvasPoint(point, center, style.rotationDeg));
-    return corners.reduce(
-      (acc, point) => ({ left: Math.min(acc.left, point.x), top: Math.min(acc.top, point.y), right: Math.max(acc.right, point.x), bottom: Math.max(acc.bottom, point.y) }),
-      { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity }
-    );
-  });
+  const boxes = items.map(({ style }) => getItemVisualBounds(style));
 
   const rawBox = boxes.reduce(
     (acc, box) => ({
