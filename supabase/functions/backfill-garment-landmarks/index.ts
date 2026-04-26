@@ -20,6 +20,27 @@ const hasUpperAnchors = (metadata: any) => Boolean(
   metadata?.leftUpperAnchor && metadata?.rightUpperAnchor && Number(metadata?.upperBodyWidthAnchor) > 0,
 );
 
+const classifyFitFamily = (item: any) => {
+  const text = `${item?.layout_metadata?.garmentType ?? ""} ${item?.category ?? ""} ${item?.name ?? ""}`.toLowerCase();
+  if (/\b(shoe|sneaker|boot|heel|loafer|sandal|trainer|bag|purse|tote|clutch|backpack|handbag|accessor|belt|scarf|jewelry|jewellery|sunglasses|hat|cap|beanie)\b/.test(text)) return "accessory";
+  if (/dress|gown|jumpsuit|romper|one[-\s]?piece/.test(text)) return "dresses";
+  if (/outerwear|coat|jacket|blazer|trench|parka|cardigan|shacket/.test(text)) return "outerwear";
+  if (/trouser|pant|jean|legging|chino|skirt|short(?![-\s]?sleeve)|bottom/.test(text)) return "bottoms";
+  if (/top|shirt|blouse|tee|t-shirt|knit|sweater|jumper|hoodie/.test(text)) return "tops";
+  return "accessory";
+};
+
+const hasRequiredFitAnchors = (item: any) => {
+  const family = classifyFitFamily(item);
+  const v = item?.layout_metadata?.validatedMeasurementAnchors || {};
+  const m = item?.layout_metadata?.measurementAnchors || {};
+  const l = item?.layout_metadata?.layoutAnchors || {};
+  const has = (key: string) => Boolean(v[key] || m[key] || l[key]);
+  if (family === "accessory") return hasImageAnalysis(item?.image_analysis);
+  if (family === "bottoms") return has("waist") && has("lengthFit");
+  return has("upperFit") && has("lowerHemFit") && has("lengthFit");
+};
+
 const hasImageAnalysis = (analysis: any) => Boolean(
   Number(analysis?.imageWidth) > 0 &&
   Number(analysis?.imageHeight) > 0 &&
@@ -144,13 +165,21 @@ const buildAlphaProfileLayout = (analysis: any, isTop: boolean, isOuterwear: boo
   const hem = scanAlphaBand(analysis, isBottom ? 0.68 : 0.78, 0.96, 0.12, 0.82, "hem");
   if (upper) layout.upperFit = { leftUpperFitAnchor: { x: upper.left, y: upper.y, source: "alpha_profile", confidence, notes }, rightUpperFitAnchor: { x: upper.right, y: upper.y, source: "alpha_profile", confidence, notes }, upperBodyFitWidth: upper.width, confidence, source: "alpha_profile", notes };
   if (waist) layout.waist = { leftWaistAnchor: { x: waist.left, y: waist.y, source: "alpha_profile", confidence, notes }, rightWaistAnchor: { x: waist.right, y: waist.y, source: "alpha_profile", confidence, notes }, waistFitWidth: waist.width, confidence, source: "alpha_profile", notes };
-  if (hem) layout.length = { leftHemAnchor: { x: hem.left, y: hem.y, source: "alpha_profile", confidence, notes }, rightHemAnchor: { x: hem.right, y: hem.y, source: "alpha_profile", confidence, notes }, hemFitWidth: hem.width, confidence, source: "alpha_profile", notes };
+  if (hem) layout.lowerHemFit = { leftLowerHemFitAnchor: { x: hem.left, y: hem.y, source: "alpha_profile", confidence, notes }, rightLowerHemFitAnchor: { x: hem.right, y: hem.y, source: "alpha_profile", confidence, notes }, lowerHemFitWidth: hem.width, confidence, source: "alpha_profile", validationStatus: "estimated", notes };
+  if (analysis?.visibleAlphaBounds) {
+    const b = analysis.visibleAlphaBounds;
+    layout.lengthFit = { topLengthFitAnchor: { x: b.x + b.width / 2, y: b.y, source: "alpha_profile", confidence, notes }, bottomLengthFitAnchor: { x: b.x + b.width / 2, y: b.y + b.height, source: "alpha_profile", confidence, notes }, lengthFitHeight: b.height, confidence, source: "alpha_profile", validationStatus: "estimated", notes };
+  }
   return Object.keys(layout).length ? layout : null;
 };
 
 const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
   const rawAiLandmarks = { ...layout };
   const next = { ...layout, rawAiLandmarks, validatedMeasurementAnchors: {}, layoutAnchors: {}, fitValidation: { status: "fallback", rejected: [] as string[] } };
+  const existingMeasurements = item?.layout_metadata?.validatedMeasurementAnchors || item?.layout_metadata?.measurementAnchors || {};
+  for (const key of ["upperFit", "waist", "lowerHemFit", "lengthFit"]) {
+    if (existingMeasurements?.[key]?.source === "human") next.validatedMeasurementAnchors[key] = existingMeasurements[key];
+  }
   const confidenceBefore = Number(layout.confidence);
   const originalConfidence = Number.isFinite(confidenceBefore) ? clamp(confidenceBefore, 0, 1) : null;
   const typeText = `${layout.garmentType ?? ""} ${item.category ?? ""} ${item.name ?? ""}`.toLowerCase();
@@ -196,21 +225,21 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
 
   const alphaLayout = buildAlphaProfileLayout(analysis, isTop, isOuterwear, isDress, isBottom);
   if (!next.validatedMeasurementAnchors?.waist && alphaLayout?.waist) next.layoutAnchors.waist = alphaLayout.waist;
-  if (alphaLayout?.length) next.layoutAnchors.length = alphaLayout.length;
+  if (!next.validatedMeasurementAnchors?.lowerHemFit && alphaLayout?.lowerHemFit) next.layoutAnchors.lowerHemFit = alphaLayout.lowerHemFit;
+  if (!next.validatedMeasurementAnchors?.lengthFit && alphaLayout?.lengthFit) next.layoutAnchors.lengthFit = alphaLayout.lengthFit;
 
   if (!isTop) {
     if (isBottom && alphaLayout) {
       next.anchorNormalization = "estimated_layout_scaling_from_alpha_profile";
-      next.anchorSources = { leftWaistAnchor: "alpha_profile", rightWaistAnchor: "alpha_profile", hemWidthAnchor: "alpha_profile" };
-      next.confidence = alphaLayout.waist?.confidence || alphaLayout.length?.confidence || 0.42;
+      next.anchorSources = { leftWaistAnchor: "alpha_profile", rightWaistAnchor: "alpha_profile", lowerHemFit: "alpha_profile", lengthFit: "alpha_profile" };
+      next.confidence = alphaLayout.waist?.confidence || alphaLayout.lengthFit?.confidence || 0.42;
       next.confidenceAfterNormalization = next.confidence;
       next.fitValidation = { status: "fallback", rejected: ["alpha_profile_layout_only"] };
     }
     return next;
   }
 
-  if (left && right && rawRatio >= measurementMinRatio && rawRatio <= measurementMaxRatio && (originalConfidence ?? 0) >= 0.5) {
-    next.layoutAnchors = null;
+  if (!next.validatedMeasurementAnchors?.upperFit && left && right && rawRatio >= measurementMinRatio && rawRatio <= measurementMaxRatio && (originalConfidence ?? 0) >= 0.5) {
     next.validatedMeasurementAnchors = {
       ...(next.validatedMeasurementAnchors || {}),
       upperFit: {
@@ -265,6 +294,7 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
   next.validatedMeasurementAnchors = Object.keys(next.validatedMeasurementAnchors || {}).length ? next.validatedMeasurementAnchors : null;
   next.measurementAnchors = next.validatedMeasurementAnchors;
   next.layoutAnchors = {
+    ...(next.layoutAnchors || {}),
     upperFit: {
       leftUpperFitAnchor: { ...layoutLeft, source, confidence: source === "ratio_guard" ? 0.49 : 0.35, notes: "Estimated layout anchor; not a measurement." },
       rightUpperFitAnchor: { ...layoutRight, source, confidence: source === "ratio_guard" ? 0.49 : 0.35, notes: "Estimated layout anchor; not a measurement." },
@@ -321,7 +351,7 @@ serve(async (req) => {
     const { data: rows, error: selectError } = await query;
     if (selectError) throw selectError;
 
-    const candidates = (rows || []).filter((item: any) => force || !hasUpperAnchors(item.layout_metadata) || !hasImageAnalysis(item.image_analysis)).slice(0, limit);
+    const candidates = (rows || []).filter((item: any) => force || !hasRequiredFitAnchors(item) || !hasUpperAnchors(item.layout_metadata) || !hasImageAnalysis(item.image_analysis)).slice(0, limit);
     const results: any[] = [];
 
     for (const item of candidates) {
@@ -400,7 +430,7 @@ For dresses, especially asymmetric or sleeveless dresses, do NOT measure literal
       }
     }
 
-    return json({ scanned: rows?.length || 0, missing: (rows || []).filter((item: any) => !hasUpperAnchors(item.layout_metadata) || !hasImageAnalysis(item.image_analysis)).length, processed: candidates.length, results });
+    return json({ scanned: rows?.length || 0, missing: (rows || []).filter((item: any) => !hasRequiredFitAnchors(item) || !hasUpperAnchors(item.layout_metadata) || !hasImageAnalysis(item.image_analysis)).length, processed: candidates.length, results });
   } catch (error) {
     console.error("backfill-garment-landmarks error:", error);
     return json({ error: error instanceof Error ? error.message : "Unknown error" }, 500);

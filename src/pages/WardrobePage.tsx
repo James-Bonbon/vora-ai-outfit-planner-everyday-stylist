@@ -438,6 +438,8 @@ const WardrobePage = () => {
     queryClient.invalidateQueries({ queryKey: ["closet-items"] });
     queryClient.invalidateQueries({ queryKey: ["lookbook"] });
     queryClient.invalidateQueries({ queryKey: ["outfit-calendar-data"] });
+    queryClient.invalidateQueries({ queryKey: ["look-garments"] });
+    queryClient.invalidateQueries({ queryKey: ["planned-outfits"] });
     if (activeTab === "dream") queryClient.invalidateQueries({ queryKey: ["dream", user?.id] });
   };
 

@@ -82,6 +82,8 @@ type NormalizedRenderStyle = CSSProperties & {
   finalRenderedFitWidth?: number | null;
   sizingDebug?: {
     upperFitSource?: string;
+    lengthFitSource?: string | null;
+    lengthFitRatio?: number | null;
     upperFitWidthRatio?: number | null;
     targetDressToCoatRatio?: number | null;
     minimumDressToCoatRatio?: number | null;
@@ -159,11 +161,11 @@ const classifyGarment = (garment: any): VisualCategory => {
   const text = `${garment?.category ?? ""} ${garment?.name ?? ""}`.toLowerCase();
 
   if (/\b(hat|cap|beanie|beret|fedora|bucket)\b/.test(text)) return "hats";
-  if (/\b(bag|purse|tote|clutch|backpack|handbag|accessor|belt|scarf|jewelry|jewellery|sunglasses)\b/.test(text)) return "accessories";
   if (/\b(shoe|sneaker|boot|heel|loafer|sandal|trainer)\b/.test(text)) return "shoes";
   if (/\b(dress|dresses|gown|jumpsuit|romper|one[-\s]?piece)\b/.test(text)) return "dresses";
   if (/\b(outerwear|jacket|coat|blazer|trench|parka|cardigan|shacket)\b/.test(text)) return "outerwear";
-  if (/\b(bottom|trouser|pant|jean|skirt|short|chino|sweatpant|legging)\b/.test(text)) return "bottoms";
+  if (/\b(bottom|trouser|pant|jean|skirt|shorts?|chino|sweatpant|legging)\b/.test(text) && !/\bshort[-\s]?sleeve\b/.test(text)) return "bottoms";
+  if (/\b(bag|purse|tote|clutch|backpack|handbag|accessor|belt|scarf|jewelry|jewellery|sunglasses)\b/.test(text)) return "accessories";
   return "tops";
 };
 
@@ -449,11 +451,14 @@ const getNormalizedStyle = ({
   const overflowOffset = Math.max(0, stackIndex - stackLayouts.length + 1) * 10;
   const visibleHeightRatio = clamp(Number(analysis?.visibleHeightRatio) || 1, 0.18, 1);
   const visibleWidthRatio = clamp(Number(analysis?.visibleWidthRatio) || 1, 0.18, 1);
+  const lengthFitPair = getMeasurementPair(metadata, analysis, "lengthFit");
+  const lengthFitRatio = lengthFitPair?.width ? clamp(lengthFitPair.width, 0.18, 1) : null;
+  const verticalFitRatio = lengthFitRatio || visibleHeightRatio;
   const imageRatio = analysis?.imageWidth && analysis?.imageHeight ? analysis.imageWidth / analysis.imageHeight : 1;
   const visibleAspect = analysis?.visibleWidth && analysis?.visibleHeight ? analysis.visibleWidth / analysis.visibleHeight : imageRatio;
   const preferredScale = clamp(Number(metadata.preferredPreviewScale) || 0.55, 0.2, 1);
   const intendedVisibleWidth = clamp(intendedVisibleHeight * visibleAspect * (0.82 + preferredScale * 0.24), 22, 66);
-  const boxHeight = clamp(intendedVisibleHeight / visibleHeightRatio, 22, 88);
+  const boxHeight = clamp(intendedVisibleHeight / verticalFitRatio, 22, 88);
   const upperBodyWidthRatio = getUpperBodyWidthRatio(metadata, analysis);
   const fitSource = getPrioritizedUpperFit(metadata)?.source || (upperBodyWidthRatio ? "legacy" : "fallback");
   const upperAnchorBoxWidth = upperBodyWidthRatio && targetRenderedShoulderWidth
@@ -464,7 +469,9 @@ const getNormalizedStyle = ({
   const visibleCenterX = analysis?.imageWidth && analysis?.visibleWidth
     ? ((analysis.visibleX ?? 0) + analysis.visibleWidth / 2) / analysis.imageWidth
     : 0.5;
-  const visibleCenterY = analysis?.imageHeight && analysis?.visibleHeight
+  const visibleCenterY = lengthFitPair
+    ? clamp((lengthFitPair.left.y + lengthFitPair.right.y) / 2, 0, 1)
+    : analysis?.imageHeight && analysis?.visibleHeight
     ? ((analysis.visibleY ?? 0) + analysis.visibleHeight / 2) / analysis.imageHeight
     : 0.5;
 
@@ -496,6 +503,8 @@ const getNormalizedStyle = ({
     finalRenderedFitWidth: upperBodyWidthRatio ? upperBodyWidthRatio * boxWidth : null,
     sizingDebug: {
       upperFitSource: fitSource,
+      lengthFitSource: lengthFitPair?.source || null,
+      lengthFitRatio,
       upperFitWidthRatio: upperBodyWidthRatio,
       boxWidthBeforeClamp: Math.max(intendedVisibleWidth / visibleWidthRatio, upperAnchorBoxWidth || 0),
       boxWidthAfterClamp: boxWidth,
