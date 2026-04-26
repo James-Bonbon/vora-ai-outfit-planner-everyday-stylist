@@ -322,10 +322,12 @@ const getNormalizedStyle = ({
   const intendedVisibleWidth = clamp(intendedVisibleHeight * visibleAspect * (0.82 + preferredScale * 0.24), 22, 66);
   const boxHeight = clamp(intendedVisibleHeight / visibleHeightRatio, 22, 88);
   const upperBodyWidthRatio = getUpperBodyWidthRatio(metadata, analysis);
+  const fitSource = getPrioritizedUpperFit(metadata)?.source || (upperBodyWidthRatio ? "legacy" : "fallback");
   const upperAnchorBoxWidth = upperBodyWidthRatio && targetRenderedShoulderWidth
     ? targetRenderedShoulderWidth / upperBodyWidthRatio
     : null;
-  const boxWidth = clamp(Math.max(intendedVisibleWidth / visibleWidthRatio, upperAnchorBoxWidth || 0), 22, upperAnchorBoxWidth ? 112 : 92);
+  const widthClampMax = upperAnchorBoxWidth ? (fitSource === "human" ? 136 : 122) : 92;
+  const boxWidth = clamp(Math.max(intendedVisibleWidth / visibleWidthRatio, upperAnchorBoxWidth || 0), 22, widthClampMax);
   const visibleCenterX = analysis?.imageWidth && analysis?.visibleWidth
     ? ((analysis.visibleX ?? 0) + analysis.visibleWidth / 2) / analysis.imageWidth
     : 0.5;
@@ -348,6 +350,11 @@ const getNormalizedStyle = ({
     anchorShiftXPct,
     anchorShiftYPct,
     rotationDeg: layout.rotate,
+    fitSource,
+    upperFitWidthRatio: upperBodyWidthRatio,
+    targetRenderedFitWidth: targetRenderedShoulderWidth ?? null,
+    calculatedImageBoxWidth: upperAnchorBoxWidth,
+    finalRenderedFitWidth: upperBodyWidthRatio ? upperBodyWidthRatio * boxWidth : null,
   };
 };
 
