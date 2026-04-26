@@ -849,6 +849,67 @@ const getCompositionMetrics = (items: RenderItem[], selectedLayoutTemplate: stri
   return { selectedLayoutTemplate, garmentCenters, garmentBounds, garmentZoneAssignments, pairMetrics };
 };
 
+const displayType = (category: VisualCategory) => ({ outerwear: "Outerwear", dresses: "Dress", tops: "Top", bottoms: "Bottom", shoes: "Shoes", hats: "Hat", accessories: "Accessory" }[category]);
+
+const requiredAnchorTypes = (category: VisualCategory): FitAnchorType[] => {
+  if (category === "bottoms") return ["waist", "lengthFit"];
+  if (["tops", "outerwear", "dresses"].includes(category)) return ["upperFit", "lowerHemFit", "lengthFit"];
+  return [];
+};
+
+const optionalAnchorTypes = (category: VisualCategory): FitAnchorType[] => {
+  if (["tops", "outerwear", "dresses"].includes(category)) return ["waist"];
+  if (category === "bottoms") return ["lowerHemFit"];
+  return [];
+};
+
+const formatAnchorName = (anchor: FitAnchorType) => anchor === "waist" ? "waistFit" : anchor;
+
+const getGarmentFitSummary = (item: RenderItem, relationshipDebug: ReturnType<typeof getRelationshipMetrics>) => {
+  const required = requiredAnchorTypes(item.visualCategory);
+  const optional = optionalAnchorTypes(item.visualCategory);
+  const allAnchors = [...required, ...optional];
+  const present = allAnchors.flatMap((anchorType) => {
+    const group = getPrioritizedFitGroup(item.metadata, anchorType);
+    return group ? [`${formatAnchorName(anchorType)} (${group.source})`] : [];
+  });
+  const missingRequired = required.filter((anchorType) => !getPrioritizedFitGroup(item.metadata, anchorType)).map(formatAnchorName);
+  const missingOptional = optional.filter((anchorType) => !getPrioritizedFitGroup(item.metadata, anchorType)).map((anchorType) => `${formatAnchorName(anchorType)} optional`);
+  const relationshipScale = Number(item.style.sizingDebug?.relationshipScale || item.style.sizingDebug?.requiredDressBoxScale || 1);
+  const resizeActionNeeded = Number.isFinite(relationshipScale) && Math.abs(relationshipScale - 1) > 0.02;
+  const compared = relationshipDebug?.comparedAnchors;
+  const isPrimary = compared?.primary?.garment === (item.garment?.name || item.visualCategory);
+  const resizeReason = resizeActionNeeded
+    ? item.style.sizingDebug?.relationshipRule
+      ? `${displayType(item.visualCategory)} anchor ratio was outside target for ${relationshipDebug?.selectedRelationshipRule?.replace(/_/g, " ") || "relationship rule"}.`
+      : isPrimary
+        ? `${displayType(item.visualCategory)} rendered anchor needed scaling to match the paired garment.`
+        : "Garment dimensions changed during relationship normalization."
+    : "Within target relationship ratio.";
+
+  return {
+    name: item.garment?.name || item.garment?.category || "Garment",
+    type: displayType(item.visualCategory),
+    required: required.map(formatAnchorName),
+    present,
+    missing: [...missingRequired, ...missingOptional],
+    confidence: Number(item.metadata.confidence ?? item.style.sizingDebug?.upperFitWidthRatio ?? 0),
+    status: missingRequired.length ? "Needs calibration" : "OK",
+    resizeActionNeeded,
+    resizeReason,
+  };
+};
+
+const getRelationshipStatus = (relationshipDebug: ReturnType<typeof getRelationshipMetrics>) => {
+  const ratio = relationshipDebug?.finalRatio;
+  const targetText = relationshipDebug?.targetRatio || "—";
+  const match = targetText.match(/([0-9.]+)–([0-9.]+)/);
+  const min = match ? Number(match[1]) : null;
+  const max = match ? Number(match[2]) : null;
+  const ok = ratio != null && min != null && max != null ? ratio >= min && ratio <= max : ratio != null;
+  return ok ? "OK" : "Needs resize";
+};
+
 export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageProps) => {
   if (!garments || garments.length === 0) return null;
   const [compositionQaOpen, setCompositionQaOpen] = useState(false);
@@ -965,6 +1026,18 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
   renderedSizingMetrics = getRenderedSizingMetrics(renderItems, groupNormalization);
   const relationshipDebug = getRelationshipMetrics(renderItems, groupNormalization);
   const compositionMetrics = getCompositionMetrics(renderItems, composition.template);
+  const garmentFitSummaries = renderItems.map((item) => getGarmentFitSummary(item, relationshipDebug));
+  const relationshipStatus = getRelationshipStatus(relationshipDebug);
+  const relationshipRuleText = relationshipDebug?.selectedRelationshipRule?.replace(/_/g, " + ").replace("top + bottom + lowerHem + to + waist", "top + bottom").replace("outerwear + top + upperFit + to + upperFit", "outerwear + top").replace("outerwear + dress + upperFit + to + upperFit", "outerwear + dress").replace("dress + alone + upperFit + lengthFit", "dress alone") || "—";
+  const comparedAnchorText = relationshipDebug?.selectedRelationshipRule === "top_bottom_lowerHem_to_waist"
+    ? "top lowerHemFit ↔ bottom waistFit"
+    : relationshipDebug?.selectedRelationshipRule === "outerwear_top_upperFit_to_upperFit"
+      ? "outerwear upperFit ↔ top upperFit"
+      : relationshipDebug?.selectedRelationshipRule === "outerwear_dress_upperFit_to_upperFit"
+        ? "outerwear upperFit ↔ dress upperFit"
+        : relationshipDebug?.selectedRelationshipRule === "dress_alone_upperFit_lengthFit"
+          ? "dress upperFit ↔ dress lengthFit"
+          : "—";
 
   const coatFitItem = renderItems.find((item) => item.visualCategory === "outerwear");
   const dressFitItem = renderItems.find((item) => item.visualCategory === "dresses");
@@ -1095,18 +1168,81 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
       </div>
     </div>
     {showDebugAnchors && (
-      <div className="space-y-2 rounded-xl bg-background/70 p-2 text-[10px] leading-4 text-foreground">
-        {hasOuterwear && hasDress && (
-          <div className="rounded-lg bg-secondary/20 px-2 py-1 font-medium">
-            <div>coat rendered fit line: {coatRenderedWidth?.toFixed(1) ?? "—"} canvas%</div>
-            <div>dress rendered fit line: {dressRenderedWidth?.toFixed(1) ?? "—"} canvas%</div>
-            <div>coat local fit ratio: {renderedSizingMetrics.coat?.localFitRatio?.toFixed(2) ?? "—"}</div>
-            <div>dress local fit ratio: {renderedSizingMetrics.dress?.localFitRatio?.toFixed(2) ?? "—"}</div>
-            <div>final dress/coat ratio: {dressToCoatRatio ? dressToCoatRatio.toFixed(2) : "—"}</div>
-            <div>target dress/coat fit ratio: {targetDressToCoatRatio.toFixed(2)}</div>
-            <div>minimum dress/coat fit ratio: {minimumDressToCoatRatio.toFixed(2)}</div>
+      <div className="space-y-3 rounded-xl bg-background/70 p-3 text-[11px] leading-5 text-foreground">
+        <div className="space-y-3">
+          <div className="font-semibold">Garment Fit Summary</div>
+          {garmentFitSummaries.map((summary) => (
+            <div key={summary.name} className="rounded-lg bg-secondary/20 px-2 py-2">
+              <div className="font-semibold">{summary.name}</div>
+              <div>Type: {summary.type}</div>
+              <div>Required: {summary.required.length ? summary.required.join(", ") : "visualWidth, visualLength"}</div>
+              <div>Present: {summary.present.length ? summary.present.join(", ") : "visual bounds only"}</div>
+              <div>Missing: {summary.missing.length ? summary.missing.join(", ") : "None"}</div>
+              <div>Status: {summary.status}</div>
+              <div>Confidence: {summary.confidence ? summary.confidence.toFixed(2) : "—"}</div>
+              <div>Resize: {summary.resizeActionNeeded ? "Yes" : "No"}</div>
+              <div>Reason: {summary.resizeReason}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="rounded-lg bg-secondary/20 px-2 py-2">
+          <div className="font-semibold">Relationship Check</div>
+          <div>Rule: {relationshipRuleText}</div>
+          <div>Compared: {comparedAnchorText}</div>
+          <div>Target ratio: {relationshipDebug?.targetRatio || "—"}</div>
+          <div>Current ratio: {relationshipDebug?.finalRatio != null ? relationshipDebug.finalRatio.toFixed(2) : "—"}</div>
+          <div>Status: {relationshipStatus}</div>
+          <div>Resize happened: {garmentFitSummaries.some((summary) => summary.resizeActionNeeded) ? "Yes" : "No"}</div>
+        </div>
+
+        <details>
+          <summary className="cursor-pointer font-medium">Advanced JSON</summary>
+          <div className="mt-2 space-y-2">
+            <details open={compositionQaOpen} onToggle={(event) => setCompositionQaOpen(event.currentTarget.open)}>
+              <summary className="cursor-pointer font-medium">Composition QA</summary>
+              <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify({
+                canvasSize: { widthPct: 100, heightPct: 100, aspectRatio: canvasAspectRatio },
+                canvasCenter: groupNormalization.canvasCenter,
+                groupBoundingBox: groupNormalization.boundingBox,
+                transformedGroupBounds,
+                groupCenter: groupNormalization.groupCenter,
+                finalTranslateX: groupNormalization.translateX,
+                finalTranslateY: groupNormalization.translateY,
+                finalGroupScale: groupNormalization.scale,
+                groupOccupancyWidthPct: groupNormalization.occupancyWidthPct,
+                groupOccupancyHeightPct: groupNormalization.occupancyHeightPct,
+                safePaddingPct: groupNormalization.safePaddingPct,
+                boundingBoxIncludes: "garment visual boxes and measurement overlay only; labels and below-canvas panels excluded",
+                ...compositionMetrics,
+              }, null, 2)}</pre>
+            </details>
+            <details>
+              <summary className="cursor-pointer font-medium">Sizing engine QA</summary>
+              <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify(sizingEngineDebug, null, 2)}</pre>
+            </details>
+            <details>
+              <summary className="cursor-pointer font-medium">Relationship QA</summary>
+              <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify(relationshipDebug, null, 2)}</pre>
+            </details>
+            <details>
+              <summary className="cursor-pointer font-medium">Garment fit QA</summary>
+              <pre className="mt-1 max-h-52 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify(renderItems.map((item) => ({
+                garment: item.garment?.name || item.garment?.category,
+                type: displayType(item.visualCategory),
+                anchorGroups: (["upperFit", "waist", "lowerHemFit", "hipFit", "lengthFit"] as FitAnchorType[]).map((anchorType) => {
+                  const group = getPrioritizedFitGroup(item.metadata, anchorType);
+                  return { anchorType: formatAnchorName(anchorType), source: group?.source || null, confidence: group?.group?.confidence ?? null, validationStatus: group?.group?.validationStatus || (group?.isMeasurement ? "validated" : group ? "estimated" : null), widthRatio: getFitWidthFromGroup(group?.group, anchorType, item.garment?.image_analysis) };
+                }),
+                rawAiLandmarks: item.metadata.rawAiLandmarks,
+                validatedMeasurementAnchors: item.metadata.validatedMeasurementAnchors || item.metadata.measurementAnchors,
+                layoutAnchors: item.metadata.layoutAnchors,
+              })), null, 2)}</pre>
+            </details>
           </div>
-        )}
+        </details>
+      </div>
+    )}
         <details open={compositionQaOpen} onToggle={(event) => setCompositionQaOpen(event.currentTarget.open)}>
           <summary className="cursor-pointer font-medium">Composition QA</summary>
           <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify({
