@@ -689,7 +689,7 @@ const applyCategoryAwareComposition = (items: RenderItem[]) => {
 
 const getCompositionMetrics = (items: RenderItem[], selectedLayoutTemplate: string): CompositionMetrics => {
   const keyFor = (item: RenderItem, index: number) => `${item.visualCategory}-${item.garment?.name || item.garment?.id || index}`;
-  const entries = items.map((item, index) => ({ key: keyFor(item, index), item, bounds: getItemVisualBounds(item.style) }));
+  const entries = items.map((item, index) => ({ key: keyFor(item, index), item, bounds: getItemVisualBounds(item.style, item.garment?.image_analysis) }));
   const garmentCenters = Object.fromEntries(entries.map(({ key, bounds }) => [key, bounds.center]));
   const garmentBounds = Object.fromEntries(entries.map(({ key, bounds }) => [key, bounds]));
   const core = entries.filter(({ item }) => ["outerwear", "dresses", "tops", "bottoms"].includes(item.visualCategory));
