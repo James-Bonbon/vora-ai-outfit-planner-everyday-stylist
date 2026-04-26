@@ -1,4 +1,5 @@
-import { render, type RenderResult } from "@testing-library/react";
+import { act } from "react-dom/test-utils";
+import { createRoot } from "react-dom/client";
 import { describe, expect, it } from "vitest";
 import OutfitCollage from "@/components/wardrobe/OutfitCollage";
 
@@ -62,19 +63,33 @@ const makeDress = (upperBodyFitWidth: number) => ({
   },
 });
 
-const getDressWidth = (view: RenderResult) => Number(view.getByAltText("Asymmetric black dress").style.width.replace("%", ""));
+const renderCollage = (upperBodyFitWidth: number) => {
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  act(() => root.render(<OutfitCollage garments={[coat, makeDress(upperBodyFitWidth)]} debugAnchors />));
+  return { container, root };
+};
+
+const getDressWidth = (container: HTMLElement) => {
+  const image = container.querySelector('img[alt="Asymmetric black dress"]') as HTMLImageElement | null;
+  return Number(image?.style.width.replace("%", ""));
+};
 
 describe("OutfitCollage calibrated fit sizing", () => {
   it("uses human anchors over stale layout anchors and expands the dress box for smaller calibrated fit widths", () => {
-    const wide = render(<OutfitCollage garments={[coat, makeDress(420)]} debugAnchors />);
-    const wideDressWidth = getDressWidth(wide);
-    wide.unmount();
+    const wide = renderCollage(420);
+    const wideDressWidth = getDressWidth(wide.container);
+    act(() => wide.root.unmount());
+    wide.container.remove();
 
-    const narrow = render(<OutfitCollage garments={[coat, makeDress(260)]} debugAnchors />);
-    const narrowDressWidth = getDressWidth(narrow);
+    const narrow = renderCollage(260);
+    const narrowDressWidth = getDressWidth(narrow.container);
 
     expect(narrowDressWidth).toBeGreaterThan(wideDressWidth);
-    expect(narrow.getAllByText("source: human").length).toBeGreaterThan(0);
-    expect(narrow.getByText(/final dress\/coat fit ratio: 0\.90/)).toBeInTheDocument();
+    expect(narrow.container.textContent).toContain("source: human");
+    expect(narrow.container.textContent).toContain("final dress/coat fit ratio: 0.90");
+    act(() => narrow.root.unmount());
+    narrow.container.remove();
   });
 });
