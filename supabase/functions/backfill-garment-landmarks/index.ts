@@ -239,7 +239,7 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
     return next;
   }
 
-  if (left && right && rawRatio >= measurementMinRatio && rawRatio <= measurementMaxRatio && (originalConfidence ?? 0) >= 0.5) {
+  if (!next.validatedMeasurementAnchors?.upperFit && left && right && rawRatio >= measurementMinRatio && rawRatio <= measurementMaxRatio && (originalConfidence ?? 0) >= 0.5) {
     next.validatedMeasurementAnchors = {
       ...(next.validatedMeasurementAnchors || {}),
       upperFit: {
