@@ -538,15 +538,21 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
   let coatRenderedWidth = renderItems.find((item) => item.visualCategory === "outerwear")?.renderedUpperWidth ?? null;
   let dressRenderedWidth = renderItems.find((item) => item.visualCategory === "dresses")?.renderedUpperWidth ?? null;
   let dressToCoatRatio = coatRenderedWidth && dressRenderedWidth ? dressRenderedWidth / coatRenderedWidth : null;
+  const targetDressToCoatRatio = 0.9;
+  const minimumDressToCoatRatio = 0.75;
 
-  if (hasOuterwear && hasDress && coatRenderedWidth && dressToCoatRatio !== null && (dressToCoatRatio < 0.85 || dressToCoatRatio > 0.95)) {
-    const targetDressRenderedFitWidth = coatRenderedWidth * 0.9;
+  if (hasOuterwear && hasDress && coatRenderedWidth && dressToCoatRatio !== null && dressToCoatRatio < targetDressToCoatRatio) {
+    const targetDressRenderedFitWidth = coatRenderedWidth * targetDressToCoatRatio;
+    const minimumDressRenderedFitWidth = coatRenderedWidth * minimumDressToCoatRatio;
     renderItems = renderItems.map((item) => {
       if (item.visualCategory !== "dresses" || !item.upperFitWidthRatio) return item;
-      const calculatedImageBoxWidth = targetDressRenderedFitWidth / item.upperFitWidthRatio;
-      const nextWidth = clamp(calculatedImageBoxWidth, 22, item.style.fitSource === "human" ? 166 : 124);
+      const requiredDressBoxWidth = targetDressRenderedFitWidth / item.upperFitWidthRatio;
+      const minimumRequiredDressBoxWidth = minimumDressRenderedFitWidth / item.upperFitWidthRatio;
+      const boxWidthBeforeClamp = Math.max(item.style.boxWidthPct, requiredDressBoxWidth);
+      const maxDressBoxWidth = Math.max(220, requiredDressBoxWidth, minimumRequiredDressBoxWidth);
+      const nextWidth = clamp(boxWidthBeforeClamp, minimumRequiredDressBoxWidth, maxDressBoxWidth);
       const scale = nextWidth / Math.max(item.style.boxWidthPct, 1);
-      const nextHeight = clamp(item.style.boxHeightPct * clamp(scale, 0.86, 1.28), 22, 104);
+      const nextHeight = clamp(item.style.boxHeightPct * clamp(scale, 0.86, 1.42), 22, 120);
       const finalRenderedFitWidth = item.upperFitWidthRatio * nextWidth;
       const nextStyle = {
         ...item.style,
@@ -555,8 +561,20 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
         boxWidthPct: nextWidth,
         boxHeightPct: nextHeight,
         targetRenderedFitWidth: targetDressRenderedFitWidth,
-        calculatedImageBoxWidth,
+        calculatedImageBoxWidth: requiredDressBoxWidth,
         finalRenderedFitWidth,
+        sizingDebug: {
+          ...item.style.sizingDebug,
+          upperFitSource: item.style.fitSource,
+          upperFitWidthRatio: item.upperFitWidthRatio,
+          targetDressToCoatRatio,
+          minimumDressToCoatRatio,
+          requiredDressBoxWidth,
+          minimumRequiredDressBoxWidth,
+          boxWidthBeforeClamp,
+          boxWidthAfterClamp: nextWidth,
+          finalRenderedFitWidth,
+        },
       };
       return { ...item, style: nextStyle, renderedUpperWidth: finalRenderedFitWidth };
     });
