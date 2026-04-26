@@ -39,48 +39,20 @@ type LayoutMetadata = {
   anchorSources?: Record<string, "ai" | "alpha_profile" | "alpha_estimate" | "ratio_guard" | string>;
   rawAiLandmarks?: any;
   validatedMeasurementAnchors?: {
-    upperFit?: {
-      leftUpperFitAnchor?: { x: number; y: number };
-      rightUpperFitAnchor?: { x: number; y: number };
-      upperBodyFitWidth?: number;
-      confidence?: number;
-      source?: string;
-      notes?: string;
-    };
-    waist?: {
-      leftWaistAnchor?: { x: number; y: number };
-      rightWaistAnchor?: { x: number; y: number };
-      waistWidth?: number;
-      confidence?: number;
-      source?: string;
-      notes?: string;
-    };
+    upperFit?: FitGroup;
+    waist?: FitGroup;
+    lowerHemFit?: FitGroup;
+    hipFit?: FitGroup;
+    lengthFit?: FitGroup;
   };
   measurementAnchors?: LayoutMetadata["validatedMeasurementAnchors"];
   layoutAnchors?: {
-    upperFit?: {
-      leftUpperFitAnchor?: { x: number; y: number };
-      rightUpperFitAnchor?: { x: number; y: number };
-      upperBodyFitWidth?: number;
-      confidence?: number;
-      source?: string;
-      normalizationReason?: string;
-      notes?: string;
-    };
-    waist?: {
-      leftWaistAnchor?: { x: number; y: number };
-      rightWaistAnchor?: { x: number; y: number };
-      waistFitWidth?: number;
-      confidence?: number;
-      source?: string;
-      notes?: string;
-    };
-    length?: {
-      confidence?: number;
-      source?: string;
-      notes?: string;
-      hemFitWidth?: number;
-    };
+    upperFit?: FitGroup;
+    waist?: FitGroup;
+    lowerHemFit?: FitGroup;
+    hipFit?: FitGroup;
+    lengthFit?: FitGroup;
+    length?: FitGroup;
   };
   bodyAnchors?: {
     leftShoulder?: { x: number; y: number };
@@ -90,6 +62,9 @@ type LayoutMetadata = {
     hemCenter?: { x: number; y: number };
   };
 };
+
+type FitGroup = Record<string, any> & { confidence?: number; source?: string; notes?: string; validationStatus?: string; failureReason?: string };
+type FitAnchorType = "upperFit" | "waist" | "lowerHemFit" | "hipFit" | "lengthFit";
 
 type NormalizedRenderStyle = CSSProperties & {
   boxWidthPct: number;
@@ -120,6 +95,8 @@ type NormalizedRenderStyle = CSSProperties & {
     boxHeightAfterClamp?: number | null;
     finalRenderedFitWidth?: number | null;
     renderedFitLineLength?: number | null;
+    relationshipRule?: string | null;
+    relationshipScale?: number | null;
   };
 };
 
@@ -345,9 +322,13 @@ const toRelativePoint = (point: { x: number; y: number } | undefined, analysis?:
 };
 
 const getPrioritizedUpperFit = (metadata: LayoutMetadata) => {
-  const validated = metadata.validatedMeasurementAnchors?.upperFit;
-  const measurement = metadata.measurementAnchors?.upperFit;
-  const layout = metadata.layoutAnchors?.upperFit;
+  return getPrioritizedFitGroup(metadata, "upperFit");
+};
+
+const getPrioritizedFitGroup = (metadata: LayoutMetadata, anchorType: FitAnchorType) => {
+  const validated = metadata.validatedMeasurementAnchors?.[anchorType];
+  const measurement = metadata.measurementAnchors?.[anchorType];
+  const layout = metadata.layoutAnchors?.[anchorType] || (anchorType === "lowerHemFit" ? metadata.layoutAnchors?.length : undefined);
   const human = [validated, measurement].find((group) => group?.source === "human");
   const ai = [validated, measurement].find((group) => group?.source === "ai");
   if (human) return { group: human, source: "human", isMeasurement: true };
@@ -356,6 +337,38 @@ const getPrioritizedUpperFit = (metadata: LayoutMetadata) => {
   if (layout?.source === "ratio_guard") return { group: layout, source: "ratio_guard", isMeasurement: false };
   if (layout) return { group: layout, source: layout.source || "fallback", isMeasurement: false };
   return null;
+};
+
+const getFitWidthFromGroup = (group: FitGroup | undefined, anchorType: FitAnchorType, analysis?: ImageAnalysis | null) => {
+  const widthKey: Record<FitAnchorType, string[]> = {
+    upperFit: ["upperBodyFitWidth"],
+    waist: ["waistFitWidth", "waistWidth"],
+    lowerHemFit: ["lowerHemFitWidth", "hemFitWidth"],
+    hipFit: ["hipFitWidth"],
+    lengthFit: ["lengthFitHeight"],
+  };
+  for (const key of widthKey[anchorType]) {
+    const ratio = widthToRatio(Number(group?.[key]), anchorType === "lengthFit" ? { imageWidth: analysis?.imageHeight } as ImageAnalysis : analysis);
+    if (ratio) return ratio;
+  }
+  const pair = getAnchorPairFromGroup(group, anchorType, analysis);
+  return pair?.width ?? null;
+};
+
+const getAnchorPairFromGroup = (group: FitGroup | undefined, anchorType: FitAnchorType, analysis?: ImageAnalysis | null) => {
+  const keys: Record<FitAnchorType, [string, string, string, string]> = {
+    upperFit: ["leftUpperFitAnchor", "rightUpperFitAnchor", "L upper", "R upper"],
+    waist: ["leftWaistAnchor", "rightWaistAnchor", "L waist", "R waist"],
+    lowerHemFit: ["leftLowerHemFitAnchor", "rightLowerHemFitAnchor", "L hem", "R hem"],
+    hipFit: ["leftHipFitAnchor", "rightHipFitAnchor", "L hip", "R hip"],
+    lengthFit: ["topLengthFitAnchor", "bottomLengthFitAnchor", "Top length", "Bottom length"],
+  };
+  const [leftKey, rightKey, leftLabel, rightLabel] = keys[anchorType];
+  const left = toRelativePoint(group?.[leftKey], analysis);
+  const right = toRelativePoint(group?.[rightKey], analysis);
+  if (!left || !right) return null;
+  const width = anchorType === "lengthFit" ? Math.abs(right.y - left.y) : Math.abs(right.x - left.x);
+  return width > 0.08 ? { left, right, width: clamp(width, 0.08, 1), leftLabel, rightLabel, fullLabel: `${leftKey} → ${rightKey}`, source: group?.source, confidence: group?.confidence, validationStatus: group?.validationStatus || (group?.source === "human" || group?.source === "ai" ? "validated" : "estimated") } : null;
 };
 
 const widthToRatio = (width: number, analysis?: ImageAnalysis | null) => {
@@ -375,33 +388,17 @@ const getUpperAnchorPair = (metadata: LayoutMetadata, analysis?: ImageAnalysis |
 
 const hasSufficientAnchorConfidence = (metadata: LayoutMetadata) => Number(metadata.confidence) >= 0.5;
 
+const getMeasurementPair = (metadata: LayoutMetadata, analysis: ImageAnalysis | null | undefined, anchorType: FitAnchorType, measurementsOnly = false) => {
+  const prioritized = getPrioritizedFitGroup(metadata, anchorType);
+  if (!prioritized?.group) return null;
+  if (measurementsOnly && (!prioritized.isMeasurement || !["ai", "human"].includes(String(prioritized.source)) || Number(prioritized.group.confidence) < 0.5)) return null;
+  return getAnchorPairFromGroup(prioritized.group, anchorType, analysis);
+};
+
 const getRealMeasurementPair = (metadata: LayoutMetadata, analysis: ImageAnalysis | null | undefined, visualCategory: VisualCategory) => {
-  const isUpperBodyGarment = ["outerwear", "dresses", "tops"].includes(visualCategory);
-  if (isUpperBodyGarment) {
-    const upperFit = getPrioritizedUpperFit(metadata)?.isMeasurement ? getPrioritizedUpperFit(metadata)!.group : null;
-    if (!upperFit || !["ai", "human"].includes(String(upperFit.source)) || Number(upperFit.confidence) < 0.5) return null;
-    const left = toRelativePoint(upperFit.leftUpperFitAnchor, analysis);
-    const right = toRelativePoint(upperFit.rightUpperFitAnchor, analysis);
-    if (!left || !right) return null;
-    const width = Math.abs(right.x - left.x);
-    return width > 0.08
-      ? { left, right, width: clamp(width, 0.08, 1), leftLabel: "L upper", rightLabel: "R upper", fullLabel: "leftUpperFitAnchor → rightUpperFitAnchor" }
-      : null;
-  }
-
-  if (visualCategory === "bottoms") {
-    const waist = metadata.validatedMeasurementAnchors?.waist || metadata.measurementAnchors?.waist;
-    if (!waist || !["ai", "human"].includes(String(waist.source)) || Number(waist.confidence) < 0.5) return null;
-    const left = toRelativePoint(waist.leftWaistAnchor, analysis);
-    const right = toRelativePoint(waist.rightWaistAnchor, analysis);
-    if (!left || !right) return null;
-    const width = Math.abs(right.x - left.x);
-    return width > 0.08
-      ? { left, right, width: clamp(width, 0.08, 1), leftLabel: "L waist", rightLabel: "R waist", fullLabel: "leftWaistAnchor → rightWaistAnchor" }
-      : null;
-  }
-
-  return null;
+  const defaultAnchor: Partial<Record<VisualCategory, FitAnchorType>> = { outerwear: "upperFit", dresses: "upperFit", tops: "upperFit", bottoms: "waist" };
+  const anchorType = defaultAnchor[visualCategory];
+  return anchorType ? getMeasurementPair(metadata, analysis, anchorType, true) : null;
 };
 
 const getUpperBodyWidthRatio = (metadata: LayoutMetadata, analysis?: ImageAnalysis | null) => {
@@ -617,12 +614,21 @@ const getCanvasDistance = (left: { x: number; y: number }, right: { x: number; y
 const getRenderedMeasurement = (item: RenderItem | undefined, groupNormalization: GroupNormalization) => {
   if (!item) return null;
   const measurementPair = getRealMeasurementPair(item.metadata, item.garment?.image_analysis, item.visualCategory);
+  return getRenderedAnchorMeasurement(item, groupNormalization, measurementPair);
+};
+
+const getRenderedAnchorMeasurement = (item: RenderItem | undefined, groupNormalization: GroupNormalization, measurementPair: ReturnType<typeof getAnchorPairFromGroup> | null) => {
+  if (!item) return null;
   if (!measurementPair) return null;
   const leftCanvas = mapMeasurementPointToCanvas(measurementPair.left, item.style, groupNormalization);
   const rightCanvas = mapMeasurementPointToCanvas(measurementPair.right, item.style, groupNormalization);
   const renderedFitLineLength = getCanvasDistance(leftCanvas, rightCanvas);
   return {
     localFitRatio: measurementPair.width,
+    anchorType: measurementPair.fullLabel,
+    source: measurementPair.source,
+    confidence: measurementPair.confidence,
+    validationStatus: measurementPair.validationStatus,
     sourceLeftAnchor: measurementPair.left,
     sourceRightAnchor: measurementPair.right,
     finalLeftAnchorCanvasPoint: { x: leftCanvas.x, y: leftCanvas.y },
@@ -630,6 +636,75 @@ const getRenderedMeasurement = (item: RenderItem | undefined, groupNormalization
     objectContainRect: leftCanvas.objectContainRect,
     renderedFitLineLength,
   };
+};
+
+const relationshipRules = [
+  { id: "top_bottom_lowerHem_to_waist", a: "tops", b: "bottoms", aAnchor: "lowerHemFit", fallbackAAnchor: "waist", bAnchor: "waist", target: [0.85, 1.1], oversizedMax: 1.25 },
+  { id: "outerwear_top_upperFit_to_upperFit", a: "outerwear", b: "tops", aAnchor: "upperFit", bAnchor: "upperFit", target: [1.05, 1.25] },
+  { id: "outerwear_dress_upperFit_to_upperFit", a: "dresses", b: "outerwear", aAnchor: "upperFit", bAnchor: "upperFit", target: [0.8, 0.95] },
+  { id: "dress_alone_upperFit_lengthFit", a: "dresses", b: null, aAnchor: "upperFit", bAnchor: "lengthFit", target: [0.8, 1.05] },
+] as const;
+
+const getSelectedRelationshipRule = (items: RenderItem[]) => {
+  const has = (category: VisualCategory) => items.some((item) => item.visualCategory === category);
+  if (has("tops") && has("bottoms")) return relationshipRules[0];
+  if (has("outerwear") && has("tops")) return relationshipRules[1];
+  if (has("outerwear") && has("dresses")) return relationshipRules[2];
+  if (has("dresses")) return relationshipRules[3];
+  return null;
+};
+
+const getRelationshipMetrics = (items: RenderItem[], groupNormalization: GroupNormalization) => {
+  const rule = getSelectedRelationshipRule(items);
+  if (!rule) return null;
+  const primary = items.find((item) => item.visualCategory === rule.a);
+  const secondary = rule.b ? items.find((item) => item.visualCategory === rule.b) : primary;
+  const primaryPair = primary ? getMeasurementPair(primary.metadata, primary.garment?.image_analysis, rule.aAnchor as FitAnchorType) || ("fallbackAAnchor" in rule ? getMeasurementPair(primary.metadata, primary.garment?.image_analysis, rule.fallbackAAnchor as FitAnchorType) : null) : null;
+  const secondaryAnchorType = (rule.bAnchor || "lengthFit") as FitAnchorType;
+  const secondaryPair = secondary ? getMeasurementPair(secondary.metadata, secondary.garment?.image_analysis, secondaryAnchorType) : null;
+  const primaryRendered = getRenderedAnchorMeasurement(primary, groupNormalization, primaryPair);
+  const secondaryRendered = getRenderedAnchorMeasurement(secondary, groupNormalization, secondaryPair);
+  const finalRatio = primaryRendered?.renderedFitLineLength && secondaryRendered?.renderedFitLineLength ? primaryRendered.renderedFitLineLength / secondaryRendered.renderedFitLineLength : null;
+  return {
+    selectedRelationshipRule: rule.id,
+    comparedAnchors: {
+      primary: { garment: primary?.garment?.name || primary?.visualCategory, category: primary?.visualCategory, anchor: primaryPair?.fullLabel || rule.aAnchor, source: primaryRendered?.source || null },
+      secondary: { garment: secondary?.garment?.name || secondary?.visualCategory, category: secondary?.visualCategory, anchor: secondaryPair?.fullLabel || secondaryAnchorType, source: secondaryRendered?.source || null },
+    },
+    renderedAnchorLineLengths: { primary: primaryRendered?.renderedFitLineLength ?? null, secondary: secondaryRendered?.renderedFitLineLength ?? null },
+    targetRatio: `${rule.target[0].toFixed(2)}–${rule.target[1].toFixed(2)}${"oversizedMax" in rule ? ` (oversized max ${rule.oversizedMax.toFixed(2)})` : ""}`,
+    finalRatio,
+    primaryRendered,
+    secondaryRendered,
+  };
+};
+
+const scaleRelationshipPrimaryToTarget = (items: RenderItem[], groupNormalization: GroupNormalization) => {
+  const metrics = getRelationshipMetrics(items, groupNormalization);
+  if (!metrics?.finalRatio) return items;
+  const rule = getSelectedRelationshipRule(items);
+  if (!rule || rule.id === "dress_alone_upperFit_lengthFit") return items;
+  const targetMid = (rule.target[0] + rule.target[1]) / 2;
+  const upperAllowed = "oversizedMax" in rule ? rule.oversizedMax : rule.target[1];
+  if (metrics.finalRatio >= rule.target[0] && metrics.finalRatio <= upperAllowed) return items;
+  const scale = clamp(targetMid / Math.max(metrics.finalRatio, 0.001), 0.72, 1.38);
+  return items.map((item) => {
+    if (item.visualCategory !== rule.a) return item;
+    const nextWidth = item.style.boxWidthPct * scale;
+    const nextHeight = item.style.boxHeightPct * scale;
+    return {
+      ...item,
+      style: {
+        ...item.style,
+        width: `${nextWidth}%`,
+        height: `${nextHeight}%`,
+        boxWidthPct: nextWidth,
+        boxHeightPct: nextHeight,
+        finalRenderedFitWidth: item.style.finalRenderedFitWidth ? item.style.finalRenderedFitWidth * scale : item.style.finalRenderedFitWidth,
+        sizingDebug: { ...item.style.sizingDebug, relationshipRule: rule.id, relationshipScale: scale, boxWidthAfterClamp: nextWidth, boxHeightAfterClamp: nextHeight } as any,
+      },
+    };
+  });
 };
 
 const getRenderedSizingMetrics = (items: RenderItem[], groupNormalization: GroupNormalization) => {
@@ -823,6 +898,9 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
   const minimumDressToCoatRatio = 0.75;
   let groupNormalization = normalizeOutfitGroup(renderItems);
   let renderedSizingMetrics = getRenderedSizingMetrics(renderItems, groupNormalization);
+  renderItems = scaleRelationshipPrimaryToTarget(renderItems, groupNormalization);
+  groupNormalization = normalizeOutfitGroup(renderItems);
+  renderedSizingMetrics = getRenderedSizingMetrics(renderItems, groupNormalization);
 
   if (hasOuterwear && hasDress && renderedSizingMetrics.coat?.renderedFitLineLength && renderedSizingMetrics.dress?.renderedFitLineLength && renderedSizingMetrics.ratio !== null && renderedSizingMetrics.ratio < targetDressToCoatRatio) {
     const targetDressRenderedFitLine = renderedSizingMetrics.coat.renderedFitLineLength * targetDressToCoatRatio;
@@ -876,6 +954,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
   renderItems = composition.items;
   groupNormalization = normalizeOutfitGroup(renderItems);
   renderedSizingMetrics = getRenderedSizingMetrics(renderItems, groupNormalization);
+  const relationshipDebug = getRelationshipMetrics(renderItems, groupNormalization);
   const compositionMetrics = getCompositionMetrics(renderItems, composition.template);
 
   const coatFitItem = renderItems.find((item) => item.visualCategory === "outerwear");
@@ -910,6 +989,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
     groupOccupancyHeightPct: groupNormalization.occupancyHeightPct,
     safePaddingPct: groupNormalization.safePaddingPct,
     passFailBasis: "rendered fit line only",
+    relationshipModel: relationshipDebug,
     coatRenderedMeasurement: renderedSizingMetrics.coat,
     dressRenderedMeasurement: renderedSizingMetrics.dress,
   };
@@ -1040,17 +1120,25 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
           <summary className="cursor-pointer font-medium">Sizing engine QA</summary>
           <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify(sizingEngineDebug, null, 2)}</pre>
         </details>
+        <details open>
+          <summary className="cursor-pointer font-medium">Relationship QA</summary>
+          <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify(relationshipDebug, null, 2)}</pre>
+        </details>
         <details>
           <summary className="cursor-pointer font-medium">Garment fit QA</summary>
           <pre className="mt-1 max-h-52 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify(renderItems.map((item) => {
             const metadata = item.metadata;
             const measurementPair = getRealMeasurementPair(metadata, item.garment?.image_analysis, item.visualCategory);
             const prioritizedUpperFit = getPrioritizedUpperFit(metadata);
-            const layoutGroup = metadata.layoutAnchors?.upperFit || metadata.layoutAnchors?.waist || metadata.layoutAnchors?.length;
+            const layoutGroup = metadata.layoutAnchors?.upperFit || metadata.layoutAnchors?.waist || metadata.layoutAnchors?.lowerHemFit || metadata.layoutAnchors?.lengthFit || metadata.layoutAnchors?.length;
             const fitSource = prioritizedUpperFit?.source || (measurementPair ? ((metadata.validatedMeasurementAnchors?.waist || metadata.measurementAnchors?.waist) as any)?.source : layoutGroup?.source) || item.style.fitSource || "fallback";
             return {
               garment: item.garment?.name || item.garment?.category,
               source: fitSource,
+              anchorGroups: (["upperFit", "waist", "lowerHemFit", "hipFit", "lengthFit"] as FitAnchorType[]).map((anchorType) => {
+                const group = getPrioritizedFitGroup(metadata, anchorType);
+                return { anchorType, source: group?.source || null, confidence: group?.group?.confidence ?? null, validationStatus: group?.group?.validationStatus || (group?.isMeasurement ? "validated" : group ? "estimated" : null), failureReason: group?.group?.failureReason || null, widthRatio: getFitWidthFromGroup(group?.group, anchorType, item.garment?.image_analysis) };
+              }),
               measuredWidthSpace: "source_image_or_calibrated_anchor_space_not_rotated_screen_space",
               anchorMapping: "source image coordinates → normalized image coordinates → object-contain rendered box coordinates → shared garment wrapper transform",
               calibratedUpperFitWidth: prioritizedUpperFit?.group?.upperBodyFitWidth ?? null,
