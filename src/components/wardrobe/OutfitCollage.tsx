@@ -332,10 +332,10 @@ const getPrioritizedFitGroup = (metadata: LayoutMetadata, anchorType: FitAnchorT
   const measurement = metadata.measurementAnchors?.[anchorType];
   const layout = metadata.layoutAnchors?.[anchorType] || (anchorType === "lowerHemFit" ? metadata.layoutAnchors?.length : undefined);
   const human = [validated, measurement].find((group) => group?.source === "human");
-  const ai = [validated, measurement].find((group) => group?.source === "ai");
+  const ai = [validated, measurement].find((group) => group?.source === "ai" && group.validationStatus !== "failed" && Number(group.confidence) >= 0.5);
   if (human) return { group: human, source: "human", isMeasurement: true };
   if (ai) return { group: ai, source: "ai", isMeasurement: true };
-  if (layout?.source === "alpha_profile") return { group: layout, source: "alpha_profile", isMeasurement: false };
+  if (layout?.source === "alpha_profile" && layout.validationStatus !== "failed" && Number(layout.confidence) >= 0.5) return { group: layout, source: "alpha_profile", isMeasurement: true };
   if (layout?.source === "ratio_guard") return { group: layout, source: "ratio_guard", isMeasurement: false };
   if (layout) return { group: layout, source: layout.source || "fallback", isMeasurement: false };
   return null;
@@ -393,7 +393,7 @@ const hasSufficientAnchorConfidence = (metadata: LayoutMetadata) => Number(metad
 const getMeasurementPair = (metadata: LayoutMetadata, analysis: ImageAnalysis | null | undefined, anchorType: FitAnchorType, measurementsOnly = false) => {
   const prioritized = getPrioritizedFitGroup(metadata, anchorType);
   if (!prioritized?.group) return null;
-  if (measurementsOnly && (!prioritized.isMeasurement || !["ai", "human"].includes(String(prioritized.source)) || Number(prioritized.group.confidence) < 0.5)) return null;
+  if (measurementsOnly && (!prioritized.isMeasurement || !["ai", "human", "alpha_profile"].includes(String(prioritized.source)) || Number(prioritized.group.confidence) < 0.5)) return null;
   return getAnchorPairFromGroup(prioritized.group, anchorType, analysis);
 };
 
@@ -404,7 +404,8 @@ const getRealMeasurementPair = (metadata: LayoutMetadata, analysis: ImageAnalysi
 };
 
 const getUpperBodyWidthRatio = (metadata: LayoutMetadata, analysis?: ImageAnalysis | null) => {
-  const prioritizedFit = getPrioritizedUpperFit(metadata)?.group;
+  const prioritized = getPrioritizedUpperFit(metadata);
+  const prioritizedFit = prioritized?.source === "ratio_guard" ? null : prioritized?.group;
   const prioritizedWidth = Number(prioritizedFit?.upperBodyFitWidth);
   const prioritizedRatio = widthToRatio(prioritizedWidth, analysis);
   if (prioritizedRatio) return prioritizedRatio;
