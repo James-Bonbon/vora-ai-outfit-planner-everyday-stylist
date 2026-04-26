@@ -583,6 +583,23 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
     dressToCoatRatio = coatRenderedWidth && dressRenderedWidth ? dressRenderedWidth / coatRenderedWidth : null;
   }
 
+  const coatFitItem = renderItems.find((item) => item.visualCategory === "outerwear");
+  const dressFitItem = renderItems.find((item) => item.visualCategory === "dresses");
+  const sizingEngineDebug = {
+    coatUpperFitSource: coatFitItem?.style.sizingDebug?.upperFitSource || coatFitItem?.style.fitSource || null,
+    dressUpperFitSource: dressFitItem?.style.sizingDebug?.upperFitSource || dressFitItem?.style.fitSource || null,
+    coatUpperFitWidthRatio: coatFitItem?.style.upperFitWidthRatio ?? null,
+    dressUpperFitWidthRatio: dressFitItem?.style.upperFitWidthRatio ?? null,
+    targetDressToCoatRatio,
+    minimumDressToCoatRatio,
+    requiredDressBoxWidth: dressFitItem?.style.sizingDebug?.requiredDressBoxWidth ?? dressFitItem?.style.calculatedImageBoxWidth ?? null,
+    boxWidthBeforeClamp: dressFitItem?.style.sizingDebug?.boxWidthBeforeClamp ?? null,
+    boxWidthAfterClamp: dressFitItem?.style.sizingDebug?.boxWidthAfterClamp ?? dressFitItem?.style.boxWidthPct ?? null,
+    finalRenderedCoatFitWidth: coatRenderedWidth,
+    finalRenderedDressFitWidth: dressRenderedWidth,
+    finalRenderedRatio: dressToCoatRatio,
+  };
+
   const groupNormalization = normalizeOutfitGroup(renderItems);
   const groupTransform = `translate(${groupNormalization.translateX}%, ${groupNormalization.translateY}%) scale(${groupNormalization.scale})`;
 
