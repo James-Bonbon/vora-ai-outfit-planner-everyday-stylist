@@ -65,11 +65,17 @@ const calculateVisibleAlphaBounds = (bytes: Uint8Array) => {
   const alphaProfileRows = Array.from({ length: height }, () => 0);
   const alphaProfileColumns = Array.from({ length: width }, () => 0);
   const alphaRowExtents = Array.from({ length: height }, () => null as { left: number; right: number } | null);
+  const maskWidth = 128;
+  const maskHeight = 128;
+  const maskCells = new Uint8Array(maskWidth * maskHeight);
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const alpha = rgba[(y * width + x) * 4 + 3];
       if (alpha > 10) {
+        const mx = Math.min(maskWidth - 1, Math.floor((x / width) * maskWidth));
+        const my = Math.min(maskHeight - 1, Math.floor((y / height) * maskHeight));
+        maskCells[my * maskWidth + mx] = 1;
         alphaProfileRows[y] += 1;
         alphaProfileColumns[x] += 1;
         alphaRowExtents[y] = alphaRowExtents[y]
@@ -82,6 +88,7 @@ const calculateVisibleAlphaBounds = (bytes: Uint8Array) => {
       }
     }
   }
+  const alphaMask = { width: maskWidth, height: maskHeight, threshold: 10, data: Array.from(maskCells, (value) => value ? "1" : "0").join("") };
 
   if (maxX < minX || maxY < minY) {
     return {
@@ -97,6 +104,7 @@ const calculateVisibleAlphaBounds = (bytes: Uint8Array) => {
       alphaProfileRows,
       alphaProfileColumns,
       alphaRowExtents,
+      alphaMask,
       centerline: { x: width / 2, y: height / 2 },
       visibleExtents: { top: 0, bottom: height - 1, left: 0, right: width - 1 },
     };
@@ -117,6 +125,7 @@ const calculateVisibleAlphaBounds = (bytes: Uint8Array) => {
     alphaProfileRows,
     alphaProfileColumns,
     alphaRowExtents,
+    alphaMask,
     centerline: { x: minX + visibleWidth / 2, y: minY + visibleHeight / 2 },
     visibleExtents: { top: minY, bottom: maxY, left: minX, right: maxX },
   };
