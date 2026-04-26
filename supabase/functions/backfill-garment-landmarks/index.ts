@@ -143,6 +143,47 @@ const normalizePoint = (point: any, analysis: any) => {
   };
 };
 
+const maskHit = (analysis: any, x: number, y: number, radiusPx = 10) => {
+  const mask = analysis?.alphaMask;
+  if (mask?.width && mask?.height && mask.data) {
+    const mx = Math.max(0, Math.min(mask.width - 1, Math.round((x / analysis.imageWidth) * (mask.width - 1))));
+    const my = Math.max(0, Math.min(mask.height - 1, Math.round((y / analysis.imageHeight) * (mask.height - 1))));
+    const rx = Math.max(1, Math.ceil((radiusPx / analysis.imageWidth) * mask.width));
+    const ry = Math.max(1, Math.ceil((radiusPx / analysis.imageHeight) * mask.height));
+    for (let yy = my - ry; yy <= my + ry; yy++) for (let xx = mx - rx; xx <= mx + rx; xx++) {
+      if (xx >= 0 && yy >= 0 && xx < mask.width && yy < mask.height && mask.data[yy * mask.width + xx] === "1") return true;
+    }
+    return false;
+  }
+  const extent = analysis?.alphaRowExtents?.[Math.round(y)];
+  return Boolean(extent && x >= extent.left - radiusPx && x <= extent.right + radiusPx);
+};
+
+const pairCoverage = (left: any, right: any, analysis: any) => {
+  let hits = 0;
+  const samples = 24;
+  for (let i = 0; i <= samples; i++) {
+    const t = i / samples;
+    if (maskHit(analysis, left.x + (right.x - left.x) * t, left.y + (right.y - left.y) * t, 8)) hits += 1;
+  }
+  return hits / (samples + 1);
+};
+
+const validateAnchorPair = (left: any, right: any, analysis: any, minRatio: number, maxRatio: number, minY: number, maxY: number) => {
+  const reasons: string[] = [];
+  if (!left || !right) return { valid: false, reasons: ["missing_required_anchor"], coverage: 0 };
+  const b = analysis.visibleAlphaBounds;
+  const inside = (p: any) => p.x >= b.x && p.x <= b.x + b.width && p.y >= b.y && p.y <= b.y + b.height;
+  if (!inside(left) || !inside(right) || !maskHit(analysis, left.x, left.y) || !maskHit(analysis, right.x, right.y)) reasons.push("anchor_point_not_on_garment");
+  const coverage = pairCoverage(left, right, analysis);
+  if (coverage < 0.42) reasons.push("line_crosses_empty_space");
+  const ratio = Math.abs(right.x - left.x) / Math.max(analysis.imageWidth, 1);
+  if (ratio < minRatio || ratio > maxRatio) reasons.push("width_out_of_range");
+  const yRatio = (((left.y + right.y) / 2) - b.y) / Math.max(b.height, 1);
+  if (yRatio < minY || yRatio > maxY) reasons.push("implausible_y_position");
+  return { valid: reasons.length === 0, reasons, coverage };
+};
+
 const scanAlphaBand = (analysis: any, startPct: number, endPct: number, minRatio: number, maxRatio: number, mode: "upper" | "waist" | "hem") => {
   if (!analysis?.imageWidth || !analysis?.visibleAlphaBounds || !Array.isArray(analysis.alphaProfileRows)) return null;
   const b = analysis.visibleAlphaBounds;
