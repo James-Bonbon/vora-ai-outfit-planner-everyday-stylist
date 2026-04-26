@@ -141,6 +141,10 @@ type GroupNormalization = {
   translateX: number;
   translateY: number;
   scale: number;
+  safePaddingPct: number;
+  targetOccupancyPct: number;
+  occupancyWidthPct: number;
+  occupancyHeightPct: number;
 };
 
 type ItemBounds = { left: number; top: number; right: number; bottom: number; width: number; height: number; center: { x: number; y: number } };
@@ -468,16 +472,20 @@ const getNormalizedStyle = ({
   };
 };
 
-const getItemVisualBounds = (style: NormalizedRenderStyle): ItemBounds => {
+const getItemVisualBounds = (style: NormalizedRenderStyle, analysis?: ImageAnalysis | null, visualCategory?: VisualCategory): ItemBounds => {
   const left = Number.parseFloat(String(style.left ?? 0));
   const top = Number.parseFloat(String(style.top ?? 0));
   const translatedLeft = left + (style.offsetXPct / 100) * style.boxWidthPct;
   const translatedTop = top + (style.offsetYPct / 100) * style.boxHeightPct;
   const imageRect = getObjectContainRect(style.boxWidthPct, style.boxHeightPct, style.imageRatio);
-  const imageLeft = translatedLeft + (imageRect.left / 100) * style.boxWidthPct;
-  const imageTop = translatedTop + (imageRect.top / 100) * style.boxHeightPct;
-  const imageWidth = (imageRect.width / 100) * style.boxWidthPct;
-  const imageHeight = (imageRect.height / 100) * style.boxHeightPct;
+  const visibleLeftRatio = analysis?.imageWidth && analysis?.visibleWidth ? clamp((analysis.visibleX ?? 0) / analysis.imageWidth, 0, 1) : 0;
+  const visibleTopRatio = analysis?.imageHeight && analysis?.visibleHeight ? clamp((analysis.visibleY ?? 0) / analysis.imageHeight, 0, 1) : 0;
+  const visibleWidthRatio = analysis?.imageWidth && analysis?.visibleWidth ? clamp(analysis.visibleWidth / analysis.imageWidth, 0.05, 1) : 1;
+  const visibleHeightRatio = analysis?.imageHeight && analysis?.visibleHeight ? clamp(analysis.visibleHeight / analysis.imageHeight, 0.05, 1) : 1;
+  const imageLeft = translatedLeft + ((imageRect.left + visibleLeftRatio * imageRect.width) / 100) * style.boxWidthPct;
+  const imageTop = translatedTop + ((imageRect.top + visibleTopRatio * imageRect.height) / 100) * style.boxHeightPct;
+  const imageWidth = ((imageRect.width * visibleWidthRatio) / 100) * style.boxWidthPct;
+  const imageHeight = ((imageRect.height * visibleHeightRatio) / 100) * style.boxHeightPct;
   const center = { x: translatedLeft + style.boxWidthPct / 2, y: translatedTop + style.boxHeightPct / 2 };
   const corners = [
     { x: imageLeft, y: imageTop },
@@ -485,18 +493,31 @@ const getItemVisualBounds = (style: NormalizedRenderStyle): ItemBounds => {
     { x: imageLeft + imageWidth, y: imageTop + imageHeight },
     { x: imageLeft, y: imageTop + imageHeight },
   ].map((point) => rotateCanvasPoint(point, center, style.rotationDeg));
-  const box = corners.reduce(
+  const rawBox = corners.reduce(
     (acc, point) => ({ left: Math.min(acc.left, point.x), top: Math.min(acc.top, point.y), right: Math.max(acc.right, point.x), bottom: Math.max(acc.bottom, point.y) }),
     { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity }
   );
+  const categoryWidthFactor = visualCategory === "dresses" ? 0.46 : visualCategory === "outerwear" ? 0.62 : 1;
+  const categoryHeightFactor = visualCategory === "dresses" ? 0.9 : visualCategory === "outerwear" ? 0.86 : 1;
+  const rawWidth = rawBox.right - rawBox.left;
+  const rawHeight = rawBox.bottom - rawBox.top;
+  const rawCenter = { x: (rawBox.left + rawBox.right) / 2, y: (rawBox.top + rawBox.bottom) / 2 };
+  const box = {
+    left: rawCenter.x - (rawWidth * categoryWidthFactor) / 2,
+    right: rawCenter.x + (rawWidth * categoryWidthFactor) / 2,
+    top: rawCenter.y - (rawHeight * categoryHeightFactor) / 2,
+    bottom: rawCenter.y + (rawHeight * categoryHeightFactor) / 2,
+  };
   return { ...box, width: box.right - box.left, height: box.bottom - box.top, center: { x: (box.left + box.right) / 2, y: (box.top + box.bottom) / 2 } };
 };
 
 const normalizeOutfitGroup = (items: Array<{ style: NormalizedRenderStyle }>): GroupNormalization => {
   const canvasCenter = { x: 50, y: 50 };
-  if (!items.length) return { canvasCenter, boundingBox: null, groupCenter: null, translateX: 0, translateY: 0, scale: 1 };
+  const safePaddingPct = 9;
+  const targetOccupancyPct = items.length <= 2 ? 78 : items.length <= 4 ? 80 : 82;
+  if (!items.length) return { canvasCenter, boundingBox: null, groupCenter: null, translateX: 0, translateY: 0, scale: 1, safePaddingPct, targetOccupancyPct, occupancyWidthPct: 0, occupancyHeightPct: 0 };
 
-  const boxes = items.map(({ style }) => getItemVisualBounds(style));
+  const boxes = items.map(({ style, garment, visualCategory }: { style: NormalizedRenderStyle; garment?: any; visualCategory?: VisualCategory }) => getItemVisualBounds(style, garment?.image_analysis, visualCategory));
 
   const rawBox = boxes.reduce(
     (acc, box) => ({
@@ -509,11 +530,16 @@ const normalizeOutfitGroup = (items: Array<{ style: NormalizedRenderStyle }>): G
   );
   const boundingBox = { ...rawBox, width: rawBox.right - rawBox.left, height: rawBox.bottom - rawBox.top };
   const groupCenter = { x: boundingBox.left + boundingBox.width / 2, y: boundingBox.top + boundingBox.height / 2 };
-  const targetOccupancy = items.length <= 2 ? 0.82 : items.length <= 4 ? 0.84 : 0.86;
-  const safeCanvas = 100 - 20;
-  const targetWidth = safeCanvas * targetOccupancy;
-  const targetHeight = safeCanvas * targetOccupancy;
-  const scale = clamp(Math.min(targetWidth / Math.max(boundingBox.width, 1), targetHeight / Math.max(boundingBox.height, 1), 1), 0.04, 1);
+  const safeCanvasPct = 100 - safePaddingPct * 2;
+  const scale = clamp(
+    Math.min(
+      targetOccupancyPct / Math.max(boundingBox.width, boundingBox.height, 1),
+      safeCanvasPct / Math.max(boundingBox.width, 1),
+      safeCanvasPct / Math.max(boundingBox.height, 1)
+    ),
+    0.04,
+    8
+  );
   return {
     canvasCenter,
     boundingBox,
@@ -521,6 +547,10 @@ const normalizeOutfitGroup = (items: Array<{ style: NormalizedRenderStyle }>): G
     translateX: canvasCenter.x - groupCenter.x * scale,
     translateY: canvasCenter.y - groupCenter.y * scale,
     scale,
+    safePaddingPct,
+    targetOccupancyPct,
+    occupancyWidthPct: boundingBox.width * scale,
+    occupancyHeightPct: boundingBox.height * scale,
   };
 };
 
@@ -589,7 +619,7 @@ const getTransformedGroupBounds = (boundingBox: GroupNormalization["boundingBox"
 };
 
 const withVisualCenter = (item: RenderItem, targetCenter: { x: number; y: number }): RenderItem => {
-  const bounds = getItemVisualBounds(item.style);
+  const bounds = getItemVisualBounds(item.style, item.garment?.image_analysis, item.visualCategory);
   const dx = targetCenter.x - bounds.center.x;
   const dy = targetCenter.y - bounds.center.y;
   const nextLeft = Number.parseFloat(String(item.style.left ?? 0)) + dx;
@@ -599,7 +629,7 @@ const withVisualCenter = (item: RenderItem, targetCenter: { x: number; y: number
 
 const getLayoutTemplate = (items: RenderItem[]) => {
   const hasCategory = (category: VisualCategory) => items.some((item) => item.visualCategory === category);
-  if (hasCategory("dresses") && hasCategory("outerwear")) return "dress + outerwear overlap";
+  if (hasCategory("dresses") && hasCategory("outerwear")) return "diagonal_stack";
   if (hasCategory("tops") && hasCategory("bottoms") && hasCategory("outerwear")) return "top + bottom + outerwear stacked overlap";
   if (hasCategory("tops") && hasCategory("bottoms")) return "top + bottom vertical overlap";
   if (hasCategory("dresses")) return "dress alone centered";
@@ -618,29 +648,45 @@ const applyCategoryAwareComposition = (items: RenderItem[]) => {
   const top = nextItems.find((item) => item.visualCategory === "tops");
   const bottom = nextItems.find((item) => item.visualCategory === "bottoms");
 
-  if (template === "dress + outerwear overlap" && dress && coat) {
-    updateItem(dress, { x: 52, y: 52 });
-    const movedDress = nextItems.find((item) => item.garment === dress.garment) || dress;
-    const dressBounds = getItemVisualBounds(movedDress.style);
-    const coatBounds = getItemVisualBounds((nextItems.find((item) => item.garment === coat.garment) || coat).style);
+  if (template === "diagonal_stack" && dress && coat) {
+    nextItems = nextItems.map((item) => {
+      if (item === coat) return { ...item, style: { ...item.style, zIndex: 10, rotationDeg: -4, transform: `translate(${item.style.offsetXPct}%, ${item.style.offsetYPct}%) rotate(-4deg)` } };
+      if (item === dress) return { ...item, style: { ...item.style, zIndex: 20, rotationDeg: 3, transform: `translate(${item.style.offsetXPct}%, ${item.style.offsetYPct}%) rotate(3deg)` } };
+      return item;
+    });
+    const styledCoat = nextItems.find((item) => item.garment === coat.garment) || coat;
+    updateItem(styledCoat, { x: 47, y: 47 });
+    const movedCoat = nextItems.find((item) => item.garment === coat.garment) || styledCoat;
+    const coatBounds = getItemVisualBounds(movedCoat.style, movedCoat.garment?.image_analysis, movedCoat.visualCategory);
+    const currentDress = nextItems.find((item) => item.garment === dress.garment) || dress;
+    const dressBounds = getItemVisualBounds(currentDress.style, currentDress.garment?.image_analysis, currentDress.visualCategory);
     const smallerWidth = Math.min(dressBounds.width, coatBounds.width);
-    const targetOverlap = smallerWidth * 0.38;
-    const desiredCenterDistance = Math.max(coatBounds.width * 0.18, (dressBounds.width + coatBounds.width) / 2 - targetOverlap);
-    updateItem(coat, {
-      x: dressBounds.center.x - desiredCenterDistance,
-      y: dressBounds.center.y - coatBounds.height * 0.03,
+    const targetOverlap = smallerWidth * 0.45;
+    const centerDistanceX = Math.max(8, (dressBounds.width + coatBounds.width) / 2 - targetOverlap);
+    updateItem(dress, {
+      x: coatBounds.center.x + centerDistanceX,
+      y: coatBounds.center.y + coatBounds.height * 0.12,
+    });
+    const placedDress = nextItems.find((item) => item.garment === dress.garment) || dress;
+    const placedDressBounds = getItemVisualBounds(placedDress.style, placedDress.garment?.image_analysis, placedDress.visualCategory);
+    const overlapCorrectedDressCenterX = placedDressBounds.center.x + (coatBounds.right - targetOverlap - placedDressBounds.left);
+    updateItem(placedDress, {
+      x: overlapCorrectedDressCenterX,
+      y: coatBounds.center.y + coatBounds.height * 0.12,
     });
   } else if ((template === "top + bottom vertical overlap" || template === "top + bottom + outerwear stacked overlap") && top && bottom) {
     updateItem(bottom, { x: 51, y: 61 });
     const movedBottom = nextItems.find((item) => item.garment === bottom.garment) || bottom;
-    const bottomBounds = getItemVisualBounds(movedBottom.style);
-    const topBounds = getItemVisualBounds((nextItems.find((item) => item.garment === top.garment) || top).style);
+    const bottomBounds = getItemVisualBounds(movedBottom.style, movedBottom.garment?.image_analysis, movedBottom.visualCategory);
+    const currentTop = nextItems.find((item) => item.garment === top.garment) || top;
+    const topBounds = getItemVisualBounds(currentTop.style, currentTop.garment?.image_analysis, currentTop.visualCategory);
     const verticalOverlap = Math.min(topBounds.height, bottomBounds.height) * 0.14;
     updateItem(top, { x: bottomBounds.center.x - bottomBounds.width * 0.03, y: bottomBounds.center.y - (topBounds.height + bottomBounds.height) / 2 + verticalOverlap });
     if (coat) {
       const movedTop = nextItems.find((item) => item.garment === top.garment) || top;
-      const combinedCenter = { x: (getItemVisualBounds(movedTop.style).center.x + bottomBounds.center.x) / 2, y: (getItemVisualBounds(movedTop.style).center.y + bottomBounds.center.y) / 2 };
-      const coatBounds = getItemVisualBounds(coat.style);
+      const movedTopBounds = getItemVisualBounds(movedTop.style, movedTop.garment?.image_analysis, movedTop.visualCategory);
+      const combinedCenter = { x: (movedTopBounds.center.x + bottomBounds.center.x) / 2, y: (movedTopBounds.center.y + bottomBounds.center.y) / 2 };
+      const coatBounds = getItemVisualBounds(coat.style, coat.garment?.image_analysis, coat.visualCategory);
       updateItem(coat, { x: combinedCenter.x - coatBounds.width * 0.22, y: combinedCenter.y - coatBounds.height * 0.02 });
     }
   } else if (template === "dress alone centered" && dress) {
@@ -654,7 +700,7 @@ const applyCategoryAwareComposition = (items: RenderItem[]) => {
 
 const getCompositionMetrics = (items: RenderItem[], selectedLayoutTemplate: string): CompositionMetrics => {
   const keyFor = (item: RenderItem, index: number) => `${item.visualCategory}-${item.garment?.name || item.garment?.id || index}`;
-  const entries = items.map((item, index) => ({ key: keyFor(item, index), item, bounds: getItemVisualBounds(item.style) }));
+  const entries = items.map((item, index) => ({ key: keyFor(item, index), item, bounds: getItemVisualBounds(item.style, item.garment?.image_analysis, item.visualCategory) }));
   const garmentCenters = Object.fromEntries(entries.map(({ key, bounds }) => [key, bounds.center]));
   const garmentBounds = Object.fromEntries(entries.map(({ key, bounds }) => [key, bounds]));
   const core = entries.filter(({ item }) => ["outerwear", "dresses", "tops", "bottoms"].includes(item.visualCategory));
@@ -817,6 +863,9 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
     transformedGroupBounds,
     finalGroupScale: groupNormalization.scale,
     finalGroupTranslate: { x: groupNormalization.translateX, y: groupNormalization.translateY },
+    groupOccupancyWidthPct: groupNormalization.occupancyWidthPct,
+    groupOccupancyHeightPct: groupNormalization.occupancyHeightPct,
+    safePaddingPct: groupNormalization.safePaddingPct,
     passFailBasis: "rendered fit line only",
     coatRenderedMeasurement: renderedSizingMetrics.coat,
     dressRenderedMeasurement: renderedSizingMetrics.dress,
@@ -937,6 +986,9 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
             finalTranslateX: groupNormalization.translateX,
             finalTranslateY: groupNormalization.translateY,
             finalGroupScale: groupNormalization.scale,
+            groupOccupancyWidthPct: groupNormalization.occupancyWidthPct,
+            groupOccupancyHeightPct: groupNormalization.occupancyHeightPct,
+            safePaddingPct: groupNormalization.safePaddingPct,
             boundingBoxIncludes: "garment visual boxes and measurement overlay only; labels and below-canvas panels excluded",
             ...compositionMetrics,
           }, null, 2)}</pre>
