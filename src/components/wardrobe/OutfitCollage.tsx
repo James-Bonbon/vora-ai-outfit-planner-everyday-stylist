@@ -731,6 +731,19 @@ const getCompositionMetrics = (items: RenderItem[], selectedLayoutTemplate: stri
   const entries = items.map((item, index) => ({ key: keyFor(item, index), item, bounds: getItemVisualBounds(item.style, item.garment?.image_analysis, item.visualCategory) }));
   const garmentCenters = Object.fromEntries(entries.map(({ key, bounds }) => [key, bounds.center]));
   const garmentBounds = Object.fromEntries(entries.map(({ key, bounds }) => [key, bounds]));
+  const garmentZoneAssignments = entries.map(({ item, bounds }) => {
+    const assignedZone = getAssignedZone(item.visualCategory);
+    const zone = fourZoneRects[assignedZone];
+    const overlapWidth = Math.max(0, Math.min(bounds.right, zone.right) - Math.max(bounds.left, zone.left));
+    const overlapHeight = Math.max(0, Math.min(bounds.bottom, zone.bottom) - Math.max(bounds.top, zone.top));
+    return {
+      garmentName: item.garment?.name || item.garment?.category || item.garment?.id || "Garment",
+      category: item.visualCategory,
+      assignedZone,
+      finalBounds: bounds,
+      overlapAmount: overlapWidth * overlapHeight,
+    };
+  });
   const core = entries.filter(({ item }) => ["outerwear", "dresses", "tops", "bottoms"].includes(item.visualCategory));
   const pairMetrics = core.flatMap((entry, index) => core.slice(index + 1).map((other) => {
     const horizontalOverlap = Math.max(0, Math.min(entry.bounds.right, other.bounds.right) - Math.max(entry.bounds.left, other.bounds.left));
@@ -747,7 +760,7 @@ const getCompositionMetrics = (items: RenderItem[], selectedLayoutTemplate: stri
       centerDistance: Math.sqrt(dx * dx + dy * dy),
     };
   }));
-  return { selectedLayoutTemplate, garmentCenters, garmentBounds, pairMetrics };
+  return { selectedLayoutTemplate, garmentCenters, garmentBounds, garmentZoneAssignments, pairMetrics };
 };
 
 export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageProps) => {
