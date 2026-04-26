@@ -652,6 +652,30 @@ const applyCategoryAwareComposition = (items: RenderItem[]) => {
   return { items: nextItems, template };
 };
 
+const getCompositionMetrics = (items: RenderItem[], selectedLayoutTemplate: string): CompositionMetrics => {
+  const keyFor = (item: RenderItem, index: number) => `${item.visualCategory}-${item.garment?.name || item.garment?.id || index}`;
+  const entries = items.map((item, index) => ({ key: keyFor(item, index), item, bounds: getItemVisualBounds(item.style) }));
+  const garmentCenters = Object.fromEntries(entries.map(({ key, bounds }) => [key, bounds.center]));
+  const garmentBounds = Object.fromEntries(entries.map(({ key, bounds }) => [key, bounds]));
+  const core = entries.filter(({ item }) => ["outerwear", "dresses", "tops", "bottoms"].includes(item.visualCategory));
+  const pairMetrics = core.flatMap((entry, index) => core.slice(index + 1).map((other) => {
+    const horizontalOverlap = Math.max(0, Math.min(entry.bounds.right, other.bounds.right) - Math.max(entry.bounds.left, other.bounds.left));
+    const verticalOverlap = Math.max(0, Math.min(entry.bounds.bottom, other.bounds.bottom) - Math.max(entry.bounds.top, other.bounds.top));
+    const smallerWidth = Math.max(1, Math.min(entry.bounds.width, other.bounds.width));
+    const smallerHeight = Math.max(1, Math.min(entry.bounds.height, other.bounds.height));
+    const dx = other.bounds.center.x - entry.bounds.center.x;
+    const dy = (other.bounds.center.y - entry.bounds.center.y) / canvasAspectRatio;
+    return {
+      a: entry.key,
+      b: other.key,
+      horizontalOverlapPct: horizontalOverlap / smallerWidth,
+      verticalOverlapPct: verticalOverlap / smallerHeight,
+      centerDistance: Math.sqrt(dx * dx + dy * dy),
+    };
+  }));
+  return { selectedLayoutTemplate, garmentCenters, garmentBounds, pairMetrics };
+};
+
 export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageProps) => {
   if (!garments || garments.length === 0) return null;
   const [compositionQaOpen, setCompositionQaOpen] = useState(false);
