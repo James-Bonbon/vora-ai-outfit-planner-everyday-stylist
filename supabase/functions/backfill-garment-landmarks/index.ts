@@ -113,6 +113,41 @@ const normalizePoint = (point: any, analysis: any) => {
   };
 };
 
+const scanAlphaBand = (analysis: any, startPct: number, endPct: number, minRatio: number, maxRatio: number, mode: "upper" | "waist" | "hem") => {
+  if (!analysis?.imageWidth || !analysis?.visibleAlphaBounds || !Array.isArray(analysis.alphaProfileRows)) return null;
+  const b = analysis.visibleAlphaBounds;
+  const startY = Math.max(b.y, Math.floor(b.y + b.height * startPct));
+  const endY = Math.min(b.y + b.height - 1, Math.ceil(b.y + b.height * endPct));
+  const maxWidth = Math.max(...analysis.alphaProfileRows.slice(b.y, b.y + b.height), 1);
+  const target = analysis.imageWidth * ((minRatio + maxRatio) / 2);
+  const candidates: any[] = [];
+  for (let y = startY; y <= endY; y++) {
+    const width = Number(analysis.alphaProfileRows[y]) || 0;
+    if (width < analysis.imageWidth * minRatio || width > analysis.imageWidth * maxRatio) continue;
+    const extent = analysis.alphaRowExtents?.[y] || { left: b.x + (b.width - width) / 2, right: b.x + (b.width + width) / 2 };
+    const sleevePenalty = mode === "upper" && width > maxWidth * 0.86 ? 0.78 : 1;
+    const score = sleevePenalty * (1 - Math.min(0.55, Math.abs(width - target) / Math.max(target, 1)));
+    candidates.push({ y, left: extent.left, right: extent.right, width, score });
+  }
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates[0] || null;
+};
+
+const buildAlphaProfileLayout = (analysis: any, isTop: boolean, isOuterwear: boolean, isDress: boolean, isBottom: boolean) => {
+  const confidence = 0.42;
+  const notes = "Estimated from alpha profile scan; not an AI measurement.";
+  const layout: any = {};
+  const upperMin = isOuterwear ? 0.34 : isDress ? 0.32 : 0.24;
+  const upperMax = isOuterwear ? 0.78 : isDress ? 0.72 : 0.68;
+  const upper = isTop ? scanAlphaBand(analysis, 0.1, 0.35, upperMin, upperMax, "upper") : null;
+  const waist = scanAlphaBand(analysis, isBottom ? 0.02 : 0.38, isBottom ? 0.18 : 0.62, 0.18, 0.72, "waist");
+  const hem = scanAlphaBand(analysis, isBottom ? 0.68 : 0.78, 0.96, 0.12, 0.82, "hem");
+  if (upper) layout.upperFit = { leftUpperFitAnchor: { x: upper.left, y: upper.y, source: "alpha_profile", confidence, notes }, rightUpperFitAnchor: { x: upper.right, y: upper.y, source: "alpha_profile", confidence, notes }, upperBodyFitWidth: upper.width, confidence, source: "alpha_profile", notes };
+  if (waist) layout.waist = { leftWaistAnchor: { x: waist.left, y: waist.y, source: "alpha_profile", confidence, notes }, rightWaistAnchor: { x: waist.right, y: waist.y, source: "alpha_profile", confidence, notes }, waistFitWidth: waist.width, confidence, source: "alpha_profile", notes };
+  if (hem) layout.length = { leftHemAnchor: { x: hem.left, y: hem.y, source: "alpha_profile", confidence, notes }, rightHemAnchor: { x: hem.right, y: hem.y, source: "alpha_profile", confidence, notes }, hemFitWidth: hem.width, confidence, source: "alpha_profile", notes };
+  return Object.keys(layout).length ? layout : null;
+};
+
 const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
   const rawAiLandmarks = { ...layout };
   const next = { ...layout, rawAiLandmarks, validatedMeasurementAnchors: {}, layoutAnchors: {}, fitValidation: { status: "fallback", rejected: [] as string[] } };
