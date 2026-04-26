@@ -418,6 +418,13 @@ const getNormalizedStyle = ({
     targetRenderedFitWidth: targetRenderedShoulderWidth ?? null,
     calculatedImageBoxWidth: upperAnchorBoxWidth,
     finalRenderedFitWidth: upperBodyWidthRatio ? upperBodyWidthRatio * boxWidth : null,
+    sizingDebug: {
+      upperFitSource: fitSource,
+      upperFitWidthRatio: upperBodyWidthRatio,
+      boxWidthBeforeClamp: Math.max(intendedVisibleWidth / visibleWidthRatio, upperAnchorBoxWidth || 0),
+      boxWidthAfterClamp: boxWidth,
+      finalRenderedFitWidth: upperBodyWidthRatio ? upperBodyWidthRatio * boxWidth : null,
+    },
   };
 };
 
