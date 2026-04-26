@@ -105,6 +105,17 @@ type NormalizedRenderStyle = CSSProperties & {
   targetRenderedFitWidth?: number | null;
   calculatedImageBoxWidth?: number | null;
   finalRenderedFitWidth?: number | null;
+  sizingDebug?: {
+    upperFitSource?: string;
+    upperFitWidthRatio?: number | null;
+    targetDressToCoatRatio?: number | null;
+    minimumDressToCoatRatio?: number | null;
+    requiredDressBoxWidth?: number | null;
+    minimumRequiredDressBoxWidth?: number | null;
+    boxWidthBeforeClamp?: number | null;
+    boxWidthAfterClamp?: number | null;
+    finalRenderedFitWidth?: number | null;
+  };
 };
 
 type GroupNormalization = {
@@ -407,6 +418,13 @@ const getNormalizedStyle = ({
     targetRenderedFitWidth: targetRenderedShoulderWidth ?? null,
     calculatedImageBoxWidth: upperAnchorBoxWidth,
     finalRenderedFitWidth: upperBodyWidthRatio ? upperBodyWidthRatio * boxWidth : null,
+    sizingDebug: {
+      upperFitSource: fitSource,
+      upperFitWidthRatio: upperBodyWidthRatio,
+      boxWidthBeforeClamp: Math.max(intendedVisibleWidth / visibleWidthRatio, upperAnchorBoxWidth || 0),
+      boxWidthAfterClamp: boxWidth,
+      finalRenderedFitWidth: upperBodyWidthRatio ? upperBodyWidthRatio * boxWidth : null,
+    },
   };
 };
 
@@ -520,15 +538,21 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
   let coatRenderedWidth = renderItems.find((item) => item.visualCategory === "outerwear")?.renderedUpperWidth ?? null;
   let dressRenderedWidth = renderItems.find((item) => item.visualCategory === "dresses")?.renderedUpperWidth ?? null;
   let dressToCoatRatio = coatRenderedWidth && dressRenderedWidth ? dressRenderedWidth / coatRenderedWidth : null;
+  const targetDressToCoatRatio = 0.9;
+  const minimumDressToCoatRatio = 0.75;
 
-  if (hasOuterwear && hasDress && coatRenderedWidth && dressToCoatRatio !== null && (dressToCoatRatio < 0.85 || dressToCoatRatio > 0.95)) {
-    const targetDressRenderedFitWidth = coatRenderedWidth * 0.9;
+  if (hasOuterwear && hasDress && coatRenderedWidth && dressToCoatRatio !== null && dressToCoatRatio < targetDressToCoatRatio) {
+    const targetDressRenderedFitWidth = coatRenderedWidth * targetDressToCoatRatio;
+    const minimumDressRenderedFitWidth = coatRenderedWidth * minimumDressToCoatRatio;
     renderItems = renderItems.map((item) => {
       if (item.visualCategory !== "dresses" || !item.upperFitWidthRatio) return item;
-      const calculatedImageBoxWidth = targetDressRenderedFitWidth / item.upperFitWidthRatio;
-      const nextWidth = clamp(calculatedImageBoxWidth, 22, item.style.fitSource === "human" ? 166 : 124);
+      const requiredDressBoxWidth = targetDressRenderedFitWidth / item.upperFitWidthRatio;
+      const minimumRequiredDressBoxWidth = minimumDressRenderedFitWidth / item.upperFitWidthRatio;
+      const boxWidthBeforeClamp = Math.max(item.style.boxWidthPct, requiredDressBoxWidth);
+      const maxDressBoxWidth = Math.max(220, requiredDressBoxWidth, minimumRequiredDressBoxWidth);
+      const nextWidth = clamp(boxWidthBeforeClamp, minimumRequiredDressBoxWidth, maxDressBoxWidth);
       const scale = nextWidth / Math.max(item.style.boxWidthPct, 1);
-      const nextHeight = clamp(item.style.boxHeightPct * clamp(scale, 0.86, 1.28), 22, 104);
+      const nextHeight = clamp(item.style.boxHeightPct * clamp(scale, 0.86, 1.42), 22, 120);
       const finalRenderedFitWidth = item.upperFitWidthRatio * nextWidth;
       const nextStyle = {
         ...item.style,
@@ -537,8 +561,20 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
         boxWidthPct: nextWidth,
         boxHeightPct: nextHeight,
         targetRenderedFitWidth: targetDressRenderedFitWidth,
-        calculatedImageBoxWidth,
+        calculatedImageBoxWidth: requiredDressBoxWidth,
         finalRenderedFitWidth,
+        sizingDebug: {
+          ...item.style.sizingDebug,
+          upperFitSource: item.style.fitSource,
+          upperFitWidthRatio: item.upperFitWidthRatio,
+          targetDressToCoatRatio,
+          minimumDressToCoatRatio,
+          requiredDressBoxWidth,
+          minimumRequiredDressBoxWidth,
+          boxWidthBeforeClamp,
+          boxWidthAfterClamp: nextWidth,
+          finalRenderedFitWidth,
+        },
       };
       return { ...item, style: nextStyle, renderedUpperWidth: finalRenderedFitWidth };
     });
@@ -546,6 +582,23 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
     dressRenderedWidth = renderItems.find((item) => item.visualCategory === "dresses")?.renderedUpperWidth ?? null;
     dressToCoatRatio = coatRenderedWidth && dressRenderedWidth ? dressRenderedWidth / coatRenderedWidth : null;
   }
+
+  const coatFitItem = renderItems.find((item) => item.visualCategory === "outerwear");
+  const dressFitItem = renderItems.find((item) => item.visualCategory === "dresses");
+  const sizingEngineDebug = {
+    coatUpperFitSource: coatFitItem?.style.sizingDebug?.upperFitSource || coatFitItem?.style.fitSource || null,
+    dressUpperFitSource: dressFitItem?.style.sizingDebug?.upperFitSource || dressFitItem?.style.fitSource || null,
+    coatUpperFitWidthRatio: coatFitItem?.style.upperFitWidthRatio ?? null,
+    dressUpperFitWidthRatio: dressFitItem?.style.upperFitWidthRatio ?? null,
+    targetDressToCoatRatio,
+    minimumDressToCoatRatio,
+    requiredDressBoxWidth: dressFitItem?.style.sizingDebug?.requiredDressBoxWidth ?? dressFitItem?.style.calculatedImageBoxWidth ?? null,
+    boxWidthBeforeClamp: dressFitItem?.style.sizingDebug?.boxWidthBeforeClamp ?? null,
+    boxWidthAfterClamp: dressFitItem?.style.sizingDebug?.boxWidthAfterClamp ?? dressFitItem?.style.boxWidthPct ?? null,
+    finalRenderedCoatFitWidth: coatRenderedWidth,
+    finalRenderedDressFitWidth: dressRenderedWidth,
+    finalRenderedRatio: dressToCoatRatio,
+  };
 
   const groupNormalization = normalizeOutfitGroup(renderItems);
   const groupTransform = `translate(${groupNormalization.translateX}%, ${groupNormalization.translateY}%) scale(${groupNormalization.scale})`;
@@ -647,6 +700,8 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
             <div>coat width: {coatRenderedWidth?.toFixed(1) ?? "—"}%</div>
             <div>dress width: {dressRenderedWidth?.toFixed(1) ?? "—"}%</div>
             <div>final dress/coat fit ratio: {dressToCoatRatio ? dressToCoatRatio.toFixed(2) : "—"}</div>
+            <div>target dress/coat fit ratio: {targetDressToCoatRatio.toFixed(2)}</div>
+            <div>minimum dress/coat fit ratio: {minimumDressToCoatRatio.toFixed(2)}</div>
           </div>
         )}
         <details open={compositionQaOpen} onToggle={(event) => setCompositionQaOpen(event.currentTarget.open)}>
@@ -661,6 +716,10 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
             finalGroupScale: groupNormalization.scale,
             boundingBoxIncludes: "garment visual boxes and measurement overlay only; labels and below-canvas panels excluded",
           }, null, 2)}</pre>
+        </details>
+        <details open>
+          <summary className="cursor-pointer font-medium">Sizing engine QA</summary>
+          <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify(sizingEngineDebug, null, 2)}</pre>
         </details>
         <details>
           <summary className="cursor-pointer font-medium">Garment fit QA</summary>
@@ -679,6 +738,9 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
               upperFitWidthRatio: item.style.upperFitWidthRatio ?? null,
               targetRenderedFitWidth: item.style.targetRenderedFitWidth ?? null,
               calculatedImageBoxWidth: item.style.calculatedImageBoxWidth ?? null,
+              requiredDressBoxWidth: item.style.sizingDebug?.requiredDressBoxWidth ?? null,
+              boxWidthBeforeClamp: item.style.sizingDebug?.boxWidthBeforeClamp ?? null,
+              boxWidthAfterClamp: item.style.sizingDebug?.boxWidthAfterClamp ?? item.style.boxWidthPct ?? null,
               finalRenderedFitWidth: item.style.finalRenderedFitWidth ?? item.renderedUpperWidth ?? null,
               rawAiLandmarks: metadata.rawAiLandmarks,
               validatedMeasurementAnchors: metadata.validatedMeasurementAnchors || metadata.measurementAnchors,
