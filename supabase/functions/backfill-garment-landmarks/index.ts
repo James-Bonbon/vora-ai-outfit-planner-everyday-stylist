@@ -22,7 +22,7 @@ const hasUpperAnchors = (metadata: any) => Boolean(
 
 const classifyFitFamily = (item: any) => {
   const text = `${item?.layout_metadata?.garmentType ?? ""} ${item?.category ?? ""} ${item?.name ?? ""}`.toLowerCase();
-  if (/shoe|sneaker|boot|heel|loafer|sandal|trainer|bag|purse|tote|clutch|backpack|handbag|accessor|belt|scarf|jewelry|jewellery|sunglasses|hat|cap|beanie/.test(text)) return "accessory";
+  if (/\b(shoe|sneaker|boot|heel|loafer|sandal|trainer|bag|purse|tote|clutch|backpack|handbag|accessor|belt|scarf|jewelry|jewellery|sunglasses|hat|cap|beanie)\b/.test(text)) return "accessory";
   if (/dress|gown|jumpsuit|romper|one[-\s]?piece/.test(text)) return "dresses";
   if (/outerwear|coat|jacket|blazer|trench|parka|cardigan|shacket/.test(text)) return "outerwear";
   if (/trouser|pant|jean|legging|chino|skirt|short(?![-\s]?sleeve)|bottom/.test(text)) return "bottoms";
