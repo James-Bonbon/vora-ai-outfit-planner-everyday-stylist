@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, type RenderResult } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import OutfitCollage from "@/components/wardrobe/OutfitCollage";
 
@@ -62,19 +62,19 @@ const makeDress = (upperBodyFitWidth: number) => ({
   },
 });
 
-const getDressWidth = () => Number(screen.getByAltText("Asymmetric black dress").style.width.replace("%", ""));
+const getDressWidth = (view: RenderResult) => Number(view.getByAltText("Asymmetric black dress").style.width.replace("%", ""));
 
 describe("OutfitCollage calibrated fit sizing", () => {
   it("uses human anchors over stale layout anchors and expands the dress box for smaller calibrated fit widths", () => {
     const wide = render(<OutfitCollage garments={[coat, makeDress(420)]} debugAnchors />);
-    const wideDressWidth = getDressWidth();
+    const wideDressWidth = getDressWidth(wide);
     wide.unmount();
 
-    render(<OutfitCollage garments={[coat, makeDress(260)]} debugAnchors />);
-    const narrowDressWidth = getDressWidth();
+    const narrow = render(<OutfitCollage garments={[coat, makeDress(260)]} debugAnchors />);
+    const narrowDressWidth = getDressWidth(narrow);
 
     expect(narrowDressWidth).toBeGreaterThan(wideDressWidth);
-    expect(screen.getAllByText("source: human").length).toBeGreaterThan(0);
-    expect(screen.getByText(/final dress\/coat fit ratio: 0\.90/)).toBeInTheDocument();
+    expect(narrow.getAllByText("source: human").length).toBeGreaterThan(0);
+    expect(narrow.getByText(/final dress\/coat fit ratio: 0\.90/)).toBeInTheDocument();
   });
 });
