@@ -849,6 +849,67 @@ const getCompositionMetrics = (items: RenderItem[], selectedLayoutTemplate: stri
   return { selectedLayoutTemplate, garmentCenters, garmentBounds, garmentZoneAssignments, pairMetrics };
 };
 
+const displayType = (category: VisualCategory) => ({ outerwear: "Outerwear", dresses: "Dress", tops: "Top", bottoms: "Bottom", shoes: "Shoes", hats: "Hat", accessories: "Accessory" }[category]);
+
+const requiredAnchorTypes = (category: VisualCategory): FitAnchorType[] => {
+  if (category === "bottoms") return ["waist", "lengthFit"];
+  if (["tops", "outerwear", "dresses"].includes(category)) return ["upperFit", "lowerHemFit", "lengthFit"];
+  return [];
+};
+
+const optionalAnchorTypes = (category: VisualCategory): FitAnchorType[] => {
+  if (["tops", "outerwear", "dresses"].includes(category)) return ["waist"];
+  if (category === "bottoms") return ["lowerHemFit"];
+  return [];
+};
+
+const formatAnchorName = (anchor: FitAnchorType) => anchor === "waist" ? "waistFit" : anchor;
+
+const getGarmentFitSummary = (item: RenderItem, relationshipDebug: ReturnType<typeof getRelationshipMetrics>) => {
+  const required = requiredAnchorTypes(item.visualCategory);
+  const optional = optionalAnchorTypes(item.visualCategory);
+  const allAnchors = [...required, ...optional];
+  const present = allAnchors.flatMap((anchorType) => {
+    const group = getPrioritizedFitGroup(item.metadata, anchorType);
+    return group ? [`${formatAnchorName(anchorType)} (${group.source})`] : [];
+  });
+  const missingRequired = required.filter((anchorType) => !getPrioritizedFitGroup(item.metadata, anchorType)).map(formatAnchorName);
+  const missingOptional = optional.filter((anchorType) => !getPrioritizedFitGroup(item.metadata, anchorType)).map((anchorType) => `${formatAnchorName(anchorType)} optional`);
+  const relationshipScale = Number(item.style.sizingDebug?.relationshipScale || item.style.sizingDebug?.requiredDressBoxScale || 1);
+  const resizeActionNeeded = Number.isFinite(relationshipScale) && Math.abs(relationshipScale - 1) > 0.02;
+  const compared = relationshipDebug?.comparedAnchors;
+  const isPrimary = compared?.primary?.garment === (item.garment?.name || item.visualCategory);
+  const resizeReason = resizeActionNeeded
+    ? item.style.sizingDebug?.relationshipRule
+      ? `${displayType(item.visualCategory)} anchor ratio was outside target for ${relationshipDebug?.selectedRelationshipRule?.replaceAll("_", " ") || "relationship rule"}.`
+      : isPrimary
+        ? `${displayType(item.visualCategory)} rendered anchor needed scaling to match the paired garment.`
+        : "Garment dimensions changed during relationship normalization."
+    : "Within target relationship ratio.";
+
+  return {
+    name: item.garment?.name || item.garment?.category || "Garment",
+    type: displayType(item.visualCategory),
+    required: required.map(formatAnchorName),
+    present,
+    missing: [...missingRequired, ...missingOptional],
+    confidence: Number(item.metadata.confidence ?? item.style.sizingDebug?.upperFitWidthRatio ?? 0),
+    status: missingRequired.length ? "Needs calibration" : "OK",
+    resizeActionNeeded,
+    resizeReason,
+  };
+};
+
+const getRelationshipStatus = (relationshipDebug: ReturnType<typeof getRelationshipMetrics>) => {
+  const ratio = relationshipDebug?.finalRatio;
+  const targetText = relationshipDebug?.targetRatio || "—";
+  const match = targetText.match(/([0-9.]+)–([0-9.]+)/);
+  const min = match ? Number(match[1]) : null;
+  const max = match ? Number(match[2]) : null;
+  const ok = ratio != null && min != null && max != null ? ratio >= min && ratio <= max : ratio != null;
+  return ok ? "OK" : "Needs resize";
+};
+
 export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageProps) => {
   if (!garments || garments.length === 0) return null;
   const [compositionQaOpen, setCompositionQaOpen] = useState(false);
