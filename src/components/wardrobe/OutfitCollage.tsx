@@ -445,15 +445,23 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
     <div className="relative w-full aspect-[3/4] bg-secondary/10 rounded-2xl overflow-hidden">
       {renderItems.map(({ garment, visualCategory, imageUrl, duplicateIndex, metadata, style, renderedUpperWidth }) => {
         const baseAlt = garment?.name || garment?.category || "Garment";
-        const { boxWidthPct, boxHeightPct, anchorShiftXPct, anchorShiftYPct, rotationDeg, ...imageStyle } = style;
+        const { boxWidthPct, boxHeightPct, anchorShiftXPct, anchorShiftYPct, rotationDeg, fitSource: styleFitSource, upperFitWidthRatio, targetRenderedFitWidth, calculatedImageBoxWidth, finalRenderedFitWidth, ...imageStyle } = style;
         const upperPair = getUpperAnchorPair(metadata, garment?.image_analysis);
         const measurementPair = getRealMeasurementPair(metadata, garment?.image_analysis, visualCategory);
         const layoutGroup = metadata.layoutAnchors?.upperFit || metadata.layoutAnchors?.waist || metadata.layoutAnchors?.length;
         const layoutSource = layoutGroup?.source;
-        const fitSource = measurementPair ? ((metadata.validatedMeasurementAnchors?.upperFit || metadata.validatedMeasurementAnchors?.waist || metadata.measurementAnchors?.upperFit || metadata.measurementAnchors?.waist) as any)?.source : layoutSource || "fallback";
+        const prioritizedUpperFit = getPrioritizedUpperFit(metadata);
+        const fitSource = prioritizedUpperFit?.source || (measurementPair ? ((metadata.validatedMeasurementAnchors?.waist || metadata.measurementAnchors?.waist) as any)?.source : layoutSource) || styleFitSource || "fallback";
+        const finalFitWidth = finalRenderedFitWidth ?? renderedUpperWidth ?? (upperFitWidthRatio ? upperFitWidthRatio * boxWidthPct : null);
         const renderedRatios = {
-          upperWidth: renderedUpperWidth ?? null,
+          source: fitSource,
+          calibratedUpperFitWidth: prioritizedUpperFit?.group?.upperBodyFitWidth ?? null,
+          upperFitWidthRatio: upperFitWidthRatio ?? null,
+          targetRenderedFitWidth: targetRenderedFitWidth ?? null,
+          calculatedImageBoxWidth: calculatedImageBoxWidth ?? null,
+          finalRenderedFitWidth: finalFitWidth,
           dressToCoat: visualCategory === "dresses" ? dressToCoatRatio : null,
+          finalDressToCoatFitRatio: visualCategory === "dresses" ? dressToCoatRatio : null,
         };
         const measurementCenter = measurementPair ? { x: (measurementPair.left.x + measurementPair.right.x) / 2, y: (measurementPair.left.y + measurementPair.right.y) / 2 } : null;
         const landmarkPoints = [
@@ -502,7 +510,10 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
                   <span className="block">measured fit: {formatWidthAnchor(metadata, garment?.image_analysis)}</span>
                   <span className="block">source: {fitSource}</span>
                   <span className="block">confidence: {((metadata.validatedMeasurementAnchors?.upperFit || metadata.validatedMeasurementAnchors?.waist || metadata.measurementAnchors?.upperFit || metadata.measurementAnchors?.waist) as any)?.confidence?.toFixed?.(2) ?? "—"}</span>
-                  <span className="block">rendered: {(renderedUpperWidth ?? measurementPair.width * boxWidthPct).toFixed(1)}%</span>
+                  <span className="block">upperFitWidthRatio: {upperFitWidthRatio?.toFixed?.(3) ?? "—"}</span>
+                  <span className="block">targetRenderedFitWidth: {targetRenderedFitWidth?.toFixed?.(1) ?? "—"}%</span>
+                  <span className="block">calculatedImageBoxWidth: {calculatedImageBoxWidth?.toFixed?.(1) ?? "—"}%</span>
+                  <span className="block">finalRenderedFitWidth: {(finalFitWidth ?? measurementPair.width * boxWidthPct).toFixed(1)}%</span>
                 </span>
                 {landmarkPoints.map((point, pointIndex) => (
                   <span
@@ -520,6 +531,9 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
                 <span className="block">source: {layoutSource}</span>
                 <span className="block">confidence: {layoutGroup?.confidence?.toFixed?.(2) ?? "—"}</span>
                 <span className="block">width: {formatWidthAnchor(metadata, garment?.image_analysis)}</span>
+                <span className="block">upperFitWidthRatio: {upperFitWidthRatio?.toFixed?.(3) ?? "—"}</span>
+                <span className="block">calculatedImageBoxWidth: {calculatedImageBoxWidth?.toFixed?.(1) ?? "—"}%</span>
+                <span className="block">finalRenderedFitWidth: {finalFitWidth?.toFixed?.(1) ?? "—"}%</span>
               </div>
             )}
             {showDebugAnchors && (
