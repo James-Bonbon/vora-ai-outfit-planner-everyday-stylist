@@ -10,7 +10,7 @@ export type FitPoint = {
   warningReason?: RejectionReason;
 };
 
-export type FitAnchorGroup = Record<string, FitPoint | number | string | string[] | undefined> & {
+export type FitAnchorGroup = Record<string, FitPoint | number | string | string[] | boolean | undefined> & {
   source?: AnchorSource;
   confidence?: number;
   notes?: string;
