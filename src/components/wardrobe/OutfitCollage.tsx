@@ -97,6 +97,11 @@ type NormalizedRenderStyle = CSSProperties & {
   anchorShiftXPct: number;
   anchorShiftYPct: number;
   rotationDeg: number;
+  fitSource?: string;
+  upperFitWidthRatio?: number | null;
+  targetRenderedFitWidth?: number | null;
+  calculatedImageBoxWidth?: number | null;
+  finalRenderedFitWidth?: number | null;
 };
 
 const centeredOffsets = [
@@ -203,11 +208,30 @@ const toRelativePoint = (point: { x: number; y: number } | undefined, analysis?:
   };
 };
 
+const getPrioritizedUpperFit = (metadata: LayoutMetadata) => {
+  const validated = metadata.validatedMeasurementAnchors?.upperFit;
+  const measurement = metadata.measurementAnchors?.upperFit;
+  const layout = metadata.layoutAnchors?.upperFit;
+  const human = [validated, measurement].find((group) => group?.source === "human");
+  const ai = [validated, measurement].find((group) => group?.source === "ai");
+  if (human) return { group: human, source: "human", isMeasurement: true };
+  if (ai) return { group: ai, source: "ai", isMeasurement: true };
+  if (layout?.source === "alpha_profile") return { group: layout, source: "alpha_profile", isMeasurement: false };
+  if (layout?.source === "ratio_guard") return { group: layout, source: "ratio_guard", isMeasurement: false };
+  if (layout) return { group: layout, source: layout.source || "fallback", isMeasurement: false };
+  return null;
+};
+
+const widthToRatio = (width: number, analysis?: ImageAnalysis | null) => {
+  if (!Number.isFinite(width) || width <= 0) return null;
+  const ratio = width > 1 && analysis?.imageWidth ? width / analysis.imageWidth : width;
+  return ratio > 0.08 ? clamp(ratio, 0.08, 1) : null;
+};
+
 const getUpperAnchorPair = (metadata: LayoutMetadata, analysis?: ImageAnalysis | null) => {
-  const layoutFit = metadata.layoutAnchors?.upperFit;
-  const measurementFit = metadata.validatedMeasurementAnchors?.upperFit || metadata.measurementAnchors?.upperFit;
-  const left = toRelativePoint(layoutFit?.leftUpperFitAnchor || measurementFit?.leftUpperFitAnchor || metadata.leftUpperAnchor, analysis) || toRelativePoint(metadata.bodyAnchors?.leftShoulder, analysis);
-  const right = toRelativePoint(layoutFit?.rightUpperFitAnchor || measurementFit?.rightUpperFitAnchor || metadata.rightUpperAnchor, analysis) || toRelativePoint(metadata.bodyAnchors?.rightShoulder, analysis);
+  const prioritizedFit = getPrioritizedUpperFit(metadata)?.group;
+  const left = toRelativePoint(prioritizedFit?.leftUpperFitAnchor || metadata.leftUpperAnchor, analysis) || toRelativePoint(metadata.bodyAnchors?.leftShoulder, analysis);
+  const right = toRelativePoint(prioritizedFit?.rightUpperFitAnchor || metadata.rightUpperAnchor, analysis) || toRelativePoint(metadata.bodyAnchors?.rightShoulder, analysis);
   if (!left || !right) return null;
   const width = Math.abs(right.x - left.x);
   return width > 0.08 ? { left, right, width: clamp(width, 0.08, 1) } : null;
