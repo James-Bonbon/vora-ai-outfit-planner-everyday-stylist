@@ -1188,6 +1188,8 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
               <div>Required: {summary.required.length ? summary.required.join(", ") : "visualWidth, visualLength"}</div>
               <div>Present: {summary.present.length ? summary.present.join(", ") : "visual bounds only"}</div>
               <div>Missing: {summary.missing.length ? summary.missing.join(", ") : "None"}</div>
+              <div>Invalid: {summary.invalid.length ? summary.invalid.join("; ") : "None"}</div>
+              <div>Used for sizing: {summary.usedForSizing.length ? summary.usedForSizing.join(", ") : "No"}</div>
               <div>Status: {summary.status}</div>
               <div>Confidence: {summary.confidence ? summary.confidence.toFixed(2) : "—"}</div>
               <div>Resize: {summary.resizeActionNeeded ? "Yes" : "No"}</div>
