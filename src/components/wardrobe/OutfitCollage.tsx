@@ -608,7 +608,7 @@ const getTransformedGroupBounds = (boundingBox: GroupNormalization["boundingBox"
 };
 
 const withVisualCenter = (item: RenderItem, targetCenter: { x: number; y: number }): RenderItem => {
-  const bounds = getItemVisualBounds(item.style);
+  const bounds = getItemVisualBounds(item.style, item.garment?.image_analysis);
   const dx = targetCenter.x - bounds.center.x;
   const dy = targetCenter.y - bounds.center.y;
   const nextLeft = Number.parseFloat(String(item.style.left ?? 0)) + dx;
@@ -646,8 +646,9 @@ const applyCategoryAwareComposition = (items: RenderItem[]) => {
     const styledCoat = nextItems.find((item) => item.garment === coat.garment) || coat;
     updateItem(styledCoat, { x: 47, y: 47 });
     const movedCoat = nextItems.find((item) => item.garment === coat.garment) || styledCoat;
-    const coatBounds = getItemVisualBounds(movedCoat.style);
-    const dressBounds = getItemVisualBounds((nextItems.find((item) => item.garment === dress.garment) || dress).style);
+    const coatBounds = getItemVisualBounds(movedCoat.style, movedCoat.garment?.image_analysis);
+    const currentDress = nextItems.find((item) => item.garment === dress.garment) || dress;
+    const dressBounds = getItemVisualBounds(currentDress.style, currentDress.garment?.image_analysis);
     const smallerWidth = Math.min(dressBounds.width, coatBounds.width);
     const targetOverlap = smallerWidth * 0.45;
     const centerDistanceX = Math.max(8, (dressBounds.width + coatBounds.width) / 2 - targetOverlap);
@@ -656,7 +657,7 @@ const applyCategoryAwareComposition = (items: RenderItem[]) => {
       y: coatBounds.center.y + coatBounds.height * 0.12,
     });
     const placedDress = nextItems.find((item) => item.garment === dress.garment) || dress;
-    const placedDressBounds = getItemVisualBounds(placedDress.style);
+    const placedDressBounds = getItemVisualBounds(placedDress.style, placedDress.garment?.image_analysis);
     const overlapCorrectedDressCenterX = placedDressBounds.center.x + (coatBounds.right - targetOverlap - placedDressBounds.left);
     updateItem(placedDress, {
       x: overlapCorrectedDressCenterX,
@@ -665,14 +666,16 @@ const applyCategoryAwareComposition = (items: RenderItem[]) => {
   } else if ((template === "top + bottom vertical overlap" || template === "top + bottom + outerwear stacked overlap") && top && bottom) {
     updateItem(bottom, { x: 51, y: 61 });
     const movedBottom = nextItems.find((item) => item.garment === bottom.garment) || bottom;
-    const bottomBounds = getItemVisualBounds(movedBottom.style);
-    const topBounds = getItemVisualBounds((nextItems.find((item) => item.garment === top.garment) || top).style);
+    const bottomBounds = getItemVisualBounds(movedBottom.style, movedBottom.garment?.image_analysis);
+    const currentTop = nextItems.find((item) => item.garment === top.garment) || top;
+    const topBounds = getItemVisualBounds(currentTop.style, currentTop.garment?.image_analysis);
     const verticalOverlap = Math.min(topBounds.height, bottomBounds.height) * 0.14;
     updateItem(top, { x: bottomBounds.center.x - bottomBounds.width * 0.03, y: bottomBounds.center.y - (topBounds.height + bottomBounds.height) / 2 + verticalOverlap });
     if (coat) {
       const movedTop = nextItems.find((item) => item.garment === top.garment) || top;
-      const combinedCenter = { x: (getItemVisualBounds(movedTop.style).center.x + bottomBounds.center.x) / 2, y: (getItemVisualBounds(movedTop.style).center.y + bottomBounds.center.y) / 2 };
-      const coatBounds = getItemVisualBounds(coat.style);
+      const movedTopBounds = getItemVisualBounds(movedTop.style, movedTop.garment?.image_analysis);
+      const combinedCenter = { x: (movedTopBounds.center.x + bottomBounds.center.x) / 2, y: (movedTopBounds.center.y + bottomBounds.center.y) / 2 };
+      const coatBounds = getItemVisualBounds(coat.style, coat.garment?.image_analysis);
       updateItem(coat, { x: combinedCenter.x - coatBounds.width * 0.22, y: combinedCenter.y - coatBounds.height * 0.02 });
     }
   } else if (template === "dress alone centered" && dress) {
