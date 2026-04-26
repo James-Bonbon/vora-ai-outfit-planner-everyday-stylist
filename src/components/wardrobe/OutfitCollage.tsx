@@ -896,6 +896,9 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
   const minimumDressToCoatRatio = 0.75;
   let groupNormalization = normalizeOutfitGroup(renderItems);
   let renderedSizingMetrics = getRenderedSizingMetrics(renderItems, groupNormalization);
+  renderItems = scaleRelationshipPrimaryToTarget(renderItems, groupNormalization);
+  groupNormalization = normalizeOutfitGroup(renderItems);
+  renderedSizingMetrics = getRenderedSizingMetrics(renderItems, groupNormalization);
 
   if (hasOuterwear && hasDress && renderedSizingMetrics.coat?.renderedFitLineLength && renderedSizingMetrics.dress?.renderedFitLineLength && renderedSizingMetrics.ratio !== null && renderedSizingMetrics.ratio < targetDressToCoatRatio) {
     const targetDressRenderedFitLine = renderedSizingMetrics.coat.renderedFitLineLength * targetDressToCoatRatio;
@@ -949,6 +952,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
   renderItems = composition.items;
   groupNormalization = normalizeOutfitGroup(renderItems);
   renderedSizingMetrics = getRenderedSizingMetrics(renderItems, groupNormalization);
+  const relationshipDebug = getRelationshipMetrics(renderItems, groupNormalization);
   const compositionMetrics = getCompositionMetrics(renderItems, composition.template);
 
   const coatFitItem = renderItems.find((item) => item.visualCategory === "outerwear");
@@ -983,6 +987,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
     groupOccupancyHeightPct: groupNormalization.occupancyHeightPct,
     safePaddingPct: groupNormalization.safePaddingPct,
     passFailBasis: "rendered fit line only",
+    relationshipModel: relationshipDebug,
     coatRenderedMeasurement: renderedSizingMetrics.coat,
     dressRenderedMeasurement: renderedSizingMetrics.dress,
   };
