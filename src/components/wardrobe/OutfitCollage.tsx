@@ -783,9 +783,11 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
       <div className="space-y-2 rounded-xl bg-background/70 p-2 text-[10px] leading-4 text-foreground">
         {hasOuterwear && hasDress && (
           <div className="rounded-lg bg-secondary/20 px-2 py-1 font-medium">
-            <div>coat width: {coatRenderedWidth?.toFixed(1) ?? "—"}%</div>
-            <div>dress width: {dressRenderedWidth?.toFixed(1) ?? "—"}%</div>
-            <div>final dress/coat fit ratio: {dressToCoatRatio ? dressToCoatRatio.toFixed(2) : "—"}</div>
+            <div>coat rendered fit line: {coatRenderedWidth?.toFixed(1) ?? "—"} canvas%</div>
+            <div>dress rendered fit line: {dressRenderedWidth?.toFixed(1) ?? "—"} canvas%</div>
+            <div>coat local fit ratio: {renderedSizingMetrics.coat?.localFitRatio?.toFixed(2) ?? "—"}</div>
+            <div>dress local fit ratio: {renderedSizingMetrics.dress?.localFitRatio?.toFixed(2) ?? "—"}</div>
+            <div>final dress/coat ratio: {dressToCoatRatio ? dressToCoatRatio.toFixed(2) : "—"}</div>
             <div>target dress/coat fit ratio: {targetDressToCoatRatio.toFixed(2)}</div>
             <div>minimum dress/coat fit ratio: {minimumDressToCoatRatio.toFixed(2)}</div>
           </div>
@@ -825,8 +827,20 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
               targetRenderedFitWidth: item.style.targetRenderedFitWidth ?? null,
               calculatedImageBoxWidth: item.style.calculatedImageBoxWidth ?? null,
               requiredDressBoxWidth: item.style.sizingDebug?.requiredDressBoxWidth ?? null,
+              requiredDressBoxHeight: item.style.sizingDebug?.requiredDressBoxHeight ?? null,
+              localFitRatio: item.visualCategory === "outerwear" ? renderedSizingMetrics.coat?.localFitRatio ?? null : item.visualCategory === "dresses" ? renderedSizingMetrics.dress?.localFitRatio ?? null : measurementPair?.width ?? null,
+              renderedFitLine: item.visualCategory === "outerwear" ? renderedSizingMetrics.coat?.renderedFitLineLength ?? null : item.visualCategory === "dresses" ? renderedSizingMetrics.dress?.renderedFitLineLength ?? null : null,
+              finalCanvasAnchorPoints: item.visualCategory === "outerwear" ? {
+                left: renderedSizingMetrics.coat?.finalLeftAnchorCanvasPoint ?? null,
+                right: renderedSizingMetrics.coat?.finalRightAnchorCanvasPoint ?? null,
+              } : item.visualCategory === "dresses" ? {
+                left: renderedSizingMetrics.dress?.finalLeftAnchorCanvasPoint ?? null,
+                right: renderedSizingMetrics.dress?.finalRightAnchorCanvasPoint ?? null,
+              } : null,
               boxWidthBeforeClamp: item.style.sizingDebug?.boxWidthBeforeClamp ?? null,
               boxWidthAfterClamp: item.style.sizingDebug?.boxWidthAfterClamp ?? item.style.boxWidthPct ?? null,
+              boxHeightBeforeClamp: item.style.sizingDebug?.boxHeightBeforeClamp ?? null,
+              boxHeightAfterClamp: item.style.sizingDebug?.boxHeightAfterClamp ?? item.style.boxHeightPct ?? null,
               finalRenderedFitWidth: item.style.finalRenderedFitWidth ?? item.renderedUpperWidth ?? null,
               rawAiLandmarks: metadata.rawAiLandmarks,
               validatedMeasurementAnchors: metadata.validatedMeasurementAnchors || metadata.measurementAnchors,
