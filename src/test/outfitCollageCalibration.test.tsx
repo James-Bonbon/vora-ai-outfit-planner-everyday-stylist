@@ -97,8 +97,8 @@ describe("OutfitCollage calibrated fit sizing", () => {
     expect(narrow.container.textContent).toMatch(/"horizontalOverlapPct":\s*0\.(3[5-9]|4\d|5[0-5])/);
     expect(narrow.container.textContent).toMatch(/"groupOccupancy(Width|Height)Pct":\s*(7\d|8[0-5])/);
     expect(narrow.container.textContent).toContain('"safePaddingPct": 9');
-    expect(narrow.container.textContent).toContain("dress rendered fit line");
-    expect(narrow.container.textContent).toContain("dress local fit ratio");
+    expect(narrow.container.textContent).toContain('"finalRenderedDressFitLine"');
+    expect(narrow.container.textContent).toContain('"dressLocalFitRatio"');
     act(() => narrow.root.unmount());
     narrow.container.remove();
   });
