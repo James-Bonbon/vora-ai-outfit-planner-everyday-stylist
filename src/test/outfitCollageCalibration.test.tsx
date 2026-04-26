@@ -73,7 +73,8 @@ const renderCollage = (upperBodyFitWidth: number) => {
 
 const getDressWidth = (container: HTMLElement) => {
   const image = container.querySelector('img[alt="Asymmetric black dress"]') as HTMLImageElement | null;
-  return Number(image?.style.width.replace("%", ""));
+  const wrapper = image?.parentElement as HTMLDivElement | null;
+  return Number(wrapper?.style.width.replace("%", ""));
 };
 
 describe("OutfitCollage calibrated fit sizing", () => {
