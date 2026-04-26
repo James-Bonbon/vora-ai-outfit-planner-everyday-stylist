@@ -65,11 +65,17 @@ const calculateVisibleAlphaBounds = (bytes: Uint8Array) => {
   const alphaProfileRows = Array.from({ length: height }, () => 0);
   const alphaProfileColumns = Array.from({ length: width }, () => 0);
   const alphaRowExtents = Array.from({ length: height }, () => null as { left: number; right: number } | null);
+  const maskWidth = 128;
+  const maskHeight = 128;
+  const maskCells = new Uint8Array(maskWidth * maskHeight);
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const alpha = rgba[(y * width + x) * 4 + 3];
       if (alpha > 10) {
+        const mx = Math.min(maskWidth - 1, Math.floor((x / width) * maskWidth));
+        const my = Math.min(maskHeight - 1, Math.floor((y / height) * maskHeight));
+        maskCells[my * maskWidth + mx] = 1;
         alphaProfileRows[y] += 1;
         alphaProfileColumns[x] += 1;
         alphaRowExtents[y] = alphaRowExtents[y]
@@ -82,6 +88,7 @@ const calculateVisibleAlphaBounds = (bytes: Uint8Array) => {
       }
     }
   }
+  const alphaMask = { width: maskWidth, height: maskHeight, threshold: 10, data: Array.from(maskCells, (value) => value ? "1" : "0").join("") };
 
   if (maxX < minX || maxY < minY) {
     return {
@@ -97,6 +104,7 @@ const calculateVisibleAlphaBounds = (bytes: Uint8Array) => {
       alphaProfileRows,
       alphaProfileColumns,
       alphaRowExtents,
+      alphaMask,
       centerline: { x: width / 2, y: height / 2 },
       visibleExtents: { top: 0, bottom: height - 1, left: 0, right: width - 1 },
     };
@@ -117,6 +125,7 @@ const calculateVisibleAlphaBounds = (bytes: Uint8Array) => {
     alphaProfileRows,
     alphaProfileColumns,
     alphaRowExtents,
+    alphaMask,
     centerline: { x: minX + visibleWidth / 2, y: minY + visibleHeight / 2 },
     visibleExtents: { top: minY, bottom: maxY, left: minX, right: maxX },
   };
@@ -132,6 +141,47 @@ const normalizePoint = (point: any, analysis: any) => {
     x: clamp(x <= 1 ? x * analysis.imageWidth : x, 0, analysis.imageWidth),
     y: clamp(y <= 1 ? y * analysis.imageHeight : y, 0, analysis.imageHeight),
   };
+};
+
+const maskHit = (analysis: any, x: number, y: number, radiusPx = 10) => {
+  const mask = analysis?.alphaMask;
+  if (mask?.width && mask?.height && mask.data) {
+    const mx = Math.max(0, Math.min(mask.width - 1, Math.round((x / analysis.imageWidth) * (mask.width - 1))));
+    const my = Math.max(0, Math.min(mask.height - 1, Math.round((y / analysis.imageHeight) * (mask.height - 1))));
+    const rx = Math.max(1, Math.ceil((radiusPx / analysis.imageWidth) * mask.width));
+    const ry = Math.max(1, Math.ceil((radiusPx / analysis.imageHeight) * mask.height));
+    for (let yy = my - ry; yy <= my + ry; yy++) for (let xx = mx - rx; xx <= mx + rx; xx++) {
+      if (xx >= 0 && yy >= 0 && xx < mask.width && yy < mask.height && mask.data[yy * mask.width + xx] === "1") return true;
+    }
+    return false;
+  }
+  const extent = analysis?.alphaRowExtents?.[Math.round(y)];
+  return Boolean(extent && x >= extent.left - radiusPx && x <= extent.right + radiusPx);
+};
+
+const pairCoverage = (left: any, right: any, analysis: any) => {
+  let hits = 0;
+  const samples = 24;
+  for (let i = 0; i <= samples; i++) {
+    const t = i / samples;
+    if (maskHit(analysis, left.x + (right.x - left.x) * t, left.y + (right.y - left.y) * t, 8)) hits += 1;
+  }
+  return hits / (samples + 1);
+};
+
+const validateAnchorPair = (left: any, right: any, analysis: any, minRatio: number, maxRatio: number, minY: number, maxY: number) => {
+  const reasons: string[] = [];
+  if (!left || !right) return { valid: false, reasons: ["missing_required_anchor"], coverage: 0 };
+  const b = analysis.visibleAlphaBounds;
+  const inside = (p: any) => p.x >= b.x && p.x <= b.x + b.width && p.y >= b.y && p.y <= b.y + b.height;
+  if (!inside(left) || !inside(right) || !maskHit(analysis, left.x, left.y) || !maskHit(analysis, right.x, right.y)) reasons.push("anchor_point_not_on_garment");
+  const coverage = pairCoverage(left, right, analysis);
+  if (coverage < 0.42) reasons.push("line_crosses_empty_space");
+  const ratio = Math.abs(right.x - left.x) / Math.max(analysis.imageWidth, 1);
+  if (ratio < minRatio || ratio > maxRatio) reasons.push("width_out_of_range");
+  const yRatio = (((left.y + right.y) / 2) - b.y) / Math.max(b.height, 1);
+  if (yRatio < minY || yRatio > maxY) reasons.push("implausible_y_position");
+  return { valid: reasons.length === 0, reasons, coverage };
 };
 
 const scanAlphaBand = (analysis: any, startPct: number, endPct: number, minRatio: number, maxRatio: number, mode: "upper" | "waist" | "hem") => {
@@ -155,19 +205,28 @@ const scanAlphaBand = (analysis: any, startPct: number, endPct: number, minRatio
 };
 
 const buildAlphaProfileLayout = (analysis: any, isTop: boolean, isOuterwear: boolean, isDress: boolean, isBottom: boolean) => {
-  const confidence = 0.42;
   const notes = "Estimated from alpha profile scan; not an AI measurement.";
   const layout: any = {};
+  const confidenceFor = (candidate: any, type: "upper" | "waist" | "hem" | "length") => {
+    if (!candidate || type === "length") return 0.68;
+    const left = { x: candidate.left, y: candidate.y };
+    const right = { x: candidate.right, y: candidate.y };
+    const coverage = pairCoverage(left, right, analysis);
+    const nearby = [-3, -2, -1, 1, 2, 3].map((offset) => analysis.alphaRowExtents?.[candidate.y + offset]).filter(Boolean);
+    const stability = nearby.length ? 1 - Math.min(1, nearby.reduce((sum: number, extent: any) => sum + Math.abs(extent.left - candidate.left) + Math.abs(extent.right - candidate.right), 0) / (nearby.length * Math.max(candidate.width, 1) * 2)) : 0.4;
+    return clamp(0.3 + coverage * 0.3 + stability * 0.2 + Math.min(0.15, candidate.score * 0.15), 0.3, 0.85);
+  };
   const upperMin = isOuterwear ? 0.34 : isDress ? 0.32 : 0.24;
   const upperMax = isOuterwear ? 0.78 : isDress ? 0.72 : 0.68;
   const upper = isTop ? scanAlphaBand(analysis, 0.1, 0.35, upperMin, upperMax, "upper") : null;
   const waist = scanAlphaBand(analysis, isBottom ? 0.02 : 0.38, isBottom ? 0.18 : 0.62, 0.18, 0.72, "waist");
   const hem = scanAlphaBand(analysis, isBottom ? 0.68 : 0.78, 0.96, 0.12, 0.82, "hem");
-  if (upper) layout.upperFit = { leftUpperFitAnchor: { x: upper.left, y: upper.y, source: "alpha_profile", confidence, notes }, rightUpperFitAnchor: { x: upper.right, y: upper.y, source: "alpha_profile", confidence, notes }, upperBodyFitWidth: upper.width, confidence, source: "alpha_profile", notes };
-  if (waist) layout.waist = { leftWaistAnchor: { x: waist.left, y: waist.y, source: "alpha_profile", confidence, notes }, rightWaistAnchor: { x: waist.right, y: waist.y, source: "alpha_profile", confidence, notes }, waistFitWidth: waist.width, confidence, source: "alpha_profile", notes };
-  if (hem) layout.lowerHemFit = { leftLowerHemFitAnchor: { x: hem.left, y: hem.y, source: "alpha_profile", confidence, notes }, rightLowerHemFitAnchor: { x: hem.right, y: hem.y, source: "alpha_profile", confidence, notes }, lowerHemFitWidth: hem.width, confidence, source: "alpha_profile", validationStatus: "estimated", notes };
+  if (upper) { const confidence = confidenceFor(upper, "upper"); layout.upperFit = { leftUpperFitAnchor: { x: upper.left, y: upper.y, source: "alpha_profile", confidence, notes }, rightUpperFitAnchor: { x: upper.right, y: upper.y, source: "alpha_profile", confidence, notes }, upperBodyFitWidth: upper.width, confidence, source: "alpha_profile", validationStatus: "estimated", notes }; }
+  if (waist) { const confidence = confidenceFor(waist, "waist"); layout.waist = { leftWaistAnchor: { x: waist.left, y: waist.y, source: "alpha_profile", confidence, notes }, rightWaistAnchor: { x: waist.right, y: waist.y, source: "alpha_profile", confidence, notes }, waistFitWidth: waist.width, confidence, source: "alpha_profile", validationStatus: "estimated", notes }; }
+  if (hem) { const confidence = confidenceFor(hem, "hem"); layout.lowerHemFit = { leftLowerHemFitAnchor: { x: hem.left, y: hem.y, source: "alpha_profile", confidence, notes }, rightLowerHemFitAnchor: { x: hem.right, y: hem.y, source: "alpha_profile", confidence, notes }, lowerHemFitWidth: hem.width, confidence, source: "alpha_profile", validationStatus: "estimated", notes }; }
   if (analysis?.visibleAlphaBounds) {
     const b = analysis.visibleAlphaBounds;
+    const confidence = confidenceFor(null, "length");
     layout.lengthFit = { topLengthFitAnchor: { x: b.x + b.width / 2, y: b.y, source: "alpha_profile", confidence, notes }, bottomLengthFitAnchor: { x: b.x + b.width / 2, y: b.y + b.height, source: "alpha_profile", confidence, notes }, lengthFitHeight: b.height, confidence, source: "alpha_profile", validationStatus: "estimated", notes };
   }
   return Object.keys(layout).length ? layout : null;
@@ -209,7 +268,8 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
 
   const leftWaist = normalizePoint(layout.leftWaistAnchor, analysis);
   const rightWaist = normalizePoint(layout.rightWaistAnchor, analysis);
-  if (leftWaist && rightWaist && (originalConfidence ?? 0) >= 0.5) {
+  const waistValidation = validateAnchorPair(leftWaist, rightWaist, analysis, 0.16, 0.72, isBottom ? 0 : 0.3, isBottom ? 0.24 : 0.68);
+  if (leftWaist && rightWaist && waistValidation.valid && (originalConfidence ?? 0) >= 0.5) {
     next.validatedMeasurementAnchors = {
       ...(next.validatedMeasurementAnchors || {}),
       waist: {
@@ -221,6 +281,8 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
         notes: layout.notes || "AI waist fit span.",
       },
     };
+  } else if (leftWaist || rightWaist) {
+    next.fitValidation.rejected.push(...waistValidation.reasons.map((reason) => `waist:${reason}`));
   }
 
   const alphaLayout = buildAlphaProfileLayout(analysis, isTop, isOuterwear, isDress, isBottom);
@@ -239,7 +301,8 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
     return next;
   }
 
-  if (!next.validatedMeasurementAnchors?.upperFit && left && right && rawRatio >= measurementMinRatio && rawRatio <= measurementMaxRatio && (originalConfidence ?? 0) >= 0.5) {
+  const upperValidation = validateAnchorPair(left, right, analysis, measurementMinRatio, measurementMaxRatio, 0.04, 0.38);
+  if (!next.validatedMeasurementAnchors?.upperFit && left && right && upperValidation.valid && (originalConfidence ?? 0) >= 0.5) {
     next.validatedMeasurementAnchors = {
       ...(next.validatedMeasurementAnchors || {}),
       upperFit: {
@@ -261,6 +324,8 @@ const normalizeUpperAnchors = (layout: any, analysis: any, item: any) => {
     next.confidenceBeforeNormalization = originalConfidence;
     next.confidenceAfterNormalization = originalConfidence;
     return next;
+  } else if (left || right) {
+    next.fitValidation.rejected.push(...upperValidation.reasons.map((reason) => `upperFit:${reason}`));
   }
 
   if (alphaLayout?.upperFit) {
@@ -375,7 +440,7 @@ Return garmentType, bodyCoverage, lengthClass, bulkClass, preferredPreviewScale,
 - bottoms: leftWaistAnchor, rightWaistAnchor, crotchPoint if visible, leftHem, rightHem, waistFitWidth, legLength
 - shoes/accessories: visualLength, visualHeight, anchorCenter
 
-For dresses, especially asymmetric or sleeveless dresses, do NOT measure literal shoulder seams. Detect upperBodyFitWidth across the upper bodice/chest/armhole area corresponding to the wearer's upper torso. Reject strap-only or diagonal decorative spans by setting confidence below 0.5 and explaining why. For coats, do not include full sleeve spread in upperBodyFitWidth; measure body fit width. If confidence is low, ambiguous, or implausible, return the best candidate with confidence below 0.5 and notes.`;
+For dresses, especially asymmetric or sleeveless dresses, do NOT measure literal shoulder seams. Detect upperBodyFitWidth across the upper bodice/chest/armhole area corresponding to the wearer's upper torso. Never invent anchors in transparent or white empty space: every anchor must sit on visible garment pixels inside the alpha bounds, and left/right lines must cross actual garment material. If a point is ambiguous, off-garment, strap-only, diagonal decorative detail, or implausible, return null/omit that anchor and set confidence below 0.5 with notes. For coats, do not include full sleeve spread in upperBodyFitWidth; measure body fit width.`;
 
         const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",

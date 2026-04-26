@@ -54,6 +54,8 @@ type LayoutMetadata = {
     lengthFit?: FitGroup;
     length?: FitGroup;
   };
+  invalidAnchors?: Array<{ anchor: string; source?: string; reasons: string[]; confidence?: number }>;
+  fitValidation?: { status?: string; rejected?: string[]; invalidAnchors?: Array<{ anchor: string; source?: string; reasons: string[]; confidence?: number }> };
   bodyAnchors?: {
     leftShoulder?: { x: number; y: number };
     rightShoulder?: { x: number; y: number };
@@ -332,10 +334,10 @@ const getPrioritizedFitGroup = (metadata: LayoutMetadata, anchorType: FitAnchorT
   const measurement = metadata.measurementAnchors?.[anchorType];
   const layout = metadata.layoutAnchors?.[anchorType] || (anchorType === "lowerHemFit" ? metadata.layoutAnchors?.length : undefined);
   const human = [validated, measurement].find((group) => group?.source === "human");
-  const ai = [validated, measurement].find((group) => group?.source === "ai");
+  const ai = [validated, measurement].find((group) => group?.source === "ai" && group.validationStatus !== "failed" && Number(group.confidence) >= 0.5);
   if (human) return { group: human, source: "human", isMeasurement: true };
   if (ai) return { group: ai, source: "ai", isMeasurement: true };
-  if (layout?.source === "alpha_profile") return { group: layout, source: "alpha_profile", isMeasurement: false };
+  if (layout?.source === "alpha_profile" && layout.validationStatus !== "failed" && Number(layout.confidence) >= 0.5) return { group: layout, source: "alpha_profile", isMeasurement: true };
   if (layout?.source === "ratio_guard") return { group: layout, source: "ratio_guard", isMeasurement: false };
   if (layout) return { group: layout, source: layout.source || "fallback", isMeasurement: false };
   return null;
@@ -373,6 +375,39 @@ const getAnchorPairFromGroup = (group: FitGroup | undefined, anchorType: FitAnch
   return width > 0.08 ? { left, right, width: clamp(width, 0.08, 1), leftLabel, rightLabel, fullLabel: `${leftKey} → ${rightKey}`, source: group?.source, confidence: group?.confidence, validationStatus: group?.validationStatus || (group?.source === "human" || group?.source === "ai" ? "validated" : "estimated") } : null;
 };
 
+const pointNearGarment = (point: { x: number; y: number }, analysis?: ImageAnalysis | null, radiusPx = 10) => {
+  const fullWidth = Number(analysis?.imageWidth) || 1;
+  const fullHeight = Number(analysis?.imageHeight) || 1;
+  const x = point.x <= 1 ? point.x * fullWidth : point.x;
+  const y = point.y <= 1 ? point.y * fullHeight : point.y;
+  const mask = (analysis as any)?.alphaMask;
+  if (mask?.width && mask?.height && mask.data) {
+    const mx = clamp(Math.round((x / fullWidth) * (mask.width - 1)), 0, mask.width - 1);
+    const my = clamp(Math.round((y / fullHeight) * (mask.height - 1)), 0, mask.height - 1);
+    const rx = Math.max(1, Math.ceil((radiusPx / fullWidth) * mask.width));
+    const ry = Math.max(1, Math.ceil((radiusPx / fullHeight) * mask.height));
+    for (let yy = my - ry; yy <= my + ry; yy++) for (let xx = mx - rx; xx <= mx + rx; xx++) {
+      if (xx >= 0 && yy >= 0 && xx < mask.width && yy < mask.height && mask.data[yy * mask.width + xx] === "1") return true;
+    }
+    return false;
+  }
+  const extent = (analysis as any)?.alphaRowExtents?.[Math.round(y)];
+  return !extent || (x >= extent.left - radiusPx && x <= extent.right + radiusPx);
+};
+
+const pairValidForSizing = (pair: ReturnType<typeof getAnchorPairFromGroup>, analysis?: ImageAnalysis | null) => {
+  if (!pair || pair.source === "human") return true;
+  if (pair.validationStatus === "failed" || pair.source === "ratio_guard" || Number(pair.confidence) < 0.5) return false;
+  if (!pointNearGarment(pair.left, analysis) || !pointNearGarment(pair.right, analysis)) return false;
+  let hits = 0;
+  const samples = 16;
+  for (let index = 0; index <= samples; index++) {
+    const t = index / samples;
+    if (pointNearGarment({ x: pair.left.x + (pair.right.x - pair.left.x) * t, y: pair.left.y + (pair.right.y - pair.left.y) * t }, analysis, 8)) hits += 1;
+  }
+  return hits / (samples + 1) >= 0.42;
+};
+
 const widthToRatio = (width: number, analysis?: ImageAnalysis | null) => {
   if (!Number.isFinite(width) || width <= 0) return null;
   const ratio = width > 1 && analysis?.imageWidth ? width / analysis.imageWidth : width;
@@ -393,8 +428,9 @@ const hasSufficientAnchorConfidence = (metadata: LayoutMetadata) => Number(metad
 const getMeasurementPair = (metadata: LayoutMetadata, analysis: ImageAnalysis | null | undefined, anchorType: FitAnchorType, measurementsOnly = false) => {
   const prioritized = getPrioritizedFitGroup(metadata, anchorType);
   if (!prioritized?.group) return null;
-  if (measurementsOnly && (!prioritized.isMeasurement || !["ai", "human"].includes(String(prioritized.source)) || Number(prioritized.group.confidence) < 0.5)) return null;
-  return getAnchorPairFromGroup(prioritized.group, anchorType, analysis);
+  if (measurementsOnly && (!prioritized.isMeasurement || !["ai", "human", "alpha_profile"].includes(String(prioritized.source)) || Number(prioritized.group.confidence) < 0.5)) return null;
+  const pair = getAnchorPairFromGroup(prioritized.group, anchorType, analysis);
+  return pairValidForSizing(pair, analysis) || prioritized.source === "ratio_guard" && !measurementsOnly ? pair : null;
 };
 
 const getRealMeasurementPair = (metadata: LayoutMetadata, analysis: ImageAnalysis | null | undefined, visualCategory: VisualCategory) => {
@@ -668,9 +704,9 @@ const getRelationshipMetrics = (items: RenderItem[], groupNormalization: GroupNo
   if (!rule) return null;
   const primary = items.find((item) => item.visualCategory === rule.a);
   const secondary = rule.b ? items.find((item) => item.visualCategory === rule.b) : primary;
-  const primaryPair = primary ? getMeasurementPair(primary.metadata, primary.garment?.image_analysis, rule.aAnchor as FitAnchorType) || ("fallbackAAnchor" in rule ? getMeasurementPair(primary.metadata, primary.garment?.image_analysis, rule.fallbackAAnchor as FitAnchorType) : null) : null;
+  const primaryPair = primary ? getMeasurementPair(primary.metadata, primary.garment?.image_analysis, rule.aAnchor as FitAnchorType, true) : null;
   const secondaryAnchorType = (rule.bAnchor || "lengthFit") as FitAnchorType;
-  const secondaryPair = secondary ? getMeasurementPair(secondary.metadata, secondary.garment?.image_analysis, secondaryAnchorType) : null;
+  const secondaryPair = secondary ? getMeasurementPair(secondary.metadata, secondary.garment?.image_analysis, secondaryAnchorType, true) : null;
   const primaryRendered = getRenderedAnchorMeasurement(primary, groupNormalization, primaryPair);
   const secondaryRendered = getRenderedAnchorMeasurement(secondary, groupNormalization, secondaryPair);
   const finalRatio = primaryRendered?.renderedFitLineLength && secondaryRendered?.renderedFitLineLength ? primaryRendered.renderedFitLineLength / secondaryRendered.renderedFitLineLength : null;
@@ -871,10 +907,16 @@ const getGarmentFitSummary = (item: RenderItem, relationshipDebug: ReturnType<ty
   const allAnchors = [...required, ...optional];
   const present = allAnchors.flatMap((anchorType) => {
     const group = getPrioritizedFitGroup(item.metadata, anchorType);
-    return group ? [`${formatAnchorName(anchorType)} (${group.source})`] : [];
+    return group && group.group.validationStatus !== "failed" ? [`${formatAnchorName(anchorType)} (${group.source}, ${Number(group.group.confidence ?? 0).toFixed(2)})`] : [];
   });
   const missingRequired = required.filter((anchorType) => !getPrioritizedFitGroup(item.metadata, anchorType)).map(formatAnchorName);
   const missingOptional = optional.filter((anchorType) => !getPrioritizedFitGroup(item.metadata, anchorType)).map((anchorType) => `${formatAnchorName(anchorType)} optional`);
+  const invalid = (item.metadata.invalidAnchors || item.metadata.fitValidation?.invalidAnchors || [])
+    .map((entry) => `${formatAnchorName(entry.anchor as FitAnchorType)}: ${entry.reasons.join(", ")}`);
+  const usedForSizing = allAnchors.filter((anchorType) => {
+    const group = getPrioritizedFitGroup(item.metadata, anchorType);
+    return group?.isMeasurement && group.source !== "ratio_guard" && Number(group.group.confidence) >= 0.5;
+  }).map(formatAnchorName);
   const relationshipScale = Number(item.style.sizingDebug?.relationshipScale || item.style.sizingDebug?.requiredDressBoxScale || 1);
   const resizeActionNeeded = Number.isFinite(relationshipScale) && Math.abs(relationshipScale - 1) > 0.02;
   const compared = relationshipDebug?.comparedAnchors;
@@ -893,8 +935,10 @@ const getGarmentFitSummary = (item: RenderItem, relationshipDebug: ReturnType<ty
     required: required.map(formatAnchorName),
     present,
     missing: [...missingRequired, ...missingOptional],
+    invalid,
+    usedForSizing,
     confidence: Number(item.metadata.confidence ?? item.style.sizingDebug?.upperFitWidthRatio ?? 0),
-    status: missingRequired.length ? "Needs calibration" : "OK",
+    status: item.metadata.fitValidation?.status || (missingRequired.length ? "Needs calibration" : "OK"),
     resizeActionNeeded,
     resizeReason,
   };
@@ -1178,6 +1222,8 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
               <div>Required: {summary.required.length ? summary.required.join(", ") : "visualWidth, visualLength"}</div>
               <div>Present: {summary.present.length ? summary.present.join(", ") : "visual bounds only"}</div>
               <div>Missing: {summary.missing.length ? summary.missing.join(", ") : "None"}</div>
+              <div>Invalid: {summary.invalid.length ? summary.invalid.join("; ") : "None"}</div>
+              <div>Used for sizing: {summary.usedForSizing.length ? summary.usedForSizing.join(", ") : "No"}</div>
               <div>Status: {summary.status}</div>
               <div>Confidence: {summary.confidence ? summary.confidence.toFixed(2) : "—"}</div>
               <div>Resize: {summary.resizeActionNeeded ? "Yes" : "No"}</div>

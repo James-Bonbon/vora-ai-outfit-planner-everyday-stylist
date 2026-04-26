@@ -90,15 +90,15 @@ describe("OutfitCollage calibrated fit sizing", () => {
     expect(narrowDressWidth).toBeGreaterThan(wideDressWidth);
     expect(narrow.container.textContent).toContain('"source": "human"');
     expect(narrow.container.textContent).toContain('"passFailBasis": "rendered fit line only"');
-    expect(narrow.container.textContent).toMatch(/final dress\/coat ratio: 0\.(8[5-9]|9[0-5])/);
+    expect(narrow.container.textContent).toMatch(/"finalRatio":\s*0\.9/);
     expect(narrow.container.textContent).toContain('"selectedLayoutTemplate": "four_zone_editorial"');
     expect(narrow.container.textContent).toContain('"assignedZone": "topLeft"');
     expect(narrow.container.textContent).toContain('"assignedZone": "rightColumn"');
     expect(narrow.container.textContent).toMatch(/"horizontalOverlapPct":\s*0\.(3[5-9]|4\d|5[0-5])/);
     expect(narrow.container.textContent).toMatch(/"groupOccupancy(Width|Height)Pct":\s*(7\d|8[0-5])/);
     expect(narrow.container.textContent).toContain('"safePaddingPct": 9');
-    expect(narrow.container.textContent).toContain("dress rendered fit line");
-    expect(narrow.container.textContent).toContain("dress local fit ratio");
+    expect(narrow.container.textContent).toContain('"finalRenderedDressFitLine"');
+    expect(narrow.container.textContent).toContain('"dressLocalFitRatio"');
     act(() => narrow.root.unmount());
     narrow.container.remove();
   });

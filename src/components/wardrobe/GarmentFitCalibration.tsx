@@ -15,16 +15,24 @@ type Props = {
 
 const editableKeys = ["leftUpperFitAnchor", "rightUpperFitAnchor", "leftWaistAnchor", "rightWaistAnchor", "leftLowerHemFitAnchor", "rightLowerHemFitAnchor", "topLengthFitAnchor", "bottomLengthFitAnchor"] as const;
 
-const getInitialAnchors = (metadata: any) => ({
-  leftUpperFitAnchor: metadata?.validatedMeasurementAnchors?.upperFit?.leftUpperFitAnchor || metadata?.measurementAnchors?.upperFit?.leftUpperFitAnchor || metadata?.layoutAnchors?.upperFit?.leftUpperFitAnchor || metadata?.leftUpperAnchor,
-  rightUpperFitAnchor: metadata?.validatedMeasurementAnchors?.upperFit?.rightUpperFitAnchor || metadata?.measurementAnchors?.upperFit?.rightUpperFitAnchor || metadata?.layoutAnchors?.upperFit?.rightUpperFitAnchor || metadata?.rightUpperAnchor,
-  leftWaistAnchor: metadata?.validatedMeasurementAnchors?.waist?.leftWaistAnchor || metadata?.measurementAnchors?.waist?.leftWaistAnchor || metadata?.leftWaistAnchor,
-  rightWaistAnchor: metadata?.validatedMeasurementAnchors?.waist?.rightWaistAnchor || metadata?.measurementAnchors?.waist?.rightWaistAnchor || metadata?.rightWaistAnchor,
-  leftLowerHemFitAnchor: metadata?.validatedMeasurementAnchors?.lowerHemFit?.leftLowerHemFitAnchor || metadata?.measurementAnchors?.lowerHemFit?.leftLowerHemFitAnchor || metadata?.layoutAnchors?.lowerHemFit?.leftLowerHemFitAnchor,
-  rightLowerHemFitAnchor: metadata?.validatedMeasurementAnchors?.lowerHemFit?.rightLowerHemFitAnchor || metadata?.measurementAnchors?.lowerHemFit?.rightLowerHemFitAnchor || metadata?.layoutAnchors?.lowerHemFit?.rightLowerHemFitAnchor,
-  topLengthFitAnchor: metadata?.validatedMeasurementAnchors?.lengthFit?.topLengthFitAnchor || metadata?.measurementAnchors?.lengthFit?.topLengthFitAnchor || metadata?.layoutAnchors?.lengthFit?.topLengthFitAnchor,
-  bottomLengthFitAnchor: metadata?.validatedMeasurementAnchors?.lengthFit?.bottomLengthFitAnchor || metadata?.measurementAnchors?.lengthFit?.bottomLengthFitAnchor || metadata?.layoutAnchors?.lengthFit?.bottomLengthFitAnchor,
-});
+const editableGroup = (group: any) => group && group.source !== "ratio_guard" && group.validationStatus !== "failed" && (group.source === "human" || Number(group.confidence) >= 0.5) ? group : undefined;
+
+const getInitialAnchors = (metadata: any) => {
+  const upper = editableGroup(metadata?.validatedMeasurementAnchors?.upperFit) || editableGroup(metadata?.measurementAnchors?.upperFit);
+  const waist = editableGroup(metadata?.validatedMeasurementAnchors?.waist) || editableGroup(metadata?.measurementAnchors?.waist);
+  const hem = editableGroup(metadata?.validatedMeasurementAnchors?.lowerHemFit) || editableGroup(metadata?.measurementAnchors?.lowerHemFit);
+  const length = editableGroup(metadata?.validatedMeasurementAnchors?.lengthFit) || editableGroup(metadata?.measurementAnchors?.lengthFit);
+  return {
+    leftUpperFitAnchor: upper?.leftUpperFitAnchor,
+    rightUpperFitAnchor: upper?.rightUpperFitAnchor,
+    leftWaistAnchor: waist?.leftWaistAnchor,
+    rightWaistAnchor: waist?.rightWaistAnchor,
+    leftLowerHemFitAnchor: hem?.leftLowerHemFitAnchor,
+    rightLowerHemFitAnchor: hem?.rightLowerHemFitAnchor,
+    topLengthFitAnchor: length?.topLengthFitAnchor,
+    bottomLengthFitAnchor: length?.bottomLengthFitAnchor,
+  };
+};
 
 export const GarmentFitCalibration = ({ itemId, imageUrl, layoutMetadata, imageAnalysis, onSaved }: Props) => {
   const queryClient = useQueryClient();
@@ -192,7 +200,7 @@ export const GarmentFitCalibration = ({ itemId, imageUrl, layoutMetadata, imageA
       <div className="grid grid-cols-2 gap-2 text-[10px] text-muted-foreground">
         {editableKeys.map((key) => (
           <div key={key} className="flex items-center justify-between rounded-lg bg-background px-2 py-1">
-            <span>{key.replace("Anchor", "")}</span>
+            <span>{key.replace("Anchor", "")}{anchors[key] ? "" : " missing"}</span>
             <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => anchors[key] ? setAnchors((prev) => ({ ...prev, [key]: undefined })) : addAnchor(key)}>
               {anchors[key] ? <X className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
             </Button>
