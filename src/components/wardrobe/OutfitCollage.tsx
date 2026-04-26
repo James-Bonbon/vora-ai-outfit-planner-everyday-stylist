@@ -54,6 +54,8 @@ type LayoutMetadata = {
     lengthFit?: FitGroup;
     length?: FitGroup;
   };
+  invalidAnchors?: Array<{ anchor: string; source?: string; reasons: string[]; confidence?: number }>;
+  fitValidation?: { status?: string; rejected?: string[]; invalidAnchors?: Array<{ anchor: string; source?: string; reasons: string[]; confidence?: number }> };
   bodyAnchors?: {
     leftShoulder?: { x: number; y: number };
     rightShoulder?: { x: number; y: number };
@@ -404,8 +406,7 @@ const getRealMeasurementPair = (metadata: LayoutMetadata, analysis: ImageAnalysi
 };
 
 const getUpperBodyWidthRatio = (metadata: LayoutMetadata, analysis?: ImageAnalysis | null) => {
-  const prioritized = getPrioritizedUpperFit(metadata);
-  const prioritizedFit = prioritized?.source === "ratio_guard" ? null : prioritized?.group;
+  const prioritizedFit = getPrioritizedUpperFit(metadata)?.group;
   const prioritizedWidth = Number(prioritizedFit?.upperBodyFitWidth);
   const prioritizedRatio = widthToRatio(prioritizedWidth, analysis);
   if (prioritizedRatio) return prioritizedRatio;
@@ -669,9 +670,9 @@ const getRelationshipMetrics = (items: RenderItem[], groupNormalization: GroupNo
   if (!rule) return null;
   const primary = items.find((item) => item.visualCategory === rule.a);
   const secondary = rule.b ? items.find((item) => item.visualCategory === rule.b) : primary;
-  const primaryPair = primary ? getMeasurementPair(primary.metadata, primary.garment?.image_analysis, rule.aAnchor as FitAnchorType) || ("fallbackAAnchor" in rule ? getMeasurementPair(primary.metadata, primary.garment?.image_analysis, rule.fallbackAAnchor as FitAnchorType) : null) : null;
+  const primaryPair = primary ? getMeasurementPair(primary.metadata, primary.garment?.image_analysis, rule.aAnchor as FitAnchorType, true) : null;
   const secondaryAnchorType = (rule.bAnchor || "lengthFit") as FitAnchorType;
-  const secondaryPair = secondary ? getMeasurementPair(secondary.metadata, secondary.garment?.image_analysis, secondaryAnchorType) : null;
+  const secondaryPair = secondary ? getMeasurementPair(secondary.metadata, secondary.garment?.image_analysis, secondaryAnchorType, true) : null;
   const primaryRendered = getRenderedAnchorMeasurement(primary, groupNormalization, primaryPair);
   const secondaryRendered = getRenderedAnchorMeasurement(secondary, groupNormalization, secondaryPair);
   const finalRatio = primaryRendered?.renderedFitLineLength && secondaryRendered?.renderedFitLineLength ? primaryRendered.renderedFitLineLength / secondaryRendered.renderedFitLineLength : null;
