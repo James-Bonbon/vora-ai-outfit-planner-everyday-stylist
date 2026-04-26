@@ -158,17 +158,30 @@ export const buildGarmentFitMetadata = ({
   const upperRight = normalizeFitPoint(rawAiLandmarks.rightUpperFitAnchor || rawAiLandmarks.rightUpperAnchor, analysis, "ai", confidence, rawAiLandmarks.notes);
   const waistLeft = normalizeFitPoint(rawAiLandmarks.leftWaistAnchor, analysis, "ai", confidence, rawAiLandmarks.notes);
   const waistRight = normalizeFitPoint(rawAiLandmarks.rightWaistAnchor, analysis, "ai", confidence, rawAiLandmarks.notes);
+  const hemLeft = normalizeFitPoint(rawAiLandmarks.leftLowerHemFitAnchor || rawAiLandmarks.leftHemAnchor, analysis, "ai", confidence, rawAiLandmarks.notes);
+  const hemRight = normalizeFitPoint(rawAiLandmarks.rightLowerHemFitAnchor || rawAiLandmarks.rightHemAnchor, analysis, "ai", confidence, rawAiLandmarks.notes);
+  const lengthTop = normalizeFitPoint(rawAiLandmarks.topLengthFitAnchor || rawAiLandmarks.necklineCenter, analysis, "ai", confidence, rawAiLandmarks.notes);
+  const lengthBottom = normalizeFitPoint(rawAiLandmarks.bottomLengthFitAnchor || rawAiLandmarks.hemCenter, analysis, "ai", confidence, rawAiLandmarks.notes);
   const upperWidth = Number(rawAiLandmarks.upperBodyFitWidth) > 0 ? Number(rawAiLandmarks.upperBodyFitWidth) : pointPair(upperLeft, upperRight);
   const waistWidth = Number(rawAiLandmarks.waistFitWidth) > 0 ? Number(rawAiLandmarks.waistFitWidth) : pointPair(waistLeft, waistRight);
+  const lowerHemWidth = Number(rawAiLandmarks.lowerHemFitWidth || rawAiLandmarks.hemFitWidth) > 0 ? Number(rawAiLandmarks.lowerHemFitWidth || rawAiLandmarks.hemFitWidth) : pointPair(hemLeft, hemRight);
+  const lengthHeight = Number(rawAiLandmarks.lengthFitHeight) > 0 ? Number(rawAiLandmarks.lengthFitHeight) : lengthTop && lengthBottom ? Math.abs(lengthBottom.y - lengthTop.y) : 0;
   const imageWidth = Number(analysis?.imageWidth) || 1;
+  const imageHeight = Number(analysis?.imageHeight) || 1;
   const upperRatio = upperWidth / imageWidth;
   const waistRatio = waistWidth / imageWidth;
+  const lowerHemRatio = lowerHemWidth / imageWidth;
+  const lengthRatio = lengthHeight / imageHeight;
   const upperBounds = family === "outerwear" ? [0.34, 0.78] : family === "dresses" ? [0.32, 0.72] : [0.24, 0.68];
 
   const humanUpper = metadata?.validatedMeasurementAnchors?.upperFit?.source === "human" ? metadata.validatedMeasurementAnchors.upperFit : null;
   const humanWaist = metadata?.validatedMeasurementAnchors?.waist?.source === "human" ? metadata.validatedMeasurementAnchors.waist : null;
+  const humanHem = metadata?.validatedMeasurementAnchors?.lowerHemFit?.source === "human" ? metadata.validatedMeasurementAnchors.lowerHemFit : null;
+  const humanLength = metadata?.validatedMeasurementAnchors?.lengthFit?.source === "human" ? metadata.validatedMeasurementAnchors.lengthFit : null;
   if (humanUpper) next.validatedMeasurementAnchors!.upperFit = humanUpper;
   if (humanWaist) next.validatedMeasurementAnchors!.waist = humanWaist;
+  if (humanHem) next.validatedMeasurementAnchors!.lowerHemFit = humanHem;
+  if (humanLength) next.validatedMeasurementAnchors!.lengthFit = humanLength;
 
   if (!humanUpper && ["tops", "outerwear", "dresses"].includes(family)) {
     if (!upperLeft || !upperRight) rejected.push("missing_upper_fit_anchors");
@@ -182,6 +195,7 @@ export const buildGarmentFitMetadata = ({
         upperBodyFitWidth: upperWidth,
         source: "ai",
         confidence,
+        validationStatus: "validated",
         notes: rawAiLandmarks.notes || "Accepted AI upper-body fit width.",
       };
     }
@@ -195,6 +209,7 @@ export const buildGarmentFitMetadata = ({
         waistFitWidth: waistWidth,
         source: "ai",
         confidence,
+        validationStatus: "validated",
         notes: rawAiLandmarks.notes || "Accepted AI waist fit width.",
       };
     } else if (family === "bottoms") {
@@ -202,10 +217,39 @@ export const buildGarmentFitMetadata = ({
     }
   }
 
+  if (!humanHem && ["tops", "outerwear", "dresses", "bottoms"].includes(family)) {
+    if (hemLeft && hemRight && confidence >= 0.5 && lowerHemRatio >= 0.12 && lowerHemRatio <= 0.9 && withinVisibleBounds(hemLeft, analysis) && withinVisibleBounds(hemRight, analysis)) {
+      next.validatedMeasurementAnchors!.lowerHemFit = {
+        leftLowerHemFitAnchor: withPointMeta(hemLeft, "ai", confidence),
+        rightLowerHemFitAnchor: withPointMeta(hemRight, "ai", confidence),
+        lowerHemFitWidth: lowerHemWidth,
+        source: "ai",
+        confidence,
+        validationStatus: "validated",
+        notes: rawAiLandmarks.notes || "Accepted AI lower hem fit width.",
+      };
+    } else rejected.push("missing_or_implausible_lower_hem_fit_anchors");
+  }
+
+  if (!humanLength && ["outerwear", "dresses", "bottoms"].includes(family)) {
+    if (lengthTop && lengthBottom && confidence >= 0.5 && lengthRatio >= 0.25 && lengthRatio <= 1 && withinVisibleBounds(lengthTop, analysis) && withinVisibleBounds(lengthBottom, analysis)) {
+      next.validatedMeasurementAnchors!.lengthFit = {
+        topLengthFitAnchor: withPointMeta(lengthTop, "ai", confidence),
+        bottomLengthFitAnchor: withPointMeta(lengthBottom, "ai", confidence),
+        lengthFitHeight: lengthHeight,
+        source: "ai",
+        confidence,
+        validationStatus: "validated",
+        notes: rawAiLandmarks.notes || "Accepted AI garment length fit.",
+      };
+    } else rejected.push("missing_or_implausible_length_fit_anchors");
+  }
+
   const alphaLayout = buildAlphaProfileAnchors(analysis, family);
   if (!next.validatedMeasurementAnchors!.upperFit && alphaLayout?.upperFit) next.layoutAnchors!.upperFit = alphaLayout.upperFit;
   if (!next.validatedMeasurementAnchors!.waist && alphaLayout?.waist) next.layoutAnchors!.waist = alphaLayout.waist;
-  if (alphaLayout?.length) next.layoutAnchors!.length = alphaLayout.length;
+  if (!next.validatedMeasurementAnchors!.lowerHemFit && alphaLayout?.lowerHemFit) next.layoutAnchors!.lowerHemFit = alphaLayout.lowerHemFit;
+  if (!next.validatedMeasurementAnchors!.lengthFit && alphaLayout?.lengthFit) next.layoutAnchors!.lengthFit = alphaLayout.lengthFit;
 
   if (!next.validatedMeasurementAnchors!.upperFit && !next.layoutAnchors!.upperFit && ["tops", "outerwear", "dresses"].includes(family) && analysis?.imageWidth && analysis?.imageHeight && analysis.visibleAlphaBounds) {
     const minRatio = family === "outerwear" || family === "dresses" ? 0.44 : 0.32;
