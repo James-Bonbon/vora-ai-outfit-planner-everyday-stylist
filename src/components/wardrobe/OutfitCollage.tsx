@@ -326,7 +326,7 @@ const getNormalizedStyle = ({
   const upperAnchorBoxWidth = upperBodyWidthRatio && targetRenderedShoulderWidth
     ? targetRenderedShoulderWidth / upperBodyWidthRatio
     : null;
-  const widthClampMax = upperAnchorBoxWidth ? (fitSource === "human" ? 136 : 122) : 92;
+  const widthClampMax = upperAnchorBoxWidth ? (fitSource === "human" ? 166 : 122) : 92;
   const boxWidth = clamp(Math.max(intendedVisibleWidth / visibleWidthRatio, upperAnchorBoxWidth || 0), 22, widthClampMax);
   const visibleCenterX = analysis?.imageWidth && analysis?.visibleWidth
     ? ((analysis.visibleX ?? 0) + analysis.visibleWidth / 2) / analysis.imageWidth
@@ -420,7 +420,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
     renderItems = renderItems.map((item) => {
       if (item.visualCategory !== "dresses" || !item.upperFitWidthRatio) return item;
       const calculatedImageBoxWidth = targetDressRenderedFitWidth / item.upperFitWidthRatio;
-      const nextWidth = clamp(calculatedImageBoxWidth, 22, item.style.fitSource === "human" ? 138 : 124);
+      const nextWidth = clamp(calculatedImageBoxWidth, 22, item.style.fitSource === "human" ? 166 : 124);
       const scale = nextWidth / Math.max(item.style.boxWidthPct, 1);
       const nextHeight = clamp(item.style.boxHeightPct * clamp(scale, 0.86, 1.28), 22, 104);
       const finalRenderedFitWidth = item.upperFitWidthRatio * nextWidth;
