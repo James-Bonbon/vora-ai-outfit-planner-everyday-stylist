@@ -337,6 +337,29 @@ const toRelativePoint = (point: { x: number; y: number } | undefined, analysis?:
   };
 };
 
+const toRelativeFitBox = (box: FitBox | null | undefined, analysis?: ImageAnalysis | null) => {
+  if (!box || box.validationStatus === "failed" || (box.source !== "human" && Number(box.confidence ?? 0) < 0.5)) return null;
+  const imageWidth = Number(analysis?.imageWidth) || 1;
+  const imageHeight = Number(analysis?.imageHeight) || 1;
+  const x = Number(box.x);
+  const y = Number(box.y);
+  const width = Number(box.width);
+  const height = Number(box.height);
+  if (![x, y, width, height].every(Number.isFinite) || width <= 0 || height <= 0) return null;
+  return {
+    x: clamp(x > 1 ? x / imageWidth : x, 0, 1),
+    y: clamp(y > 1 ? y / imageHeight : y, 0, 1),
+    width: clamp(width > 1 ? width / imageWidth : width, 0.04, 1),
+    height: clamp(height > 1 ? height / imageHeight : height, 0.04, 1),
+    source: box.source || "fallback",
+    confidence: Number(box.confidence ?? 0),
+    validationStatus: box.validationStatus || "estimated",
+    notes: box.notes,
+  };
+};
+
+const getPrioritizedFitBox = (metadata: LayoutMetadata, analysis?: ImageAnalysis | null) => toRelativeFitBox(metadata.fitBox, analysis);
+
 const getPrioritizedUpperFit = (metadata: LayoutMetadata) => {
   return getPrioritizedFitGroup(metadata, "upperFit");
 };
