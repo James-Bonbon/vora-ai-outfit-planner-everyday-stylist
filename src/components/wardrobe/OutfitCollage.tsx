@@ -522,16 +522,17 @@ const getNormalizedStyle = ({
   const overflowOffset = Math.max(0, stackIndex - stackLayouts.length + 1) * 10;
   const visibleHeightRatio = clamp(Number(analysis?.visibleHeightRatio) || 1, 0.18, 1);
   const visibleWidthRatio = clamp(Number(analysis?.visibleWidthRatio) || 1, 0.18, 1);
+  const fitBox = getPrioritizedFitBox(metadata, analysis);
   const lengthFitPair = getMeasurementPair(metadata, analysis, "lengthFit");
   const lengthFitRatio = lengthFitPair?.width ? clamp(lengthFitPair.width, 0.18, 1) : null;
-  const verticalFitRatio = lengthFitRatio || visibleHeightRatio;
+  const verticalFitRatio = fitBox?.height || lengthFitRatio || visibleHeightRatio;
   const imageRatio = analysis?.imageWidth && analysis?.imageHeight ? analysis.imageWidth / analysis.imageHeight : 1;
   const visibleAspect = analysis?.visibleWidth && analysis?.visibleHeight ? analysis.visibleWidth / analysis.visibleHeight : imageRatio;
   const preferredScale = clamp(Number(metadata.preferredPreviewScale) || 0.55, 0.2, 1);
   const intendedVisibleWidth = clamp(intendedVisibleHeight * visibleAspect * (0.82 + preferredScale * 0.24), 22, 66);
   const boxHeight = clamp(intendedVisibleHeight / verticalFitRatio, 22, 88);
-  const upperBodyWidthRatio = getUpperBodyWidthRatio(metadata, analysis);
-  const fitSource = getPrioritizedUpperFit(metadata)?.source || (upperBodyWidthRatio ? "legacy" : "fallback");
+  const upperBodyWidthRatio = fitBox?.width || getUpperBodyWidthRatio(metadata, analysis);
+  const fitSource = fitBox?.source || getPrioritizedUpperFit(metadata)?.source || (upperBodyWidthRatio ? "legacy" : "fallback");
   const upperAnchorBoxWidth = upperBodyWidthRatio && targetRenderedShoulderWidth
     ? targetRenderedShoulderWidth / upperBodyWidthRatio
     : null;
@@ -540,7 +541,9 @@ const getNormalizedStyle = ({
   const visibleCenterX = analysis?.imageWidth && analysis?.visibleWidth
     ? ((analysis.visibleX ?? 0) + analysis.visibleWidth / 2) / analysis.imageWidth
     : 0.5;
-  const visibleCenterY = lengthFitPair
+  const visibleCenterY = fitBox
+    ? clamp(fitBox.y + fitBox.height / 2, 0, 1)
+    : lengthFitPair
     ? clamp((lengthFitPair.left.y + lengthFitPair.right.y) / 2, 0, 1)
     : analysis?.imageHeight && analysis?.visibleHeight
     ? ((analysis.visibleY ?? 0) + analysis.visibleHeight / 2) / analysis.imageHeight
@@ -574,8 +577,8 @@ const getNormalizedStyle = ({
     finalRenderedFitWidth: upperBodyWidthRatio ? upperBodyWidthRatio * boxWidth : null,
     sizingDebug: {
       upperFitSource: fitSource,
-      lengthFitSource: lengthFitPair?.source || null,
-      lengthFitRatio,
+      lengthFitSource: fitBox?.source || lengthFitPair?.source || null,
+      lengthFitRatio: fitBox?.height || lengthFitRatio,
       upperFitWidthRatio: upperBodyWidthRatio,
       boxWidthBeforeClamp: Math.max(intendedVisibleWidth / visibleWidthRatio, upperAnchorBoxWidth || 0),
       boxWidthAfterClamp: boxWidth,
