@@ -57,7 +57,8 @@ For EACH item, provide:
   "bulkClass": one of "light", "medium", "bulky",
   "preferredPreviewScale": number from 0.2 to 1.0 for editorial flat-lay visual importance,
   "visibleAlphaBounds": tight visible garment bounds if discernible, as pixel coordinates {"x": number, "y": number, "width": number, "height": number},
-  "leftUpperFitAnchor" and "rightUpperFitAnchor": pixel coordinates for the actual visible upper-body fit span, not transparent canvas edges,
+  "fitBox": one rectangle {"x": number, "y": number, "width": number, "height": number, "source": "ai", "confidence": number, "validationStatus": "validated", "notes": string}. For tops/dresses/coats/jackets, the top edge aligns with upper-body/chest/shoulder/armhole fit area and extends to hem. For bottoms, the top edge aligns with waistband and extends to hem. Do not create fitBox for shoes/accessories unless useful.
+  Legacy optional fields: "leftUpperFitAnchor" and "rightUpperFitAnchor": pixel coordinates for the actual visible upper-body fit span, not transparent canvas edges,
   "necklineCenter", "leftWaistAnchor", "rightWaistAnchor", "hemLeft", "hemRight", "sleeveLeftEnd", "sleeveRightEnd": pixel coordinates when visible,
   "upperBodyFitWidth", "waistFitWidth", "garmentLength": pixel measurements for upper-body garments,
   For bottoms return "leftWaistAnchor", "rightWaistAnchor", "crotchPoint" if visible, "leftHem", "rightHem", "waistFitWidth", and "legLength".
