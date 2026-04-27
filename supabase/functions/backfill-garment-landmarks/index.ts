@@ -497,9 +497,12 @@ For dresses, especially asymmetric or sleeveless dresses, do NOT measure literal
         const parsed = JSON.parse(cleanJson(aiData.choices?.[0]?.message?.content || "{}"));
         const rawLayout = parsed.layout_metadata || parsed;
         const layout = normalizeUpperAnchors(rawLayout, imageAnalysis, item);
+        const fitBox = buildFitBox(rawLayout, imageAnalysis, item);
         const nextMetadata = {
           ...(item.layout_metadata || {}),
           ...layout,
+          fitBox,
+          fitValidation: fitBox?.validationStatus === "failed" ? { status: "Needs calibration", rejected: fitBox.rejectionReasons || [], invalidFitBox: fitBox } : { status: fitBox?.source === "human" ? "human" : fitBox ? "OK" : "Needs calibration", rejected: [] },
           rawAiLandmarks: rawLayout,
           rawAiLayoutMetadata: rawLayout,
           visibleAlphaBounds: imageAnalysis.visibleAlphaBounds,
