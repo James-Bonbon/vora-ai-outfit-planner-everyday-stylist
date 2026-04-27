@@ -963,43 +963,25 @@ const optionalAnchorTypes = (category: VisualCategory): FitAnchorType[] => {
 const formatAnchorName = (anchor: FitAnchorType) => anchor === "waist" ? "waistFit" : anchor;
 
 const getGarmentFitSummary = (item: RenderItem, relationshipDebug: ReturnType<typeof getRelationshipMetrics>) => {
-  const required = requiredAnchorTypes(item.visualCategory);
-  const optional = optionalAnchorTypes(item.visualCategory);
-  const allAnchors = [...required, ...optional];
-  const present = allAnchors.flatMap((anchorType) => {
-    const group = getPrioritizedFitGroup(item.metadata, anchorType);
-    return group && group.group.validationStatus !== "failed" ? [`${formatAnchorName(anchorType)} (${group.source}, ${Number(group.group.confidence ?? 0).toFixed(2)})`] : [];
-  });
-  const missingRequired = required.filter((anchorType) => !getPrioritizedFitGroup(item.metadata, anchorType)).map(formatAnchorName);
-  const missingOptional = optional.filter((anchorType) => !getPrioritizedFitGroup(item.metadata, anchorType)).map((anchorType) => `${formatAnchorName(anchorType)} optional`);
-  const invalid = (item.metadata.invalidAnchors || item.metadata.fitValidation?.invalidAnchors || [])
-    .map((entry) => `${formatAnchorName(entry.anchor as FitAnchorType)}: ${entry.reasons.join(", ")}`);
-  const usedForSizing = allAnchors.filter((anchorType) => {
-    const group = getPrioritizedFitGroup(item.metadata, anchorType);
-    return group?.isMeasurement && group.source !== "ratio_guard" && Number(group.group.confidence) >= 0.5;
-  }).map(formatAnchorName);
+  const fitBox = getPrioritizedFitBox(item.metadata, item.garment?.image_analysis);
+  const rawFitBox = item.metadata.fitBox;
+  const rendered = item.style.finalRenderedFitWidth ? { width: item.style.finalRenderedFitWidth, height: item.style.boxHeightPct * (fitBox?.height || 0) } : null;
   const relationshipScale = Number(item.style.sizingDebug?.relationshipScale || item.style.sizingDebug?.requiredDressBoxScale || 1);
   const resizeActionNeeded = Number.isFinite(relationshipScale) && Math.abs(relationshipScale - 1) > 0.02;
-  const compared = relationshipDebug?.comparedAnchors;
-  const isPrimary = compared?.primary?.garment === (item.garment?.name || item.visualCategory);
   const resizeReason = resizeActionNeeded
     ? item.style.sizingDebug?.relationshipRule
-      ? `${displayType(item.visualCategory)} anchor ratio was outside target for ${relationshipDebug?.selectedRelationshipRule?.replace(/_/g, " ") || "relationship rule"}.`
-      : isPrimary
-        ? `${displayType(item.visualCategory)} rendered anchor needed scaling to match the paired garment.`
-        : "Garment dimensions changed during relationship normalization."
+      ? `${displayType(item.visualCategory)} fitBox ratio was outside target for ${relationshipDebug?.selectedRelationshipRule?.replace(/_/g, " ") || "relationship rule"}.`
+      : "Garment dimensions changed during fitBox relationship normalization."
     : "Within target relationship ratio.";
 
   return {
     name: item.garment?.name || item.garment?.category || "Garment",
     type: displayType(item.visualCategory),
-    required: required.map(formatAnchorName),
-    present,
-    missing: [...missingRequired, ...missingOptional],
-    invalid,
-    usedForSizing,
-    confidence: Number(item.metadata.confidence ?? item.style.sizingDebug?.upperFitWidthRatio ?? 0),
-    status: item.metadata.fitValidation?.status || (missingRequired.length ? "Needs calibration" : "OK"),
+    source: fitBox?.source || rawFitBox?.source || "visual bounds",
+    confidence: Number(fitBox?.confidence ?? rawFitBox?.confidence ?? 0),
+    renderedFitBoxWidth: rendered?.width ?? null,
+    renderedFitBoxHeight: rendered?.height ?? null,
+    status: item.metadata.fitValidation?.status || (!fitBox && ["tops", "outerwear", "dresses", "bottoms"].includes(item.visualCategory) ? "Needs calibration" : "OK"),
     resizeActionNeeded,
     resizeReason,
   };
