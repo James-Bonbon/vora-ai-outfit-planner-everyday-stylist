@@ -696,8 +696,34 @@ const getCanvasDistance = (left: { x: number; y: number }, right: { x: number; y
 
 const getRenderedMeasurement = (item: RenderItem | undefined, groupNormalization: GroupNormalization) => {
   if (!item) return null;
+  const fitBox = getPrioritizedFitBox(item.metadata, item.garment?.image_analysis);
+  if (fitBox) return getRenderedFitBoxMeasurement(item, groupNormalization, fitBox);
   const measurementPair = getRealMeasurementPair(item.metadata, item.garment?.image_analysis, item.visualCategory);
   return getRenderedAnchorMeasurement(item, groupNormalization, measurementPair);
+};
+
+const getRenderedFitBoxMeasurement = (item: RenderItem, groupNormalization: GroupNormalization, fitBox: NonNullable<ReturnType<typeof getPrioritizedFitBox>>) => {
+  const leftPoint = { x: fitBox.x, y: fitBox.y };
+  const rightPoint = { x: fitBox.x + fitBox.width, y: fitBox.y };
+  const bottomPoint = { x: fitBox.x + fitBox.width / 2, y: fitBox.y + fitBox.height };
+  const leftCanvas = mapMeasurementPointToCanvas(leftPoint, item.style, groupNormalization);
+  const rightCanvas = mapMeasurementPointToCanvas(rightPoint, item.style, groupNormalization);
+  const bottomCanvas = mapMeasurementPointToCanvas(bottomPoint, item.style, groupNormalization);
+  return {
+    localFitRatio: fitBox.width,
+    localFitHeightRatio: fitBox.height,
+    anchorType: "fitBox",
+    source: fitBox.source,
+    confidence: fitBox.confidence,
+    validationStatus: fitBox.validationStatus,
+    sourceFitBox: fitBox,
+    finalLeftAnchorCanvasPoint: { x: leftCanvas.x, y: leftCanvas.y },
+    finalRightAnchorCanvasPoint: { x: rightCanvas.x, y: rightCanvas.y },
+    finalBottomCanvasPoint: { x: bottomCanvas.x, y: bottomCanvas.y },
+    objectContainRect: leftCanvas.objectContainRect,
+    renderedFitLineLength: getCanvasDistance(leftCanvas, rightCanvas),
+    renderedFitBoxHeight: getCanvasDistance(leftCanvas, bottomCanvas),
+  };
 };
 
 const getRenderedAnchorMeasurement = (item: RenderItem | undefined, groupNormalization: GroupNormalization, measurementPair: ReturnType<typeof getAnchorPairFromGroup> | null) => {
