@@ -2,8 +2,19 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Check, Plus, X } from "lucide-react";
+import { Check } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+
+type FitBox = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  source: "human" | "ai" | "alpha_profile" | "ratio_guard";
+  confidence: number;
+  validationStatus: "validated" | "estimated" | "failed" | "warning";
+  notes?: string;
+};
 
 type Props = {
   itemId: string;
@@ -13,133 +24,105 @@ type Props = {
   onSaved: () => void;
 };
 
-const editableKeys = ["leftUpperFitAnchor", "rightUpperFitAnchor", "leftWaistAnchor", "rightWaistAnchor", "leftLowerHemFitAnchor", "rightLowerHemFitAnchor", "topLengthFitAnchor", "bottomLengthFitAnchor"] as const;
+type DragMode = "move" | "left" | "right" | "top" | "bottom" | null;
 
-const editableGroup = (group: any) => group && group.source !== "ratio_guard" && group.validationStatus !== "failed" && (group.source === "human" || Number(group.confidence) >= 0.5) ? group : undefined;
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-const getInitialAnchors = (metadata: any) => {
-  const upper = editableGroup(metadata?.validatedMeasurementAnchors?.upperFit) || editableGroup(metadata?.measurementAnchors?.upperFit);
-  const waist = editableGroup(metadata?.validatedMeasurementAnchors?.waist) || editableGroup(metadata?.measurementAnchors?.waist);
-  const hem = editableGroup(metadata?.validatedMeasurementAnchors?.lowerHemFit) || editableGroup(metadata?.measurementAnchors?.lowerHemFit);
-  const length = editableGroup(metadata?.validatedMeasurementAnchors?.lengthFit) || editableGroup(metadata?.measurementAnchors?.lengthFit);
+const getDefaultFitBox = (metadata: any, analysis: any): FitBox => {
+  const imageWidth = Number(analysis?.imageWidth) || 1;
+  const imageHeight = Number(analysis?.imageHeight) || 1;
+  const existing = metadata?.fitBox;
+  if (existing && Number(existing.width) > 0 && Number(existing.height) > 0) {
+    return {
+      x: Number(existing.x),
+      y: Number(existing.y),
+      width: Number(existing.width),
+      height: Number(existing.height),
+      source: existing.source || "ai",
+      confidence: Number(existing.confidence ?? 0.5),
+      validationStatus: existing.validationStatus || "estimated",
+      notes: existing.notes,
+    };
+  }
+  const b = analysis?.visibleAlphaBounds || {
+    x: Number(analysis?.visibleX) || imageWidth * 0.15,
+    y: Number(analysis?.visibleY) || imageHeight * 0.08,
+    width: Number(analysis?.visibleWidth) || imageWidth * 0.7,
+    height: Number(analysis?.visibleHeight) || imageHeight * 0.84,
+  };
+  const familyText = `${metadata?.garmentType ?? ""}`.toLowerCase();
+  const isBottom = /trouser|pant|jean|skirt|short|legging/.test(familyText);
+  const y = b.y + b.height * (isBottom ? 0.06 : 0.16);
+  const width = b.width * (isBottom ? 0.52 : 0.56);
   return {
-    leftUpperFitAnchor: upper?.leftUpperFitAnchor,
-    rightUpperFitAnchor: upper?.rightUpperFitAnchor,
-    leftWaistAnchor: waist?.leftWaistAnchor,
-    rightWaistAnchor: waist?.rightWaistAnchor,
-    leftLowerHemFitAnchor: hem?.leftLowerHemFitAnchor,
-    rightLowerHemFitAnchor: hem?.rightLowerHemFitAnchor,
-    topLengthFitAnchor: length?.topLengthFitAnchor,
-    bottomLengthFitAnchor: length?.bottomLengthFitAnchor,
+    x: b.x + (b.width - width) / 2,
+    y,
+    width,
+    height: b.y + b.height - y,
+    source: "alpha_profile",
+    confidence: 0.5,
+    validationStatus: "estimated",
+    notes: "Initial fitBox estimate.",
   };
 };
 
 export const GarmentFitCalibration = ({ itemId, imageUrl, layoutMetadata, imageAnalysis, onSaved }: Props) => {
   const queryClient = useQueryClient();
-  const [anchors, setAnchors] = useState(getInitialAnchors(layoutMetadata));
-  const [dragging, setDragging] = useState<keyof typeof anchors | null>(null);
-  const [saving, setSaving] = useState(false);
   const imageWidth = Number(imageAnalysis?.imageWidth) || 1;
   const imageHeight = Number(imageAnalysis?.imageHeight) || 1;
+  const [fitBox, setFitBox] = useState<FitBox>(() => getDefaultFitBox(layoutMetadata, imageAnalysis));
+  const [dragMode, setDragMode] = useState<DragMode>(null);
+  const [saving, setSaving] = useState(false);
 
-  const groups = useMemo(() => {
-    const upperWidth = anchors.leftUpperFitAnchor && anchors.rightUpperFitAnchor ? Math.abs(anchors.rightUpperFitAnchor.x - anchors.leftUpperFitAnchor.x) : undefined;
-    const waistWidth = anchors.leftWaistAnchor && anchors.rightWaistAnchor ? Math.abs(anchors.rightWaistAnchor.x - anchors.leftWaistAnchor.x) : undefined;
-    const lowerHemWidth = anchors.leftLowerHemFitAnchor && anchors.rightLowerHemFitAnchor ? Math.abs(anchors.rightLowerHemFitAnchor.x - anchors.leftLowerHemFitAnchor.x) : undefined;
-    const lengthHeight = anchors.topLengthFitAnchor && anchors.bottomLengthFitAnchor ? Math.abs(anchors.bottomLengthFitAnchor.y - anchors.topLengthFitAnchor.y) : undefined;
-    return {
-      upperFit: anchors.leftUpperFitAnchor && anchors.rightUpperFitAnchor ? {
-        leftUpperFitAnchor: { ...anchors.leftUpperFitAnchor, source: "human", confidence: 1, notes: "Human calibrated anchor." },
-        rightUpperFitAnchor: { ...anchors.rightUpperFitAnchor, source: "human", confidence: 1, notes: "Human calibrated anchor." },
-        upperBodyFitWidth: upperWidth,
-        source: "human",
-        confidence: 1,
-        validationStatus: "validated",
-        notes: "Human-approved upper fit width.",
-      } : undefined,
-      waist: anchors.leftWaistAnchor && anchors.rightWaistAnchor ? {
-        leftWaistAnchor: { ...anchors.leftWaistAnchor, source: "human", confidence: 1, notes: "Human calibrated anchor." },
-        rightWaistAnchor: { ...anchors.rightWaistAnchor, source: "human", confidence: 1, notes: "Human calibrated anchor." },
-        waistFitWidth: waistWidth,
-        source: "human",
-        confidence: 1,
-        validationStatus: "validated",
-        notes: "Human-approved waist fit width.",
-      } : undefined,
-      lowerHemFit: anchors.leftLowerHemFitAnchor && anchors.rightLowerHemFitAnchor ? {
-        leftLowerHemFitAnchor: { ...anchors.leftLowerHemFitAnchor, source: "human", confidence: 1, notes: "Human calibrated anchor." },
-        rightLowerHemFitAnchor: { ...anchors.rightLowerHemFitAnchor, source: "human", confidence: 1, notes: "Human calibrated anchor." },
-        lowerHemFitWidth: lowerHemWidth,
-        source: "human",
-        confidence: 1,
-        validationStatus: "validated",
-        notes: "Human-approved lower hem fit width.",
-      } : undefined,
-      lengthFit: anchors.topLengthFitAnchor && anchors.bottomLengthFitAnchor ? {
-        topLengthFitAnchor: { ...anchors.topLengthFitAnchor, source: "human", confidence: 1, notes: "Human calibrated anchor." },
-        bottomLengthFitAnchor: { ...anchors.bottomLengthFitAnchor, source: "human", confidence: 1, notes: "Human calibrated anchor." },
-        lengthFitHeight: lengthHeight,
-        source: "human",
-        confidence: 1,
-        validationStatus: "validated",
-        notes: "Human-approved length fit.",
-      } : undefined,
-    };
-  }, [anchors]);
+  const warning = useMemo(() => {
+    if (fitBox.source === "human" && layoutMetadata?.fitBox?.validationStatus === "warning") return layoutMetadata?.fitBox?.notes;
+    return fitBox.validationStatus === "failed" || fitBox.validationStatus === "warning" ? fitBox.notes : null;
+  }, [fitBox, layoutMetadata]);
 
-  const updateFromPointer = (key: keyof typeof anchors, event: React.PointerEvent<HTMLDivElement>) => {
+  const updateFromPointer = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragMode) return;
     const rect = event.currentTarget.getBoundingClientRect();
-    setAnchors((prev) => ({
-      ...prev,
-      [key]: {
-        x: Math.max(0, Math.min(imageWidth, ((event.clientX - rect.left) / rect.width) * imageWidth)),
-        y: Math.max(0, Math.min(imageHeight, ((event.clientY - rect.top) / rect.height) * imageHeight)),
-        source: "human",
-        confidence: 1,
-        notes: "Human calibrated anchor.",
-      },
-    }));
-  };
-
-  const addAnchor = (key: keyof typeof anchors) => {
-    const defaults: Record<keyof typeof anchors, { x: number; y: number }> = {
-      leftUpperFitAnchor: { x: imageWidth * 0.34, y: imageHeight * 0.2 },
-      rightUpperFitAnchor: { x: imageWidth * 0.66, y: imageHeight * 0.2 },
-      leftWaistAnchor: { x: imageWidth * 0.38, y: imageHeight * 0.48 },
-      rightWaistAnchor: { x: imageWidth * 0.62, y: imageHeight * 0.48 },
-        leftLowerHemFitAnchor: { x: imageWidth * 0.28, y: imageHeight * 0.86 },
-        rightLowerHemFitAnchor: { x: imageWidth * 0.72, y: imageHeight * 0.86 },
-        topLengthFitAnchor: { x: imageWidth * 0.5, y: imageHeight * 0.08 },
-        bottomLengthFitAnchor: { x: imageWidth * 0.5, y: imageHeight * 0.94 },
-    };
-    setAnchors((prev) => ({
-      ...prev,
-      [key]: { ...defaults[key], source: "human", confidence: 1, notes: "Human calibrated anchor." },
-    }));
+    const x = clamp(((event.clientX - rect.left) / rect.width) * imageWidth, 0, imageWidth);
+    const y = clamp(((event.clientY - rect.top) / rect.height) * imageHeight, 0, imageHeight);
+    setFitBox((prev) => {
+      if (dragMode === "move") {
+        const nextX = clamp(x - prev.width / 2, 0, imageWidth - prev.width);
+        const nextY = clamp(y - prev.height / 2, 0, imageHeight - prev.height);
+        return { ...prev, x: nextX, y: nextY };
+      }
+      if (dragMode === "left") {
+        const right = prev.x + prev.width;
+        const nextX = clamp(x, 0, right - 12);
+        return { ...prev, x: nextX, width: right - nextX };
+      }
+      if (dragMode === "right") return { ...prev, width: clamp(x - prev.x, 12, imageWidth - prev.x) };
+      if (dragMode === "top") {
+        const bottom = prev.y + prev.height;
+        const nextY = clamp(y, 0, bottom - 12);
+        return { ...prev, y: nextY, height: bottom - nextY };
+      }
+      if (dragMode === "bottom") return { ...prev, height: clamp(y - prev.y, 12, imageHeight - prev.y) };
+      return prev;
+    });
   };
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      const validatedMeasurementAnchors = Object.fromEntries(Object.entries(groups).filter(([, value]) => Boolean(value)));
-      const staleLayoutAnchors = { ...(layoutMetadata?.layoutAnchors || {}) };
-      if (validatedMeasurementAnchors.upperFit) delete staleLayoutAnchors.upperFit;
-      if (validatedMeasurementAnchors.waist) delete staleLayoutAnchors.waist;
-      if (validatedMeasurementAnchors.lowerHemFit) delete staleLayoutAnchors.lowerHemFit;
-      if (validatedMeasurementAnchors.lengthFit) delete staleLayoutAnchors.lengthFit;
-      const humanUpper = validatedMeasurementAnchors.upperFit as any;
-      const humanWaist = validatedMeasurementAnchors.waist as any;
+      const humanFitBox: FitBox = {
+        x: fitBox.x,
+        y: fitBox.y,
+        width: fitBox.width,
+        height: fitBox.height,
+        source: "human",
+        confidence: 1,
+        validationStatus: "validated",
+        notes: "Human calibrated fitBox.",
+      };
       const nextMetadata = {
         ...(layoutMetadata || {}),
-        validatedMeasurementAnchors,
-        measurementAnchors: validatedMeasurementAnchors,
-        layoutAnchors: staleLayoutAnchors,
-        leftUpperAnchor: humanUpper?.leftUpperFitAnchor || layoutMetadata?.leftUpperAnchor,
-        rightUpperAnchor: humanUpper?.rightUpperFitAnchor || layoutMetadata?.rightUpperAnchor,
-        upperBodyWidthAnchor: humanUpper?.upperBodyFitWidth ?? layoutMetadata?.upperBodyWidthAnchor,
-        leftWaistAnchor: humanWaist?.leftWaistAnchor || layoutMetadata?.leftWaistAnchor,
-        rightWaistAnchor: humanWaist?.rightWaistAnchor || layoutMetadata?.rightWaistAnchor,
-        fitValidation: { status: "human", rejected: [], anchorGroups: Object.fromEntries(Object.entries(validatedMeasurementAnchors).map(([key, value]: any) => [key, { source: value?.source, confidence: value?.confidence, validationStatus: value?.validationStatus || "validated" }])) },
+        fitBox: humanFitBox,
+        fitValidation: { status: "human", rejected: [] },
         confidence: 1,
       };
       const { error } = await supabase.from("closet_items").update({ layout_metadata: nextMetadata }).eq("id", itemId);
@@ -152,11 +135,11 @@ export const GarmentFitCalibration = ({ itemId, imageUrl, layoutMetadata, imageA
         queryClient.invalidateQueries({ queryKey: ["look-garments"] }),
         queryClient.invalidateQueries({ queryKey: ["saved-looks"] }),
       ]);
-      toast.success("Fit calibration saved");
+      toast.success("Fit box saved");
       onSaved();
     } catch (error) {
       console.error("Calibration save failed", error);
-      toast.error("Failed to save calibration");
+      toast.error("Failed to save fit box");
     } finally {
       setSaving(false);
     }
@@ -165,48 +148,46 @@ export const GarmentFitCalibration = ({ itemId, imageUrl, layoutMetadata, imageA
   return (
     <div className="space-y-3 rounded-2xl bg-card p-3">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-foreground">Garment Fit Intelligence</h3>
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Garment Fit Intelligence</h3>
+          <p className="text-[11px] text-muted-foreground">Fit box: {fitBox.source} · {fitBox.confidence.toFixed(2)}</p>
+        </div>
         <Button size="sm" className="h-8 rounded-xl gap-1" onClick={handleSave} disabled={saving}>
           <Check className="h-3 w-3" /> Save
         </Button>
       </div>
       <div
         className="relative aspect-square overflow-hidden rounded-xl bg-flatlay touch-none"
-        onPointerMove={(event) => dragging && updateFromPointer(dragging, event)}
-        onPointerUp={() => setDragging(null)}
-        onPointerLeave={() => setDragging(null)}
+        onPointerMove={updateFromPointer}
+        onPointerUp={() => setDragMode(null)}
+        onPointerLeave={() => setDragMode(null)}
       >
         <img src={imageUrl} alt="Garment calibration" className="absolute inset-0 h-full w-full object-contain" draggable={false} />
-        {editableKeys.map((key) => {
-          const point = anchors[key];
-          if (!point) return null;
-          const left = `${(point.x / imageWidth) * 100}%`;
-          const top = `${(point.y / imageHeight) * 100}%`;
-          return (
-            <button
-              key={key}
-              type="button"
-              className="absolute z-10 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary ring-2 ring-background"
-              style={{ left, top }}
+        <button
+          type="button"
+          className="absolute z-10 cursor-move border-2 border-primary bg-primary/10"
+          style={{ left: `${(fitBox.x / imageWidth) * 100}%`, top: `${(fitBox.y / imageHeight) * 100}%`, width: `${(fitBox.width / imageWidth) * 100}%`, height: `${(fitBox.height / imageHeight) * 100}%` }}
+          onPointerDown={(event) => {
+            event.currentTarget.setPointerCapture(event.pointerId);
+            setDragMode("move");
+          }}
+          aria-label="Move fit box"
+        >
+          {(["left", "right", "top", "bottom"] as const).map((mode) => (
+            <span
+              key={mode}
+              className={mode === "left" || mode === "right" ? "absolute top-1/2 h-8 w-3 -translate-y-1/2 rounded-full bg-primary" : "absolute left-1/2 h-3 w-8 -translate-x-1/2 rounded-full bg-primary"}
+              style={mode === "left" ? { left: "-0.4rem" } : mode === "right" ? { right: "-0.4rem" } : mode === "top" ? { top: "-0.4rem" } : { bottom: "-0.4rem" }}
               onPointerDown={(event) => {
-                event.currentTarget.setPointerCapture(event.pointerId);
-                setDragging(key);
+                event.stopPropagation();
+                (event.currentTarget.parentElement as HTMLElement).setPointerCapture(event.pointerId);
+                setDragMode(mode);
               }}
-              aria-label={key}
             />
-          );
-        })}
+          ))}
+        </button>
       </div>
-      <div className="grid grid-cols-2 gap-2 text-[10px] text-muted-foreground">
-        {editableKeys.map((key) => (
-          <div key={key} className="flex items-center justify-between rounded-lg bg-background px-2 py-1">
-            <span>{key.replace("Anchor", "")}{anchors[key] ? "" : " missing"}</span>
-            <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => anchors[key] ? setAnchors((prev) => ({ ...prev, [key]: undefined })) : addAnchor(key)}>
-              {anchors[key] ? <X className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
-            </Button>
-          </div>
-        ))}
-      </div>
+      {warning && <p className="rounded-lg bg-secondary/30 px-2 py-1 text-[11px] text-muted-foreground">{warning}</p>}
     </div>
   );
 };
