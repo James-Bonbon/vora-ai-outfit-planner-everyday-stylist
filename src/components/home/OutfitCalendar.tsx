@@ -482,7 +482,7 @@ const OutfitCalendar = () => {
 
         {/* ===== UPCOMING DAYS CAROUSEL ===== */}
         {visibleUpcoming.length > 0 && (
-          <Carousel opts={{ align: "start", dragFree: true }} className="w-full">
+          <Carousel opts={{ align: "start", dragFree: true }} setApi={setUpcomingApi} className="w-full">
             <CarouselContent className="-ml-2">
               {visibleUpcoming.map((slot) => {
                 const slotGarments = getItemsForDate(slot.date, slot.entry, slot.calendarEvents);
@@ -540,11 +540,20 @@ const OutfitCalendar = () => {
               )}
             </CarouselContent>
 
-            <div className="flex justify-center gap-1.5 mt-3">
-              {visibleUpcoming.map((_, i) => (
-                <div key={i} className={`w-1.5 h-1.5 rounded-full ${i === 0 ? "bg-primary" : "bg-border"}`} />
-              ))}
-              {showLockedCard && <div className="w-1.5 h-1.5 rounded-full bg-border" />}
+            <div className="mt-3 flex justify-center">
+              <div
+                className="relative h-1 w-28 rounded-full bg-border"
+                role="progressbar"
+                aria-label="Upcoming outfits carousel progress"
+                aria-valuemin={0}
+                aria-valuemax={Math.max(0, upcomingItemCount - 1)}
+                aria-valuenow={Math.round(upcomingScrollProgress * Math.max(0, upcomingItemCount - 1))}
+              >
+                <span
+                  className="absolute left-0 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-primary transition-transform duration-75 ease-out"
+                  style={{ transform: `translate(${upcomingScrollProgress * 102}px, -50%)` }}
+                />
+              </div>
             </div>
           </Carousel>
         )}
