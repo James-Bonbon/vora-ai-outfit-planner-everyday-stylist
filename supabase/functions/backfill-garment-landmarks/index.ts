@@ -17,7 +17,7 @@ const uint8ToBase64 = (bytes: Uint8Array) => {
 };
 
 const hasUpperAnchors = (metadata: any) => Boolean(
-  metadata?.leftUpperAnchor && metadata?.rightUpperAnchor && Number(metadata?.upperBodyWidthAnchor) > 0,
+  metadata?.fitBox?.width > 0 || (metadata?.leftUpperAnchor && metadata?.rightUpperAnchor && Number(metadata?.upperBodyWidthAnchor) > 0),
 );
 
 const classifyFitFamily = (item: any) => {
@@ -35,6 +35,7 @@ const hasRequiredFitAnchors = (item: any) => {
   const v = item?.layout_metadata?.validatedMeasurementAnchors || {};
   const m = item?.layout_metadata?.measurementAnchors || {};
   const l = item?.layout_metadata?.layoutAnchors || {};
+  if (item?.layout_metadata?.fitBox?.width > 0 && item?.layout_metadata?.fitBox?.height > 0) return true;
   const has = (key: string) => Boolean(v[key] || m[key] || l[key]);
   if (family === "accessory") return hasImageAnalysis(item?.image_analysis);
   if (family === "bottoms") return has("waist") && has("lengthFit");
@@ -182,6 +183,42 @@ const validateAnchorPair = (left: any, right: any, analysis: any, minRatio: numb
   const yRatio = (((left.y + right.y) / 2) - b.y) / Math.max(b.height, 1);
   if (yRatio < minY || yRatio > maxY) reasons.push("implausible_y_position");
   return { valid: reasons.length === 0, reasons, coverage };
+};
+
+const boxAlphaCoverage = (box: any, analysis: any) => {
+  let hits = 0;
+  let total = 0;
+  for (let row = 0; row < 13; row++) for (let col = 0; col < 9; col++) {
+    total += 1;
+    const x = box.x + (box.width * (col + 0.5)) / 9;
+    const y = box.y + (box.height * (row + 0.5)) / 13;
+    if (maskHit(analysis, x, y, 0)) hits += 1;
+  }
+  return total ? hits / total : 0;
+};
+
+const buildFitBox = (layout: any, analysis: any, item: any) => {
+  const text = `${layout?.garmentType ?? ""} ${item?.category ?? ""} ${item?.name ?? ""}`.toLowerCase();
+  const isBottom = /\bbottom|trouser|pant|jean|legging|skirt|short\b/.test(text);
+  const isWearable = isBottom || /\bdress|gown|jumpsuit|romper|one[-\s]?piece|outerwear|coat|jacket|blazer|trench|parka|cardigan|top|shirt|blouse|tee|knit|sweater|hoodie\b/.test(text);
+  if (!isWearable || !analysis?.visibleAlphaBounds) return null;
+  const existing = item?.layout_metadata?.fitBox;
+  if (existing?.source === "human") return { ...existing, source: "human", confidence: 1, validationStatus: existing.validationStatus || "validated", notes: existing.notes || "Human calibrated fitBox." };
+  const b = analysis.visibleAlphaBounds;
+  const left = normalizePoint(isBottom ? layout.leftWaistAnchor : layout.leftUpperFitAnchor || layout.leftUpperAnchor, analysis);
+  const right = normalizePoint(isBottom ? layout.rightWaistAnchor : layout.rightUpperFitAnchor || layout.rightUpperAnchor, analysis);
+  const hem = normalizePoint(layout.hemCenter || layout.hemLeft || layout.leftHem || layout.bottomLengthFitAnchor, analysis);
+  const confidence = clamp(Number(layout.confidence) || 0.55, 0, 1);
+  const source = left && right && confidence >= 0.5 ? "ai" : "alpha_profile";
+  const row = scanAlphaBand(analysis, isBottom ? 0.02 : 0.1, isBottom ? 0.2 : 0.35, isBottom ? 0.16 : 0.22, isBottom ? 0.72 : 0.82, isBottom ? "waist" : "upper");
+  const topY = left && right ? Math.min(left.y, right.y) : row?.y ?? b.y + b.height * (isBottom ? 0.06 : 0.16);
+  const width = left && right ? Math.abs(right.x - left.x) : row?.width ?? b.width * (isBottom ? 0.52 : 0.56);
+  const centerX = left && right ? (left.x + right.x) / 2 : row ? (row.left + row.right) / 2 : b.x + b.width / 2;
+  const bottomY = hem?.y || b.y + b.height;
+  const box = { x: clamp(centerX - width / 2, 0, analysis.imageWidth), y: clamp(topY, 0, analysis.imageHeight), width: clamp(width, 1, analysis.imageWidth), height: clamp(bottomY - topY, 1, analysis.imageHeight), source, confidence: source === "ai" ? confidence : 0.62, notes: source === "ai" ? layout.notes || "AI fitBox from fit span and hem." : "Estimated fitBox from alpha profile." };
+  const coverage = boxAlphaCoverage(box, analysis);
+  const validationStatus = coverage < 0.08 || (source !== "human" && box.confidence < 0.5) ? "failed" : source === "ai" ? "validated" : "estimated";
+  return { ...box, alphaCoverage: coverage, validationStatus, rejectionReasons: validationStatus === "failed" ? [coverage < 0.08 ? "poor_alpha_coverage" : "low_confidence"] : [] };
 };
 
 const scanAlphaBand = (analysis: any, startPct: number, endPct: number, minRatio: number, maxRatio: number, mode: "upper" | "waist" | "hem") => {
@@ -435,9 +472,11 @@ serve(async (req) => {
         const imageAnalysis = calculateVisibleAlphaBounds(imageBytes);
         const prompt = `Analyze this already background-removed garment PNG for garment fit intelligence. Return ONLY a JSON object named layout_metadata. Use PIXEL coordinates in the ${imageAnalysis.imageWidth}x${imageAnalysis.imageHeight} canvas. Visible alpha bounds are ${JSON.stringify(imageAnalysis.visibleAlphaBounds)}. Item context: category=${item.category ?? "unknown"}, name=${item.name ?? "unknown"}.
 
-Return garmentType, bodyCoverage, lengthClass, bulkClass, preferredPreviewScale, confidence, notes, and garment-specific landmarks:
-- tops/coats/jackets/dresses: leftUpperFitAnchor, rightUpperFitAnchor, necklineCenter, leftWaistAnchor, rightWaistAnchor, hemLeft, hemRight, sleeveLeftEnd, sleeveRightEnd, upperBodyFitWidth, waistFitWidth, garmentLength
-- bottoms: leftWaistAnchor, rightWaistAnchor, crotchPoint if visible, leftHem, rightHem, waistFitWidth, legLength
+Return garmentType, bodyCoverage, lengthClass, bulkClass, preferredPreviewScale, confidence, notes, and one fitBox:
+- fitBox: {"x": number, "y": number, "width": number, "height": number, "source": "ai", "confidence": number, "validationStatus": "validated", "notes": string}
+- tops/coats/jackets/dresses: fitBox top edge aligns with upper-body/chest/shoulder/armhole fit area; width is upper body fit width; height extends to hem.
+- bottoms: fitBox top edge aligns with waistband; width is waist fit width; height extends to hem.
+- optional legacy landmarks: leftUpperFitAnchor, rightUpperFitAnchor, leftWaistAnchor, rightWaistAnchor, hemLeft, hemRight.
 - shoes/accessories: visualLength, visualHeight, anchorCenter
 
 For dresses, especially asymmetric or sleeveless dresses, do NOT measure literal shoulder seams. Detect upperBodyFitWidth across the upper bodice/chest/armhole area corresponding to the wearer's upper torso. Never invent anchors in transparent or white empty space: every anchor must sit on visible garment pixels inside the alpha bounds, and left/right lines must cross actual garment material. If a point is ambiguous, off-garment, strap-only, diagonal decorative detail, or implausible, return null/omit that anchor and set confidence below 0.5 with notes. For coats, do not include full sleeve spread in upperBodyFitWidth; measure body fit width.`;
@@ -460,9 +499,12 @@ For dresses, especially asymmetric or sleeveless dresses, do NOT measure literal
         const parsed = JSON.parse(cleanJson(aiData.choices?.[0]?.message?.content || "{}"));
         const rawLayout = parsed.layout_metadata || parsed;
         const layout = normalizeUpperAnchors(rawLayout, imageAnalysis, item);
+        const fitBox = buildFitBox(rawLayout, imageAnalysis, item);
         const nextMetadata = {
           ...(item.layout_metadata || {}),
           ...layout,
+          fitBox,
+          fitValidation: fitBox?.validationStatus === "failed" ? { status: "Needs calibration", rejected: fitBox.rejectionReasons || [], invalidFitBox: fitBox } : { status: fitBox?.source === "human" ? "human" : fitBox ? "OK" : "Needs calibration", rejected: [] },
           rawAiLandmarks: rawLayout,
           rawAiLayoutMetadata: rawLayout,
           visibleAlphaBounds: imageAnalysis.visibleAlphaBounds,

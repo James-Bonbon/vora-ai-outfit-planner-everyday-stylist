@@ -20,6 +20,17 @@ type ImageAnalysis = {
   visibleHeightRatio?: number;
 };
 
+type FitBox = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  source?: "human" | "ai" | "alpha_profile" | "ratio_guard" | string;
+  confidence?: number;
+  validationStatus?: "validated" | "estimated" | "failed" | "warning" | string;
+  notes?: string;
+};
+
 type LayoutMetadata = {
   garmentType?: string;
   bodyCoverage?: BodyCoverage;
@@ -35,6 +46,7 @@ type LayoutMetadata = {
   waistCenter?: { x: number; y: number };
   hemCenter?: { x: number; y: number };
   confidence?: number;
+  fitBox?: FitBox | null;
   anchorNormalization?: string;
   anchorSources?: Record<string, "ai" | "alpha_profile" | "alpha_estimate" | "ratio_guard" | string>;
   rawAiLandmarks?: any;
@@ -325,6 +337,29 @@ const toRelativePoint = (point: { x: number; y: number } | undefined, analysis?:
   };
 };
 
+const toRelativeFitBox = (box: FitBox | null | undefined, analysis?: ImageAnalysis | null) => {
+  if (!box || box.validationStatus === "failed" || (box.source !== "human" && Number(box.confidence ?? 0) < 0.5)) return null;
+  const imageWidth = Number(analysis?.imageWidth) || 1;
+  const imageHeight = Number(analysis?.imageHeight) || 1;
+  const x = Number(box.x);
+  const y = Number(box.y);
+  const width = Number(box.width);
+  const height = Number(box.height);
+  if (![x, y, width, height].every(Number.isFinite) || width <= 0 || height <= 0) return null;
+  return {
+    x: clamp(x > 1 ? x / imageWidth : x, 0, 1),
+    y: clamp(y > 1 ? y / imageHeight : y, 0, 1),
+    width: clamp(width > 1 ? width / imageWidth : width, 0.04, 1),
+    height: clamp(height > 1 ? height / imageHeight : height, 0.04, 1),
+    source: box.source || "fallback",
+    confidence: Number(box.confidence ?? 0),
+    validationStatus: box.validationStatus || "estimated",
+    notes: box.notes,
+  };
+};
+
+const getPrioritizedFitBox = (metadata: LayoutMetadata, analysis?: ImageAnalysis | null) => toRelativeFitBox(metadata.fitBox, analysis);
+
 const getPrioritizedUpperFit = (metadata: LayoutMetadata) => {
   return getPrioritizedFitGroup(metadata, "upperFit");
 };
@@ -487,16 +522,17 @@ const getNormalizedStyle = ({
   const overflowOffset = Math.max(0, stackIndex - stackLayouts.length + 1) * 10;
   const visibleHeightRatio = clamp(Number(analysis?.visibleHeightRatio) || 1, 0.18, 1);
   const visibleWidthRatio = clamp(Number(analysis?.visibleWidthRatio) || 1, 0.18, 1);
+  const fitBox = getPrioritizedFitBox(metadata, analysis);
   const lengthFitPair = getMeasurementPair(metadata, analysis, "lengthFit");
   const lengthFitRatio = lengthFitPair?.width ? clamp(lengthFitPair.width, 0.18, 1) : null;
-  const verticalFitRatio = lengthFitRatio || visibleHeightRatio;
+  const verticalFitRatio = fitBox?.height || lengthFitRatio || visibleHeightRatio;
   const imageRatio = analysis?.imageWidth && analysis?.imageHeight ? analysis.imageWidth / analysis.imageHeight : 1;
   const visibleAspect = analysis?.visibleWidth && analysis?.visibleHeight ? analysis.visibleWidth / analysis.visibleHeight : imageRatio;
   const preferredScale = clamp(Number(metadata.preferredPreviewScale) || 0.55, 0.2, 1);
   const intendedVisibleWidth = clamp(intendedVisibleHeight * visibleAspect * (0.82 + preferredScale * 0.24), 22, 66);
   const boxHeight = clamp(intendedVisibleHeight / verticalFitRatio, 22, 88);
-  const upperBodyWidthRatio = getUpperBodyWidthRatio(metadata, analysis);
-  const fitSource = getPrioritizedUpperFit(metadata)?.source || (upperBodyWidthRatio ? "legacy" : "fallback");
+  const upperBodyWidthRatio = fitBox?.width || getUpperBodyWidthRatio(metadata, analysis);
+  const fitSource = fitBox?.source || getPrioritizedUpperFit(metadata)?.source || (upperBodyWidthRatio ? "legacy" : "fallback");
   const upperAnchorBoxWidth = upperBodyWidthRatio && targetRenderedShoulderWidth
     ? targetRenderedShoulderWidth / upperBodyWidthRatio
     : null;
@@ -505,7 +541,9 @@ const getNormalizedStyle = ({
   const visibleCenterX = analysis?.imageWidth && analysis?.visibleWidth
     ? ((analysis.visibleX ?? 0) + analysis.visibleWidth / 2) / analysis.imageWidth
     : 0.5;
-  const visibleCenterY = lengthFitPair
+  const visibleCenterY = fitBox
+    ? clamp(fitBox.y + fitBox.height / 2, 0, 1)
+    : lengthFitPair
     ? clamp((lengthFitPair.left.y + lengthFitPair.right.y) / 2, 0, 1)
     : analysis?.imageHeight && analysis?.visibleHeight
     ? ((analysis.visibleY ?? 0) + analysis.visibleHeight / 2) / analysis.imageHeight
@@ -539,8 +577,8 @@ const getNormalizedStyle = ({
     finalRenderedFitWidth: upperBodyWidthRatio ? upperBodyWidthRatio * boxWidth : null,
     sizingDebug: {
       upperFitSource: fitSource,
-      lengthFitSource: lengthFitPair?.source || null,
-      lengthFitRatio,
+      lengthFitSource: fitBox?.source || lengthFitPair?.source || null,
+      lengthFitRatio: fitBox?.height || lengthFitRatio,
       upperFitWidthRatio: upperBodyWidthRatio,
       boxWidthBeforeClamp: Math.max(intendedVisibleWidth / visibleWidthRatio, upperAnchorBoxWidth || 0),
       boxWidthAfterClamp: boxWidth,
@@ -658,8 +696,34 @@ const getCanvasDistance = (left: { x: number; y: number }, right: { x: number; y
 
 const getRenderedMeasurement = (item: RenderItem | undefined, groupNormalization: GroupNormalization) => {
   if (!item) return null;
+  const fitBox = getPrioritizedFitBox(item.metadata, item.garment?.image_analysis);
+  if (fitBox) return getRenderedFitBoxMeasurement(item, groupNormalization, fitBox);
   const measurementPair = getRealMeasurementPair(item.metadata, item.garment?.image_analysis, item.visualCategory);
   return getRenderedAnchorMeasurement(item, groupNormalization, measurementPair);
+};
+
+const getRenderedFitBoxMeasurement = (item: RenderItem, groupNormalization: GroupNormalization, fitBox: NonNullable<ReturnType<typeof getPrioritizedFitBox>>) => {
+  const leftPoint = { x: fitBox.x, y: fitBox.y };
+  const rightPoint = { x: fitBox.x + fitBox.width, y: fitBox.y };
+  const bottomPoint = { x: fitBox.x + fitBox.width / 2, y: fitBox.y + fitBox.height };
+  const leftCanvas = mapMeasurementPointToCanvas(leftPoint, item.style, groupNormalization);
+  const rightCanvas = mapMeasurementPointToCanvas(rightPoint, item.style, groupNormalization);
+  const bottomCanvas = mapMeasurementPointToCanvas(bottomPoint, item.style, groupNormalization);
+  return {
+    localFitRatio: fitBox.width,
+    localFitHeightRatio: fitBox.height,
+    anchorType: "fitBox",
+    source: fitBox.source,
+    confidence: fitBox.confidence,
+    validationStatus: fitBox.validationStatus,
+    sourceFitBox: fitBox,
+    finalLeftAnchorCanvasPoint: { x: leftCanvas.x, y: leftCanvas.y },
+    finalRightAnchorCanvasPoint: { x: rightCanvas.x, y: rightCanvas.y },
+    finalBottomCanvasPoint: { x: bottomCanvas.x, y: bottomCanvas.y },
+    objectContainRect: leftCanvas.objectContainRect,
+    renderedFitLineLength: getCanvasDistance(leftCanvas, rightCanvas),
+    renderedFitBoxHeight: getCanvasDistance(leftCanvas, bottomCanvas),
+  };
 };
 
 const getRenderedAnchorMeasurement = (item: RenderItem | undefined, groupNormalization: GroupNormalization, measurementPair: ReturnType<typeof getAnchorPairFromGroup> | null) => {
@@ -684,10 +748,10 @@ const getRenderedAnchorMeasurement = (item: RenderItem | undefined, groupNormali
 };
 
 const relationshipRules = [
-  { id: "top_bottom_lowerHem_to_waist", a: "tops", b: "bottoms", aAnchor: "lowerHemFit", fallbackAAnchor: "waist", bAnchor: "waist", target: [0.85, 1.1], oversizedMax: 1.25 },
-  { id: "outerwear_top_upperFit_to_upperFit", a: "outerwear", b: "tops", aAnchor: "upperFit", bAnchor: "upperFit", target: [1.05, 1.25] },
-  { id: "outerwear_dress_upperFit_to_upperFit", a: "dresses", b: "outerwear", aAnchor: "upperFit", bAnchor: "upperFit", target: [0.8, 0.95] },
-  { id: "dress_alone_upperFit_lengthFit", a: "dresses", b: null, aAnchor: "upperFit", bAnchor: "lengthFit", target: [0.8, 1.05] },
+  { id: "top_bottom_fitBox_to_fitBox", a: "tops", b: "bottoms", target: [0.82, 1.08], oversizedMax: 1.22 },
+  { id: "outerwear_top_fitBox_to_fitBox", a: "tops", b: "outerwear", target: [0.8, 0.95] },
+  { id: "outerwear_dress_fitBox_to_fitBox", a: "dresses", b: "outerwear", target: [0.8, 0.95] },
+  { id: "dress_alone_fitBox", a: "dresses", b: null, target: [0.8, 1.05] },
 ] as const;
 
 const getSelectedRelationshipRule = (items: RenderItem[]) => {
@@ -704,17 +768,14 @@ const getRelationshipMetrics = (items: RenderItem[], groupNormalization: GroupNo
   if (!rule) return null;
   const primary = items.find((item) => item.visualCategory === rule.a);
   const secondary = rule.b ? items.find((item) => item.visualCategory === rule.b) : primary;
-  const primaryPair = primary ? getMeasurementPair(primary.metadata, primary.garment?.image_analysis, rule.aAnchor as FitAnchorType, true) : null;
-  const secondaryAnchorType = (rule.bAnchor || "lengthFit") as FitAnchorType;
-  const secondaryPair = secondary ? getMeasurementPair(secondary.metadata, secondary.garment?.image_analysis, secondaryAnchorType, true) : null;
-  const primaryRendered = getRenderedAnchorMeasurement(primary, groupNormalization, primaryPair);
-  const secondaryRendered = getRenderedAnchorMeasurement(secondary, groupNormalization, secondaryPair);
+  const primaryRendered = getRenderedMeasurement(primary, groupNormalization);
+  const secondaryRendered = getRenderedMeasurement(secondary, groupNormalization);
   const finalRatio = primaryRendered?.renderedFitLineLength && secondaryRendered?.renderedFitLineLength ? primaryRendered.renderedFitLineLength / secondaryRendered.renderedFitLineLength : null;
   return {
     selectedRelationshipRule: rule.id,
     comparedAnchors: {
-      primary: { garment: primary?.garment?.name || primary?.visualCategory, category: primary?.visualCategory, anchor: primaryPair?.fullLabel || rule.aAnchor, source: primaryRendered?.source || null },
-      secondary: { garment: secondary?.garment?.name || secondary?.visualCategory, category: secondary?.visualCategory, anchor: secondaryPair?.fullLabel || secondaryAnchorType, source: secondaryRendered?.source || null },
+      primary: { garment: primary?.garment?.name || primary?.visualCategory, category: primary?.visualCategory, anchor: "fitBox width", source: primaryRendered?.source || null },
+      secondary: { garment: secondary?.garment?.name || secondary?.visualCategory, category: secondary?.visualCategory, anchor: "fitBox width", source: secondaryRendered?.source || null },
     },
     renderedAnchorLineLengths: { primary: primaryRendered?.renderedFitLineLength ?? null, secondary: secondaryRendered?.renderedFitLineLength ?? null },
     targetRatio: `${rule.target[0].toFixed(2)}–${rule.target[1].toFixed(2)}${"oversizedMax" in rule ? ` (oversized max ${rule.oversizedMax.toFixed(2)})` : ""}`,
@@ -728,7 +789,7 @@ const scaleRelationshipPrimaryToTarget = (items: RenderItem[], groupNormalizatio
   const metrics = getRelationshipMetrics(items, groupNormalization);
   if (!metrics?.finalRatio) return items;
   const rule = getSelectedRelationshipRule(items);
-  if (!rule || rule.id === "dress_alone_upperFit_lengthFit") return items;
+  if (!rule || rule.id === "dress_alone_fitBox") return items;
   const targetMid = (rule.target[0] + rule.target[1]) / 2;
   const upperAllowed = "oversizedMax" in rule ? rule.oversizedMax : rule.target[1];
   if (metrics.finalRatio >= rule.target[0] && metrics.finalRatio <= upperAllowed) return items;
@@ -902,43 +963,25 @@ const optionalAnchorTypes = (category: VisualCategory): FitAnchorType[] => {
 const formatAnchorName = (anchor: FitAnchorType) => anchor === "waist" ? "waistFit" : anchor;
 
 const getGarmentFitSummary = (item: RenderItem, relationshipDebug: ReturnType<typeof getRelationshipMetrics>) => {
-  const required = requiredAnchorTypes(item.visualCategory);
-  const optional = optionalAnchorTypes(item.visualCategory);
-  const allAnchors = [...required, ...optional];
-  const present = allAnchors.flatMap((anchorType) => {
-    const group = getPrioritizedFitGroup(item.metadata, anchorType);
-    return group && group.group.validationStatus !== "failed" ? [`${formatAnchorName(anchorType)} (${group.source}, ${Number(group.group.confidence ?? 0).toFixed(2)})`] : [];
-  });
-  const missingRequired = required.filter((anchorType) => !getPrioritizedFitGroup(item.metadata, anchorType)).map(formatAnchorName);
-  const missingOptional = optional.filter((anchorType) => !getPrioritizedFitGroup(item.metadata, anchorType)).map((anchorType) => `${formatAnchorName(anchorType)} optional`);
-  const invalid = (item.metadata.invalidAnchors || item.metadata.fitValidation?.invalidAnchors || [])
-    .map((entry) => `${formatAnchorName(entry.anchor as FitAnchorType)}: ${entry.reasons.join(", ")}`);
-  const usedForSizing = allAnchors.filter((anchorType) => {
-    const group = getPrioritizedFitGroup(item.metadata, anchorType);
-    return group?.isMeasurement && group.source !== "ratio_guard" && Number(group.group.confidence) >= 0.5;
-  }).map(formatAnchorName);
+  const fitBox = getPrioritizedFitBox(item.metadata, item.garment?.image_analysis);
+  const rawFitBox = item.metadata.fitBox;
+  const rendered = item.style.finalRenderedFitWidth ? { width: item.style.finalRenderedFitWidth, height: item.style.boxHeightPct * (fitBox?.height || 0) } : null;
   const relationshipScale = Number(item.style.sizingDebug?.relationshipScale || item.style.sizingDebug?.requiredDressBoxScale || 1);
   const resizeActionNeeded = Number.isFinite(relationshipScale) && Math.abs(relationshipScale - 1) > 0.02;
-  const compared = relationshipDebug?.comparedAnchors;
-  const isPrimary = compared?.primary?.garment === (item.garment?.name || item.visualCategory);
   const resizeReason = resizeActionNeeded
     ? item.style.sizingDebug?.relationshipRule
-      ? `${displayType(item.visualCategory)} anchor ratio was outside target for ${relationshipDebug?.selectedRelationshipRule?.replace(/_/g, " ") || "relationship rule"}.`
-      : isPrimary
-        ? `${displayType(item.visualCategory)} rendered anchor needed scaling to match the paired garment.`
-        : "Garment dimensions changed during relationship normalization."
+      ? `${displayType(item.visualCategory)} fitBox ratio was outside target for ${relationshipDebug?.selectedRelationshipRule?.replace(/_/g, " ") || "relationship rule"}.`
+      : "Garment dimensions changed during fitBox relationship normalization."
     : "Within target relationship ratio.";
 
   return {
     name: item.garment?.name || item.garment?.category || "Garment",
     type: displayType(item.visualCategory),
-    required: required.map(formatAnchorName),
-    present,
-    missing: [...missingRequired, ...missingOptional],
-    invalid,
-    usedForSizing,
-    confidence: Number(item.metadata.confidence ?? item.style.sizingDebug?.upperFitWidthRatio ?? 0),
-    status: item.metadata.fitValidation?.status || (missingRequired.length ? "Needs calibration" : "OK"),
+    source: fitBox?.source || rawFitBox?.source || "visual bounds",
+    confidence: Number(fitBox?.confidence ?? rawFitBox?.confidence ?? 0),
+    renderedFitBoxWidth: rendered?.width ?? null,
+    renderedFitBoxHeight: rendered?.height ?? null,
+    status: item.metadata.fitValidation?.status || (!fitBox && ["tops", "outerwear", "dresses", "bottoms"].includes(item.visualCategory) ? "Needs calibration" : "OK"),
     resizeActionNeeded,
     resizeReason,
   };
@@ -1073,14 +1116,14 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
   const garmentFitSummaries = renderItems.map((item) => getGarmentFitSummary(item, relationshipDebug));
   const relationshipStatus = getRelationshipStatus(relationshipDebug);
   const relationshipRuleText = relationshipDebug?.selectedRelationshipRule?.replace(/_/g, " + ").replace("top + bottom + lowerHem + to + waist", "top + bottom").replace("outerwear + top + upperFit + to + upperFit", "outerwear + top").replace("outerwear + dress + upperFit + to + upperFit", "outerwear + dress").replace("dress + alone + upperFit + lengthFit", "dress alone") || "—";
-  const comparedAnchorText = relationshipDebug?.selectedRelationshipRule === "top_bottom_lowerHem_to_waist"
-    ? "top lowerHemFit ↔ bottom waistFit"
-    : relationshipDebug?.selectedRelationshipRule === "outerwear_top_upperFit_to_upperFit"
-      ? "outerwear upperFit ↔ top upperFit"
-      : relationshipDebug?.selectedRelationshipRule === "outerwear_dress_upperFit_to_upperFit"
-        ? "outerwear upperFit ↔ dress upperFit"
-        : relationshipDebug?.selectedRelationshipRule === "dress_alone_upperFit_lengthFit"
-          ? "dress upperFit ↔ dress lengthFit"
+  const comparedAnchorText = relationshipDebug?.selectedRelationshipRule === "top_bottom_fitBox_to_fitBox"
+    ? "top fitBox width ↔ bottom fitBox width"
+    : relationshipDebug?.selectedRelationshipRule === "outerwear_top_fitBox_to_fitBox"
+      ? "top fitBox width ↔ outerwear fitBox width"
+      : relationshipDebug?.selectedRelationshipRule === "outerwear_dress_fitBox_to_fitBox"
+        ? "dress fitBox width ↔ outerwear fitBox width"
+        : relationshipDebug?.selectedRelationshipRule === "dress_alone_fitBox"
+          ? "dress fitBox width ↔ dress fitBox height"
           : "—";
 
   const coatFitItem = renderItems.find((item) => item.visualCategory === "outerwear");
@@ -1145,7 +1188,8 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
       {renderItems.map(({ garment, visualCategory, imageUrl, duplicateIndex, metadata, style, renderedUpperWidth }) => {
         const baseAlt = garment?.name || garment?.category || "Garment";
         const { boxWidthPct, boxHeightPct, offsetXPct, offsetYPct, anchorShiftXPct, anchorShiftYPct, rotationDeg, imageRatio, fitSource: styleFitSource, upperFitWidthRatio, targetRenderedFitWidth, calculatedImageBoxWidth, finalRenderedFitWidth, ...imageStyle } = style;
-        const measurementPair = getRealMeasurementPair(metadata, garment?.image_analysis, visualCategory);
+        const fitBox = getPrioritizedFitBox(metadata, garment?.image_analysis);
+        const measurementPair = fitBox ? null : getRealMeasurementPair(metadata, garment?.image_analysis, visualCategory);
         const layoutGroup = metadata.layoutAnchors?.upperFit || metadata.layoutAnchors?.waist || metadata.layoutAnchors?.length;
         const layoutSource = layoutGroup?.source;
         const prioritizedUpperFit = getPrioritizedUpperFit(metadata);
@@ -1161,6 +1205,10 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
         const mappedMeasurement = measurementPair
           ? { left: mapImagePointToBox(measurementPair.left, style), right: mapImagePointToBox(measurementPair.right, style) }
           : null;
+        const mappedFitBox = fitBox ? {
+          topLeft: mapImagePointToBox({ x: fitBox.x, y: fitBox.y }, style),
+          bottomRight: mapImagePointToBox({ x: fitBox.x + fitBox.width, y: fitBox.y + fitBox.height }, style),
+        } : null;
         const mappedLandmarks = landmarkPoints.map((point) => mapImagePointToBox(point!, style));
 
         return (
@@ -1172,8 +1220,15 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
               decoding="async"
               className={cn("absolute inset-0 h-full w-full object-contain object-center drop-shadow-md")}
             />
-            {showDebugAnchors && measurementPair && measurementCenter && mappedMeasurement && (
+            {showDebugAnchors && (mappedFitBox || (measurementPair && measurementCenter && mappedMeasurement)) && (
               <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+                {mappedFitBox && (
+                  <div
+                    className="absolute z-[92] border border-primary/80 bg-primary/10"
+                    style={{ left: `${mappedFitBox.topLeft.x}%`, top: `${mappedFitBox.topLeft.y}%`, width: `${mappedFitBox.bottomRight.x - mappedFitBox.topLeft.x}%`, height: `${mappedFitBox.bottomRight.y - mappedFitBox.topLeft.y}%` }}
+                  />
+                )}
+                {measurementPair && mappedMeasurement && (
                 <svg className="absolute inset-0 z-[92] h-full w-full overflow-visible">
                   <line
                     x1={`${mappedMeasurement.left.x}%`}
@@ -1185,6 +1240,9 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
                     vectorEffect="non-scaling-stroke"
                   />
                 </svg>
+                )}
+                {measurementPair && mappedMeasurement && (
+                  <>
                 <span
                   className="absolute z-[93] -translate-x-full -translate-y-[140%] rounded bg-background/90 px-1 py-0.5 text-[8px] font-medium leading-none text-foreground shadow-sm"
                   style={{ left: `${mappedMeasurement.left.x}%`, top: `${mappedMeasurement.left.y}%` }}
@@ -1197,6 +1255,8 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
                 >
                   {measurementPair.rightLabel}
                 </span>
+                  </>
+                )}
                 {mappedLandmarks.map((point, pointIndex) => (
                   <span
                     key={pointIndex}
@@ -1219,13 +1279,11 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
             <div key={summary.name} className="rounded-lg bg-secondary/20 px-2 py-2">
               <div className="font-semibold">{summary.name}</div>
               <div>Type: {summary.type}</div>
-              <div>Required: {summary.required.length ? summary.required.join(", ") : "visualWidth, visualLength"}</div>
-              <div>Present: {summary.present.length ? summary.present.join(", ") : "visual bounds only"}</div>
-              <div>Missing: {summary.missing.length ? summary.missing.join(", ") : "None"}</div>
-              <div>Invalid: {summary.invalid.length ? summary.invalid.join("; ") : "None"}</div>
-              <div>Used for sizing: {summary.usedForSizing.length ? summary.usedForSizing.join(", ") : "No"}</div>
+              <div>fitBox source: {summary.source}</div>
               <div>Status: {summary.status}</div>
               <div>Confidence: {summary.confidence ? summary.confidence.toFixed(2) : "—"}</div>
+              <div>Rendered fitBox width: {summary.renderedFitBoxWidth != null ? summary.renderedFitBoxWidth.toFixed(2) : "—"}</div>
+              <div>Rendered fitBox height: {summary.renderedFitBoxHeight != null ? summary.renderedFitBoxHeight.toFixed(2) : "—"}</div>
               <div>Resize: {summary.resizeActionNeeded ? "Yes" : "No"}</div>
               <div>Reason: {summary.resizeReason}</div>
             </div>
