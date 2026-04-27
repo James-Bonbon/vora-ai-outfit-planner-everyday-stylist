@@ -17,7 +17,7 @@ const uint8ToBase64 = (bytes: Uint8Array) => {
 };
 
 const hasUpperAnchors = (metadata: any) => Boolean(
-  metadata?.leftUpperAnchor && metadata?.rightUpperAnchor && Number(metadata?.upperBodyWidthAnchor) > 0,
+  metadata?.fitBox?.width > 0 || (metadata?.leftUpperAnchor && metadata?.rightUpperAnchor && Number(metadata?.upperBodyWidthAnchor) > 0),
 );
 
 const classifyFitFamily = (item: any) => {
@@ -35,6 +35,7 @@ const hasRequiredFitAnchors = (item: any) => {
   const v = item?.layout_metadata?.validatedMeasurementAnchors || {};
   const m = item?.layout_metadata?.measurementAnchors || {};
   const l = item?.layout_metadata?.layoutAnchors || {};
+  if (item?.layout_metadata?.fitBox?.width > 0 && item?.layout_metadata?.fitBox?.height > 0) return true;
   const has = (key: string) => Boolean(v[key] || m[key] || l[key]);
   if (family === "accessory") return hasImageAnalysis(item?.image_analysis);
   if (family === "bottoms") return has("waist") && has("lengthFit");
