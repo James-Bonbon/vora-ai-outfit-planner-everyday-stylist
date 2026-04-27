@@ -472,9 +472,11 @@ serve(async (req) => {
         const imageAnalysis = calculateVisibleAlphaBounds(imageBytes);
         const prompt = `Analyze this already background-removed garment PNG for garment fit intelligence. Return ONLY a JSON object named layout_metadata. Use PIXEL coordinates in the ${imageAnalysis.imageWidth}x${imageAnalysis.imageHeight} canvas. Visible alpha bounds are ${JSON.stringify(imageAnalysis.visibleAlphaBounds)}. Item context: category=${item.category ?? "unknown"}, name=${item.name ?? "unknown"}.
 
-Return garmentType, bodyCoverage, lengthClass, bulkClass, preferredPreviewScale, confidence, notes, and garment-specific landmarks:
-- tops/coats/jackets/dresses: leftUpperFitAnchor, rightUpperFitAnchor, necklineCenter, leftWaistAnchor, rightWaistAnchor, hemLeft, hemRight, sleeveLeftEnd, sleeveRightEnd, upperBodyFitWidth, waistFitWidth, garmentLength
-- bottoms: leftWaistAnchor, rightWaistAnchor, crotchPoint if visible, leftHem, rightHem, waistFitWidth, legLength
+Return garmentType, bodyCoverage, lengthClass, bulkClass, preferredPreviewScale, confidence, notes, and one fitBox:
+- fitBox: {"x": number, "y": number, "width": number, "height": number, "source": "ai", "confidence": number, "validationStatus": "validated", "notes": string}
+- tops/coats/jackets/dresses: fitBox top edge aligns with upper-body/chest/shoulder/armhole fit area; width is upper body fit width; height extends to hem.
+- bottoms: fitBox top edge aligns with waistband; width is waist fit width; height extends to hem.
+- optional legacy landmarks: leftUpperFitAnchor, rightUpperFitAnchor, leftWaistAnchor, rightWaistAnchor, hemLeft, hemRight.
 - shoes/accessories: visualLength, visualHeight, anchorCenter
 
 For dresses, especially asymmetric or sleeveless dresses, do NOT measure literal shoulder seams. Detect upperBodyFitWidth across the upper bodice/chest/armhole area corresponding to the wearer's upper torso. Never invent anchors in transparent or white empty space: every anchor must sit on visible garment pixels inside the alpha bounds, and left/right lines must cross actual garment material. If a point is ambiguous, off-garment, strap-only, diagonal decorative detail, or implausible, return null/omit that anchor and set confidence below 0.5 with notes. For coats, do not include full sleeve spread in upperBodyFitWidth; measure body fit width.`;
