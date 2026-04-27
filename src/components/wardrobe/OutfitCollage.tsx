@@ -1262,13 +1262,11 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
             <div key={summary.name} className="rounded-lg bg-secondary/20 px-2 py-2">
               <div className="font-semibold">{summary.name}</div>
               <div>Type: {summary.type}</div>
-              <div>Required: {summary.required.length ? summary.required.join(", ") : "visualWidth, visualLength"}</div>
-              <div>Present: {summary.present.length ? summary.present.join(", ") : "visual bounds only"}</div>
-              <div>Missing: {summary.missing.length ? summary.missing.join(", ") : "None"}</div>
-              <div>Invalid: {summary.invalid.length ? summary.invalid.join("; ") : "None"}</div>
-              <div>Used for sizing: {summary.usedForSizing.length ? summary.usedForSizing.join(", ") : "No"}</div>
+              <div>fitBox source: {summary.source}</div>
               <div>Status: {summary.status}</div>
               <div>Confidence: {summary.confidence ? summary.confidence.toFixed(2) : "—"}</div>
+              <div>Rendered fitBox width: {summary.renderedFitBoxWidth != null ? summary.renderedFitBoxWidth.toFixed(2) : "—"}</div>
+              <div>Rendered fitBox height: {summary.renderedFitBoxHeight != null ? summary.renderedFitBoxHeight.toFixed(2) : "—"}</div>
               <div>Resize: {summary.resizeActionNeeded ? "Yes" : "No"}</div>
               <div>Reason: {summary.resizeReason}</div>
             </div>
