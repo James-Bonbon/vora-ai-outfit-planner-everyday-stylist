@@ -12,7 +12,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useWeather } from "@/hooks/useWeather";
 import { getCachedSignedUrls } from "@/utils/signedUrlCache";
 import { WeatherWidget } from "@/components/WeatherWidget";
-import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
+import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "@/components/ui/carousel";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import OutfitCollage from "@/components/wardrobe/OutfitCollage";
 import { useNavigate } from "react-router-dom";
@@ -80,6 +80,8 @@ const OutfitCalendar = () => {
   const [editingSlotIndex, setEditingSlotIndex] = useState<number>(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [debugAnchors, setDebugAnchors] = useState(false);
+  const [upcomingApi, setUpcomingApi] = useState<CarouselApi | null>(null);
+  const [upcomingScrollProgress, setUpcomingScrollProgress] = useState(0);
 
   /* ---- Cached data fetch (React Query hydration pattern) ---- */
   const { data: cachedData, isLoading } = useQuery({
@@ -304,6 +306,31 @@ const OutfitCalendar = () => {
     });
   }, [entries, calendarEvents]);
 
+  const visibleUpcoming = days.slice(1, maxDays);
+  const showLockedCard = !hasProAccess;
+  const upcomingItemCount = visibleUpcoming.length + (showLockedCard ? 1 : 0);
+
+  const updateUpcomingProgress = useCallback((api: CarouselApi) => {
+    if (!api) return;
+    const progress = Math.max(0, Math.min(1, api.scrollProgress()));
+    setUpcomingScrollProgress(progress);
+  }, []);
+
+  useEffect(() => {
+    if (!upcomingApi) return;
+
+    updateUpcomingProgress(upcomingApi);
+    upcomingApi.on("scroll", updateUpcomingProgress);
+    upcomingApi.on("select", updateUpcomingProgress);
+    upcomingApi.on("reInit", updateUpcomingProgress);
+
+    return () => {
+      upcomingApi.off("scroll", updateUpcomingProgress);
+      upcomingApi.off("select", updateUpcomingProgress);
+      upcomingApi.off("reInit", updateUpcomingProgress);
+    };
+  }, [upcomingApi, updateUpcomingProgress]);
+
   /* ---- LOCKED STATE: Not enough items ---- */
   if (!isLoading && !meetsThreshold) {
     return (
@@ -356,9 +383,6 @@ const OutfitCalendar = () => {
   }
 
   const todaySlot = days[0];
-  const visibleUpcoming = days.slice(1, maxDays);
-  const showLockedCard = !hasProAccess;
-
   const todayGarments = getItemsForDate(todaySlot.date, todaySlot.entry, todaySlot.calendarEvents);
   const WeatherIconComp = WEATHER_ICON[todaySlot.entry?.weather_label || "neutral"] || Cloud;
   const tempDisplay = todaySlot.entry?.weather_temp ? `${Math.round(todaySlot.entry.weather_temp)}°C` : "";
