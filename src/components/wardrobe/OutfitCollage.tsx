@@ -1188,7 +1188,8 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
       {renderItems.map(({ garment, visualCategory, imageUrl, duplicateIndex, metadata, style, renderedUpperWidth }) => {
         const baseAlt = garment?.name || garment?.category || "Garment";
         const { boxWidthPct, boxHeightPct, offsetXPct, offsetYPct, anchorShiftXPct, anchorShiftYPct, rotationDeg, imageRatio, fitSource: styleFitSource, upperFitWidthRatio, targetRenderedFitWidth, calculatedImageBoxWidth, finalRenderedFitWidth, ...imageStyle } = style;
-        const measurementPair = getRealMeasurementPair(metadata, garment?.image_analysis, visualCategory);
+        const fitBox = getPrioritizedFitBox(metadata, garment?.image_analysis);
+        const measurementPair = fitBox ? null : getRealMeasurementPair(metadata, garment?.image_analysis, visualCategory);
         const layoutGroup = metadata.layoutAnchors?.upperFit || metadata.layoutAnchors?.waist || metadata.layoutAnchors?.length;
         const layoutSource = layoutGroup?.source;
         const prioritizedUpperFit = getPrioritizedUpperFit(metadata);
@@ -1204,6 +1205,10 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
         const mappedMeasurement = measurementPair
           ? { left: mapImagePointToBox(measurementPair.left, style), right: mapImagePointToBox(measurementPair.right, style) }
           : null;
+        const mappedFitBox = fitBox ? {
+          topLeft: mapImagePointToBox({ x: fitBox.x, y: fitBox.y }, style),
+          bottomRight: mapImagePointToBox({ x: fitBox.x + fitBox.width, y: fitBox.y + fitBox.height }, style),
+        } : null;
         const mappedLandmarks = landmarkPoints.map((point) => mapImagePointToBox(point!, style));
 
         return (
@@ -1215,8 +1220,15 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
               decoding="async"
               className={cn("absolute inset-0 h-full w-full object-contain object-center drop-shadow-md")}
             />
-            {showDebugAnchors && measurementPair && measurementCenter && mappedMeasurement && (
+            {showDebugAnchors && (mappedFitBox || (measurementPair && measurementCenter && mappedMeasurement)) && (
               <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+                {mappedFitBox && (
+                  <div
+                    className="absolute z-[92] border border-primary/80 bg-primary/10"
+                    style={{ left: `${mappedFitBox.topLeft.x}%`, top: `${mappedFitBox.topLeft.y}%`, width: `${mappedFitBox.bottomRight.x - mappedFitBox.topLeft.x}%`, height: `${mappedFitBox.bottomRight.y - mappedFitBox.topLeft.y}%` }}
+                  />
+                )}
+                {measurementPair && mappedMeasurement && (
                 <svg className="absolute inset-0 z-[92] h-full w-full overflow-visible">
                   <line
                     x1={`${mappedMeasurement.left.x}%`}
@@ -1228,6 +1240,9 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
                     vectorEffect="non-scaling-stroke"
                   />
                 </svg>
+                )}
+                {measurementPair && mappedMeasurement && (
+                  <>
                 <span
                   className="absolute z-[93] -translate-x-full -translate-y-[140%] rounded bg-background/90 px-1 py-0.5 text-[8px] font-medium leading-none text-foreground shadow-sm"
                   style={{ left: `${mappedMeasurement.left.x}%`, top: `${mappedMeasurement.left.y}%` }}
@@ -1240,6 +1255,8 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
                 >
                   {measurementPair.rightLabel}
                 </span>
+                  </>
+                )}
                 {mappedLandmarks.map((point, pointIndex) => (
                   <span
                     key={pointIndex}
