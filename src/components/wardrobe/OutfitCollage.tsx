@@ -20,6 +20,17 @@ type ImageAnalysis = {
   visibleHeightRatio?: number;
 };
 
+type FitBox = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  source?: "human" | "ai" | "alpha_profile" | "ratio_guard" | string;
+  confidence?: number;
+  validationStatus?: "validated" | "estimated" | "failed" | "warning" | string;
+  notes?: string;
+};
+
 type LayoutMetadata = {
   garmentType?: string;
   bodyCoverage?: BodyCoverage;
@@ -35,6 +46,7 @@ type LayoutMetadata = {
   waistCenter?: { x: number; y: number };
   hemCenter?: { x: number; y: number };
   confidence?: number;
+  fitBox?: FitBox | null;
   anchorNormalization?: string;
   anchorSources?: Record<string, "ai" | "alpha_profile" | "alpha_estimate" | "ratio_guard" | string>;
   rawAiLandmarks?: any;
