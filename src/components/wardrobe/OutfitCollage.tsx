@@ -789,7 +789,7 @@ const scaleRelationshipPrimaryToTarget = (items: RenderItem[], groupNormalizatio
   const metrics = getRelationshipMetrics(items, groupNormalization);
   if (!metrics?.finalRatio) return items;
   const rule = getSelectedRelationshipRule(items);
-  if (!rule || rule.id === "dress_alone_upperFit_lengthFit") return items;
+  if (!rule || rule.id === "dress_alone_fitBox") return items;
   const targetMid = (rule.target[0] + rule.target[1]) / 2;
   const upperAllowed = "oversizedMax" in rule ? rule.oversizedMax : rule.target[1];
   if (metrics.finalRatio >= rule.target[0] && metrics.finalRatio <= upperAllowed) return items;
@@ -1134,14 +1134,14 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
   const garmentFitSummaries = renderItems.map((item) => getGarmentFitSummary(item, relationshipDebug));
   const relationshipStatus = getRelationshipStatus(relationshipDebug);
   const relationshipRuleText = relationshipDebug?.selectedRelationshipRule?.replace(/_/g, " + ").replace("top + bottom + lowerHem + to + waist", "top + bottom").replace("outerwear + top + upperFit + to + upperFit", "outerwear + top").replace("outerwear + dress + upperFit + to + upperFit", "outerwear + dress").replace("dress + alone + upperFit + lengthFit", "dress alone") || "—";
-  const comparedAnchorText = relationshipDebug?.selectedRelationshipRule === "top_bottom_lowerHem_to_waist"
-    ? "top lowerHemFit ↔ bottom waistFit"
-    : relationshipDebug?.selectedRelationshipRule === "outerwear_top_upperFit_to_upperFit"
-      ? "outerwear upperFit ↔ top upperFit"
-      : relationshipDebug?.selectedRelationshipRule === "outerwear_dress_upperFit_to_upperFit"
-        ? "outerwear upperFit ↔ dress upperFit"
-        : relationshipDebug?.selectedRelationshipRule === "dress_alone_upperFit_lengthFit"
-          ? "dress upperFit ↔ dress lengthFit"
+  const comparedAnchorText = relationshipDebug?.selectedRelationshipRule === "top_bottom_fitBox_to_fitBox"
+    ? "top fitBox width ↔ bottom fitBox width"
+    : relationshipDebug?.selectedRelationshipRule === "outerwear_top_fitBox_to_fitBox"
+      ? "top fitBox width ↔ outerwear fitBox width"
+      : relationshipDebug?.selectedRelationshipRule === "outerwear_dress_fitBox_to_fitBox"
+        ? "dress fitBox width ↔ outerwear fitBox width"
+        : relationshipDebug?.selectedRelationshipRule === "dress_alone_fitBox"
+          ? "dress fitBox width ↔ dress fitBox height"
           : "—";
 
   const coatFitItem = renderItems.find((item) => item.visualCategory === "outerwear");
