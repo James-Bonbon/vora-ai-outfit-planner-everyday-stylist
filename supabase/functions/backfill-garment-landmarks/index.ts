@@ -185,6 +185,42 @@ const validateAnchorPair = (left: any, right: any, analysis: any, minRatio: numb
   return { valid: reasons.length === 0, reasons, coverage };
 };
 
+const boxAlphaCoverage = (box: any, analysis: any) => {
+  let hits = 0;
+  let total = 0;
+  for (let row = 0; row < 13; row++) for (let col = 0; col < 9; col++) {
+    total += 1;
+    const x = box.x + (box.width * (col + 0.5)) / 9;
+    const y = box.y + (box.height * (row + 0.5)) / 13;
+    if (maskHit(analysis, x, y, 0)) hits += 1;
+  }
+  return total ? hits / total : 0;
+};
+
+const buildFitBox = (layout: any, analysis: any, item: any) => {
+  const text = `${layout?.garmentType ?? ""} ${item?.category ?? ""} ${item?.name ?? ""}`.toLowerCase();
+  const isBottom = /\bbottom|trouser|pant|jean|legging|skirt|short\b/.test(text);
+  const isWearable = isBottom || /\bdress|gown|jumpsuit|romper|one[-\s]?piece|outerwear|coat|jacket|blazer|trench|parka|cardigan|top|shirt|blouse|tee|knit|sweater|hoodie\b/.test(text);
+  if (!isWearable || !analysis?.visibleAlphaBounds) return null;
+  const existing = item?.layout_metadata?.fitBox;
+  if (existing?.source === "human") return { ...existing, source: "human", confidence: 1, validationStatus: existing.validationStatus || "validated", notes: existing.notes || "Human calibrated fitBox." };
+  const b = analysis.visibleAlphaBounds;
+  const left = normalizePoint(isBottom ? layout.leftWaistAnchor : layout.leftUpperFitAnchor || layout.leftUpperAnchor, analysis);
+  const right = normalizePoint(isBottom ? layout.rightWaistAnchor : layout.rightUpperFitAnchor || layout.rightUpperAnchor, analysis);
+  const hem = normalizePoint(layout.hemCenter || layout.hemLeft || layout.leftHem || layout.bottomLengthFitAnchor, analysis);
+  const confidence = clamp(Number(layout.confidence) || 0.55, 0, 1);
+  const source = left && right && confidence >= 0.5 ? "ai" : "alpha_profile";
+  const row = scanAlphaBand(analysis, isBottom ? 0.02 : 0.1, isBottom ? 0.2 : 0.35, isBottom ? 0.16 : 0.22, isBottom ? 0.72 : 0.82, isBottom ? "waist" : "upper");
+  const topY = left && right ? Math.min(left.y, right.y) : row?.y ?? b.y + b.height * (isBottom ? 0.06 : 0.16);
+  const width = left && right ? Math.abs(right.x - left.x) : row?.width ?? b.width * (isBottom ? 0.52 : 0.56);
+  const centerX = left && right ? (left.x + right.x) / 2 : row ? (row.left + row.right) / 2 : b.x + b.width / 2;
+  const bottomY = hem?.y || b.y + b.height;
+  const box = { x: clamp(centerX - width / 2, 0, analysis.imageWidth), y: clamp(topY, 0, analysis.imageHeight), width: clamp(width, 1, analysis.imageWidth), height: clamp(bottomY - topY, 1, analysis.imageHeight), source, confidence: source === "ai" ? confidence : 0.62, notes: source === "ai" ? layout.notes || "AI fitBox from fit span and hem." : "Estimated fitBox from alpha profile." };
+  const coverage = boxAlphaCoverage(box, analysis);
+  const validationStatus = coverage < 0.08 || (source !== "human" && box.confidence < 0.5) ? "failed" : source === "ai" ? "validated" : "estimated";
+  return { ...box, alphaCoverage: coverage, validationStatus, rejectionReasons: validationStatus === "failed" ? [coverage < 0.08 ? "poor_alpha_coverage" : "low_confidence"] : [] };
+};
+
 const scanAlphaBand = (analysis: any, startPct: number, endPct: number, minRatio: number, maxRatio: number, mode: "upper" | "waist" | "hem") => {
   if (!analysis?.imageWidth || !analysis?.visibleAlphaBounds || !Array.isArray(analysis.alphaProfileRows)) return null;
   const b = analysis.visibleAlphaBounds;
