@@ -968,6 +968,34 @@ const offsetItem = (item: RenderItem, dx: number, dy: number): RenderItem => ({
   },
 });
 
+const scaleItemAroundFitBoxCenter = (item: RenderItem, scale: number, relationshipRule: string): RenderItem => {
+  const beforeBox = getFitBoxCanvasRectBeforeNormalization(item);
+  const nextWidth = item.style.boxWidthPct * scale;
+  const nextHeight = item.style.boxHeightPct * scale;
+  const nextItem: RenderItem = {
+    ...item,
+    style: {
+      ...item.style,
+      width: `${nextWidth}%`,
+      height: `${nextHeight}%`,
+      boxWidthPct: nextWidth,
+      boxHeightPct: nextHeight,
+      finalRenderedFitWidth: item.style.finalRenderedFitWidth ? item.style.finalRenderedFitWidth * scale : item.style.finalRenderedFitWidth,
+      sizingDebug: {
+        ...item.style.sizingDebug,
+        relationshipRule,
+        relationshipScale: scale,
+        boxWidthAfterClamp: nextWidth,
+        boxHeightAfterClamp: nextHeight,
+        finalRenderedFitWidth: item.style.finalRenderedFitWidth ? item.style.finalRenderedFitWidth * scale : item.style.sizingDebug?.finalRenderedFitWidth,
+      },
+    },
+    renderedUpperWidth: item.renderedUpperWidth ? item.renderedUpperWidth * scale : item.renderedUpperWidth,
+  };
+  const afterBox = getFitBoxCanvasRectBeforeNormalization(nextItem);
+  return offsetItem(nextItem, beforeBox.center.x - afterBox.center.x, beforeBox.center.y - afterBox.center.y);
+};
+
 const getOutfitArchetype = (items: RenderItem[]): OutfitArchetype => {
   const has = (category: VisualCategory) => items.some((item) => item.visualCategory === category);
   if (has("tops") && has("bottoms") && has("outerwear")) return "top_bottom_outerwear";
