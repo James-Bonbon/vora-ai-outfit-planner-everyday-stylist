@@ -487,7 +487,8 @@ Return garmentType, bodyCoverage, lengthClass, bulkClass, preferredPreviewScale,
 - fitBox: {"x": number, "y": number, "width": number, "height": number, "source": "ai", "confidence": number, "validationStatus": "validated", "notes": string}
 - tops/coats/jackets/dresses: fitBox top edge aligns with upper-body/chest/shoulder/armhole fit area; width is upper body fit width; height extends to hem.
 - bottoms: fitBox top edge aligns with waistband; width is waist fit width; height extends to hem.
-- optional legacy landmarks: leftUpperFitAnchor, rightUpperFitAnchor, leftWaistAnchor, rightWaistAnchor, hemLeft, hemRight.
+- do not return legacy anchor fields such as leftUpperAnchor, rightUpperAnchor, leftWaistAnchor, rightWaistAnchor, measurementAnchors, or layoutAnchors.
+- optional center points only: necklineCenter, waistCenter, hemCenter.
 - shoes/accessories: visualLength, visualHeight, anchorCenter
 
 For dresses, especially asymmetric or sleeveless dresses, do NOT measure literal shoulder seams. Detect upperBodyFitWidth across the upper bodice/chest/armhole area corresponding to the wearer's upper torso. Never invent anchors in transparent or white empty space: every anchor must sit on visible garment pixels inside the alpha bounds, and left/right lines must cross actual garment material. If a point is ambiguous, off-garment, strap-only, diagonal decorative detail, or implausible, return null/omit that anchor and set confidence below 0.5 with notes. For coats, do not include full sleeve spread in upperBodyFitWidth; measure body fit width.`;
