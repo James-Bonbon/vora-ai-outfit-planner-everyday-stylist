@@ -199,11 +199,11 @@ const classifyGarment = (garment: any): VisualCategory => {
   const text = `${garment?.category ?? ""} ${garment?.name ?? ""}`.toLowerCase();
 
   if (/\b(hat|cap|beanie|beret|fedora|bucket)\b/.test(text)) return "hats";
-  if (/\b(shoe|sneaker|boot|heel|loafer|sandal|trainer)\b/.test(text)) return "shoes";
+  if (/\b(shoes?|sneakers?|boots?|heels?|loafers?|sandals?|trainers?)\b/.test(text)) return "shoes";
   if (/\b(dress|dresses|gown|jumpsuit|romper|one[-\s]?piece)\b/.test(text)) return "dresses";
   if (/\b(outerwear|jacket|coat|blazer|trench|parka|cardigan|shacket)\b/.test(text)) return "outerwear";
-  if (/\b(bottom|trouser|pant|jean|skirt|shorts?|chino|sweatpant|legging)\b/.test(text) && !/\bshort[-\s]?sleeve\b/.test(text)) return "bottoms";
-  if (/\b(bag|purse|tote|clutch|backpack|handbag|accessor|belt|scarf|jewelry|jewellery|sunglasses)\b/.test(text)) return "accessories";
+  if (/\b(bottoms?|trousers?|pants?|jeans?|skirts?|shorts?|chinos?|sweatpants?|leggings?)\b/.test(text) && !/\bshort[-\s]?sleeve\b/.test(text)) return "bottoms";
+  if (/\b(bags?|purses?|totes?|clutches|backpacks?|handbags?|accessor(?:y|ies)|belts?|scarves|jewelry|jewellery|sunglasses)\b/.test(text)) return "accessories";
   return "tops";
 };
 
