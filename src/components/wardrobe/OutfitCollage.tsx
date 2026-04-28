@@ -1608,6 +1608,13 @@ export const OutfitCollage = ({ garments, debugAnchors = false, debugLegacyAncho
           <div>Rule: {relationshipRuleText}</div>
           <div>Compared: {comparedAnchorText}</div>
           <div>Target ratio: {relationshipDebug?.targetRatio || "—"}</div>
+          <div>Pre-resize ratio: {topBottomRelationshipCheck?.preResizeRatio != null ? topBottomRelationshipCheck.preResizeRatio.toFixed(2) : "—"}</div>
+          <div>Resize target ratio: {topBottomRelationshipCheck?.resizeTargetRatio != null ? topBottomRelationshipCheck.resizeTargetRatio.toFixed(2) : "—"}</div>
+          <div>Resized garment: {topBottomRelationshipCheck?.resizedGarment || "—"}</div>
+          <div>Resize scale applied: {topBottomRelationshipCheck?.resizeScaleApplied != null ? topBottomRelationshipCheck.resizeScaleApplied.toFixed(2) : "—"}</div>
+          <div>Post-resize top width: {topBottomRelationshipCheck?.postResizeTopWidth != null ? topBottomRelationshipCheck.postResizeTopWidth.toFixed(2) : "—"}</div>
+          <div>Post-resize bottom width: {topBottomRelationshipCheck?.postResizeBottomWidth != null ? topBottomRelationshipCheck.postResizeBottomWidth.toFixed(2) : "—"}</div>
+          <div>Final post-resize ratio: {topBottomRelationshipCheck?.finalPostResizeRatio != null ? topBottomRelationshipCheck.finalPostResizeRatio.toFixed(2) : "—"}</div>
           <div>Current ratio: {relationshipDebug?.finalRatio != null ? relationshipDebug.finalRatio.toFixed(2) : "—"}</div>
           <div>Upper/lower overlap-gap: {relationshipDebug.finalVerticalOverlapGap != null ? relationshipDebug.finalVerticalOverlapGap.toFixed(2) : "—"}</div>
           <div>Center offset: {relationshipDebug.finalHorizontalCenterOffset != null ? relationshipDebug.finalHorizontalCenterOffset.toFixed(2) : "—"}</div>
