@@ -1056,7 +1056,18 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
     nextItems = nextItems.map((item) => item === target ? offsetItem(item, dx, dy) : item);
   };
   const addCheck = (check: RelationshipCheck) => {
-    checks.push({ ...check, verticalOverlapGap: roundMetric(check.verticalOverlapGap), horizontalCenterOffset: roundMetric(check.horizontalCenterOffset), currentRatio: roundMetric(check.currentRatio) });
+    checks.push({
+      ...check,
+      verticalOverlapGap: roundMetric(check.verticalOverlapGap),
+      horizontalCenterOffset: roundMetric(check.horizontalCenterOffset),
+      currentRatio: roundMetric(check.currentRatio),
+      preResizeRatio: roundMetric(check.preResizeRatio),
+      resizeTargetRatio: roundMetric(check.resizeTargetRatio),
+      resizeScaleApplied: roundMetric(check.resizeScaleApplied),
+      postResizeTopWidth: roundMetric(check.postResizeTopWidth),
+      postResizeBottomWidth: roundMetric(check.postResizeBottomWidth),
+      finalPostResizeRatio: roundMetric(check.finalPostResizeRatio),
+    });
     if (check.warning) warnings.push(check.warning);
   };
 
