@@ -583,8 +583,8 @@ const getNormalizedStyle = ({
   const preferredScale = clamp(Number(metadata.preferredPreviewScale) || 0.55, 0.2, 1);
   const intendedVisibleWidth = clamp(intendedVisibleHeight * visibleAspect * (0.82 + preferredScale * 0.24), 22, 66);
   const boxHeight = clamp(intendedVisibleHeight / verticalFitRatio, 22, 88);
-  const upperBodyWidthRatio = fitBox?.width || getUpperBodyWidthRatio(metadata, analysis);
-  const fitSource = fitBox?.source || getPrioritizedUpperFit(metadata)?.source || (upperBodyWidthRatio ? "legacy" : "fallback");
+  const upperBodyWidthRatio = fitBox?.width || null;
+  const fitSource = fitBox?.source ? `fitBox:${fitBox.source}` : "visual fallback";
   const upperAnchorBoxWidth = upperBodyWidthRatio && targetRenderedShoulderWidth
     ? targetRenderedShoulderWidth / upperBodyWidthRatio
     : null;
