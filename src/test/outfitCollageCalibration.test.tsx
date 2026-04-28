@@ -1,5 +1,6 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 import OutfitCollage from "@/components/wardrobe/OutfitCollage";
 
@@ -69,7 +70,8 @@ const renderCollage = (upperBodyFitWidth: number) => {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
-  act(() => root.render(<OutfitCollage garments={[coat, makeDress(upperBodyFitWidth)]} debugAnchors />));
+  const queryClient = new QueryClient();
+  act(() => root.render(<QueryClientProvider client={queryClient}><OutfitCollage garments={[coat, makeDress(upperBodyFitWidth)]} debugAnchors /></QueryClientProvider>));
   return { container, root };
 };
 
@@ -88,7 +90,8 @@ const renderGarments = (garments: any[]) => {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
-  act(() => root.render(<OutfitCollage garments={garments} debugAnchors />));
+  const queryClient = new QueryClient();
+  act(() => root.render(<QueryClientProvider client={queryClient}><OutfitCollage garments={garments} debugAnchors /></QueryClientProvider>));
   return { container, root };
 };
 
