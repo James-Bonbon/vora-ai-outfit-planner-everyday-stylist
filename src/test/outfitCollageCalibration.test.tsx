@@ -22,6 +22,7 @@ const coat = {
   image_analysis: analysis,
   layout_metadata: {
     garmentType: "coat",
+    fitBox: { x: 320, y: 260, width: 360, height: 1100, source: "ai", confidence: 0.82, validationStatus: "validated" },
     validatedMeasurementAnchors: {
       upperFit: {
         leftUpperFitAnchor: { x: 320, y: 260 },
@@ -42,6 +43,7 @@ const makeDress = (upperBodyFitWidth: number) => ({
   image_analysis: analysis,
   layout_metadata: {
     garmentType: "dress",
+    fitBox: { x: 500 - upperBodyFitWidth / 2, y: 250, width: upperBodyFitWidth, height: 1180, source: "human", confidence: 1, validationStatus: "validated" },
     validatedMeasurementAnchors: {
       upperFit: {
         leftUpperFitAnchor: { x: 500 - upperBodyFitWidth / 2, y: 250 },
@@ -71,6 +73,25 @@ const renderCollage = (upperBodyFitWidth: number) => {
   return { container, root };
 };
 
+const fitBox = (x: number, y: number, width: number, height: number, source = "human") => ({ x, y, width, height, source, confidence: 1, validationStatus: "validated" });
+
+const makeGarment = (id: string, name: string, category: string, box = fitBox(320, 240, 360, 920)) => ({
+  id,
+  name,
+  category,
+  image_url: `/${id}.png`,
+  image_analysis: analysis,
+  layout_metadata: { garmentType: category.toLowerCase(), fitBox: box },
+});
+
+const renderGarments = (garments: any[]) => {
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  act(() => root.render(<OutfitCollage garments={garments} debugAnchors />));
+  return { container, root };
+};
+
 const getDressWidth = (container: HTMLElement) => {
   const image = container.querySelector('img[alt="Asymmetric black dress"]') as HTMLImageElement | null;
   const wrapper = image?.parentElement as HTMLDivElement | null;
@@ -90,16 +111,31 @@ describe("OutfitCollage calibrated fit sizing", () => {
     expect(narrowDressWidth).toBeGreaterThan(wideDressWidth);
     expect(narrow.container.textContent).toContain('"source": "human"');
     expect(narrow.container.textContent).toContain('"passFailBasis": "rendered fit line only"');
-    expect(narrow.container.textContent).toMatch(/"finalRatio":\s*0\.9/);
-    expect(narrow.container.textContent).toContain('"selectedLayoutTemplate": "four_zone_editorial"');
+    expect(narrow.container.textContent).toContain('"outfitArchetype": "dress_outerwear"');
+    expect(narrow.container.textContent).toContain('"selectedLayoutTemplate": "relationship_solver"');
     expect(narrow.container.textContent).toContain('"assignedZone": "topLeft"');
     expect(narrow.container.textContent).toContain('"assignedZone": "rightColumn"');
-    expect(narrow.container.textContent).toMatch(/"horizontalOverlapPct":\s*0\.(3[5-9]|4\d|5[0-5])/);
     expect(narrow.container.textContent).toMatch(/"groupOccupancy(Width|Height)Pct":\s*(7\d|8[0-5])/);
     expect(narrow.container.textContent).toContain('"safePaddingPct": 9');
     expect(narrow.container.textContent).toContain('"finalRenderedDressFitLine"');
     expect(narrow.container.textContent).toContain('"dressLocalFitRatio"');
     act(() => narrow.root.unmount());
     narrow.container.remove();
+  });
+
+  it.each([
+    ["top_bottom", [makeGarment("top", "White shirt", "Tops", fitBox(330, 220, 340, 620)), makeGarment("trousers", "Tailored trousers", "Bottoms", fitBox(330, 120, 340, 1240))], "upper_lower_stack"],
+    ["top_bottom", [makeGarment("top2", "Fine knit top", "Tops", fitBox(330, 220, 340, 620)), makeGarment("skirt", "A-line skirt", "Skirt", fitBox(360, 140, 280, 900))], "upper_lower_stack"],
+    ["top_bottom_outerwear", [makeGarment("top3", "Cashmere sweater", "Tops", fitBox(340, 230, 320, 620)), makeGarment("pants", "Wide trousers", "Bottoms", fitBox(330, 120, 340, 1240)), coat], "outerwear_frames_inner_layer"],
+    ["dress_outerwear", [makeDress(340), coat], "outerwear_frames_inner_layer"],
+    ["accessories_only", [makeGarment("longcoat", "Long coat", "Outerwear", fitBox(300, 220, 400, 1200)), makeGarment("shoes", "Leather loafers", "Shoes", fitBox(240, 960, 520, 360))], "accessories_lower_side_non_scaling"],
+  ])("solves relationship-aware layout for %s", (archetype, garments, constraint) => {
+    const rendered = renderGarments(garments as any[]);
+    expect(rendered.container.textContent).toContain(`"outfitArchetype": "${archetype}"`);
+    expect(rendered.container.textContent).toContain(constraint);
+    expect(rendered.container.textContent).toContain('"constraintsApplied"');
+    expect(rendered.container.textContent).toContain('"finalHorizontalCenterOffset"');
+    act(() => rendered.root.unmount());
+    rendered.container.remove();
   });
 });
