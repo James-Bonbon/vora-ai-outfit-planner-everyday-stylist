@@ -1093,11 +1093,11 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
     }
     const resizedTop = getFitBoxCanvasRectBeforeNormalization(getFirst("tops")!);
     const resizedLower = getFitBoxCanvasRectBeforeNormalization(getFirst("bottoms")!);
-    const targetTop = upperBox.bottom - Math.min(upperBox.height * 0.12, 5);
+    const targetTop = resizedTop.bottom - Math.min(resizedTop.height * 0.12, 5);
     const targetCenterX = resizedTop.center.x;
     const dx = clamp(targetCenterX - resizedLower.center.x, -22, 22);
     const dy = clamp(targetTop - resizedLower.top, -28, 32);
-    move(bottom, dx, dy);
+    move(getFirst("bottoms"), dx, dy);
     const movedLower = getFitBoxCanvasRectBeforeNormalization(getFirst("bottoms")!);
     const chestLimit = upperBox.top + upperBox.height * 0.45;
     if (movedLower.top < chestLimit) move(getFirst("bottoms"), 0, chestLimit - movedLower.top + 1);
