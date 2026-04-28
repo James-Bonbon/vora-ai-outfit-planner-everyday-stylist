@@ -1157,6 +1157,8 @@ const formatAnchorName = (anchor: FitAnchorType) => anchor === "waist" ? "waistF
 const getGarmentFitSummary = (item: RenderItem, relationshipDebug: RelationshipSolverDebug | ReturnType<typeof getRelationshipMetrics>) => {
   const fitBox = getPrioritizedFitBox(item.metadata, item.garment?.image_analysis);
   const rawFitBox = item.metadata.fitBox;
+  const requiredFitBox = ["tops", "outerwear", "dresses", "bottoms"].includes(item.visualCategory);
+  const legacyIgnored = hasActiveLegacyAnchors(item.metadata) || Boolean((item.metadata as any).legacyAnchors);
   const rendered = item.style.finalRenderedFitWidth ? { width: item.style.finalRenderedFitWidth, height: item.style.boxHeightPct * (fitBox?.height || 0) } : null;
   const relationshipScale = Number(item.style.sizingDebug?.relationshipScale || item.style.sizingDebug?.requiredDressBoxScale || 1);
   const resizeActionNeeded = Number.isFinite(relationshipScale) && Math.abs(relationshipScale - 1) > 0.02;
@@ -1169,11 +1171,13 @@ const getGarmentFitSummary = (item: RenderItem, relationshipDebug: RelationshipS
   return {
     name: item.garment?.name || item.garment?.category || "Garment",
     type: displayType(item.visualCategory),
-    source: fitBox?.source || rawFitBox?.source || "visual bounds",
+    label: fitBox ? "fitBox active" : requiredFitBox ? "needs fitBox calibration" : "safe visual fallback",
+    legacyLabel: legacyIgnored ? "legacy anchors ignored" : null,
+    source: fitBox?.source || rawFitBox?.source || "safe visual fallback",
     confidence: Number(fitBox?.confidence ?? rawFitBox?.confidence ?? 0),
     renderedFitBoxWidth: rendered?.width ?? null,
     renderedFitBoxHeight: rendered?.height ?? null,
-    status: item.metadata.fitValidation?.status || (!fitBox && ["tops", "outerwear", "dresses", "bottoms"].includes(item.visualCategory) ? "Needs calibration" : "OK"),
+    status: fitBox ? (item.metadata.fitValidation?.status || "OK") : requiredFitBox ? "Needs fitBox calibration" : "OK",
     resizeActionNeeded,
     resizeReason,
   };
