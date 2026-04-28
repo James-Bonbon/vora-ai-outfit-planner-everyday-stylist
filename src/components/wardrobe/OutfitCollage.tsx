@@ -153,6 +153,14 @@ type RelationshipCheck = {
   anchorsOrBoundsUsed: string;
   targetRatio?: string;
   currentRatio?: number | null;
+  preResizeRatio?: number | null;
+  resizeTargetRatio?: number | null;
+  resizedGarment?: string | null;
+  resizeScaleApplied?: number | null;
+  postResizeTopWidth?: number | null;
+  postResizeBottomWidth?: number | null;
+  finalPostResizeRatio?: number | null;
+  resizeHappened?: boolean;
   verticalOverlapGap?: number | null;
   horizontalCenterOffset?: number | null;
   status: "OK" | "Adjusted" | "Warning";
@@ -845,8 +853,9 @@ const scaleRelationshipPrimaryToTarget = (items: RenderItem[], groupNormalizatio
   if (!metrics?.finalRatio) return items;
   const rule = getSelectedRelationshipRule(items);
   if (!rule || rule.id === "dress_alone_fitBox") return items;
+  if (rule.id === "top_bottom_fitBox_to_fitBox" || rule.id === "outerwear_top_fitBox_to_fitBox") return items;
   const targetMid = (rule.target[0] + rule.target[1]) / 2;
-  const upperAllowed = "oversizedMax" in rule ? rule.oversizedMax : rule.target[1];
+  const upperAllowed = Number("oversizedMax" in rule ? rule.oversizedMax : rule.target[1]);
   if (metrics.finalRatio >= rule.target[0] && metrics.finalRatio <= upperAllowed) return items;
   const scale = clamp(targetMid / Math.max(metrics.finalRatio, 0.001), 0.72, 1.38);
   return items.map((item) => {
@@ -960,6 +969,34 @@ const offsetItem = (item: RenderItem, dx: number, dy: number): RenderItem => ({
   },
 });
 
+const scaleItemAroundFitBoxCenter = (item: RenderItem, scale: number, relationshipRule: string): RenderItem => {
+  const beforeBox = getFitBoxCanvasRectBeforeNormalization(item);
+  const nextWidth = item.style.boxWidthPct * scale;
+  const nextHeight = item.style.boxHeightPct * scale;
+  const nextItem: RenderItem = {
+    ...item,
+    style: {
+      ...item.style,
+      width: `${nextWidth}%`,
+      height: `${nextHeight}%`,
+      boxWidthPct: nextWidth,
+      boxHeightPct: nextHeight,
+      finalRenderedFitWidth: item.style.finalRenderedFitWidth ? item.style.finalRenderedFitWidth * scale : item.style.finalRenderedFitWidth,
+      sizingDebug: {
+        ...item.style.sizingDebug,
+        relationshipRule,
+        relationshipScale: scale,
+        boxWidthAfterClamp: nextWidth,
+        boxHeightAfterClamp: nextHeight,
+        finalRenderedFitWidth: item.style.finalRenderedFitWidth ? item.style.finalRenderedFitWidth * scale : item.style.sizingDebug?.finalRenderedFitWidth,
+      },
+    },
+    renderedUpperWidth: item.renderedUpperWidth ? item.renderedUpperWidth * scale : item.renderedUpperWidth,
+  };
+  const afterBox = getFitBoxCanvasRectBeforeNormalization(nextItem);
+  return offsetItem(nextItem, beforeBox.center.x - afterBox.center.x, beforeBox.center.y - afterBox.center.y);
+};
+
 const getOutfitArchetype = (items: RenderItem[]): OutfitArchetype => {
   const has = (category: VisualCategory) => items.some((item) => item.visualCategory === category);
   if (has("tops") && has("bottoms") && has("outerwear")) return "top_bottom_outerwear";
@@ -1020,7 +1057,18 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
     nextItems = nextItems.map((item) => item === target ? offsetItem(item, dx, dy) : item);
   };
   const addCheck = (check: RelationshipCheck) => {
-    checks.push({ ...check, verticalOverlapGap: roundMetric(check.verticalOverlapGap), horizontalCenterOffset: roundMetric(check.horizontalCenterOffset), currentRatio: roundMetric(check.currentRatio) });
+    checks.push({
+      ...check,
+      verticalOverlapGap: roundMetric(check.verticalOverlapGap),
+      horizontalCenterOffset: roundMetric(check.horizontalCenterOffset),
+      currentRatio: roundMetric(check.currentRatio),
+      preResizeRatio: roundMetric(check.preResizeRatio),
+      resizeTargetRatio: roundMetric(check.resizeTargetRatio),
+      resizeScaleApplied: roundMetric(check.resizeScaleApplied),
+      postResizeTopWidth: roundMetric(check.postResizeTopWidth),
+      postResizeBottomWidth: roundMetric(check.postResizeBottomWidth),
+      finalPostResizeRatio: roundMetric(check.finalPostResizeRatio),
+    });
     if (check.warning) warnings.push(check.warning);
   };
 
@@ -1034,21 +1082,56 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
     constraintsApplied.push("upper_lower_stack");
     const upperBox = getFitBoxCanvasRectBeforeNormalization(top);
     const lowerBox = getFitBoxCanvasRectBeforeNormalization(bottom);
-    const targetTop = upperBox.bottom - Math.min(upperBox.height * 0.12, 5);
-    const targetCenterX = upperBox.center.x;
-    const dx = clamp(targetCenterX - lowerBox.center.x, -18, 18);
-    const dy = clamp(targetTop - lowerBox.top, -24, 28);
-    move(bottom, dx, dy);
+    const preResizeRatio = lowerBox.width / Math.max(upperBox.width, 1);
+    const resizeTargetRatio = 0.82;
+    let resizedGarment: string | null = null;
+    let resizeScaleApplied: number | null = null;
+    if (preResizeRatio < 0.62) {
+      const scale = clamp(resizeTargetRatio / Math.max(preResizeRatio, 0.01), 1, 4.5);
+      nextItems = nextItems.map((item) => {
+        if (item !== bottom) return item;
+        resizedGarment = item.garment?.name || item.garment?.category || "Bottom";
+        resizeScaleApplied = scale;
+        return scaleItemAroundFitBoxCenter(item, scale, "upper_lower_stack");
+      });
+    } else if (preResizeRatio > 0.96) {
+      const scale = clamp(resizeTargetRatio / Math.max(preResizeRatio, 0.01), 0.55, 1);
+      nextItems = nextItems.map((item) => {
+        if (item !== bottom) return item;
+        resizedGarment = item.garment?.name || item.garment?.category || "Bottom";
+        resizeScaleApplied = scale;
+        return scaleItemAroundFitBoxCenter(item, scale, "upper_lower_stack");
+      });
+    }
+    const resizedTop = getFitBoxCanvasRectBeforeNormalization(getFirst("tops")!);
+    const resizedLower = getFitBoxCanvasRectBeforeNormalization(getFirst("bottoms")!);
+    const targetTop = resizedTop.bottom - Math.min(resizedTop.height * 0.12, 5);
+    const targetCenterX = resizedTop.center.x;
+    const dx = clamp(targetCenterX - resizedLower.center.x, -22, 22);
+    const dy = clamp(targetTop - resizedLower.top, -28, 32);
+    move(getFirst("bottoms"), dx, dy);
     const movedLower = getFitBoxCanvasRectBeforeNormalization(getFirst("bottoms")!);
     const chestLimit = upperBox.top + upperBox.height * 0.45;
     if (movedLower.top < chestLimit) move(getFirst("bottoms"), 0, chestLimit - movedLower.top + 1);
     const finalLower = getFitBoxCanvasRectBeforeNormalization(getFirst("bottoms")!);
+    const finalTopForRatio = getFitBoxCanvasRectBeforeNormalization(getFirst("tops")!);
+    const finalPostResizeRatio = finalLower.width / Math.max(finalTopForRatio.width, 1);
     addCheck({
       rule: "upper_lower_stack",
       anchorsOrBoundsUsed: `${upperBox.source} lower third ↔ ${lowerBox.source} top/waist`,
+      targetRatio: "0.62–0.96",
+      currentRatio: finalPostResizeRatio,
+      preResizeRatio,
+      resizeTargetRatio,
+      resizedGarment,
+      resizeScaleApplied,
+      postResizeTopWidth: finalTopForRatio.width,
+      postResizeBottomWidth: finalLower.width,
+      finalPostResizeRatio,
+      resizeHappened: resizeScaleApplied != null,
       verticalOverlapGap: finalLower.top - upperBox.bottom,
-      horizontalCenterOffset: Math.abs(finalLower.center.x - upperBox.center.x),
-      status: Math.abs(finalLower.center.x - upperBox.center.x) <= 12 && finalLower.top >= chestLimit ? "Adjusted" : "Warning",
+      horizontalCenterOffset: Math.abs(finalLower.center.x - finalTopForRatio.center.x),
+      status: finalPostResizeRatio >= 0.62 && finalPostResizeRatio <= 0.96 && Math.abs(finalLower.center.x - finalTopForRatio.center.x) <= 12 && finalLower.top >= chestLimit ? (resizeScaleApplied != null ? "Adjusted" : "OK") : "Warning",
       warning: finalLower.top < chestLimit ? "Bottoms attempted to cover the upper garment chest/upperFit area." : undefined,
     });
   }
@@ -1058,13 +1141,16 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
     const outerBox = getFitBoxCanvasRectBeforeNormalization(outer);
     const innerBox = getFitBoxCanvasRectBeforeNormalization(mainInner);
     const ratio = innerBox.width / Math.max(outerBox.width, 1);
-    if (ratio < 0.62 || ratio > 0.96) {
+    const topBottomColumnActive = Boolean(top && bottom);
+    if (!topBottomColumnActive && (ratio < 0.62 || ratio > 0.96)) {
       const scale = clamp(0.82 / Math.max(ratio, 0.01), 0.82, 1.22);
       nextItems = nextItems.map((item) => item === mainInner ? { ...item, style: { ...item.style, width: `${item.style.boxWidthPct * scale}%`, height: `${item.style.boxHeightPct * scale}%`, boxWidthPct: item.style.boxWidthPct * scale, boxHeightPct: item.style.boxHeightPct * scale, finalRenderedFitWidth: item.style.finalRenderedFitWidth ? item.style.finalRenderedFitWidth * scale : item.style.finalRenderedFitWidth, sizingDebug: { ...item.style.sizingDebug, relationshipRule: "outerwear_frames_inner_layer", relationshipScale: scale } } } : item);
     }
     const adjustedInner = getFitBoxCanvasRectBeforeNormalization(getFirst(mainInner.visualCategory)!);
     move(outer, adjustedInner.center.x - outerBox.center.x - 10, adjustedInner.center.y - outerBox.center.y + (mainInner.visualCategory === "dresses" ? 0 : 5));
-    addCheck({ rule: "outerwear_frames_inner_layer", anchorsOrBoundsUsed: `${outerBox.source} width ↔ ${innerBox.source} width`, targetRatio: "0.62–0.96", currentRatio: ratio, horizontalCenterOffset: Math.abs(adjustedInner.center.x - getFitBoxCanvasRectBeforeNormalization(getFirst("outerwear")!).center.x), status: ratio >= 0.62 && ratio <= 0.96 ? "OK" : "Adjusted" });
+    const finalOuterBox = getFitBoxCanvasRectBeforeNormalization(getFirst("outerwear")!);
+    const finalOuterRatio = adjustedInner.width / Math.max(finalOuterBox.width, 1);
+    addCheck({ rule: "outerwear_frames_inner_layer", anchorsOrBoundsUsed: `${outerBox.source} width ↔ ${innerBox.source} width`, targetRatio: "0.62–0.96", currentRatio: finalOuterRatio, horizontalCenterOffset: Math.abs(adjustedInner.center.x - finalOuterBox.center.x), status: finalOuterRatio >= 0.62 && finalOuterRatio <= 0.96 ? "OK" : topBottomColumnActive ? "Warning" : "Adjusted", warning: topBottomColumnActive && (finalOuterRatio < 0.62 || finalOuterRatio > 0.96) ? "Outerwear kept as frame so the connected top/bottom column ratio stays intact." : undefined });
   }
 
   if (dress) {
@@ -1156,12 +1242,13 @@ const optionalAnchorTypes = (category: VisualCategory): FitAnchorType[] => {
 
 const formatAnchorName = (anchor: FitAnchorType) => anchor === "waist" ? "waistFit" : anchor;
 
-const getGarmentFitSummary = (item: RenderItem, relationshipDebug: RelationshipSolverDebug | ReturnType<typeof getRelationshipMetrics>) => {
+const getGarmentFitSummary = (item: RenderItem, relationshipDebug: RelationshipSolverDebug | ReturnType<typeof getRelationshipMetrics>, groupNormalization: GroupNormalization) => {
   const fitBox = getPrioritizedFitBox(item.metadata, item.garment?.image_analysis);
   const rawFitBox = item.metadata.fitBox;
   const requiredFitBox = ["tops", "outerwear", "dresses", "bottoms"].includes(item.visualCategory);
   const legacyIgnored = hasActiveLegacyAnchors(item.metadata) || Boolean((item.metadata as any).legacyAnchors);
-  const rendered = item.style.finalRenderedFitWidth ? { width: item.style.finalRenderedFitWidth, height: item.style.boxHeightPct * (fitBox?.height || 0) } : null;
+  const renderedMeasurement = getRenderedMeasurement(item, groupNormalization);
+  const rendered = renderedMeasurement ? { width: renderedMeasurement.renderedFitLineLength, height: renderedMeasurement.renderedFitBoxHeight } : null;
   const relationshipScale = Number(item.style.sizingDebug?.relationshipScale || item.style.sizingDebug?.requiredDressBoxScale || 1);
   const resizeActionNeeded = Number.isFinite(relationshipScale) && Math.abs(relationshipScale - 1) > 0.02;
   const resizeReason = resizeActionNeeded
@@ -1338,7 +1425,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false, debugLegacyAncho
   renderedSizingMetrics = getRenderedSizingMetrics(renderItems, groupNormalization);
   const relationshipDebug = composition.debug;
   const compositionMetrics = getCompositionMetrics(renderItems, composition.template);
-  const garmentFitSummaries = renderItems.map((item) => getGarmentFitSummary(item, relationshipDebug));
+  const garmentFitSummaries = renderItems.map((item) => getGarmentFitSummary(item, relationshipDebug, groupNormalization));
   const relationshipStatus = getRelationshipStatus(relationshipDebug);
   const relationshipRuleText = relationshipDebug?.selectedRelationshipRule?.replace(/_/g, " + ").replace("top + bottom + lowerHem + to + waist", "top + bottom").replace("outerwear + top + upperFit + to + upperFit", "outerwear + top").replace("outerwear + dress + upperFit + to + upperFit", "outerwear + dress").replace("dress + alone + upperFit + lengthFit", "dress alone") || "—";
   const comparedAnchorText = relationshipDebug?.selectedRelationshipRule === "upper_lower_stack"
@@ -1360,6 +1447,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false, debugLegacyAncho
   const coatRenderedWidth = renderedSizingMetrics.coat?.renderedFitLineLength ?? null;
   const dressRenderedWidth = renderedSizingMetrics.dress?.renderedFitLineLength ?? null;
   const dressToCoatRatio = renderedSizingMetrics.ratio;
+  const topBottomRelationshipCheck = relationshipDebug.relationshipChecks.find((check) => check.rule === "upper_lower_stack");
   const transformedGroupBounds = getTransformedGroupBounds(groupNormalization.boundingBox, groupNormalization);
   const sizingEngineDebug = {
     coatUpperFitSource: coatFitItem?.style.sizingDebug?.upperFitSource || coatFitItem?.style.fitSource || null,
@@ -1524,6 +1612,13 @@ export const OutfitCollage = ({ garments, debugAnchors = false, debugLegacyAncho
           <div>Rule: {relationshipRuleText}</div>
           <div>Compared: {comparedAnchorText}</div>
           <div>Target ratio: {relationshipDebug?.targetRatio || "—"}</div>
+          <div>Pre-resize ratio: {topBottomRelationshipCheck?.preResizeRatio != null ? topBottomRelationshipCheck.preResizeRatio.toFixed(2) : "—"}</div>
+          <div>Resize target ratio: {topBottomRelationshipCheck?.resizeTargetRatio != null ? topBottomRelationshipCheck.resizeTargetRatio.toFixed(2) : "—"}</div>
+          <div>Resized garment: {topBottomRelationshipCheck?.resizedGarment || "—"}</div>
+          <div>Resize scale applied: {topBottomRelationshipCheck?.resizeScaleApplied != null ? topBottomRelationshipCheck.resizeScaleApplied.toFixed(2) : "—"}</div>
+          <div>Post-resize top width: {topBottomRelationshipCheck?.postResizeTopWidth != null ? topBottomRelationshipCheck.postResizeTopWidth.toFixed(2) : "—"}</div>
+          <div>Post-resize bottom width: {topBottomRelationshipCheck?.postResizeBottomWidth != null ? topBottomRelationshipCheck.postResizeBottomWidth.toFixed(2) : "—"}</div>
+          <div>Final post-resize ratio: {topBottomRelationshipCheck?.finalPostResizeRatio != null ? topBottomRelationshipCheck.finalPostResizeRatio.toFixed(2) : "—"}</div>
           <div>Current ratio: {relationshipDebug?.finalRatio != null ? relationshipDebug.finalRatio.toFixed(2) : "—"}</div>
           <div>Upper/lower overlap-gap: {relationshipDebug.finalVerticalOverlapGap != null ? relationshipDebug.finalVerticalOverlapGap.toFixed(2) : "—"}</div>
           <div>Center offset: {relationshipDebug.finalHorizontalCenterOffset != null ? relationshipDebug.finalHorizontalCenterOffset.toFixed(2) : "—"}</div>
