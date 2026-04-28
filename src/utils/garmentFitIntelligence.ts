@@ -41,6 +41,7 @@ export type FitMetadata = {
 
 type FitFamily = "tops" | "dresses" | "outerwear" | "bottoms" | "shoes" | "accessory";
 type BoxCandidate = Omit<FitBox, "validationStatus">;
+const activeLegacyAnchorFields = ["leftUpperAnchor", "rightUpperAnchor", "upperBodyWidthAnchor", "leftWaistAnchor", "rightWaistAnchor", "validatedMeasurementAnchors", "measurementAnchors", "layoutAnchors"] as const;
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const round = (value: number) => Math.round(value * 100) / 100;
@@ -195,6 +196,20 @@ const legacyAnchorFitBox = (metadata: any, analysis: ImageAnalysisForFit | null 
   return { x, y, width, height: Math.max(1, bottom - y), source, confidence, notes: "Converted from legacy fit anchors." };
 };
 
+const archiveLegacyAnchors = (metadata: any) => {
+  const archived: Record<string, any> = { ...(metadata?.legacyAnchors || {}) };
+  activeLegacyAnchorFields.forEach((field) => {
+    if (metadata?.[field] != null) archived[field] = metadata[field];
+  });
+  return Object.keys(archived).length ? archived : undefined;
+};
+
+const omitActiveLegacyAnchors = (metadata: any) => {
+  const next = { ...(metadata || {}) };
+  activeLegacyAnchorFields.forEach((field) => delete next[field]);
+  return next;
+};
+
 const calibrationStatus = (family: FitFamily, box: FitBox | null) => {
   if (!requiresFitBox(family)) return "OK" as const;
   if (!box || box.validationStatus === "failed" || box.confidence < 0.5) return "Needs calibration" as const;
@@ -223,10 +238,12 @@ export const buildGarmentFitMetadata = ({ metadata, analysis, category, name }: 
   const fitBox = requiresFitBox(family) ? validateFitBox(selected, analysis, family) : null;
   const invalidFitBox = fitBox?.validationStatus === "failed" ? fitBox : null;
   const status = calibrationStatus(family, fitBox);
+  const legacyAnchors = archiveLegacyAnchors(metadata);
 
   return {
-    ...(metadata || {}),
+    ...omitActiveLegacyAnchors(metadata),
     rawAiLandmarks,
+    ...(legacyAnchors ? { legacyAnchors } : {}),
     fitBox,
     confidence: fitBox?.confidence ?? baseConfidence,
     fitValidation: {

@@ -51,6 +51,17 @@ const hasImageAnalysis = (analysis: any) => Boolean(
   Number(analysis?.visibleHeightRatio) > 0
 );
 
+const activeLegacyAnchorFields = ["leftUpperAnchor", "rightUpperAnchor", "upperBodyWidthAnchor", "leftWaistAnchor", "rightWaistAnchor", "validatedMeasurementAnchors", "measurementAnchors", "layoutAnchors"];
+const archiveLegacyAnchorFields = (metadata: any) => {
+  const legacyAnchors = { ...(metadata?.legacyAnchors || {}) };
+  activeLegacyAnchorFields.forEach((field) => {
+    if (metadata?.[field] != null) legacyAnchors[field] = metadata[field];
+  });
+  const next = { ...(metadata || {}), legacyAnchors: Object.keys(legacyAnchors).length ? legacyAnchors : undefined };
+  activeLegacyAnchorFields.forEach((field) => delete next[field]);
+  return next;
+};
+
 const cleanJson = (content: string) => content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
 
 const calculateVisibleAlphaBounds = (bytes: Uint8Array) => {
@@ -476,7 +487,8 @@ Return garmentType, bodyCoverage, lengthClass, bulkClass, preferredPreviewScale,
 - fitBox: {"x": number, "y": number, "width": number, "height": number, "source": "ai", "confidence": number, "validationStatus": "validated", "notes": string}
 - tops/coats/jackets/dresses: fitBox top edge aligns with upper-body/chest/shoulder/armhole fit area; width is upper body fit width; height extends to hem.
 - bottoms: fitBox top edge aligns with waistband; width is waist fit width; height extends to hem.
-- optional legacy landmarks: leftUpperFitAnchor, rightUpperFitAnchor, leftWaistAnchor, rightWaistAnchor, hemLeft, hemRight.
+- do not return legacy anchor fields such as leftUpperAnchor, rightUpperAnchor, leftWaistAnchor, rightWaistAnchor, measurementAnchors, or layoutAnchors.
+- optional center points only: necklineCenter, waistCenter, hemCenter.
 - shoes/accessories: visualLength, visualHeight, anchorCenter
 
 For dresses, especially asymmetric or sleeveless dresses, do NOT measure literal shoulder seams. Detect upperBodyFitWidth across the upper bodice/chest/armhole area corresponding to the wearer's upper torso. Never invent anchors in transparent or white empty space: every anchor must sit on visible garment pixels inside the alpha bounds, and left/right lines must cross actual garment material. If a point is ambiguous, off-garment, strap-only, diagonal decorative detail, or implausible, return null/omit that anchor and set confidence below 0.5 with notes. For coats, do not include full sleeve spread in upperBodyFitWidth; measure body fit width.`;
@@ -500,7 +512,7 @@ For dresses, especially asymmetric or sleeveless dresses, do NOT measure literal
         const rawLayout = parsed.layout_metadata || parsed;
         const layout = normalizeUpperAnchors(rawLayout, imageAnalysis, item);
         const fitBox = buildFitBox(rawLayout, imageAnalysis, item);
-        const nextMetadata = {
+        const nextMetadata = archiveLegacyAnchorFields({
           ...(item.layout_metadata || {}),
           ...layout,
           fitBox,
@@ -508,7 +520,7 @@ For dresses, especially asymmetric or sleeveless dresses, do NOT measure literal
           rawAiLandmarks: rawLayout,
           rawAiLayoutMetadata: rawLayout,
           visibleAlphaBounds: imageAnalysis.visibleAlphaBounds,
-        };
+        });
 
         const canonicalCategory = String(nextMetadata.garmentType || "").toLowerCase() === "dress" || /\bdress\b/i.test(item.name || "")
           ? "Dresses"

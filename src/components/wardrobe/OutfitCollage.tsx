@@ -1,9 +1,12 @@
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 type OutfitCollageProps = {
   garments: any[];
   debugAnchors?: boolean;
+  debugLegacyAnchors?: boolean;
 };
 
 type VisualCategory = "shoes" | "bottoms" | "tops" | "outerwear" | "dresses" | "hats" | "accessories";
@@ -79,6 +82,7 @@ type LayoutMetadata = {
 
 type FitGroup = Record<string, any> & { confidence?: number; source?: string; notes?: string; validationStatus?: string; failureReason?: string };
 type FitAnchorType = "upperFit" | "waist" | "lowerHemFit" | "hipFit" | "lengthFit";
+const activeLegacyAnchorFields = ["leftUpperAnchor", "rightUpperAnchor", "upperBodyWidthAnchor", "leftWaistAnchor", "rightWaistAnchor", "validatedMeasurementAnchors", "measurementAnchors", "layoutAnchors"] as const;
 
 type NormalizedRenderStyle = CSSProperties & {
   boxWidthPct: number;
@@ -396,6 +400,20 @@ const toRelativeFitBox = (box: FitBox | null | undefined, analysis?: ImageAnalys
 
 const getPrioritizedFitBox = (metadata: LayoutMetadata, analysis?: ImageAnalysis | null) => toRelativeFitBox(metadata.fitBox, analysis);
 
+const hasActiveLegacyAnchors = (metadata: LayoutMetadata) => activeLegacyAnchorFields.some((field) => (metadata as any)?.[field] != null);
+
+const archiveLegacyAnchorFields = (metadata: LayoutMetadata) => {
+  const legacyAnchors = { ...((metadata as any)?.legacyAnchors || {}) };
+  activeLegacyAnchorFields.forEach((field) => {
+    if ((metadata as any)?.[field] != null) legacyAnchors[field] = (metadata as any)[field];
+  });
+  const next = { ...(metadata as any), legacyAnchors: Object.keys(legacyAnchors).length ? legacyAnchors : undefined };
+  activeLegacyAnchorFields.forEach((field) => delete next[field]);
+  return next;
+};
+
+const getLegacyDebugMetadata = (metadata: LayoutMetadata) => ({ ...metadata, ...((metadata as any).legacyAnchors || {}) });
+
 const getPrioritizedUpperFit = (metadata: LayoutMetadata) => {
   return getPrioritizedFitGroup(metadata, "upperFit");
 };
@@ -559,28 +577,24 @@ const getNormalizedStyle = ({
   const visibleHeightRatio = clamp(Number(analysis?.visibleHeightRatio) || 1, 0.18, 1);
   const visibleWidthRatio = clamp(Number(analysis?.visibleWidthRatio) || 1, 0.18, 1);
   const fitBox = getPrioritizedFitBox(metadata, analysis);
-  const lengthFitPair = getMeasurementPair(metadata, analysis, "lengthFit");
-  const lengthFitRatio = lengthFitPair?.width ? clamp(lengthFitPair.width, 0.18, 1) : null;
-  const verticalFitRatio = fitBox?.height || lengthFitRatio || visibleHeightRatio;
+  const verticalFitRatio = fitBox?.height || visibleHeightRatio;
   const imageRatio = analysis?.imageWidth && analysis?.imageHeight ? analysis.imageWidth / analysis.imageHeight : 1;
   const visibleAspect = analysis?.visibleWidth && analysis?.visibleHeight ? analysis.visibleWidth / analysis.visibleHeight : imageRatio;
   const preferredScale = clamp(Number(metadata.preferredPreviewScale) || 0.55, 0.2, 1);
   const intendedVisibleWidth = clamp(intendedVisibleHeight * visibleAspect * (0.82 + preferredScale * 0.24), 22, 66);
   const boxHeight = clamp(intendedVisibleHeight / verticalFitRatio, 22, 88);
-  const upperBodyWidthRatio = fitBox?.width || getUpperBodyWidthRatio(metadata, analysis);
-  const fitSource = fitBox?.source || getPrioritizedUpperFit(metadata)?.source || (upperBodyWidthRatio ? "legacy" : "fallback");
+  const upperBodyWidthRatio = fitBox?.width || null;
+  const fitSource = fitBox?.source ? `fitBox:${fitBox.source}` : "visual fallback";
   const upperAnchorBoxWidth = upperBodyWidthRatio && targetRenderedShoulderWidth
     ? targetRenderedShoulderWidth / upperBodyWidthRatio
     : null;
-  const widthClampMax = upperAnchorBoxWidth ? (fitSource === "human" ? 166 : 122) : 92;
+  const widthClampMax = upperAnchorBoxWidth ? (fitBox?.source === "human" ? 166 : 122) : 92;
   const boxWidth = clamp(Math.max(intendedVisibleWidth / visibleWidthRatio, upperAnchorBoxWidth || 0), 22, widthClampMax);
   const visibleCenterX = analysis?.imageWidth && analysis?.visibleWidth
     ? ((analysis.visibleX ?? 0) + analysis.visibleWidth / 2) / analysis.imageWidth
     : 0.5;
   const visibleCenterY = fitBox
     ? clamp(fitBox.y + fitBox.height / 2, 0, 1)
-    : lengthFitPair
-    ? clamp((lengthFitPair.left.y + lengthFitPair.right.y) / 2, 0, 1)
     : analysis?.imageHeight && analysis?.visibleHeight
     ? ((analysis.visibleY ?? 0) + analysis.visibleHeight / 2) / analysis.imageHeight
     : 0.5;
@@ -613,8 +627,8 @@ const getNormalizedStyle = ({
     finalRenderedFitWidth: upperBodyWidthRatio ? upperBodyWidthRatio * boxWidth : null,
     sizingDebug: {
       upperFitSource: fitSource,
-      lengthFitSource: fitBox?.source || lengthFitPair?.source || null,
-      lengthFitRatio: fitBox?.height || lengthFitRatio,
+      lengthFitSource: fitBox?.source || null,
+      lengthFitRatio: fitBox?.height || null,
       upperFitWidthRatio: upperBodyWidthRatio,
       boxWidthBeforeClamp: Math.max(intendedVisibleWidth / visibleWidthRatio, upperAnchorBoxWidth || 0),
       boxWidthAfterClamp: boxWidth,
@@ -734,6 +748,11 @@ const getRenderedMeasurement = (item: RenderItem | undefined, groupNormalization
   if (!item) return null;
   const fitBox = getPrioritizedFitBox(item.metadata, item.garment?.image_analysis);
   if (fitBox) return getRenderedFitBoxMeasurement(item, groupNormalization, fitBox);
+  return null;
+};
+
+const getRenderedLegacyMeasurement = (item: RenderItem | undefined, groupNormalization: GroupNormalization) => {
+  if (!item) return null;
   const measurementPair = getRealMeasurementPair(item.metadata, item.garment?.image_analysis, item.visualCategory);
   return getRenderedAnchorMeasurement(item, groupNormalization, measurementPair);
 };
@@ -1140,6 +1159,8 @@ const formatAnchorName = (anchor: FitAnchorType) => anchor === "waist" ? "waistF
 const getGarmentFitSummary = (item: RenderItem, relationshipDebug: RelationshipSolverDebug | ReturnType<typeof getRelationshipMetrics>) => {
   const fitBox = getPrioritizedFitBox(item.metadata, item.garment?.image_analysis);
   const rawFitBox = item.metadata.fitBox;
+  const requiredFitBox = ["tops", "outerwear", "dresses", "bottoms"].includes(item.visualCategory);
+  const legacyIgnored = hasActiveLegacyAnchors(item.metadata) || Boolean((item.metadata as any).legacyAnchors);
   const rendered = item.style.finalRenderedFitWidth ? { width: item.style.finalRenderedFitWidth, height: item.style.boxHeightPct * (fitBox?.height || 0) } : null;
   const relationshipScale = Number(item.style.sizingDebug?.relationshipScale || item.style.sizingDebug?.requiredDressBoxScale || 1);
   const resizeActionNeeded = Number.isFinite(relationshipScale) && Math.abs(relationshipScale - 1) > 0.02;
@@ -1152,11 +1173,13 @@ const getGarmentFitSummary = (item: RenderItem, relationshipDebug: RelationshipS
   return {
     name: item.garment?.name || item.garment?.category || "Garment",
     type: displayType(item.visualCategory),
-    source: fitBox?.source || rawFitBox?.source || "visual bounds",
+    label: fitBox ? "fitBox active" : requiredFitBox ? "needs fitBox calibration" : "safe visual fallback",
+    legacyLabel: legacyIgnored ? "legacy anchors ignored" : null,
+    source: fitBox?.source || rawFitBox?.source || "safe visual fallback",
     confidence: Number(fitBox?.confidence ?? rawFitBox?.confidence ?? 0),
     renderedFitBoxWidth: rendered?.width ?? null,
     renderedFitBoxHeight: rendered?.height ?? null,
-    status: item.metadata.fitValidation?.status || (!fitBox && ["tops", "outerwear", "dresses", "bottoms"].includes(item.visualCategory) ? "Needs calibration" : "OK"),
+    status: fitBox ? (item.metadata.fitValidation?.status || "OK") : requiredFitBox ? "Needs fitBox calibration" : "OK",
     resizeActionNeeded,
     resizeReason,
   };
@@ -1172,9 +1195,36 @@ const getRelationshipStatus = (relationshipDebug: RelationshipSolverDebug | Retu
   return ok ? "OK" : "Needs resize";
 };
 
-export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageProps) => {
-  if (!garments || garments.length === 0) return null;
+export const OutfitCollage = ({ garments, debugAnchors = false, debugLegacyAnchors = false }: OutfitCollageProps) => {
   const [compositionQaOpen, setCompositionQaOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const legacyDebugEnabled = debugLegacyAnchors || new URLSearchParams(window.location.search).get("debugLegacyAnchors") === "1";
+
+  useEffect(() => {
+    const itemsToMigrate = (garments || []).filter((garment) => garment?.id && hasActiveLegacyAnchors(garment.layout_metadata || {}));
+    if (!itemsToMigrate.length) return;
+    let cancelled = false;
+    const migrate = async () => {
+      await Promise.all(itemsToMigrate.map((garment) => {
+        const nextMetadata = archiveLegacyAnchorFields(garment.layout_metadata || {});
+        if (!nextMetadata.fitBox) nextMetadata.fitValidation = { ...(nextMetadata.fitValidation || {}), status: "Needs fitBox calibration", rejected: ["legacy anchors archived"] };
+        return supabase.from("closet_items").update({ layout_metadata: nextMetadata }).eq("id", garment.id);
+      }));
+      if (cancelled) return;
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["closet"] }),
+        queryClient.invalidateQueries({ queryKey: ["closet-items"] }),
+        queryClient.invalidateQueries({ queryKey: ["lookbook"] }),
+        queryClient.invalidateQueries({ queryKey: ["outfit-calendar-data"] }),
+        queryClient.invalidateQueries({ queryKey: ["look-garments"] }),
+        queryClient.invalidateQueries({ queryKey: ["saved-looks"] }),
+      ]);
+    };
+    migrate().catch((error) => console.error("Legacy anchor migration failed", error));
+    return () => { cancelled = true; };
+  }, [garments, queryClient]);
+
+  if (!garments || garments.length === 0) return null;
 
   const classified = garments
     .map((garment) => ({ garment, visualCategory: classifyGarment(garment), imageUrl: getImageUrl(garment) }))
@@ -1190,7 +1240,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
   let renderItems: RenderItem[] = classified.map(({ garment, visualCategory, imageUrl }, stackIndex) => {
     const duplicateIndex = seenCounts[visualCategory] ?? 0;
     seenCounts[visualCategory] = duplicateIndex + 1;
-    const inferred = inferMetadata(garment, visualCategory);
+    const inferred = archiveLegacyAnchorFields(inferMetadata(garment, visualCategory));
     const metadata = {
       ...inferred,
       bodyAnchors: inferred.bodyAnchors || estimateBodyAnchors(garment?.image_analysis, visualCategory),
@@ -1213,7 +1263,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
       stackIndex,
       targetRenderedShoulderWidth,
     });
-    const upperWidthRatio = getUpperBodyWidthRatio(metadata, garment?.image_analysis);
+    const upperWidthRatio = getPrioritizedFitBox(metadata, garment?.image_analysis)?.width || null;
     return {
       garment,
       visualCategory,
@@ -1366,21 +1416,18 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
       )}
       {renderItems.map(({ garment, visualCategory, imageUrl, duplicateIndex, metadata, style, renderedUpperWidth }) => {
         const baseAlt = garment?.name || garment?.category || "Garment";
-        const { boxWidthPct, boxHeightPct, offsetXPct, offsetYPct, anchorShiftXPct, anchorShiftYPct, rotationDeg, imageRatio, fitSource: styleFitSource, upperFitWidthRatio, targetRenderedFitWidth, calculatedImageBoxWidth, finalRenderedFitWidth, ...imageStyle } = style;
+        const { boxWidthPct, boxHeightPct, offsetXPct, offsetYPct, anchorShiftXPct, anchorShiftYPct, rotationDeg, imageRatio, fitSource: _styleFitSource, upperFitWidthRatio, targetRenderedFitWidth, calculatedImageBoxWidth, finalRenderedFitWidth, ...imageStyle } = style;
         const fitBox = getPrioritizedFitBox(metadata, garment?.image_analysis);
-        const measurementPair = fitBox ? null : getRealMeasurementPair(metadata, garment?.image_analysis, visualCategory);
-        const layoutGroup = metadata.layoutAnchors?.upperFit || metadata.layoutAnchors?.waist || metadata.layoutAnchors?.length;
-        const layoutSource = layoutGroup?.source;
-        const prioritizedUpperFit = getPrioritizedUpperFit(metadata);
-        const fitSource = prioritizedUpperFit?.source || (measurementPair ? ((metadata.validatedMeasurementAnchors?.waist || metadata.measurementAnchors?.waist) as any)?.source : layoutSource) || styleFitSource || "fallback";
+        const legacyMetadata = legacyDebugEnabled ? getLegacyDebugMetadata(metadata) : metadata;
+        const measurementPair = !fitBox && legacyDebugEnabled ? getRealMeasurementPair(legacyMetadata, garment?.image_analysis, visualCategory) : null;
         const measurementCenter = measurementPair ? { x: (measurementPair.left.x + measurementPair.right.x) / 2, y: (measurementPair.left.y + measurementPair.right.y) / 2 } : null;
-        const landmarkPoints = [
+        const landmarkPoints = legacyDebugEnabled ? [
           measurementPair?.left,
           measurementPair?.right,
-          toRelativePoint(metadata.necklineCenter || metadata.bodyAnchors?.necklineCenter, garment?.image_analysis),
-          toRelativePoint(metadata.waistCenter || metadata.bodyAnchors?.waistCenter, garment?.image_analysis),
-          toRelativePoint(metadata.hemCenter || metadata.bodyAnchors?.hemCenter, garment?.image_analysis),
-        ].filter(Boolean);
+          toRelativePoint(legacyMetadata.necklineCenter || legacyMetadata.bodyAnchors?.necklineCenter, garment?.image_analysis),
+          toRelativePoint(legacyMetadata.waistCenter || legacyMetadata.bodyAnchors?.waistCenter, garment?.image_analysis),
+          toRelativePoint(legacyMetadata.hemCenter || legacyMetadata.bodyAnchors?.hemCenter, garment?.image_analysis),
+        ].filter(Boolean) : [];
         const mappedMeasurement = measurementPair
           ? { left: mapImagePointToBox(measurementPair.left, style), right: mapImagePointToBox(measurementPair.right, style) }
           : null;
@@ -1399,7 +1446,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
               decoding="async"
               className={cn("absolute inset-0 h-full w-full object-contain object-center drop-shadow-md")}
             />
-            {showDebugAnchors && (mappedFitBox || (measurementPair && measurementCenter && mappedMeasurement)) && (
+            {showDebugAnchors && (mappedFitBox || (legacyDebugEnabled && measurementPair && measurementCenter && mappedMeasurement)) && (
               <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
                 {mappedFitBox && (
                   <div
@@ -1407,7 +1454,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
                     style={{ left: `${mappedFitBox.topLeft.x}%`, top: `${mappedFitBox.topLeft.y}%`, width: `${mappedFitBox.bottomRight.x - mappedFitBox.topLeft.x}%`, height: `${mappedFitBox.bottomRight.y - mappedFitBox.topLeft.y}%` }}
                   />
                 )}
-                {measurementPair && mappedMeasurement && (
+                {legacyDebugEnabled && measurementPair && mappedMeasurement && (
                 <svg className="absolute inset-0 z-[92] h-full w-full overflow-visible">
                   <line
                     x1={`${mappedMeasurement.left.x}%`}
@@ -1420,7 +1467,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
                   />
                 </svg>
                 )}
-                {measurementPair && mappedMeasurement && (
+                {legacyDebugEnabled && measurementPair && mappedMeasurement && (
                   <>
                 <span
                   className="absolute z-[93] -translate-x-full -translate-y-[140%] rounded bg-background/90 px-1 py-0.5 text-[8px] font-medium leading-none text-foreground shadow-sm"
@@ -1457,6 +1504,8 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
           {garmentFitSummaries.map((summary) => (
             <div key={summary.name} className="rounded-lg bg-secondary/20 px-2 py-2">
               <div className="font-semibold">{summary.name}</div>
+              <div>{summary.label}</div>
+              {summary.legacyLabel && <div>{summary.legacyLabel}</div>}
               <div>Type: {summary.type}</div>
               <div>fitBox source: {summary.source}</div>
               <div>Status: {summary.status}</div>
