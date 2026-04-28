@@ -853,6 +853,7 @@ const scaleRelationshipPrimaryToTarget = (items: RenderItem[], groupNormalizatio
   if (!metrics?.finalRatio) return items;
   const rule = getSelectedRelationshipRule(items);
   if (!rule || rule.id === "dress_alone_fitBox") return items;
+  if (rule.id === "top_bottom_fitBox_to_fitBox" || rule.id === "outerwear_top_fitBox_to_fitBox") return items;
   const targetMid = (rule.target[0] + rule.target[1]) / 2;
   const upperAllowed = "oversizedMax" in rule ? rule.oversizedMax : rule.target[1];
   if (metrics.finalRatio >= rule.target[0] && metrics.finalRatio <= upperAllowed) return items;
