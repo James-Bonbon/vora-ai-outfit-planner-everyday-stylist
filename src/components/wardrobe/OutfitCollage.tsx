@@ -1501,6 +1501,8 @@ export const OutfitCollage = ({ garments, debugAnchors = false, debugLegacyAncho
           {garmentFitSummaries.map((summary) => (
             <div key={summary.name} className="rounded-lg bg-secondary/20 px-2 py-2">
               <div className="font-semibold">{summary.name}</div>
+              <div>{summary.label}</div>
+              {summary.legacyLabel && <div>{summary.legacyLabel}</div>}
               <div>Type: {summary.type}</div>
               <div>fitBox source: {summary.source}</div>
               <div>Status: {summary.status}</div>
