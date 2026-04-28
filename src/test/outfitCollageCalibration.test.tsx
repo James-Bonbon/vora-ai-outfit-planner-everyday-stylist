@@ -141,4 +141,22 @@ describe("OutfitCollage calibrated fit sizing", () => {
     act(() => rendered.root.unmount());
     rendered.container.remove();
   });
+
+  it("rescales a too-narrow skirt fitBox against the top after building the top/bottom/outerwear column", () => {
+    const garments = [
+      makeGarment("top-narrow-skirt", "Fitted top", "Tops", fitBox(330, 220, 340, 620)),
+      makeGarment("narrow-skirt", "Narrow calibrated skirt", "Skirt", fitBox(470, 140, 80, 900)),
+      coat,
+    ];
+    const rendered = renderGarments(garments as any[]);
+    expect(rendered.container.textContent).toContain('Pre-resize ratio: 0.24');
+    expect(rendered.container.textContent).toContain('Resized garment: Narrow calibrated skirt');
+    expect(rendered.container.textContent).toContain('Final post-resize ratio: 0.82');
+    expect(rendered.container.textContent).toContain('Current ratio: 0.82');
+    expect(rendered.container.textContent).toContain('Status: OK');
+    expect(rendered.container.textContent).toContain('Resize: Yes');
+    expect(rendered.container.textContent).not.toContain('Resize: No</div><div>Reason: Within target relationship ratio.</div></div><div class="rounded-lg bg-secondary/20 px-2 py-2"><div class="font-semibold">Relationship Check</div>');
+    act(() => rendered.root.unmount());
+    rendered.container.remove();
+  });
 });
