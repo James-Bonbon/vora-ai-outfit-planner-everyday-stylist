@@ -1242,12 +1242,13 @@ const optionalAnchorTypes = (category: VisualCategory): FitAnchorType[] => {
 
 const formatAnchorName = (anchor: FitAnchorType) => anchor === "waist" ? "waistFit" : anchor;
 
-const getGarmentFitSummary = (item: RenderItem, relationshipDebug: RelationshipSolverDebug | ReturnType<typeof getRelationshipMetrics>) => {
+const getGarmentFitSummary = (item: RenderItem, relationshipDebug: RelationshipSolverDebug | ReturnType<typeof getRelationshipMetrics>, groupNormalization: GroupNormalization) => {
   const fitBox = getPrioritizedFitBox(item.metadata, item.garment?.image_analysis);
   const rawFitBox = item.metadata.fitBox;
   const requiredFitBox = ["tops", "outerwear", "dresses", "bottoms"].includes(item.visualCategory);
   const legacyIgnored = hasActiveLegacyAnchors(item.metadata) || Boolean((item.metadata as any).legacyAnchors);
-  const rendered = item.style.finalRenderedFitWidth ? { width: item.style.finalRenderedFitWidth, height: item.style.boxHeightPct * (fitBox?.height || 0) } : null;
+  const renderedMeasurement = getRenderedMeasurement(item, groupNormalization);
+  const rendered = renderedMeasurement ? { width: renderedMeasurement.renderedFitLineLength, height: renderedMeasurement.renderedFitBoxHeight } : null;
   const relationshipScale = Number(item.style.sizingDebug?.relationshipScale || item.style.sizingDebug?.requiredDressBoxScale || 1);
   const resizeActionNeeded = Number.isFinite(relationshipScale) && Math.abs(relationshipScale - 1) > 0.02;
   const resizeReason = resizeActionNeeded
