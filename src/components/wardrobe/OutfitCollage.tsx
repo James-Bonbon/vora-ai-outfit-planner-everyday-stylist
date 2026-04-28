@@ -1087,7 +1087,7 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
     let resizedGarment: string | null = null;
     let resizeScaleApplied: number | null = null;
     if (preResizeRatio < 0.62) {
-      const scale = clamp(resizeTargetRatio / Math.max(preResizeRatio, 0.01), 1, 3.4);
+      const scale = clamp(resizeTargetRatio / Math.max(preResizeRatio, 0.01), 1, 4.5);
       nextItems = nextItems.map((item) => {
         if (item !== bottom) return item;
         resizedGarment = item.garment?.name || item.garment?.category || "Bottom";
