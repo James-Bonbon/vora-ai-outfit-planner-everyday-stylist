@@ -941,26 +941,40 @@ const offsetItem = (item: RenderItem, dx: number, dy: number): RenderItem => ({
   },
 });
 
-const getLayoutTemplate = (items: RenderItem[]) => {
-  if (items.length) return "four_zone_editorial";
-  return "empty";
+const getOutfitArchetype = (items: RenderItem[]): OutfitArchetype => {
+  const has = (category: VisualCategory) => items.some((item) => item.visualCategory === category);
+  if (has("tops") && has("bottoms") && has("outerwear")) return "top_bottom_outerwear";
+  if (has("tops") && has("bottoms")) return "top_bottom";
+  if (has("dresses") && has("outerwear")) return "dress_outerwear";
+  if (has("dresses")) return "dress";
+  if (has("outerwear") && items.some((item) => item.metadata.bodyCoverage === "full_body")) return "full_body_outerwear";
+  return "accessories_only";
 };
 
-const applyCategoryAwareComposition = (items: RenderItem[]) => {
+const getLayoutTemplate = (items: RenderItem[]) => items.length ? "relationship_solver" : "empty";
+
+const applyRelationshipAwareComposition = (items: RenderItem[]) => {
   let nextItems = [...items];
   const template = getLayoutTemplate(nextItems);
-  const rotationByCategory: Record<VisualCategory, number> = { outerwear: -5, dresses: 3, tops: -2, bottoms: 2, shoes: -7, hats: 5, accessories: 6 };
+  const archetype = getOutfitArchetype(nextItems);
+  const checks: RelationshipCheck[] = [];
+  const warnings: string[] = [];
+  const constraintsApplied: string[] = [];
+  const rotationByCategory: Record<VisualCategory, number> = { outerwear: -4, dresses: 2, tops: -1, bottoms: 1, shoes: -6, hats: 5, accessories: 5 };
   const zIndexByCategory: Record<VisualCategory, number> = { outerwear: 20, dresses: 30, tops: 30, bottoms: 25, shoes: 40, hats: 40, accessories: 40 };
-  const fillByCategory: Record<VisualCategory, number> = { outerwear: 0.94, dresses: 0.98, tops: 0.9, bottoms: 0.92, shoes: 0.68, hats: 0.62, accessories: 0.66 };
+  const fillByCategory: Record<VisualCategory, number> = { outerwear: 0.92, dresses: 0.96, tops: 0.9, bottoms: 0.9, shoes: 0.62, hats: 0.58, accessories: 0.62 };
 
-  if (template === "four_zone_editorial") {
+  if (template === "relationship_solver") {
     nextItems = nextItems.map((item, index) => {
       const rotationDeg = rotationByCategory[item.visualCategory] + (item.duplicateIndex % 2 ? 3 : 0);
       const zoneName = getAssignedZone(item.visualCategory);
+      const roleLayout = roleInitialLayouts[item.visualCategory];
       const styled = {
         ...item,
         style: {
           ...item.style,
+          left: `${roleLayout.x}%`,
+          top: `${roleLayout.y}%`,
           zIndex: zIndexByCategory[item.visualCategory] + index,
           rotationDeg,
           transform: `translate(${item.style.offsetXPct}%, ${item.style.offsetYPct}%) rotate(${rotationDeg}deg)`,
@@ -981,7 +995,93 @@ const applyCategoryAwareComposition = (items: RenderItem[]) => {
     });
   }
 
-  return { items: nextItems, template };
+  const getFirst = (category: VisualCategory) => nextItems.find((item) => item.visualCategory === category);
+  const move = (target: RenderItem | undefined, dx: number, dy: number) => {
+    if (!target) return;
+    nextItems = nextItems.map((item) => item === target ? offsetItem(item, dx, dy) : item);
+  };
+  const addCheck = (check: RelationshipCheck) => {
+    checks.push({ ...check, verticalOverlapGap: roundMetric(check.verticalOverlapGap), horizontalCenterOffset: roundMetric(check.horizontalCenterOffset), currentRatio: roundMetric(check.currentRatio) });
+    if (check.warning) warnings.push(check.warning);
+  };
+
+  const top = getFirst("tops");
+  const bottom = getFirst("bottoms");
+  const outer = getFirst("outerwear");
+  const dress = getFirst("dresses");
+  const mainInner = dress || top;
+
+  if (top && bottom) {
+    constraintsApplied.push("upper_lower_stack");
+    const upperBox = getFitBoxCanvasRectBeforeNormalization(top);
+    const lowerBox = getFitBoxCanvasRectBeforeNormalization(bottom);
+    const targetTop = upperBox.bottom - Math.min(upperBox.height * 0.12, 5);
+    const targetCenterX = upperBox.center.x;
+    const dx = clamp(targetCenterX - lowerBox.center.x, -18, 18);
+    const dy = clamp(targetTop - lowerBox.top, -24, 28);
+    move(bottom, dx, dy);
+    const movedLower = getFitBoxCanvasRectBeforeNormalization(getFirst("bottoms")!);
+    const chestLimit = upperBox.top + upperBox.height * 0.45;
+    if (movedLower.top < chestLimit) move(getFirst("bottoms"), 0, chestLimit - movedLower.top + 1);
+    const finalLower = getFitBoxCanvasRectBeforeNormalization(getFirst("bottoms")!);
+    addCheck({
+      rule: "upper_lower_stack",
+      anchorsOrBoundsUsed: `${upperBox.source} lower third ↔ ${lowerBox.source} top/waist`,
+      verticalOverlapGap: finalLower.top - upperBox.bottom,
+      horizontalCenterOffset: Math.abs(finalLower.center.x - upperBox.center.x),
+      status: Math.abs(finalLower.center.x - upperBox.center.x) <= 12 && finalLower.top >= chestLimit ? "Adjusted" : "Warning",
+      warning: finalLower.top < chestLimit ? "Bottoms attempted to cover the upper garment chest/upperFit area." : undefined,
+    });
+  }
+
+  if (outer && mainInner) {
+    constraintsApplied.push("outerwear_frames_inner_layer");
+    const outerBox = getFitBoxCanvasRectBeforeNormalization(outer);
+    const innerBox = getFitBoxCanvasRectBeforeNormalization(mainInner);
+    const ratio = innerBox.width / Math.max(outerBox.width, 1);
+    if (ratio < 0.62 || ratio > 0.96) {
+      const scale = clamp(0.82 / Math.max(ratio, 0.01), 0.82, 1.22);
+      nextItems = nextItems.map((item) => item === mainInner ? { ...item, style: { ...item.style, width: `${item.style.boxWidthPct * scale}%`, height: `${item.style.boxHeightPct * scale}%`, boxWidthPct: item.style.boxWidthPct * scale, boxHeightPct: item.style.boxHeightPct * scale, finalRenderedFitWidth: item.style.finalRenderedFitWidth ? item.style.finalRenderedFitWidth * scale : item.style.finalRenderedFitWidth, sizingDebug: { ...item.style.sizingDebug, relationshipRule: "outerwear_frames_inner_layer", relationshipScale: scale } } } : item);
+    }
+    const adjustedInner = getFitBoxCanvasRectBeforeNormalization(getFirst(mainInner.visualCategory)!);
+    move(outer, adjustedInner.center.x - outerBox.center.x - 10, adjustedInner.center.y - outerBox.center.y + (mainInner.visualCategory === "dresses" ? 0 : 5));
+    addCheck({ rule: "outerwear_frames_inner_layer", anchorsOrBoundsUsed: `${outerBox.source} width ↔ ${innerBox.source} width`, targetRatio: "0.62–0.96", currentRatio: ratio, horizontalCenterOffset: Math.abs(adjustedInner.center.x - getFitBoxCanvasRectBeforeNormalization(getFirst("outerwear")!).center.x), status: ratio >= 0.62 && ratio <= 0.96 ? "OK" : "Adjusted" });
+  }
+
+  if (dress) {
+    constraintsApplied.push("full_body_main_vertical_zone");
+    const dressBounds = getItemVisualBounds(dress.style, dress.garment?.image_analysis, dress.visualCategory);
+    if (dressBounds.height < 45) warnings.push("Dress/full-body item rendered shorter than expected for the main vertical body zone.");
+  }
+
+  nextItems.filter((item) => ["shoes", "hats", "accessories"].includes(item.visualCategory)).forEach((accessory, index) => {
+    constraintsApplied.push("accessories_lower_side_non_scaling");
+    const main = dress || bottom || top || outer;
+    const mainBounds = main ? getItemVisualBounds(main.style, main.garment?.image_analysis, main.visualCategory) : null;
+    const target = mainBounds ? { x: mainBounds.left + mainBounds.width * (index % 2 ? 0.78 : 0.2), y: mainBounds.bottom - Math.min(8, mainBounds.height * 0.08) } : fourZoneRects.bottomLeft.center;
+    move(accessory, target.x - getItemVisualBounds(accessory.style, accessory.garment?.image_analysis, accessory.visualCategory).center.x, target.y - getItemVisualBounds(accessory.style, accessory.garment?.image_analysis, accessory.visualCategory).center.y);
+  });
+
+  const finalTop = getFirst("tops");
+  const finalBottom = getFirst("bottoms");
+  const finalVerticalOverlapGap = finalTop && finalBottom ? getFitBoxCanvasRectBeforeNormalization(finalBottom).top - getFitBoxCanvasRectBeforeNormalization(finalTop).bottom : null;
+  const finalHorizontalCenterOffset = finalTop && finalBottom ? Math.abs(getFitBoxCanvasRectBeforeNormalization(finalBottom).center.x - getFitBoxCanvasRectBeforeNormalization(finalTop).center.x) : outer && mainInner ? Math.abs(getFitBoxCanvasRectBeforeNormalization(outer).center.x - getFitBoxCanvasRectBeforeNormalization(mainInner).center.x) : null;
+
+  const debug: RelationshipSolverDebug = {
+    outfitArchetype: archetype,
+    selectedRelationshipRule: constraintsApplied[0] || "accessories_only_fallback",
+    constraintsApplied: Array.from(new Set(constraintsApplied)),
+    relationshipChecks: checks,
+    warnings,
+    finalVerticalOverlapGap: roundMetric(finalVerticalOverlapGap),
+    finalHorizontalCenterOffset: roundMetric(finalHorizontalCenterOffset),
+    targetRatio: checks.find((check) => check.targetRatio)?.targetRatio || "relationship bounds",
+    finalRatio: checks.find((check) => check.currentRatio != null)?.currentRatio ?? null,
+    comparedAnchors: Object.fromEntries(checks.map((check) => [check.rule, check.anchorsOrBoundsUsed])),
+    renderedAnchorLineLengths: {},
+  };
+
+  return { items: nextItems, template, debug };
 };
 
 const getCompositionMetrics = (items: RenderItem[], selectedLayoutTemplate: string): CompositionMetrics => {
