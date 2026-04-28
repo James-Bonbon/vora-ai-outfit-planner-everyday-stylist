@@ -1193,9 +1193,36 @@ const getRelationshipStatus = (relationshipDebug: RelationshipSolverDebug | Retu
   return ok ? "OK" : "Needs resize";
 };
 
-export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageProps) => {
-  if (!garments || garments.length === 0) return null;
+export const OutfitCollage = ({ garments, debugAnchors = false, debugLegacyAnchors = false }: OutfitCollageProps) => {
   const [compositionQaOpen, setCompositionQaOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const legacyDebugEnabled = debugLegacyAnchors || new URLSearchParams(window.location.search).get("debugLegacyAnchors") === "1";
+
+  useEffect(() => {
+    const itemsToMigrate = (garments || []).filter((garment) => garment?.id && hasActiveLegacyAnchors(garment.layout_metadata || {}));
+    if (!itemsToMigrate.length) return;
+    let cancelled = false;
+    const migrate = async () => {
+      await Promise.all(itemsToMigrate.map((garment) => {
+        const nextMetadata = archiveLegacyAnchorFields(garment.layout_metadata || {});
+        if (!nextMetadata.fitBox) nextMetadata.fitValidation = { ...(nextMetadata.fitValidation || {}), status: "Needs fitBox calibration", rejected: ["legacy anchors archived"] };
+        return supabase.from("closet_items").update({ layout_metadata: nextMetadata }).eq("id", garment.id);
+      }));
+      if (cancelled) return;
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["closet"] }),
+        queryClient.invalidateQueries({ queryKey: ["closet-items"] }),
+        queryClient.invalidateQueries({ queryKey: ["lookbook"] }),
+        queryClient.invalidateQueries({ queryKey: ["outfit-calendar-data"] }),
+        queryClient.invalidateQueries({ queryKey: ["look-garments"] }),
+        queryClient.invalidateQueries({ queryKey: ["saved-looks"] }),
+      ]);
+    };
+    migrate().catch((error) => console.error("Legacy anchor migration failed", error));
+    return () => { cancelled = true; };
+  }, [garments, queryClient]);
+
+  if (!garments || garments.length === 0) return null;
 
   const classified = garments
     .map((garment) => ({ garment, visualCategory: classifyGarment(garment), imageUrl: getImageUrl(garment) }))
@@ -1211,7 +1238,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
   let renderItems: RenderItem[] = classified.map(({ garment, visualCategory, imageUrl }, stackIndex) => {
     const duplicateIndex = seenCounts[visualCategory] ?? 0;
     seenCounts[visualCategory] = duplicateIndex + 1;
-    const inferred = inferMetadata(garment, visualCategory);
+    const inferred = archiveLegacyAnchorFields(inferMetadata(garment, visualCategory));
     const metadata = {
       ...inferred,
       bodyAnchors: inferred.bodyAnchors || estimateBodyAnchors(garment?.image_analysis, visualCategory),
