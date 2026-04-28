@@ -1282,11 +1282,11 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
     renderedSizingMetrics = getRenderedSizingMetrics(renderItems, groupNormalization);
   }
 
-  const composition = applyCategoryAwareComposition(renderItems);
+  const composition = applyRelationshipAwareComposition(renderItems);
   renderItems = composition.items;
   groupNormalization = normalizeOutfitGroup(renderItems);
   renderedSizingMetrics = getRenderedSizingMetrics(renderItems, groupNormalization);
-  const relationshipDebug = getRelationshipMetrics(renderItems, groupNormalization);
+  const relationshipDebug = composition.debug;
   const compositionMetrics = getCompositionMetrics(renderItems, composition.template);
   const garmentFitSummaries = renderItems.map((item) => getGarmentFitSummary(item, relationshipDebug));
   const relationshipStatus = getRelationshipStatus(relationshipDebug);
