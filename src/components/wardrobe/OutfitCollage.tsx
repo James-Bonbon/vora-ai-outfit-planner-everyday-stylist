@@ -1137,7 +1137,7 @@ const optionalAnchorTypes = (category: VisualCategory): FitAnchorType[] => {
 
 const formatAnchorName = (anchor: FitAnchorType) => anchor === "waist" ? "waistFit" : anchor;
 
-const getGarmentFitSummary = (item: RenderItem, relationshipDebug: ReturnType<typeof getRelationshipMetrics>) => {
+const getGarmentFitSummary = (item: RenderItem, relationshipDebug: RelationshipSolverDebug | ReturnType<typeof getRelationshipMetrics>) => {
   const fitBox = getPrioritizedFitBox(item.metadata, item.garment?.image_analysis);
   const rawFitBox = item.metadata.fitBox;
   const rendered = item.style.finalRenderedFitWidth ? { width: item.style.finalRenderedFitWidth, height: item.style.boxHeightPct * (fitBox?.height || 0) } : null;
@@ -1162,7 +1162,7 @@ const getGarmentFitSummary = (item: RenderItem, relationshipDebug: ReturnType<ty
   };
 };
 
-const getRelationshipStatus = (relationshipDebug: ReturnType<typeof getRelationshipMetrics>) => {
+const getRelationshipStatus = (relationshipDebug: RelationshipSolverDebug | ReturnType<typeof getRelationshipMetrics>) => {
   const ratio = relationshipDebug?.finalRatio;
   const targetText = relationshipDebug?.targetRatio || "—";
   const match = targetText.match(/([0-9.]+)–([0-9.]+)/);
