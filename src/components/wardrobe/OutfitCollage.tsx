@@ -1418,14 +1418,15 @@ export const OutfitCollage = ({ garments, debugAnchors = false, debugLegacyAncho
         const baseAlt = garment?.name || garment?.category || "Garment";
         const { boxWidthPct, boxHeightPct, offsetXPct, offsetYPct, anchorShiftXPct, anchorShiftYPct, rotationDeg, imageRatio, fitSource: _styleFitSource, upperFitWidthRatio, targetRenderedFitWidth, calculatedImageBoxWidth, finalRenderedFitWidth, ...imageStyle } = style;
         const fitBox = getPrioritizedFitBox(metadata, garment?.image_analysis);
-        const measurementPair = !fitBox && legacyDebugEnabled ? getRealMeasurementPair(metadata, garment?.image_analysis, visualCategory) : null;
+        const legacyMetadata = legacyDebugEnabled ? getLegacyDebugMetadata(metadata) : metadata;
+        const measurementPair = !fitBox && legacyDebugEnabled ? getRealMeasurementPair(legacyMetadata, garment?.image_analysis, visualCategory) : null;
         const measurementCenter = measurementPair ? { x: (measurementPair.left.x + measurementPair.right.x) / 2, y: (measurementPair.left.y + measurementPair.right.y) / 2 } : null;
         const landmarkPoints = legacyDebugEnabled ? [
           measurementPair?.left,
           measurementPair?.right,
-          toRelativePoint(metadata.necklineCenter || metadata.bodyAnchors?.necklineCenter, garment?.image_analysis),
-          toRelativePoint(metadata.waistCenter || metadata.bodyAnchors?.waistCenter, garment?.image_analysis),
-          toRelativePoint(metadata.hemCenter || metadata.bodyAnchors?.hemCenter, garment?.image_analysis),
+          toRelativePoint(legacyMetadata.necklineCenter || legacyMetadata.bodyAnchors?.necklineCenter, garment?.image_analysis),
+          toRelativePoint(legacyMetadata.waistCenter || legacyMetadata.bodyAnchors?.waistCenter, garment?.image_analysis),
+          toRelativePoint(legacyMetadata.hemCenter || legacyMetadata.bodyAnchors?.hemCenter, garment?.image_analysis),
         ].filter(Boolean) : [];
         const mappedMeasurement = measurementPair
           ? { left: mapImagePointToBox(measurementPair.left, style), right: mapImagePointToBox(measurementPair.right, style) }
