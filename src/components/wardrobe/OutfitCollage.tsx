@@ -1425,7 +1425,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false, debugLegacyAncho
   renderedSizingMetrics = getRenderedSizingMetrics(renderItems, groupNormalization);
   const relationshipDebug = composition.debug;
   const compositionMetrics = getCompositionMetrics(renderItems, composition.template);
-  const garmentFitSummaries = renderItems.map((item) => getGarmentFitSummary(item, relationshipDebug));
+  const garmentFitSummaries = renderItems.map((item) => getGarmentFitSummary(item, relationshipDebug, groupNormalization));
   const relationshipStatus = getRelationshipStatus(relationshipDebug);
   const relationshipRuleText = relationshipDebug?.selectedRelationshipRule?.replace(/_/g, " + ").replace("top + bottom + lowerHem + to + waist", "top + bottom").replace("outerwear + top + upperFit + to + upperFit", "outerwear + top").replace("outerwear + dress + upperFit + to + upperFit", "outerwear + dress").replace("dress + alone + upperFit + lengthFit", "dress alone") || "—";
   const comparedAnchorText = relationshipDebug?.selectedRelationshipRule === "upper_lower_stack"
