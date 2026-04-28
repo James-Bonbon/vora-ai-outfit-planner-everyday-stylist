@@ -58,16 +58,15 @@ For EACH item, provide:
   "preferredPreviewScale": number from 0.2 to 1.0 for editorial flat-lay visual importance,
   "visibleAlphaBounds": tight visible garment bounds if discernible, as pixel coordinates {"x": number, "y": number, "width": number, "height": number},
   "fitBox": one rectangle {"x": number, "y": number, "width": number, "height": number, "source": "ai", "confidence": number, "validationStatus": "validated", "notes": string}. For tops/dresses/coats/jackets, the top edge aligns with upper-body/chest/shoulder/armhole fit area and extends to hem. For bottoms, the top edge aligns with waistband and extends to hem. Do not create fitBox for shoes/accessories unless useful.
-  Legacy optional fields: "leftUpperFitAnchor" and "rightUpperFitAnchor": pixel coordinates for the actual visible upper-body fit span, not transparent canvas edges,
-  "necklineCenter", "leftWaistAnchor", "rightWaistAnchor", "hemLeft", "hemRight", "sleeveLeftEnd", "sleeveRightEnd": pixel coordinates when visible,
-  "upperBodyFitWidth", "waistFitWidth", "garmentLength": pixel measurements for upper-body garments,
-  For bottoms return "leftWaistAnchor", "rightWaistAnchor", "crotchPoint" if visible, "leftHem", "rightHem", "waistFitWidth", and "legLength".
+  Do not return legacy anchor fields such as leftUpperAnchor, rightUpperAnchor, leftWaistAnchor, rightWaistAnchor, measurementAnchors, or layoutAnchors.
+  Optional center points only: "necklineCenter", "waistCenter", "hemCenter" as pixel coordinates if visible, otherwise null.
+  Optional scalar measurements only: "upperBodyFitWidth", "waistFitWidth", "garmentLength".
   For shoes/accessories return "visualLength", "visualHeight", and "anchorCenter".
   "notes": short explanation of what was measured,
   For dresses, especially asymmetric or sleeveless dresses, do NOT measure literal shoulder seams. Detect upperBodyFitWidth across the upper bodice/chest/armhole area that corresponds to the wearer's upper torso. Never invent anchors in transparent or white empty space: every anchor must sit on visible garment pixels inside the visible bounds, and left/right lines must cross actual garment material. If a point is ambiguous, off-garment, strap-only, diagonal decorative detail, or implausible, return null/omit that anchor and set confidence below 0.5 with notes. For coats, do not include full sleeve spread in upperBodyFitWidth; measure body fit width.
   "waistCenter", "hemCenter": pixel coordinates if visible, otherwise null,
   "confidence": number from 0 to 1 for landmark reliability,
-  "bodyAnchors": backward-compatible relative coordinates from 0 to 1 using the same upper anchors as shoulders when true shoulder seams are ambiguous.
+  "bodyAnchors": optional coarse semantic centers only; do not use it for fit sizing.
 }
 - 'boundingBox': { "ymin": number, "xmin": number, "ymax": number, "xmax": number } 
   (Provide the relative coordinates from 0.0 to 1.0 representing the box around this specific item. For example, if an item is in the top left quadrant, it might be ymin: 0.0, xmin: 0.0, ymax: 0.5, xmax: 0.5)
