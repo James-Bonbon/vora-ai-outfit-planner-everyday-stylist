@@ -746,6 +746,11 @@ const getRenderedMeasurement = (item: RenderItem | undefined, groupNormalization
   if (!item) return null;
   const fitBox = getPrioritizedFitBox(item.metadata, item.garment?.image_analysis);
   if (fitBox) return getRenderedFitBoxMeasurement(item, groupNormalization, fitBox);
+  return null;
+};
+
+const getRenderedLegacyMeasurement = (item: RenderItem | undefined, groupNormalization: GroupNormalization) => {
+  if (!item) return null;
   const measurementPair = getRealMeasurementPair(item.metadata, item.garment?.image_analysis, item.visualCategory);
   return getRenderedAnchorMeasurement(item, groupNormalization, measurementPair);
 };
