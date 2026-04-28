@@ -1070,21 +1070,56 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
     constraintsApplied.push("upper_lower_stack");
     const upperBox = getFitBoxCanvasRectBeforeNormalization(top);
     const lowerBox = getFitBoxCanvasRectBeforeNormalization(bottom);
+    const preResizeRatio = lowerBox.width / Math.max(upperBox.width, 1);
+    const resizeTargetRatio = 0.82;
+    let resizedGarment: string | null = null;
+    let resizeScaleApplied: number | null = null;
+    if (preResizeRatio < 0.62) {
+      const scale = clamp(resizeTargetRatio / Math.max(preResizeRatio, 0.01), 1, 3.4);
+      nextItems = nextItems.map((item) => {
+        if (item !== bottom) return item;
+        resizedGarment = item.garment?.name || item.garment?.category || "Bottom";
+        resizeScaleApplied = scale;
+        return scaleItemAroundFitBoxCenter(item, scale, "upper_lower_stack");
+      });
+    } else if (preResizeRatio > 0.96) {
+      const scale = clamp(resizeTargetRatio / Math.max(preResizeRatio, 0.01), 0.55, 1);
+      nextItems = nextItems.map((item) => {
+        if (item !== bottom) return item;
+        resizedGarment = item.garment?.name || item.garment?.category || "Bottom";
+        resizeScaleApplied = scale;
+        return scaleItemAroundFitBoxCenter(item, scale, "upper_lower_stack");
+      });
+    }
+    const resizedTop = getFitBoxCanvasRectBeforeNormalization(getFirst("tops")!);
+    const resizedLower = getFitBoxCanvasRectBeforeNormalization(getFirst("bottoms")!);
     const targetTop = upperBox.bottom - Math.min(upperBox.height * 0.12, 5);
-    const targetCenterX = upperBox.center.x;
-    const dx = clamp(targetCenterX - lowerBox.center.x, -18, 18);
-    const dy = clamp(targetTop - lowerBox.top, -24, 28);
+    const targetCenterX = resizedTop.center.x;
+    const dx = clamp(targetCenterX - resizedLower.center.x, -22, 22);
+    const dy = clamp(targetTop - resizedLower.top, -28, 32);
     move(bottom, dx, dy);
     const movedLower = getFitBoxCanvasRectBeforeNormalization(getFirst("bottoms")!);
     const chestLimit = upperBox.top + upperBox.height * 0.45;
     if (movedLower.top < chestLimit) move(getFirst("bottoms"), 0, chestLimit - movedLower.top + 1);
     const finalLower = getFitBoxCanvasRectBeforeNormalization(getFirst("bottoms")!);
+    const finalTopForRatio = getFitBoxCanvasRectBeforeNormalization(getFirst("tops")!);
+    const finalPostResizeRatio = finalLower.width / Math.max(finalTopForRatio.width, 1);
     addCheck({
       rule: "upper_lower_stack",
       anchorsOrBoundsUsed: `${upperBox.source} lower third ↔ ${lowerBox.source} top/waist`,
+      targetRatio: "0.62–0.96",
+      currentRatio: finalPostResizeRatio,
+      preResizeRatio,
+      resizeTargetRatio,
+      resizedGarment,
+      resizeScaleApplied,
+      postResizeTopWidth: finalTopForRatio.width,
+      postResizeBottomWidth: finalLower.width,
+      finalPostResizeRatio,
+      resizeHappened: resizeScaleApplied != null,
       verticalOverlapGap: finalLower.top - upperBox.bottom,
-      horizontalCenterOffset: Math.abs(finalLower.center.x - upperBox.center.x),
-      status: Math.abs(finalLower.center.x - upperBox.center.x) <= 12 && finalLower.top >= chestLimit ? "Adjusted" : "Warning",
+      horizontalCenterOffset: Math.abs(finalLower.center.x - finalTopForRatio.center.x),
+      status: finalPostResizeRatio >= 0.62 && finalPostResizeRatio <= 0.96 && Math.abs(finalLower.center.x - finalTopForRatio.center.x) <= 12 && finalLower.top >= chestLimit ? (resizeScaleApplied != null ? "Adjusted" : "OK") : "Warning",
       warning: finalLower.top < chestLimit ? "Bottoms attempted to cover the upper garment chest/upperFit area." : undefined,
     });
   }
