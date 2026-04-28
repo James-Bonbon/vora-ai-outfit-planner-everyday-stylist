@@ -1291,7 +1291,11 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
   const garmentFitSummaries = renderItems.map((item) => getGarmentFitSummary(item, relationshipDebug));
   const relationshipStatus = getRelationshipStatus(relationshipDebug);
   const relationshipRuleText = relationshipDebug?.selectedRelationshipRule?.replace(/_/g, " + ").replace("top + bottom + lowerHem + to + waist", "top + bottom").replace("outerwear + top + upperFit + to + upperFit", "outerwear + top").replace("outerwear + dress + upperFit + to + upperFit", "outerwear + dress").replace("dress + alone + upperFit + lengthFit", "dress alone") || "—";
-  const comparedAnchorText = relationshipDebug?.selectedRelationshipRule === "top_bottom_fitBox_to_fitBox"
+  const comparedAnchorText = relationshipDebug?.selectedRelationshipRule === "upper_lower_stack"
+    ? "upper lower third ↔ lower top/waist"
+    : relationshipDebug?.selectedRelationshipRule === "outerwear_frames_inner_layer"
+      ? "outerwear fitBox/bounds ↔ inner fitBox/bounds"
+      : relationshipDebug?.selectedRelationshipRule === "top_bottom_fitBox_to_fitBox"
     ? "top fitBox width ↔ bottom fitBox width"
     : relationshipDebug?.selectedRelationshipRule === "outerwear_top_fitBox_to_fitBox"
       ? "top fitBox width ↔ outerwear fitBox width"
@@ -1467,10 +1471,14 @@ export const OutfitCollage = ({ garments, debugAnchors = false }: OutfitCollageP
 
         <div className="rounded-lg bg-secondary/20 px-2 py-2">
           <div className="font-semibold">Relationship Check</div>
+          <div>Archetype: {relationshipDebug.outfitArchetype}</div>
           <div>Rule: {relationshipRuleText}</div>
           <div>Compared: {comparedAnchorText}</div>
           <div>Target ratio: {relationshipDebug?.targetRatio || "—"}</div>
           <div>Current ratio: {relationshipDebug?.finalRatio != null ? relationshipDebug.finalRatio.toFixed(2) : "—"}</div>
+          <div>Upper/lower overlap-gap: {relationshipDebug.finalVerticalOverlapGap != null ? relationshipDebug.finalVerticalOverlapGap.toFixed(2) : "—"}</div>
+          <div>Center offset: {relationshipDebug.finalHorizontalCenterOffset != null ? relationshipDebug.finalHorizontalCenterOffset.toFixed(2) : "—"}</div>
+          <div>Warnings: {relationshipDebug.warnings.length ? relationshipDebug.warnings.join("; ") : "None"}</div>
           <div>Status: {relationshipStatus}</div>
           <div>Resize happened: {garmentFitSummaries.some((summary) => summary.resizeActionNeeded) ? "Yes" : "No"}</div>
         </div>
