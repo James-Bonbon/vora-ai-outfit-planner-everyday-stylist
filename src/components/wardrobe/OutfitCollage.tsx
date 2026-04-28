@@ -400,6 +400,18 @@ const toRelativeFitBox = (box: FitBox | null | undefined, analysis?: ImageAnalys
 
 const getPrioritizedFitBox = (metadata: LayoutMetadata, analysis?: ImageAnalysis | null) => toRelativeFitBox(metadata.fitBox, analysis);
 
+const hasActiveLegacyAnchors = (metadata: LayoutMetadata) => activeLegacyAnchorFields.some((field) => (metadata as any)?.[field] != null);
+
+const archiveLegacyAnchorFields = (metadata: LayoutMetadata) => {
+  const legacyAnchors = { ...((metadata as any)?.legacyAnchors || {}) };
+  activeLegacyAnchorFields.forEach((field) => {
+    if ((metadata as any)?.[field] != null) legacyAnchors[field] = (metadata as any)[field];
+  });
+  const next = { ...(metadata as any), legacyAnchors: Object.keys(legacyAnchors).length ? legacyAnchors : undefined };
+  activeLegacyAnchorFields.forEach((field) => delete next[field]);
+  return next;
+};
+
 const getPrioritizedUpperFit = (metadata: LayoutMetadata) => {
   return getPrioritizedFitGroup(metadata, "upperFit");
 };
