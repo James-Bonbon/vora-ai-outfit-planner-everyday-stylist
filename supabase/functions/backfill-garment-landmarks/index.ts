@@ -51,6 +51,17 @@ const hasImageAnalysis = (analysis: any) => Boolean(
   Number(analysis?.visibleHeightRatio) > 0
 );
 
+const activeLegacyAnchorFields = ["leftUpperAnchor", "rightUpperAnchor", "upperBodyWidthAnchor", "leftWaistAnchor", "rightWaistAnchor", "validatedMeasurementAnchors", "measurementAnchors", "layoutAnchors"];
+const archiveLegacyAnchorFields = (metadata: any) => {
+  const legacyAnchors = { ...(metadata?.legacyAnchors || {}) };
+  activeLegacyAnchorFields.forEach((field) => {
+    if (metadata?.[field] != null) legacyAnchors[field] = metadata[field];
+  });
+  const next = { ...(metadata || {}), legacyAnchors: Object.keys(legacyAnchors).length ? legacyAnchors : undefined };
+  activeLegacyAnchorFields.forEach((field) => delete next[field]);
+  return next;
+};
+
 const cleanJson = (content: string) => content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
 
 const calculateVisibleAlphaBounds = (bytes: Uint8Array) => {
@@ -500,7 +511,7 @@ For dresses, especially asymmetric or sleeveless dresses, do NOT measure literal
         const rawLayout = parsed.layout_metadata || parsed;
         const layout = normalizeUpperAnchors(rawLayout, imageAnalysis, item);
         const fitBox = buildFitBox(rawLayout, imageAnalysis, item);
-        const nextMetadata = {
+        const nextMetadata = archiveLegacyAnchorFields({
           ...(item.layout_metadata || {}),
           ...layout,
           fitBox,
@@ -508,7 +519,7 @@ For dresses, especially asymmetric or sleeveless dresses, do NOT measure literal
           rawAiLandmarks: rawLayout,
           rawAiLayoutMetadata: rawLayout,
           visibleAlphaBounds: imageAnalysis.visibleAlphaBounds,
-        };
+        });
 
         const canonicalCategory = String(nextMetadata.garmentType || "").toLowerCase() === "dress" || /\bdress\b/i.test(item.name || "")
           ? "Dresses"
