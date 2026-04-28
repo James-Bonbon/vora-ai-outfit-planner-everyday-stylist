@@ -153,6 +153,14 @@ type RelationshipCheck = {
   anchorsOrBoundsUsed: string;
   targetRatio?: string;
   currentRatio?: number | null;
+  preResizeRatio?: number | null;
+  resizeTargetRatio?: number | null;
+  resizedGarment?: string | null;
+  resizeScaleApplied?: number | null;
+  postResizeTopWidth?: number | null;
+  postResizeBottomWidth?: number | null;
+  finalPostResizeRatio?: number | null;
+  resizeHappened?: boolean;
   verticalOverlapGap?: number | null;
   horizontalCenterOffset?: number | null;
   status: "OK" | "Adjusted" | "Warning";
