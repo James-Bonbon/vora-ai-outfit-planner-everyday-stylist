@@ -228,7 +228,19 @@ const stackLayouts = [
   { x: 8, y: 58, rotate: 6, zIndex: 60 },
 ];
 
+const roleInitialLayouts: Record<VisualCategory, { x: number; y: number; rotate: number; zIndex: number }> = {
+  outerwear: { x: 10, y: 12, rotate: -4, zIndex: 20 },
+  dresses: { x: 42, y: 11, rotate: 2, zIndex: 30 },
+  tops: { x: 44, y: 14, rotate: -1, zIndex: 35 },
+  bottoms: { x: 45, y: 46, rotate: 1, zIndex: 32 },
+  shoes: { x: 15, y: 68, rotate: -6, zIndex: 50 },
+  hats: { x: 13, y: 58, rotate: 5, zIndex: 52 },
+  accessories: { x: 13, y: 61, rotate: 5, zIndex: 52 },
+};
+
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const roundMetric = (value: number | null | undefined) => value == null || !Number.isFinite(value) ? null : Math.round(value * 100) / 100;
 
 const canvasAspectRatio = 3 / 4;
 
