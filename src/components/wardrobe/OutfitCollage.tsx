@@ -1,9 +1,12 @@
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 type OutfitCollageProps = {
   garments: any[];
   debugAnchors?: boolean;
+  debugLegacyAnchors?: boolean;
 };
 
 type VisualCategory = "shoes" | "bottoms" | "tops" | "outerwear" | "dresses" | "hats" | "accessories";
@@ -79,6 +82,7 @@ type LayoutMetadata = {
 
 type FitGroup = Record<string, any> & { confidence?: number; source?: string; notes?: string; validationStatus?: string; failureReason?: string };
 type FitAnchorType = "upperFit" | "waist" | "lowerHemFit" | "hipFit" | "lengthFit";
+const activeLegacyAnchorFields = ["leftUpperAnchor", "rightUpperAnchor", "upperBodyWidthAnchor", "leftWaistAnchor", "rightWaistAnchor", "validatedMeasurementAnchors", "measurementAnchors", "layoutAnchors"] as const;
 
 type NormalizedRenderStyle = CSSProperties & {
   boxWidthPct: number;
