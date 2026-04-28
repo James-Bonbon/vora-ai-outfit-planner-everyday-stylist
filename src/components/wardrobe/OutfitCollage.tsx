@@ -143,6 +143,30 @@ type GroupNormalization = {
 type ItemBounds = { left: number; top: number; right: number; bottom: number; width: number; height: number; center: { x: number; y: number } };
 type ZoneName = "topLeft" | "topRight" | "bottomLeft" | "bottomRight" | "rightColumn";
 type ZoneRect = { left: number; top: number; right: number; bottom: number; width: number; height: number; center: { x: number; y: number } };
+type OutfitArchetype = "top_bottom" | "top_bottom_outerwear" | "dress" | "dress_outerwear" | "full_body_outerwear" | "accessories_only";
+type RelationshipCheck = {
+  rule: string;
+  anchorsOrBoundsUsed: string;
+  targetRatio?: string;
+  currentRatio?: number | null;
+  verticalOverlapGap?: number | null;
+  horizontalCenterOffset?: number | null;
+  status: "OK" | "Adjusted" | "Warning";
+  warning?: string;
+};
+type RelationshipSolverDebug = {
+  outfitArchetype: OutfitArchetype;
+  selectedRelationshipRule: string;
+  constraintsApplied: string[];
+  relationshipChecks: RelationshipCheck[];
+  warnings: string[];
+  finalVerticalOverlapGap: number | null;
+  finalHorizontalCenterOffset: number | null;
+  targetRatio: string;
+  finalRatio: number | null;
+  comparedAnchors: Record<string, any>;
+  renderedAnchorLineLengths: Record<string, number | null>;
+};
 
 type CompositionMetrics = {
   selectedLayoutTemplate: string;
