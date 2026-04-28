@@ -1261,7 +1261,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false, debugLegacyAncho
       stackIndex,
       targetRenderedShoulderWidth,
     });
-    const upperWidthRatio = getUpperBodyWidthRatio(metadata, garment?.image_analysis);
+    const upperWidthRatio = getPrioritizedFitBox(metadata, garment?.image_analysis)?.width || null;
     return {
       garment,
       visualCategory,
@@ -1416,19 +1416,15 @@ export const OutfitCollage = ({ garments, debugAnchors = false, debugLegacyAncho
         const baseAlt = garment?.name || garment?.category || "Garment";
         const { boxWidthPct, boxHeightPct, offsetXPct, offsetYPct, anchorShiftXPct, anchorShiftYPct, rotationDeg, imageRatio, fitSource: styleFitSource, upperFitWidthRatio, targetRenderedFitWidth, calculatedImageBoxWidth, finalRenderedFitWidth, ...imageStyle } = style;
         const fitBox = getPrioritizedFitBox(metadata, garment?.image_analysis);
-        const measurementPair = fitBox ? null : getRealMeasurementPair(metadata, garment?.image_analysis, visualCategory);
-        const layoutGroup = metadata.layoutAnchors?.upperFit || metadata.layoutAnchors?.waist || metadata.layoutAnchors?.length;
-        const layoutSource = layoutGroup?.source;
-        const prioritizedUpperFit = getPrioritizedUpperFit(metadata);
-        const fitSource = prioritizedUpperFit?.source || (measurementPair ? ((metadata.validatedMeasurementAnchors?.waist || metadata.measurementAnchors?.waist) as any)?.source : layoutSource) || styleFitSource || "fallback";
+        const measurementPair = !fitBox && legacyDebugEnabled ? getRealMeasurementPair(metadata, garment?.image_analysis, visualCategory) : null;
         const measurementCenter = measurementPair ? { x: (measurementPair.left.x + measurementPair.right.x) / 2, y: (measurementPair.left.y + measurementPair.right.y) / 2 } : null;
-        const landmarkPoints = [
+        const landmarkPoints = legacyDebugEnabled ? [
           measurementPair?.left,
           measurementPair?.right,
           toRelativePoint(metadata.necklineCenter || metadata.bodyAnchors?.necklineCenter, garment?.image_analysis),
           toRelativePoint(metadata.waistCenter || metadata.bodyAnchors?.waistCenter, garment?.image_analysis),
           toRelativePoint(metadata.hemCenter || metadata.bodyAnchors?.hemCenter, garment?.image_analysis),
-        ].filter(Boolean);
+        ].filter(Boolean) : [];
         const mappedMeasurement = measurementPair
           ? { left: mapImagePointToBox(measurementPair.left, style), right: mapImagePointToBox(measurementPair.right, style) }
           : null;
@@ -1447,7 +1443,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false, debugLegacyAncho
               decoding="async"
               className={cn("absolute inset-0 h-full w-full object-contain object-center drop-shadow-md")}
             />
-            {showDebugAnchors && (mappedFitBox || (measurementPair && measurementCenter && mappedMeasurement)) && (
+            {showDebugAnchors && (mappedFitBox || (legacyDebugEnabled && measurementPair && measurementCenter && mappedMeasurement)) && (
               <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
                 {mappedFitBox && (
                   <div
@@ -1455,7 +1451,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false, debugLegacyAncho
                     style={{ left: `${mappedFitBox.topLeft.x}%`, top: `${mappedFitBox.topLeft.y}%`, width: `${mappedFitBox.bottomRight.x - mappedFitBox.topLeft.x}%`, height: `${mappedFitBox.bottomRight.y - mappedFitBox.topLeft.y}%` }}
                   />
                 )}
-                {measurementPair && mappedMeasurement && (
+                {legacyDebugEnabled && measurementPair && mappedMeasurement && (
                 <svg className="absolute inset-0 z-[92] h-full w-full overflow-visible">
                   <line
                     x1={`${mappedMeasurement.left.x}%`}
@@ -1468,7 +1464,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false, debugLegacyAncho
                   />
                 </svg>
                 )}
-                {measurementPair && mappedMeasurement && (
+                {legacyDebugEnabled && measurementPair && mappedMeasurement && (
                   <>
                 <span
                   className="absolute z-[93] -translate-x-full -translate-y-[140%] rounded bg-background/90 px-1 py-0.5 text-[8px] font-medium leading-none text-foreground shadow-sm"
