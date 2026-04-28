@@ -902,6 +902,45 @@ const fitItemIntoZone = (item: RenderItem, zoneName: ZoneName, fillRatio = 0.9):
   return withVisualCenter({ ...item, style: nextStyle }, fitZone.center);
 };
 
+const getFitBoxCanvasRectBeforeNormalization = (item: RenderItem) => {
+  const fitBox = getPrioritizedFitBox(item.metadata, item.garment?.image_analysis);
+  const bounds = getItemVisualBounds(item.style, item.garment?.image_analysis, item.visualCategory);
+  if (!fitBox) {
+    const top = item.visualCategory === "bottoms" ? bounds.top : bounds.top + bounds.height * 0.12;
+    const bottom = item.visualCategory === "tops" ? bounds.top + bounds.height * 0.88 : bounds.bottom;
+    return {
+      left: bounds.left,
+      right: bounds.right,
+      top,
+      bottom,
+      width: bounds.width,
+      height: Math.max(1, bottom - top),
+      center: { x: bounds.center.x, y: (top + bottom) / 2 },
+      source: "visual bounds",
+    };
+  }
+  const points = [
+    mapMeasurementPointToCanvas({ x: fitBox.x, y: fitBox.y }, item.style, { canvasCenter: { x: 0, y: 0 }, boundingBox: null, groupCenter: null, translateX: 0, translateY: 0, scale: 1, safePaddingPct: 0, targetOccupancyPct: 0, occupancyWidthPct: 0, occupancyHeightPct: 0 }),
+    mapMeasurementPointToCanvas({ x: fitBox.x + fitBox.width, y: fitBox.y }, item.style, { canvasCenter: { x: 0, y: 0 }, boundingBox: null, groupCenter: null, translateX: 0, translateY: 0, scale: 1, safePaddingPct: 0, targetOccupancyPct: 0, occupancyWidthPct: 0, occupancyHeightPct: 0 }),
+    mapMeasurementPointToCanvas({ x: fitBox.x + fitBox.width, y: fitBox.y + fitBox.height }, item.style, { canvasCenter: { x: 0, y: 0 }, boundingBox: null, groupCenter: null, translateX: 0, translateY: 0, scale: 1, safePaddingPct: 0, targetOccupancyPct: 0, occupancyWidthPct: 0, occupancyHeightPct: 0 }),
+    mapMeasurementPointToCanvas({ x: fitBox.x, y: fitBox.y + fitBox.height }, item.style, { canvasCenter: { x: 0, y: 0 }, boundingBox: null, groupCenter: null, translateX: 0, translateY: 0, scale: 1, safePaddingPct: 0, targetOccupancyPct: 0, occupancyWidthPct: 0, occupancyHeightPct: 0 }),
+  ];
+  const left = Math.min(...points.map((point) => point.x));
+  const right = Math.max(...points.map((point) => point.x));
+  const top = Math.min(...points.map((point) => point.y));
+  const bottom = Math.max(...points.map((point) => point.y));
+  return { left, right, top, bottom, width: right - left, height: bottom - top, center: { x: (left + right) / 2, y: (top + bottom) / 2 }, source: `fitBox:${fitBox.source}` };
+};
+
+const offsetItem = (item: RenderItem, dx: number, dy: number): RenderItem => ({
+  ...item,
+  style: {
+    ...item.style,
+    left: `${Number.parseFloat(String(item.style.left ?? 0)) + dx}%`,
+    top: `${Number.parseFloat(String(item.style.top ?? 0)) + dy}%`,
+  },
+});
+
 const getLayoutTemplate = (items: RenderItem[]) => {
   if (items.length) return "four_zone_editorial";
   return "empty";
