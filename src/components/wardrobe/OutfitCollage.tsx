@@ -412,6 +412,8 @@ const archiveLegacyAnchorFields = (metadata: LayoutMetadata) => {
   return next;
 };
 
+const getLegacyDebugMetadata = (metadata: LayoutMetadata) => ({ ...metadata, ...((metadata as any).legacyAnchors || {}) });
+
 const getPrioritizedUpperFit = (metadata: LayoutMetadata) => {
   return getPrioritizedFitGroup(metadata, "upperFit");
 };
