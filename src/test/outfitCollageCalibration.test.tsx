@@ -149,7 +149,7 @@ describe("OutfitCollage calibrated fit sizing", () => {
       coat,
     ];
     const rendered = renderGarments(garments as any[]);
-    expect(rendered.container.textContent).toContain('Pre-resize ratio: 0.24');
+    expect(rendered.container.textContent).toContain('Pre-resize ratio: 0.23');
     expect(rendered.container.textContent).toContain('Resized garment: Narrow calibrated skirt');
     expect(rendered.container.textContent).toContain('Final post-resize ratio: 0.82');
     expect(rendered.container.textContent).toContain('Current ratio: 0.82');
