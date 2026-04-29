@@ -1093,6 +1093,21 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
 
   if (top && bottom) {
     constraintsApplied.push("upper_lower_stack");
+    const missingRelationshipFitBox = !getRelationshipFitBox(top) ? "top fitBox missing" : !getRelationshipFitBox(bottom) ? "bottom fitBox missing" : null;
+    if (missingRelationshipFitBox) {
+      addCheck({
+        rule: "upper_lower_stack",
+        anchorsOrBoundsUsed: "relationship fitBox unavailable; safe visual fallback ignored for sizing",
+        targetRatio: "0.62–0.96",
+        currentRatio: null,
+        resizedGarment: null,
+        resizeScaleApplied: null,
+        resizeHappened: false,
+        status: "Needs calibration",
+        reason: missingRelationshipFitBox,
+        warning: missingRelationshipFitBox,
+      });
+    } else {
     const upperBox = getFitBoxCanvasRectBeforeNormalization(top);
     const lowerBox = getFitBoxCanvasRectBeforeNormalization(bottom);
     const preResizeRatio = lowerBox.width / Math.max(upperBox.width, 1);
@@ -1147,6 +1162,7 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
       status: finalPostResizeRatio >= 0.62 && finalPostResizeRatio <= 0.96 && Math.abs(finalLower.center.x - finalTopForRatio.center.x) <= 12 && finalLower.top >= chestLimit ? (resizeScaleApplied != null ? "Adjusted" : "OK") : "Warning",
       warning: finalLower.top < chestLimit ? "Bottoms attempted to cover the upper garment chest/upperFit area." : undefined,
     });
+    }
   }
 
   if (outer && mainInner) {
