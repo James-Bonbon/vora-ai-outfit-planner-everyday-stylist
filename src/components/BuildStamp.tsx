@@ -4,14 +4,18 @@ const getRuntimeEnvironment = () => {
   if (typeof window === "undefined") return "unknown";
 
   const host = window.location.hostname;
-  if (host.includes("lovableproject.com") || host.includes("id-preview--")) return "preview";
-  if (host === "localhost" || host === "127.0.0.1") return "local";
+  const isLocal = host === "localhost" || host === "127.0.0.1";
+  const isLovablePreview = /^id-preview--[a-f0-9-]+\.lovable\.app$/i.test(host);
+
+  if (isLovablePreview) return "preview";
+  if (isLocal || import.meta.env.DEV) return "local";
   return "published";
 };
 
 const BuildStamp = () => {
   const [cacheStatus, setCacheStatus] = useState("checking cache");
   const environment = useMemo(getRuntimeEnvironment, []);
+  const shouldShowBuildStamp = environment === "preview" || environment === "local";
 
   useEffect(() => {
     if (typeof window === "undefined" || environment !== "preview") {
@@ -41,6 +45,8 @@ const BuildStamp = () => {
       mounted = false;
     };
   }, [environment]);
+
+  if (!shouldShowBuildStamp) return null;
 
   return (
     <aside
