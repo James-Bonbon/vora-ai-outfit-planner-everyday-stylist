@@ -166,7 +166,7 @@ describe("OutfitCollage calibrated fit sizing", () => {
       makeGarment("trousers-valid", "Tailored trousers", "Bottoms", fitBox(330, 120, 340, 1240)),
       coat,
     ];
-    garments[0].layout_metadata = { garmentType: "shirt", fitValidation: { status: "Needs fitBox calibration" } };
+    (garments[0] as any).layout_metadata = { garmentType: "shirt", fitValidation: { status: "Needs fitBox calibration" } };
     const rendered = renderGarments(garments as any[]);
     expect(rendered.container.textContent).toContain('Status: Needs fitBox calibration');
     expect(rendered.container.textContent).toContain('fitBox source: safe visual fallback');
