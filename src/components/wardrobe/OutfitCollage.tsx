@@ -802,11 +802,6 @@ const getRelationshipFitBox = (item: RenderItem | undefined) => {
   return fitBox;
 };
 
-const getRelationshipFitBoxCanvasRect = (item: RenderItem | undefined) => {
-  const fitBox = getRelationshipFitBox(item);
-  return item && fitBox ? getRenderedFitBoxMeasurement(item, { canvasCenter: { x: 0, y: 0 }, boundingBox: null, groupCenter: null, translateX: 0, translateY: 0, scale: 1, safePaddingPct: 0, targetOccupancyPct: 0, occupancyWidthPct: 0, occupancyHeightPct: 0 }, fitBox) : null;
-};
-
 const getRenderedAnchorMeasurement = (item: RenderItem | undefined, groupNormalization: GroupNormalization, measurementPair: ReturnType<typeof getAnchorPairFromGroup> | null) => {
   if (!item) return null;
   if (!measurementPair) return null;
