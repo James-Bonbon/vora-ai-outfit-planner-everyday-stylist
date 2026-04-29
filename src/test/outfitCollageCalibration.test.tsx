@@ -159,4 +159,24 @@ describe("OutfitCollage calibrated fit sizing", () => {
     act(() => rendered.root.unmount());
     rendered.container.remove();
   });
+
+  it("does not resize bottoms in top/bottom/outerwear outfits when the top fitBox is missing", () => {
+    const garments = [
+      makeGarment("missing-fit-shirt", "Striped Tie-Front Long Sleeve Shirt", "Tops", null as any),
+      makeGarment("trousers-valid", "Tailored trousers", "Bottoms", fitBox(330, 120, 340, 1240)),
+      coat,
+    ];
+    garments[0].layout_metadata = { garmentType: "shirt", fitValidation: { status: "Needs fitBox calibration" } };
+    const rendered = renderGarments(garments as any[]);
+    expect(rendered.container.textContent).toContain('Status: Needs fitBox calibration');
+    expect(rendered.container.textContent).toContain('fitBox source: safe visual fallback');
+    expect(rendered.container.textContent).toContain('Rendered fitBox width: —');
+    expect(rendered.container.textContent).toContain('Reason: Needs calibration: top fitBox missing.');
+    expect(rendered.container.textContent).toContain('Status: Needs calibration');
+    expect(rendered.container.textContent).toContain('Resize happened: No');
+    expect(rendered.container.textContent).toContain('"reason": "top fitBox missing"');
+    expect(rendered.container.textContent).not.toContain('Resized garment: Tailored trousers');
+    act(() => rendered.root.unmount());
+    rendered.container.remove();
+  });
 });
