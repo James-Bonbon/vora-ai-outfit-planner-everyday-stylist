@@ -163,7 +163,8 @@ type RelationshipCheck = {
   resizeHappened?: boolean;
   verticalOverlapGap?: number | null;
   horizontalCenterOffset?: number | null;
-  status: "OK" | "Adjusted" | "Warning";
+  status: "OK" | "Adjusted" | "Warning" | "Needs calibration";
+  reason?: string;
   warning?: string;
 };
 type RelationshipSolverDebug = {
@@ -789,6 +790,18 @@ const getRenderedFitBoxMeasurement = (item: RenderItem, groupNormalization: Grou
   };
 };
 
+const getRelationshipFitBox = (item: RenderItem | undefined) => {
+  if (!item) return null;
+  const fitBox = getPrioritizedFitBox(item.metadata, item.garment?.image_analysis);
+  if (!fitBox) return null;
+  const source = String(fitBox.source || "");
+  const status = String(fitBox.validationStatus || "");
+  if (!["human", "ai"].includes(source)) return null;
+  if (status && !["validated", "warning"].includes(status)) return null;
+  if (source !== "human" && Number(fitBox.confidence ?? 0) < 0.5) return null;
+  return fitBox;
+};
+
 const getRenderedAnchorMeasurement = (item: RenderItem | undefined, groupNormalization: GroupNormalization, measurementPair: ReturnType<typeof getAnchorPairFromGroup> | null) => {
   if (!item) return null;
   if (!measurementPair) return null;
@@ -1080,6 +1093,21 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
 
   if (top && bottom) {
     constraintsApplied.push("upper_lower_stack");
+    const missingRelationshipFitBox = !getRelationshipFitBox(top) ? "top fitBox missing" : !getRelationshipFitBox(bottom) ? "bottom fitBox missing" : null;
+    if (missingRelationshipFitBox) {
+      addCheck({
+        rule: "upper_lower_stack",
+        anchorsOrBoundsUsed: "relationship fitBox unavailable; safe visual fallback ignored for sizing",
+        targetRatio: "0.62–0.96",
+        currentRatio: null,
+        resizedGarment: null,
+        resizeScaleApplied: null,
+        resizeHappened: false,
+        status: "Needs calibration",
+        reason: missingRelationshipFitBox,
+        warning: missingRelationshipFitBox,
+      });
+    } else {
     const upperBox = getFitBoxCanvasRectBeforeNormalization(top);
     const lowerBox = getFitBoxCanvasRectBeforeNormalization(bottom);
     const preResizeRatio = lowerBox.width / Math.max(upperBox.width, 1);
@@ -1134,15 +1162,17 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
       status: finalPostResizeRatio >= 0.62 && finalPostResizeRatio <= 0.96 && Math.abs(finalLower.center.x - finalTopForRatio.center.x) <= 12 && finalLower.top >= chestLimit ? (resizeScaleApplied != null ? "Adjusted" : "OK") : "Warning",
       warning: finalLower.top < chestLimit ? "Bottoms attempted to cover the upper garment chest/upperFit area." : undefined,
     });
+    }
   }
 
   if (outer && mainInner) {
     constraintsApplied.push("outerwear_frames_inner_layer");
     const outerBox = getFitBoxCanvasRectBeforeNormalization(outer);
     const innerBox = getFitBoxCanvasRectBeforeNormalization(mainInner);
+    const missingRelationshipFitBox = !getRelationshipFitBox(outer) ? "outerwear fitBox missing" : !getRelationshipFitBox(mainInner) ? `${mainInner.visualCategory === "tops" ? "top" : "dress"} fitBox missing` : null;
     const ratio = innerBox.width / Math.max(outerBox.width, 1);
     const topBottomColumnActive = Boolean(top && bottom);
-    if (!topBottomColumnActive && (ratio < 0.62 || ratio > 0.96)) {
+    if (!missingRelationshipFitBox && !topBottomColumnActive && (ratio < 0.62 || ratio > 0.96)) {
       const scale = clamp(0.82 / Math.max(ratio, 0.01), 0.82, 1.22);
       nextItems = nextItems.map((item) => item === mainInner ? { ...item, style: { ...item.style, width: `${item.style.boxWidthPct * scale}%`, height: `${item.style.boxHeightPct * scale}%`, boxWidthPct: item.style.boxWidthPct * scale, boxHeightPct: item.style.boxHeightPct * scale, finalRenderedFitWidth: item.style.finalRenderedFitWidth ? item.style.finalRenderedFitWidth * scale : item.style.finalRenderedFitWidth, sizingDebug: { ...item.style.sizingDebug, relationshipRule: "outerwear_frames_inner_layer", relationshipScale: scale } } } : item);
     }
@@ -1150,7 +1180,7 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
     move(outer, adjustedInner.center.x - outerBox.center.x - 10, adjustedInner.center.y - outerBox.center.y + (mainInner.visualCategory === "dresses" ? 0 : 5));
     const finalOuterBox = getFitBoxCanvasRectBeforeNormalization(getFirst("outerwear")!);
     const finalOuterRatio = adjustedInner.width / Math.max(finalOuterBox.width, 1);
-    addCheck({ rule: "outerwear_frames_inner_layer", anchorsOrBoundsUsed: `${outerBox.source} width ↔ ${innerBox.source} width`, targetRatio: "0.62–0.96", currentRatio: finalOuterRatio, horizontalCenterOffset: Math.abs(adjustedInner.center.x - finalOuterBox.center.x), status: finalOuterRatio >= 0.62 && finalOuterRatio <= 0.96 ? "OK" : topBottomColumnActive ? "Warning" : "Adjusted", warning: topBottomColumnActive && (finalOuterRatio < 0.62 || finalOuterRatio > 0.96) ? "Outerwear kept as frame so the connected top/bottom column ratio stays intact." : undefined });
+    addCheck({ rule: "outerwear_frames_inner_layer", anchorsOrBoundsUsed: missingRelationshipFitBox ? "relationship fitBox unavailable; safe visual fallback used for placement only" : `${outerBox.source} width ↔ ${innerBox.source} width`, targetRatio: "0.62–0.96", currentRatio: missingRelationshipFitBox ? null : finalOuterRatio, horizontalCenterOffset: Math.abs(adjustedInner.center.x - finalOuterBox.center.x), status: missingRelationshipFitBox ? "Needs calibration" : finalOuterRatio >= 0.62 && finalOuterRatio <= 0.96 ? "OK" : topBottomColumnActive ? "Warning" : "Adjusted", reason: missingRelationshipFitBox || undefined, warning: missingRelationshipFitBox || (topBottomColumnActive && (finalOuterRatio < 0.62 || finalOuterRatio > 0.96) ? "Outerwear kept as frame so the connected top/bottom column ratio stays intact." : undefined) });
   }
 
   if (dress) {
@@ -1251,10 +1281,13 @@ const getGarmentFitSummary = (item: RenderItem, relationshipDebug: RelationshipS
   const rendered = renderedMeasurement ? { width: renderedMeasurement.renderedFitLineLength, height: renderedMeasurement.renderedFitBoxHeight } : null;
   const relationshipScale = Number(item.style.sizingDebug?.relationshipScale || item.style.sizingDebug?.requiredDressBoxScale || 1);
   const resizeActionNeeded = Number.isFinite(relationshipScale) && Math.abs(relationshipScale - 1) > 0.02;
+  const calibrationBlocker = (relationshipDebug as RelationshipSolverDebug)?.relationshipChecks?.find((check) => check.status === "Needs calibration")?.reason;
   const resizeReason = resizeActionNeeded
     ? item.style.sizingDebug?.relationshipRule
       ? `${displayType(item.visualCategory)} fitBox ratio was outside target for ${relationshipDebug?.selectedRelationshipRule?.replace(/_/g, " ") || "relationship rule"}.`
       : "Garment dimensions changed during fitBox relationship normalization."
+    : calibrationBlocker
+      ? `Needs calibration: ${calibrationBlocker}.`
     : "Within target relationship ratio.";
 
   return {
@@ -1273,6 +1306,7 @@ const getGarmentFitSummary = (item: RenderItem, relationshipDebug: RelationshipS
 };
 
 const getRelationshipStatus = (relationshipDebug: RelationshipSolverDebug | ReturnType<typeof getRelationshipMetrics>) => {
+  if ((relationshipDebug as RelationshipSolverDebug)?.relationshipChecks?.some((check) => check.status === "Needs calibration")) return "Needs calibration";
   const ratio = relationshipDebug?.finalRatio;
   const targetText = relationshipDebug?.targetRatio || "—";
   const match = targetText.match(/([0-9.]+)–([0-9.]+)/);
