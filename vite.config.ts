@@ -1,11 +1,29 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import { execSync } from "child_process";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 
+const readGitValue = (command: string, fallback = "unknown") => {
+  try {
+    return execSync(command, { stdio: ["ignore", "pipe", "ignore"] }).toString().trim() || fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const buildTimestamp = new Date().toISOString();
+const commitSha = readGitValue("git rev-parse --short=12 HEAD");
+const branchName = readGitValue("git branch --show-current");
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  define: {
+    __BUILD_TIMESTAMP__: JSON.stringify(buildTimestamp),
+    __COMMIT_SHA__: JSON.stringify(commitSha),
+    __GIT_BRANCH__: JSON.stringify(branchName),
+  },
   server: {
     host: "::",
     port: 8080,
