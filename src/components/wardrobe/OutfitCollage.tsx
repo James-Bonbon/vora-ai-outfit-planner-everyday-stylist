@@ -1281,10 +1281,13 @@ const getGarmentFitSummary = (item: RenderItem, relationshipDebug: RelationshipS
   const rendered = renderedMeasurement ? { width: renderedMeasurement.renderedFitLineLength, height: renderedMeasurement.renderedFitBoxHeight } : null;
   const relationshipScale = Number(item.style.sizingDebug?.relationshipScale || item.style.sizingDebug?.requiredDressBoxScale || 1);
   const resizeActionNeeded = Number.isFinite(relationshipScale) && Math.abs(relationshipScale - 1) > 0.02;
+  const calibrationBlocker = (relationshipDebug as RelationshipSolverDebug)?.relationshipChecks?.find((check) => check.status === "Needs calibration")?.reason;
   const resizeReason = resizeActionNeeded
     ? item.style.sizingDebug?.relationshipRule
       ? `${displayType(item.visualCategory)} fitBox ratio was outside target for ${relationshipDebug?.selectedRelationshipRule?.replace(/_/g, " ") || "relationship rule"}.`
       : "Garment dimensions changed during fitBox relationship normalization."
+    : calibrationBlocker
+      ? `Needs calibration: ${calibrationBlocker}.`
     : "Within target relationship ratio.";
 
   return {
@@ -1303,6 +1306,7 @@ const getGarmentFitSummary = (item: RenderItem, relationshipDebug: RelationshipS
 };
 
 const getRelationshipStatus = (relationshipDebug: RelationshipSolverDebug | ReturnType<typeof getRelationshipMetrics>) => {
+  if ((relationshipDebug as RelationshipSolverDebug)?.relationshipChecks?.some((check) => check.status === "Needs calibration")) return "Needs calibration";
   const ratio = relationshipDebug?.finalRatio;
   const targetText = relationshipDebug?.targetRatio || "—";
   const match = targetText.match(/([0-9.]+)–([0-9.]+)/);
