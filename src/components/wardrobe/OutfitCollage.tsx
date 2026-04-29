@@ -1169,9 +1169,10 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
     constraintsApplied.push("outerwear_frames_inner_layer");
     const outerBox = getFitBoxCanvasRectBeforeNormalization(outer);
     const innerBox = getFitBoxCanvasRectBeforeNormalization(mainInner);
+    const missingRelationshipFitBox = !getRelationshipFitBox(outer) ? "outerwear fitBox missing" : !getRelationshipFitBox(mainInner) ? `${mainInner.visualCategory === "tops" ? "top" : "dress"} fitBox missing` : null;
     const ratio = innerBox.width / Math.max(outerBox.width, 1);
     const topBottomColumnActive = Boolean(top && bottom);
-    if (!topBottomColumnActive && (ratio < 0.62 || ratio > 0.96)) {
+    if (!missingRelationshipFitBox && !topBottomColumnActive && (ratio < 0.62 || ratio > 0.96)) {
       const scale = clamp(0.82 / Math.max(ratio, 0.01), 0.82, 1.22);
       nextItems = nextItems.map((item) => item === mainInner ? { ...item, style: { ...item.style, width: `${item.style.boxWidthPct * scale}%`, height: `${item.style.boxHeightPct * scale}%`, boxWidthPct: item.style.boxWidthPct * scale, boxHeightPct: item.style.boxHeightPct * scale, finalRenderedFitWidth: item.style.finalRenderedFitWidth ? item.style.finalRenderedFitWidth * scale : item.style.finalRenderedFitWidth, sizingDebug: { ...item.style.sizingDebug, relationshipRule: "outerwear_frames_inner_layer", relationshipScale: scale } } } : item);
     }
@@ -1179,7 +1180,7 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
     move(outer, adjustedInner.center.x - outerBox.center.x - 10, adjustedInner.center.y - outerBox.center.y + (mainInner.visualCategory === "dresses" ? 0 : 5));
     const finalOuterBox = getFitBoxCanvasRectBeforeNormalization(getFirst("outerwear")!);
     const finalOuterRatio = adjustedInner.width / Math.max(finalOuterBox.width, 1);
-    addCheck({ rule: "outerwear_frames_inner_layer", anchorsOrBoundsUsed: `${outerBox.source} width ↔ ${innerBox.source} width`, targetRatio: "0.62–0.96", currentRatio: finalOuterRatio, horizontalCenterOffset: Math.abs(adjustedInner.center.x - finalOuterBox.center.x), status: finalOuterRatio >= 0.62 && finalOuterRatio <= 0.96 ? "OK" : topBottomColumnActive ? "Warning" : "Adjusted", warning: topBottomColumnActive && (finalOuterRatio < 0.62 || finalOuterRatio > 0.96) ? "Outerwear kept as frame so the connected top/bottom column ratio stays intact." : undefined });
+    addCheck({ rule: "outerwear_frames_inner_layer", anchorsOrBoundsUsed: missingRelationshipFitBox ? "relationship fitBox unavailable; safe visual fallback used for placement only" : `${outerBox.source} width ↔ ${innerBox.source} width`, targetRatio: "0.62–0.96", currentRatio: missingRelationshipFitBox ? null : finalOuterRatio, horizontalCenterOffset: Math.abs(adjustedInner.center.x - finalOuterBox.center.x), status: missingRelationshipFitBox ? "Needs calibration" : finalOuterRatio >= 0.62 && finalOuterRatio <= 0.96 ? "OK" : topBottomColumnActive ? "Warning" : "Adjusted", reason: missingRelationshipFitBox || undefined, warning: missingRelationshipFitBox || (topBottomColumnActive && (finalOuterRatio < 0.62 || finalOuterRatio > 0.96) ? "Outerwear kept as frame so the connected top/bottom column ratio stays intact." : undefined) });
   }
 
   if (dress) {
