@@ -163,7 +163,8 @@ type RelationshipCheck = {
   resizeHappened?: boolean;
   verticalOverlapGap?: number | null;
   horizontalCenterOffset?: number | null;
-  status: "OK" | "Adjusted" | "Warning";
+  status: "OK" | "Adjusted" | "Warning" | "Needs calibration";
+  reason?: string;
   warning?: string;
 };
 type RelationshipSolverDebug = {
@@ -787,6 +788,23 @@ const getRenderedFitBoxMeasurement = (item: RenderItem, groupNormalization: Grou
     renderedFitLineLength: getCanvasDistance(leftCanvas, rightCanvas),
     renderedFitBoxHeight: getCanvasDistance(leftCanvas, bottomCanvas),
   };
+};
+
+const getRelationshipFitBox = (item: RenderItem | undefined) => {
+  if (!item) return null;
+  const fitBox = getPrioritizedFitBox(item.metadata, item.garment?.image_analysis);
+  if (!fitBox) return null;
+  const source = String(fitBox.source || "");
+  const status = String(fitBox.validationStatus || "");
+  if (!["human", "ai"].includes(source)) return null;
+  if (status && !["validated", "warning"].includes(status)) return null;
+  if (source !== "human" && Number(fitBox.confidence ?? 0) < 0.5) return null;
+  return fitBox;
+};
+
+const getRelationshipFitBoxCanvasRect = (item: RenderItem | undefined) => {
+  const fitBox = getRelationshipFitBox(item);
+  return item && fitBox ? getRenderedFitBoxMeasurement(item, { canvasCenter: { x: 0, y: 0 }, boundingBox: null, groupCenter: null, translateX: 0, translateY: 0, scale: 1, safePaddingPct: 0, targetOccupancyPct: 0, occupancyWidthPct: 0, occupancyHeightPct: 0 }, fitBox) : null;
 };
 
 const getRenderedAnchorMeasurement = (item: RenderItem | undefined, groupNormalization: GroupNormalization, measurementPair: ReturnType<typeof getAnchorPairFromGroup> | null) => {
