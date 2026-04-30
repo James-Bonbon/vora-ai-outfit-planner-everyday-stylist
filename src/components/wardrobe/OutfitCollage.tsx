@@ -1456,6 +1456,7 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
     finalRatio: checks.find((check) => check.currentRatio != null)?.currentRatio ?? null,
     comparedAnchors: Object.fromEntries(checks.map((check) => [check.rule, check.anchorsOrBoundsUsed])),
     renderedAnchorLineLengths: {},
+    layoutSpacing,
   };
 
   return { items: nextItems, template, debug };
