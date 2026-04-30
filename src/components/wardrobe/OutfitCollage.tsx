@@ -1215,34 +1215,73 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
     const frameMax = 0.95;
 
     let outerResizeScale: number | null = null;
+    let resizeIterations = 0;
     if (!missingRelationshipFitBox && (preFrameRatio < frameMin || preFrameRatio > frameMax)) {
       // We resize the OUTERWEAR (not the inner column) so the inner stack
-      // ratio stays intact. If outer is too small (preFrameRatio > frameMax)
-      // we scale outer up; if too large (preFrameRatio < frameMin) we scale down.
+      // ratio stays intact. If outer is too small (inner/outer > frameMax)
+      // we scale outer up; if too large (inner/outer < frameMin) we scale down.
+      // Use a wider clamp range so extreme mismatches (e.g. inner/outer = 0.7)
+      // can still be brought into the [0.85, 0.95] frame band.
       const desiredOuterScale = preFrameRatio / frameTargetRatio;
-      const scale = clamp(desiredOuterScale, 0.78, 1.28);
+      const scale = clamp(desiredOuterScale, 0.55, 1.6);
       nextItems = nextItems.map((item) => (item === outer ? scaleItemAroundFitBoxCenter(item, scale, "outerwear_frames_inner_column") : item));
       outerResizeScale = scale;
+      resizeIterations += 1;
     }
 
     // Recenter outerwear over the (possibly recomputed) inner column.
-    const adjustedInner = topBottomColumnActive ? innerColumnBox : getFitBoxCanvasRectBeforeNormalization(getFirst(mainInner.visualCategory)!);
-    const liveOuter = getFitBoxCanvasRectBeforeNormalization(getFirst("outerwear")!);
+    // IMPORTANT: after the scale map above, the original `outer` reference is
+    // no longer in `nextItems`. We must always look up the live outerwear
+    // item via getFirst, otherwise `move()` becomes a no-op.
+    const liveOuterItem = getFirst("outerwear");
+    const liveInnerItem = getFirst(mainInner.visualCategory);
+    const adjustedInner = topBottomColumnActive ? innerColumnBox : (liveInnerItem ? getFitBoxCanvasRectBeforeNormalization(liveInnerItem) : innerColumnBox);
+    const liveOuter = liveOuterItem ? getFitBoxCanvasRectBeforeNormalization(liveOuterItem) : outerBox;
     if (archetype === "dress_outerwear") {
       const outerOffsetX = -16;
       const outerOffsetY = 6;
       const dressOffsetX = 13;
       const dressOffsetY = 0;
-      move(outer, adjustedInner.center.x - liveOuter.center.x + outerOffsetX, adjustedInner.center.y - liveOuter.center.y + outerOffsetY);
-      move(mainInner, dressOffsetX, dressOffsetY);
+      move(liveOuterItem, adjustedInner.center.x - liveOuter.center.x + outerOffsetX, adjustedInner.center.y - liveOuter.center.y + outerOffsetY);
+      move(liveInnerItem, dressOffsetX, dressOffsetY);
       constraintsApplied.push("dress_outerwear_separation");
     } else {
-      move(outer, adjustedInner.center.x - liveOuter.center.x - 10, adjustedInner.center.y - liveOuter.center.y + (mainInner.visualCategory === "dresses" ? 0 : 5));
+      move(liveOuterItem, adjustedInner.center.x - liveOuter.center.x - 10, adjustedInner.center.y - liveOuter.center.y + (mainInner.visualCategory === "dresses" ? 0 : 5));
     }
 
-    const finalOuterBox = getFitBoxCanvasRectBeforeNormalization(getFirst("outerwear")!);
-    const finalFrameRatio = adjustedInner.width / Math.max(finalOuterBox.width, 1);
+    // Recompute group bounds after the move; if still outside band, do one
+    // more refinement pass so the final relationship status reflects reality.
+    let finalOuterBox = getFitBoxCanvasRectBeforeNormalization(getFirst("outerwear")!);
+    let finalFrameRatio = adjustedInner.width / Math.max(finalOuterBox.width, 1);
+    if (!missingRelationshipFitBox && (finalFrameRatio < frameMin || finalFrameRatio > frameMax)) {
+      const refinement = clamp(finalFrameRatio / frameTargetRatio, 0.55, 1.6);
+      if (Math.abs(refinement - 1) > 0.01) {
+        const liveOuter2 = getFirst("outerwear");
+        nextItems = nextItems.map((item) => (item === liveOuter2 ? scaleItemAroundFitBoxCenter(item, refinement, "outerwear_frames_inner_column_refine") : item));
+        outerResizeScale = (outerResizeScale ?? 1) * refinement;
+        resizeIterations += 1;
+        const recenter = getFirst("outerwear");
+        const recenterBox = recenter ? getFitBoxCanvasRectBeforeNormalization(recenter) : finalOuterBox;
+        move(recenter, adjustedInner.center.x - recenterBox.center.x - 10, adjustedInner.center.y - recenterBox.center.y);
+        finalOuterBox = getFitBoxCanvasRectBeforeNormalization(getFirst("outerwear")!);
+        finalFrameRatio = adjustedInner.width / Math.max(finalOuterBox.width, 1);
+      }
+    }
+
     const framePassed = finalFrameRatio >= frameMin && finalFrameRatio <= frameMax;
+    // Decide failure mode for the final status. If we attempted a resize but
+    // the band is still missed, the user likely needs to recalibrate the
+    // outerwear fitBox (resize hit clamp limits). Otherwise flag for resize.
+    const frameStatus: RelationshipCheck["status"] = missingRelationshipFitBox
+      ? "Needs calibration"
+      : framePassed
+        ? (outerResizeScale != null ? "Adjusted" : "OK")
+        : "Warning";
+    const frameFailureReason = !framePassed && !missingRelationshipFitBox
+      ? (resizeIterations >= 2
+          ? "Outerwear could not be resized into frame band; recalibrate outerwear fitBox."
+          : "Outerwear out of frame band; resize required.")
+      : undefined;
     addCheck({
       rule: topBottomColumnActive ? "outerwear_frames_inner_column" : "outerwear_frames_inner_layer",
       anchorsOrBoundsUsed: missingRelationshipFitBox
@@ -1255,10 +1294,13 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
       resizedGarment: outerResizeScale != null ? outer.garment?.name || outer.garment?.category || "Outerwear" : null,
       resizeScaleApplied: outerResizeScale,
       resizeHappened: outerResizeScale != null,
+      postResizeTopWidth: roundMetric(adjustedInner.width),
+      postResizeBottomWidth: roundMetric(finalOuterBox.width),
+      finalPostResizeRatio: missingRelationshipFitBox ? null : finalFrameRatio,
       horizontalCenterOffset: Math.abs(adjustedInner.center.x - finalOuterBox.center.x),
-      status: missingRelationshipFitBox ? "Needs calibration" : framePassed ? (outerResizeScale != null ? "Adjusted" : "OK") : "Warning",
-      reason: missingRelationshipFitBox || undefined,
-      warning: missingRelationshipFitBox || (!framePassed ? `Outerwear width (${roundMetric(finalOuterBox.width)}) does not frame the inner column (${roundMetric(adjustedInner.width)}); ratio ${roundMetric(finalFrameRatio)} outside ${frameMin.toFixed(2)}–${frameMax.toFixed(2)}.` : undefined),
+      status: frameStatus,
+      reason: missingRelationshipFitBox || frameFailureReason,
+      warning: missingRelationshipFitBox || (!framePassed ? `inner/outerwear frame ratio ${roundMetric(finalFrameRatio)} outside ${frameMin.toFixed(2)}–${frameMax.toFixed(2)} (inner column ${roundMetric(adjustedInner.width)} / outerwear ${roundMetric(finalOuterBox.width)}).` : undefined),
     });
   }
 
