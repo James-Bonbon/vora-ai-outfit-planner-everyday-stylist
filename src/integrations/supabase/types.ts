@@ -517,6 +517,8 @@ export type Database = {
           status: string
           updated_at: string
           user_id: string
+          weather_code: number | null
+          weather_date: string | null
           weather_label: string | null
           weather_temp: number | null
         }
@@ -530,6 +532,8 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id: string
+          weather_code?: number | null
+          weather_date?: string | null
           weather_label?: string | null
           weather_temp?: number | null
         }
@@ -543,6 +547,8 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+          weather_code?: number | null
+          weather_date?: string | null
           weather_label?: string | null
           weather_temp?: number | null
         }
