@@ -19,8 +19,20 @@ export function useAuth() {
           setSession(session);
           setUser(session?.user ?? null);
 
-          if (event === "SIGNED_IN" && window.location.pathname === "/") {
-            window.location.replace("/home");
+          if (event === "SIGNED_IN") {
+            const path = window.location.pathname;
+            const isAuthRoute = path === "/" || path === "/welcome" || path === "/login" || path === "/auth";
+            if (isAuthRoute) {
+              let target = "/home";
+              try {
+                const stored = sessionStorage.getItem("vora_post_login_redirect");
+                if (stored) {
+                  target = stored;
+                  sessionStorage.removeItem("vora_post_login_redirect");
+                }
+              } catch {}
+              window.location.replace(target);
+            }
           }
         }
         setLoading(false);

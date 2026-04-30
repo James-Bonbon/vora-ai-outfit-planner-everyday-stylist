@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import VoraLogo from "@/components/VoraLogo";
 import { ChevronRight } from "lucide-react";
 import outfitCollage from "@/assets/outfit-collage.png";
@@ -9,30 +9,34 @@ import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
-const Landing = () => {
+const LoginPage = () => {
   const [agreed, setAgreed] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, loading } = useAuth();
 
-  // Redirect based on auth state
+  const redirectTo = searchParams.get("redirectTo") || "/home";
+
+  // If already signed in, send straight to the intended destination.
   useEffect(() => {
     if (!loading && user) {
-      navigate("/home", { replace: true });
-    } else if (!loading && !user) {
-      navigate("/welcome", { replace: true });
+      navigate(redirectTo, { replace: true });
     }
-  }, [loading, user, navigate]);
-
-  if (!loading && user) return null;
-  if (!loading && !user) return null;
+  }, [loading, user, navigate, redirectTo]);
 
   const handleGoogleSignIn = async () => {
     if (!agreed) return;
     setSigningIn(true);
     try {
+      // Stash redirect target so useAuth's SIGNED_IN handler can honor it
+      // after the OAuth round-trip completes.
+      try {
+        sessionStorage.setItem("vora_post_login_redirect", redirectTo);
+      } catch {}
+
       const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin + "/home",
+        redirect_uri: window.location.origin + redirectTo,
       });
       if (result.error) {
         toast.error("Sign in failed. Please try again.");
@@ -48,15 +52,10 @@ const Landing = () => {
 
   return (
     <div className="flex flex-col items-center min-h-screen bg-background relative overflow-hidden">
-      {/* Subtle warm radial glow */}
       <div className="absolute top-[-100px] left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full bg-primary/10 blur-[120px] pointer-events-none" />
-
-      {/* Decorative right-side clothes rack hint */}
       <div className="absolute right-[-60px] top-1/2 -translate-y-1/2 w-[200px] h-[300px] rounded-xl bg-primary/5 blur-[60px] pointer-events-none" />
 
-      {/* Main content */}
       <div className="flex flex-col items-center w-full relative z-10 px-[6%] pt-6 pb-6 pb-safe">
-        {/* Logo + Wordmark */}
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -72,7 +71,6 @@ const Landing = () => {
           </h1>
         </motion.div>
 
-        {/* Slogan */}
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -83,7 +81,6 @@ const Landing = () => {
           AI Outfit Planner &amp; Everyday Stylist
         </motion.p>
 
-        {/* Today's Outfit Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -122,7 +119,7 @@ const Landing = () => {
                     padding: "10px 14px",
                     opacity: agreed ? 1 : 0.55,
                     borderRadius: "20px",
-                    width: "100px", // Forces "Outfit" to the second line
+                    width: "100px",
                   }}
                   disabled={!agreed}
                 >
@@ -136,7 +133,6 @@ const Landing = () => {
           </div>
         </motion.div>
 
-        {/* Supporting line */}
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -147,7 +143,6 @@ const Landing = () => {
           Get outfit ideas from your wardrobe.
         </motion.p>
 
-        {/* Checkbox consent */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -193,14 +188,12 @@ const Landing = () => {
           </label>
         </motion.div>
 
-        {/* CTA Buttons */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35, duration: 0.6 }}
           className="w-[88%] max-w-[420px] flex flex-col gap-3 mt-4"
         >
-          {/* Primary CTA - Sign up with Google */}
           <button
             onClick={handleGoogleSignIn}
             className="w-full font-inter text-primary-foreground rounded-full transition-all bg-primary"
@@ -216,7 +209,6 @@ const Landing = () => {
             {signingIn ? "Signing in..." : "Create My First Outfit"}
           </button>
 
-          {/* Secondary CTA - Sign in with Google */}
           <button
             onClick={handleGoogleSignIn}
             className="w-full font-inter rounded-full transition-all"
@@ -233,10 +225,17 @@ const Landing = () => {
           >
             Sign In
           </button>
+
+          <Link
+            to="/"
+            className="text-center text-sm text-muted-foreground hover:text-foreground transition-colors mt-2 font-inter"
+          >
+            ← Back to homepage
+          </Link>
         </motion.div>
       </div>
     </div>
   );
 };
 
-export default Landing;
+export default LoginPage;

@@ -6,7 +6,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Loader2 } from "lucide-react";
-import Landing from "./pages/Landing";
 import AppLayout from "./components/AppLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -51,6 +50,7 @@ const lazyWithRetry = <T extends React.ComponentType<any>>(
   });
 
 const WelcomePage = lazyWithRetry(() => import("./pages/WelcomePage"));
+const LoginPage = lazyWithRetry(() => import("./pages/LoginPage"));
 const UnsubscribePage = lazyWithRetry(() => import("./pages/UnsubscribePage"));
 const LegalPage = lazyWithRetry(() => import("./pages/LegalPage"));
 const SettingsPage = lazyWithRetry(() => import("./pages/SettingsPage"));
@@ -86,8 +86,10 @@ const App = () => (
         <ThemeProvider>
           <Suspense fallback={<RouteFallback />}>
             <Routes>
-              <Route path="/" element={<Landing />} />
+              <Route path="/" element={<WelcomePage />} />
               <Route path="/welcome" element={<WelcomePage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/auth" element={<LoginPage />} />
               <Route path="/unsubscribe" element={<UnsubscribePage />} />
               <Route path="/legal" element={<LegalPage />} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />

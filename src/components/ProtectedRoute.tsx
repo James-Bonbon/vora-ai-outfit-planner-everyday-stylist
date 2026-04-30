@@ -1,5 +1,5 @@
-import { Navigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth"; // Make sure this path matches where your useAuth file is!
+import { Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -11,6 +11,7 @@ const ProtectedRoute = ({
   skipOnboarding?: boolean;
 }) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
   const [onboardingChecked, setOnboardingChecked] = useState(false);
 
   // 1. We changed the default to 'false' so it fails safely!
@@ -56,7 +57,8 @@ const ProtectedRoute = ({
   }
 
   if (!user) {
-    return <Navigate to="/welcome" replace />;
+    const redirectTo = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/login?redirectTo=${redirectTo}`} replace />;
   }
 
   // 6. Ensure skipOnboarding properly bypasses this redirect

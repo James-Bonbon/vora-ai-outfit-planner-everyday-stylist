@@ -360,7 +360,7 @@ const ProfilePage = () => {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate("/", { replace: true });
+    navigate("/login", { replace: true });
   };
 
   const displayName = profile?.display_name || user?.user_metadata?.full_name || "VORA User";
