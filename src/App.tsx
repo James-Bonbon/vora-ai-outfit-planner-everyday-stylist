@@ -9,7 +9,6 @@ import { Loader2 } from "lucide-react";
 import Landing from "./pages/Landing";
 import AppLayout from "./components/AppLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
-import BuildStamp from "./components/BuildStamp";
 
 // Auto-retry lazy imports once on failure (handles stale chunk hashes after deploys/HMR).
 const lazyWithRetry = <T extends React.ComponentType<any>>(
@@ -85,7 +84,6 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <ThemeProvider>
-          <BuildStamp />
           <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route path="/" element={<Landing />} />
