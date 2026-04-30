@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { applyTheme } from "@/components/ThemeProvider";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 import WelcomeHeader from "@/components/welcome/WelcomeHeader";
 import WelcomeHero from "@/components/welcome/WelcomeHero";
 import WelcomeProcess from "@/components/welcome/WelcomeProcess";
@@ -19,6 +21,16 @@ const WelcomePage = () => {
   const [footerSubmitted, setFooterSubmitted] = useState(false);
 
   const [activeTheme, setActiveTheme] = useState<WelcomeThemeKey>("default");
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  // If a signed-in user lands on /welcome (e.g., opening preview in a new tab),
+  // send them straight to /home instead of stranding them on the marketing page.
+  useEffect(() => {
+    if (!loading && user) {
+      navigate("/home", { replace: true });
+    }
+  }, [loading, user, navigate]);
 
   // Welcome page is theme-isolated: always preview themes locally,
   // ignore any cached app theme from authenticated sessions.
