@@ -1612,6 +1612,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false, debugLegacyAncho
   const dressRenderedWidth = renderedSizingMetrics.dress?.renderedFitLineLength ?? null;
   const dressToCoatRatio = renderedSizingMetrics.ratio;
   const topBottomRelationshipCheck = relationshipDebug.relationshipChecks.find((check) => check.rule === "upper_lower_stack");
+  const outerwearFrameCheck = relationshipDebug.relationshipChecks.find((check) => check.rule === "outerwear_frames_inner_column" || check.rule === "outerwear_frames_inner_layer");
   const transformedGroupBounds = getTransformedGroupBounds(groupNormalization.boundingBox, groupNormalization);
   const sizingEngineDebug = {
     coatUpperFitSource: coatFitItem?.style.sizingDebug?.upperFitSource || coatFitItem?.style.fitSource || null,
