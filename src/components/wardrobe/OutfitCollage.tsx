@@ -1098,7 +1098,7 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
       addCheck({
         rule: "upper_lower_stack",
         anchorsOrBoundsUsed: "relationship fitBox unavailable; safe visual fallback ignored for sizing",
-        targetRatio: "0.62–0.96",
+        targetRatio: "0.95–1.00",
         currentRatio: null,
         resizedGarment: null,
         resizeScaleApplied: null,
@@ -1111,10 +1111,10 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
     const upperBox = getFitBoxCanvasRectBeforeNormalization(top);
     const lowerBox = getFitBoxCanvasRectBeforeNormalization(bottom);
     const preResizeRatio = lowerBox.width / Math.max(upperBox.width, 1);
-    const resizeTargetRatio = 0.82;
+    const resizeTargetRatio = 0.97;
     let resizedGarment: string | null = null;
     let resizeScaleApplied: number | null = null;
-    if (preResizeRatio < 0.62) {
+    if (preResizeRatio < 0.95) {
       const scale = clamp(resizeTargetRatio / Math.max(preResizeRatio, 0.01), 1, 4.5);
       nextItems = nextItems.map((item) => {
         if (item !== bottom) return item;
@@ -1122,7 +1122,7 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
         resizeScaleApplied = scale;
         return scaleItemAroundFitBoxCenter(item, scale, "upper_lower_stack");
       });
-    } else if (preResizeRatio > 0.96) {
+    } else if (preResizeRatio > 1.0) {
       const scale = clamp(resizeTargetRatio / Math.max(preResizeRatio, 0.01), 0.55, 1);
       nextItems = nextItems.map((item) => {
         if (item !== bottom) return item;
@@ -1147,7 +1147,7 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
     addCheck({
       rule: "upper_lower_stack",
       anchorsOrBoundsUsed: `${upperBox.source} lower third ↔ ${lowerBox.source} top/waist`,
-      targetRatio: "0.62–0.96",
+      targetRatio: "0.95–1.00",
       currentRatio: finalPostResizeRatio,
       preResizeRatio,
       resizeTargetRatio,
@@ -1159,7 +1159,7 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
       resizeHappened: resizeScaleApplied != null,
       verticalOverlapGap: finalLower.top - upperBox.bottom,
       horizontalCenterOffset: Math.abs(finalLower.center.x - finalTopForRatio.center.x),
-      status: finalPostResizeRatio >= 0.62 && finalPostResizeRatio <= 0.96 && Math.abs(finalLower.center.x - finalTopForRatio.center.x) <= 12 && finalLower.top >= chestLimit ? (resizeScaleApplied != null ? "Adjusted" : "OK") : "Warning",
+      status: finalPostResizeRatio >= 0.95 && finalPostResizeRatio <= 1.0 && Math.abs(finalLower.center.x - finalTopForRatio.center.x) <= 12 && finalLower.top >= chestLimit ? (resizeScaleApplied != null ? "Adjusted" : "OK") : "Warning",
       warning: finalLower.top < chestLimit ? "Bottoms attempted to cover the upper garment chest/upperFit area." : undefined,
     });
     }
@@ -1172,15 +1172,15 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
     const missingRelationshipFitBox = !getRelationshipFitBox(outer) ? "outerwear fitBox missing" : !getRelationshipFitBox(mainInner) ? `${mainInner.visualCategory === "tops" ? "top" : "dress"} fitBox missing` : null;
     const ratio = innerBox.width / Math.max(outerBox.width, 1);
     const topBottomColumnActive = Boolean(top && bottom);
-    if (!missingRelationshipFitBox && !topBottomColumnActive && (ratio < 0.62 || ratio > 0.96)) {
-      const scale = clamp(0.82 / Math.max(ratio, 0.01), 0.82, 1.22);
+    if (!missingRelationshipFitBox && !topBottomColumnActive && (ratio < 0.95 || ratio > 1.0)) {
+      const scale = clamp(0.97 / Math.max(ratio, 0.01), 0.82, 1.22);
       nextItems = nextItems.map((item) => item === mainInner ? { ...item, style: { ...item.style, width: `${item.style.boxWidthPct * scale}%`, height: `${item.style.boxHeightPct * scale}%`, boxWidthPct: item.style.boxWidthPct * scale, boxHeightPct: item.style.boxHeightPct * scale, finalRenderedFitWidth: item.style.finalRenderedFitWidth ? item.style.finalRenderedFitWidth * scale : item.style.finalRenderedFitWidth, sizingDebug: { ...item.style.sizingDebug, relationshipRule: "outerwear_frames_inner_layer", relationshipScale: scale } } } : item);
     }
     const adjustedInner = getFitBoxCanvasRectBeforeNormalization(getFirst(mainInner.visualCategory)!);
     move(outer, adjustedInner.center.x - outerBox.center.x - 10, adjustedInner.center.y - outerBox.center.y + (mainInner.visualCategory === "dresses" ? 0 : 5));
     const finalOuterBox = getFitBoxCanvasRectBeforeNormalization(getFirst("outerwear")!);
     const finalOuterRatio = adjustedInner.width / Math.max(finalOuterBox.width, 1);
-    addCheck({ rule: "outerwear_frames_inner_layer", anchorsOrBoundsUsed: missingRelationshipFitBox ? "relationship fitBox unavailable; safe visual fallback used for placement only" : `${outerBox.source} width ↔ ${innerBox.source} width`, targetRatio: "0.62–0.96", currentRatio: missingRelationshipFitBox ? null : finalOuterRatio, horizontalCenterOffset: Math.abs(adjustedInner.center.x - finalOuterBox.center.x), status: missingRelationshipFitBox ? "Needs calibration" : finalOuterRatio >= 0.62 && finalOuterRatio <= 0.96 ? "OK" : topBottomColumnActive ? "Warning" : "Adjusted", reason: missingRelationshipFitBox || undefined, warning: missingRelationshipFitBox || (topBottomColumnActive && (finalOuterRatio < 0.62 || finalOuterRatio > 0.96) ? "Outerwear kept as frame so the connected top/bottom column ratio stays intact." : undefined) });
+    addCheck({ rule: "outerwear_frames_inner_layer", anchorsOrBoundsUsed: missingRelationshipFitBox ? "relationship fitBox unavailable; safe visual fallback used for placement only" : `${outerBox.source} width ↔ ${innerBox.source} width`, targetRatio: "0.95–1.00", currentRatio: missingRelationshipFitBox ? null : finalOuterRatio, horizontalCenterOffset: Math.abs(adjustedInner.center.x - finalOuterBox.center.x), status: missingRelationshipFitBox ? "Needs calibration" : finalOuterRatio >= 0.95 && finalOuterRatio <= 1.0 ? "OK" : topBottomColumnActive ? "Warning" : "Adjusted", reason: missingRelationshipFitBox || undefined, warning: missingRelationshipFitBox || (topBottomColumnActive && (finalOuterRatio < 0.95 || finalOuterRatio > 1.0) ? "Outerwear kept as frame so the connected top/bottom column ratio stays intact." : undefined) });
   }
 
   if (dress) {
