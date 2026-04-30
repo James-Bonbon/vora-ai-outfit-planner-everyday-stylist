@@ -1772,7 +1772,7 @@ export const OutfitCollage = ({ garments, debugAnchors = false, debugLegacyAncho
         </div>
 
         <div className="rounded-lg bg-secondary/20 px-2 py-2">
-          <div className="font-semibold">Relationship Check</div>
+          <div className="font-semibold">Relationship Check{topBottomRelationshipCheck && outerwearFrameCheck ? ": Top + Bottom" : ""}</div>
           <div>Archetype: {relationshipDebug.outfitArchetype}</div>
           <div>Rule: {relationshipRuleText}</div>
           <div>Compared: {comparedAnchorText}</div>
@@ -1791,6 +1791,26 @@ export const OutfitCollage = ({ garments, debugAnchors = false, debugLegacyAncho
           <div>Status: {relationshipStatus}</div>
           <div>Resize happened: {garmentFitSummaries.some((summary) => summary.resizeActionNeeded) ? "Yes" : "No"}</div>
         </div>
+
+        {outerwearFrameCheck && (
+          <div className="rounded-lg bg-secondary/20 px-2 py-2">
+            <div className="font-semibold">Relationship Check: Outerwear + Inner Column</div>
+            <div>Rule: {outerwearFrameCheck.rule}</div>
+            <div>Compared: {outerwearFrameCheck.anchorsOrBoundsUsed}</div>
+            <div>Target ratio: {outerwearFrameCheck.targetRatio || "—"}</div>
+            <div>Pre-resize inner/outerwear frame ratio: {outerwearFrameCheck.preResizeRatio != null ? outerwearFrameCheck.preResizeRatio.toFixed(2) : "—"}</div>
+            <div>Resize target ratio: {outerwearFrameCheck.resizeTargetRatio != null ? outerwearFrameCheck.resizeTargetRatio.toFixed(2) : "—"}</div>
+            <div>Resized garment: {outerwearFrameCheck.resizedGarment || "—"}</div>
+            <div>Resize scale applied: {outerwearFrameCheck.resizeScaleApplied != null ? outerwearFrameCheck.resizeScaleApplied.toFixed(2) : "—"}</div>
+            <div>Post-resize inner column width: {outerwearFrameCheck.postResizeTopWidth != null ? outerwearFrameCheck.postResizeTopWidth.toFixed(2) : "—"}</div>
+            <div>Post-resize outerwear width: {outerwearFrameCheck.postResizeBottomWidth != null ? outerwearFrameCheck.postResizeBottomWidth.toFixed(2) : "—"}</div>
+            <div>Current inner/outerwear frame ratio: {outerwearFrameCheck.currentRatio != null ? outerwearFrameCheck.currentRatio.toFixed(2) : "—"}</div>
+            <div>Center offset: {outerwearFrameCheck.horizontalCenterOffset != null ? outerwearFrameCheck.horizontalCenterOffset.toFixed(2) : "—"}</div>
+            <div>Status: {outerwearFrameCheck.status}</div>
+            <div>Resize: {outerwearFrameCheck.resizeHappened ? "Yes" : "No"}</div>
+            {outerwearFrameCheck.reason && <div>Reason: {outerwearFrameCheck.reason}</div>}
+          </div>
+        )}
 
         <details>
           <summary className="cursor-pointer font-medium">Advanced JSON</summary>
