@@ -1253,6 +1253,20 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
       move(liveOuterItem, adjustedInner.center.x - liveOuter.center.x + outerOffsetX, adjustedInner.center.y - liveOuter.center.y + outerOffsetY);
       move(liveInnerItem, dressOffsetX, dressOffsetY);
       constraintsApplied.push("dress_outerwear_separation");
+    } else if (archetype === "top_bottom_outerwear") {
+      // Mirror the dress_outerwear diagonal separation while keeping the
+      // top + bottom inner column vertically connected. Outerwear sits to
+      // the left/back; inner column nudges slightly right.
+      const outerOffsetX = -16;
+      const outerOffsetY = 6;
+      const innerShiftX = 13;
+      // Center outerwear left of inner column (use the combined column
+      // center so both top and bottom are framed together).
+      move(liveOuterItem, adjustedInner.center.x - liveOuter.center.x + outerOffsetX, adjustedInner.center.y - liveOuter.center.y + outerOffsetY);
+      // Shift the inner column (top + bottom together) slightly right.
+      move(getFirst("tops"), innerShiftX, 0);
+      move(getFirst("bottoms"), innerShiftX, 0);
+      constraintsApplied.push("top_bottom_outerwear_separation");
     } else {
       move(liveOuterItem, adjustedInner.center.x - liveOuter.center.x - 10, adjustedInner.center.y - liveOuter.center.y + (mainInner.visualCategory === "dresses" ? 0 : 5));
     }
