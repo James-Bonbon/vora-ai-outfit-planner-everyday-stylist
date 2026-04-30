@@ -1326,6 +1326,105 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
     });
   }
 
+  // ---- Post-resize spacing correction (positioning pass) ----
+  // For top_bottom_outerwear and dress_outerwear: ensure outerwear and inner
+  // column have visible diagonal separation. Target horizontal overlap of the
+  // outerwear over the inner column ~15–35%; correct if outside that band.
+  // After correction, recenter the entire group so the outfit stays centered.
+  let layoutSpacing: RelationshipSolverDebug["layoutSpacing"] = null;
+  if ((archetype === "top_bottom_outerwear" || archetype === "dress_outerwear") && getFirst("outerwear")) {
+    const liveOuter = getFirst("outerwear")!;
+    const outerRect = getFitBoxCanvasRectBeforeNormalization(liveOuter);
+    // Recompute inner column rect from current live items
+    const computeInnerRect = () => {
+      if (archetype === "top_bottom_outerwear") {
+        const t = getFirst("tops");
+        const b = getFirst("bottoms");
+        if (!t || !b) return null;
+        const tr = getFitBoxCanvasRectBeforeNormalization(t);
+        const br = getFitBoxCanvasRectBeforeNormalization(b);
+        const left = Math.min(tr.left, br.left);
+        const right = Math.max(tr.right, br.right);
+        const top = Math.min(tr.top, br.top);
+        const bottom = Math.max(tr.bottom, br.bottom);
+        return { left, right, top, bottom, width: right - left, height: bottom - top, center: { x: (left + right) / 2, y: (top + bottom) / 2 } };
+      }
+      const d = getFirst("dresses");
+      if (!d) return null;
+      const r = getFitBoxCanvasRectBeforeNormalization(d);
+      return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height, center: r.center };
+    };
+    const innerRect = computeInnerRect();
+    if (innerRect) {
+      const overlapWidth = Math.max(0, Math.min(outerRect.right, innerRect.right) - Math.max(outerRect.left, innerRect.left));
+      const refWidth = Math.max(1, Math.min(outerRect.width, innerRect.width));
+      const overlapPct = overlapWidth / refWidth;
+      const targetMin = 0.15;
+      const targetMax = 0.35;
+      let correctionApplied = false;
+      // If overlap too high, push outerwear further left (and inner slightly right)
+      // If overlap too low (gap), pull outerwear right toward inner column.
+      if (overlapPct > targetMax || overlapPct < targetMin) {
+        // Desired overlap target = midpoint
+        const desiredOverlapPct = 0.25;
+        const desiredOverlapWidth = desiredOverlapPct * refWidth;
+        // Outerwear center should sit to the LEFT of inner center.
+        // Required center distance so that overlap = desiredOverlapWidth:
+        // overlap = (outerWidth + innerWidth)/2 - |centerDistance|
+        const desiredCenterDistance = (outerRect.width + innerRect.width) / 2 - desiredOverlapWidth;
+        const currentCenterDistance = innerRect.center.x - outerRect.center.x; // positive means outer is left
+        const delta = desiredCenterDistance - currentCenterDistance;
+        // Apply 70% of delta to outerwear (move further left), 30% to inner (move right).
+        const outerDx = -delta * 0.7;
+        const innerDx = delta * 0.3;
+        move(getFirst("outerwear"), outerDx, 0);
+        if (archetype === "top_bottom_outerwear") {
+          move(getFirst("tops"), innerDx, 0);
+          move(getFirst("bottoms"), innerDx, 0);
+        } else {
+          move(getFirst("dresses"), innerDx, 0);
+        }
+        correctionApplied = true;
+        constraintsApplied.push(`${archetype}_spacing_correction`);
+      }
+
+      // Re-center the whole group horizontally on canvas (canvas center = 50)
+      const innerRectAfter = computeInnerRect()!;
+      const outerRectAfter = getFitBoxCanvasRectBeforeNormalization(getFirst("outerwear")!);
+      const groupLeft = Math.min(outerRectAfter.left, innerRectAfter.left);
+      const groupRight = Math.max(outerRectAfter.right, innerRectAfter.right);
+      const groupCenterX = (groupLeft + groupRight) / 2;
+      const canvasCenter = 50;
+      const recenterDx = canvasCenter - groupCenterX;
+      if (Math.abs(recenterDx) > 0.5) {
+        move(getFirst("outerwear"), recenterDx, 0);
+        if (archetype === "top_bottom_outerwear") {
+          move(getFirst("tops"), recenterDx, 0);
+          move(getFirst("bottoms"), recenterDx, 0);
+        } else {
+          move(getFirst("dresses"), recenterDx, 0);
+        }
+      }
+
+      const finalInner = computeInnerRect()!;
+      const finalOuter = getFitBoxCanvasRectBeforeNormalization(getFirst("outerwear")!);
+      const finalOverlapWidth = Math.max(0, Math.min(finalOuter.right, finalInner.right) - Math.max(finalOuter.left, finalInner.left));
+      const finalRefWidth = Math.max(1, Math.min(finalOuter.width, finalInner.width));
+      const finalOverlapPct = finalOverlapWidth / finalRefWidth;
+      const finalGroupLeft = Math.min(finalOuter.left, finalInner.left);
+      const finalGroupRight = Math.max(finalOuter.right, finalInner.right);
+      const finalGroupCenterX = (finalGroupLeft + finalGroupRight) / 2;
+      layoutSpacing = {
+        archetype,
+        outerwearInnerOverlapPct: roundMetric(finalOverlapPct * 100),
+        outerwearCenterOffset: roundMetric(finalInner.center.x - finalOuter.center.x),
+        spacingCorrectionApplied: correctionApplied,
+        finalGroupCentered: Math.abs(finalGroupCenterX - canvasCenter) <= 1.5,
+        groupCenterX: roundMetric(finalGroupCenterX),
+      };
+    }
+  }
+
   if (dress) {
     constraintsApplied.push("full_body_main_vertical_zone");
     const dressBounds = getItemVisualBounds(dress.style, dress.garment?.image_analysis, dress.visualCategory);
