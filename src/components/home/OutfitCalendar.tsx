@@ -199,7 +199,7 @@ const OutfitCalendar = () => {
   /* ---- Swap counters per date (deterministic rotation) ---- */
   const [swapCounts, setSwapCounts] = useState<Record<string, number>>({});
 
-  /* ---- Get contextual items for a date ---- */
+  /* ---- Get contextual items for a date (uses per-date forecast temp) ---- */
   const getItemsForDate = useCallback(
     (date: Date, entry?: CalendarEntry, dailyEvents?: CalendarEvent[]): GarmentSnapshot[] => {
       if (entry && entry.garment_ids && entry.garment_ids.length > 0) {
@@ -209,20 +209,41 @@ const OutfitCalendar = () => {
 
       const dateStr = format(date, "yyyy-MM-dd");
       const swapOffset = swapCounts[dateStr] || 0;
-      const temp = weather?.temp ?? null;
+      // Per-date temp: prefer that date's forecast, fall back to current weather.
+      const temp = resolveTempForDate(dateStr, forecastByDate, weather?.temp ?? null);
 
       // Determine occasion from synced calendar
       const occasion = dailyEvents && dailyEvents.length > 0
         ? dailyEvents[0].title
         : entry?.occasion || (isWeekend(date) ? "Casual" : "Smart Casual");
 
-      if (swapOffset > 0) {
-        return generateSwappedOutfit(garmentPool, date, swapOffset, temp, occasion) as GarmentSnapshot[];
+      const result =
+        swapOffset > 0
+          ? (generateSwappedOutfit(garmentPool, date, swapOffset, temp, occasion) as GarmentSnapshot[])
+          : (generateSmartOutfit(garmentPool, date, temp, occasion) as GarmentSnapshot[]);
+
+      if (import.meta.env.DEV) {
+        const hasOuterwear = result.some((g) =>
+          /\b(coat|jacket|sweater|hoodie|cardigan|parka|puffer|fleece|blazer|outerwear)\b/i.test(
+            (g.category || "") + " " + (g.name || ""),
+          ),
+        );
+        const hot = temp != null && temp > 22;
+        const cold = temp != null && temp < 15;
+        // eslint-disable-next-line no-console
+        console.debug("[OutfitCalendar]", {
+          date: dateStr,
+          tempUsed: temp,
+          band: hot ? "hot (>22°C)" : cold ? "cold (<15°C)" : "neutral (15–22°C)",
+          outerwearAdded: cold && hasOuterwear,
+          warmLayersFiltered: hot,
+          forecastSource: forecastByDate[dateStr] ? "daily-forecast" : "current-weather-fallback",
+        });
       }
 
-      return generateSmartOutfit(garmentPool, date, temp, occasion) as GarmentSnapshot[];
+      return result;
     },
-    [garments, garmentPool, meetsThreshold, swapCounts, weather],
+    [garments, garmentPool, meetsThreshold, swapCounts, weather, forecastByDate],
   );
 
   /* ---- Swap handler (deterministic rotation, no Math.random) ---- */
@@ -238,7 +259,14 @@ const OutfitCalendar = () => {
       const dayEvents = calendarEvents.filter((ev) => ev.start_time.startsWith(dateStr));
       const occasion = dayEvents.length > 0 ? dayEvents[0].title : (isWeekend(date) ? "Casual" : "Smart Casual");
 
-      const swapped = generateSwappedOutfit(garmentPool, date, newCount, weather?.temp ?? null, occasion);
+      // Per-date forecast snapshot: this is what we want to persist with the
+      // saved outfit so it doesn't drift if the forecast changes later.
+      const forecast = forecastByDate[dateStr];
+      const tempUsed = forecast?.temp ?? weather?.temp ?? null;
+      const codeUsed = forecast?.code ?? weather?.code ?? null;
+      const labelUsed = codeUsed != null ? weatherCodeToLabel(codeUsed) : null;
+
+      const swapped = generateSwappedOutfit(garmentPool, date, newCount, tempUsed, occasion);
       if (swapped.length === 0) return;
 
       const map = { ...garments };
@@ -248,7 +276,19 @@ const OutfitCalendar = () => {
       setEntries((prev) => {
         const existing = prev.find((e) => e.date === dateStr);
         if (existing) {
-          return prev.map((e) => (e.date === dateStr ? { ...e, garment_ids: swapped.map((g) => g.id), occasion } : e));
+          return prev.map((e) =>
+            e.date === dateStr
+              ? {
+                  ...e,
+                  garment_ids: swapped.map((g) => g.id),
+                  occasion,
+                  weather_temp: tempUsed,
+                  weather_code: codeUsed,
+                  weather_label: labelUsed,
+                  weather_date: dateStr,
+                }
+              : e,
+          );
         }
         return [
           ...prev,
@@ -256,15 +296,17 @@ const OutfitCalendar = () => {
             id: crypto.randomUUID(),
             date: dateStr,
             garment_ids: swapped.map((g) => g.id),
-            weather_temp: weather?.temp ?? null,
-            weather_label: null,
+            weather_temp: tempUsed,
+            weather_label: labelUsed,
+            weather_code: codeUsed,
+            weather_date: dateStr,
             occasion,
             status: "suggested",
           },
         ];
       });
     },
-    [garments, garmentPool, meetsThreshold, swapCounts, weather, calendarEvents],
+    [garments, garmentPool, meetsThreshold, swapCounts, weather, forecastByDate, calendarEvents],
   );
 
   /* ---- Edit: assign specific item ---- */
