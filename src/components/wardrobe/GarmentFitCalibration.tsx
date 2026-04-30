@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -82,21 +82,27 @@ export const GarmentFitCalibration = ({ itemId, imageUrl, layoutMetadata, imageA
   const [saving, setSaving] = useState(false);
   const debugEnabled = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("outfitDebugAnchors") === "1";
 
-  const setWrapperRef = (node: HTMLDivElement | null) => {
-    wrapperRef.current = node;
+  useEffect(() => {
+    const node = wrapperRef.current;
     if (!node) return;
+    const update = (width: number, height: number) => {
+      setWrapperSize((prev) =>
+        Math.abs(prev.width - width) < 0.5 && Math.abs(prev.height - height) < 0.5
+          ? prev
+          : { width, height }
+      );
+    };
     const rect = node.getBoundingClientRect();
-    setWrapperSize({ width: rect.width, height: rect.height });
-    if (typeof ResizeObserver !== "undefined") {
-      const observer = new ResizeObserver((entries) => {
-        const entry = entries[0];
-        if (!entry) return;
-        const { width, height } = entry.contentRect;
-        setWrapperSize({ width, height });
-      });
-      observer.observe(node);
-    }
-  };
+    update(rect.width, rect.height);
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      update(entry.contentRect.width, entry.contentRect.height);
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   // Project the canonical source-image-pixel fitBox into the rendered image rect
   // inside the wrapper. This MUST mirror OutfitCollage's projection so the same
