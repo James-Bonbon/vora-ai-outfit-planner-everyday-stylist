@@ -96,7 +96,7 @@ const SettingsPage = () => {
       if (error) throw error;
       toast.success("Account deleted. Goodbye!");
       await supabase.auth.signOut();
-      navigate("/", { replace: true });
+      navigate("/login", { replace: true });
     } catch (err: any) {
       console.error(err);
       toast.error("Failed to delete account. Please try again.");
