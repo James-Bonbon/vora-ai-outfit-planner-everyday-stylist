@@ -1427,7 +1427,16 @@ const getGarmentFitSummary = (item: RenderItem, relationshipDebug: RelationshipS
 };
 
 const getRelationshipStatus = (relationshipDebug: RelationshipSolverDebug | ReturnType<typeof getRelationshipMetrics>) => {
-  if ((relationshipDebug as RelationshipSolverDebug)?.relationshipChecks?.some((check) => check.status === "Needs calibration")) return "Needs calibration";
+  const checks = (relationshipDebug as RelationshipSolverDebug)?.relationshipChecks;
+  if (Array.isArray(checks) && checks.length > 0) {
+    // Roll up across every relationship check. The outfit is only OK when
+    // every required relationship (top/bottom AND outerwear/inner column)
+    // sits inside its target band.
+    if (checks.some((check) => check.status === "Needs calibration")) return "Needs calibration";
+    if (checks.some((check) => check.status === "Warning")) return "Needs resize";
+    if (checks.some((check) => check.status === "Adjusted")) return "Adjusted";
+    return "OK";
+  }
   const ratio = relationshipDebug?.finalRatio;
   const targetText = relationshipDebug?.targetRatio || "—";
   const match = targetText.match(/([0-9.]+)–([0-9.]+)/);
