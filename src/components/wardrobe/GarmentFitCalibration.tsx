@@ -213,7 +213,7 @@ export const GarmentFitCalibration = ({ itemId, imageUrl, layoutMetadata, imageA
         </Button>
       </div>
       <div
-        ref={setWrapperRef}
+        ref={wrapperRef}
         className="relative aspect-square overflow-hidden rounded-xl bg-flatlay touch-none"
         onPointerMove={updateFromPointer}
         onPointerUp={() => setDragMode(null)}
