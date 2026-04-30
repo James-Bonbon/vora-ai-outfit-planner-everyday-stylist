@@ -544,14 +544,28 @@ const OutfitCalendar = () => {
                 const occasion = slot.calendarEvents.length > 0
                   ? slot.calendarEvents[0].title
                   : slot.entry?.occasion || (isWeekend(slot.date) ? "Casual" : "Office");
+                const slotForecast = forecastByDate[slot.dateStr];
+                const slotTemp =
+                  slot.entry?.weather_temp ?? slotForecast?.temp ?? null;
+                const SlotWeatherIcon =
+                  WEATHER_ICON[
+                    slot.entry?.weather_label ||
+                      (slotForecast ? weatherCodeToLabel(slotForecast.code) : "neutral")
+                  ] || Cloud;
 
                 return (
                   <CarouselItem key={slot.dateStr} className="pl-2 basis-[55%] sm:basis-[42%]">
                     <div className="rounded-2xl bg-card border border-border p-3">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-1">
                         <p className="text-sm font-bold text-foreground font-outfit">{format(slot.date, "EEE d")}</p>
-                        <span className="text-[9px] text-muted-foreground capitalize">{occasion}</span>
+                        {slotTemp != null && (
+                          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-muted text-foreground text-[9px] font-medium">
+                            <SlotWeatherIcon className="w-2.5 h-2.5" />
+                            {Math.round(slotTemp)}°
+                          </span>
+                        )}
                       </div>
+                      <span className="block mt-0.5 text-[9px] text-muted-foreground capitalize truncate">{occasion}</span>
 
                       <div className="mt-2">
                         {slotGarments.length > 0 ? (
