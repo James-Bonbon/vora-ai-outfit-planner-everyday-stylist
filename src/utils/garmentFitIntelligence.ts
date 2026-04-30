@@ -253,3 +253,106 @@ export const buildGarmentFitMetadata = ({ metadata, analysis, category, name }: 
     },
   };
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared object-contain projection helpers (canonical fitBox coordinate system)
+//
+// Canonical fitBox storage = original processed source-image pixel coordinates:
+//   { x, y, width, height } with imageWidth/imageHeight from image_analysis.
+//
+// Both GarmentFitCalibration (preview/edit) and OutfitCollage (debug overlay)
+// MUST project the box through the same object-contain transform so the same
+// fitBox covers the same garment pixels visually in both surfaces.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type ObjectContainRect = {
+  /** Pixel offset of the rendered image from the wrapper's left edge */
+  left: number;
+  /** Pixel offset of the rendered image from the wrapper's top edge */
+  top: number;
+  /** Rendered image width in pixels (≤ wrapperWidth) */
+  width: number;
+  /** Rendered image height in pixels (≤ wrapperHeight) */
+  height: number;
+};
+
+/**
+ * Compute the rectangle the source image actually occupies inside a wrapper
+ * styled with `object-contain` (letterboxed/pillarboxed if aspect ratios differ).
+ */
+export const getObjectContainRect = (
+  wrapperWidth: number,
+  wrapperHeight: number,
+  imageWidth: number,
+  imageHeight: number,
+): ObjectContainRect => {
+  if (!Number.isFinite(wrapperWidth) || !Number.isFinite(wrapperHeight) || wrapperWidth <= 0 || wrapperHeight <= 0) {
+    return { left: 0, top: 0, width: 0, height: 0 };
+  }
+  if (!Number.isFinite(imageWidth) || !Number.isFinite(imageHeight) || imageWidth <= 0 || imageHeight <= 0) {
+    return { left: 0, top: 0, width: wrapperWidth, height: wrapperHeight };
+  }
+  const wrapperRatio = wrapperWidth / wrapperHeight;
+  const imageRatio = imageWidth / imageHeight;
+  if (imageRatio > wrapperRatio) {
+    // image is wider → fits to wrapper width, letterbox top/bottom
+    const width = wrapperWidth;
+    const height = wrapperWidth / imageRatio;
+    return { left: 0, top: (wrapperHeight - height) / 2, width, height };
+  }
+  // image is taller (or equal) → fits to wrapper height, pillarbox left/right
+  const height = wrapperHeight;
+  const width = wrapperHeight * imageRatio;
+  return { left: (wrapperWidth - width) / 2, top: 0, width, height };
+};
+
+/**
+ * Project a fitBox stored in source-image pixels into the rendered image's
+ * pixel rectangle inside an object-contain wrapper.
+ */
+export const projectFitBoxToRenderedImage = (
+  fitBox: { x: number; y: number; width: number; height: number },
+  imageAnalysis: { imageWidth?: number | null; imageHeight?: number | null } | null | undefined,
+  wrapperWidth: number,
+  wrapperHeight: number,
+) => {
+  const imageWidth = Number(imageAnalysis?.imageWidth) || 0;
+  const imageHeight = Number(imageAnalysis?.imageHeight) || 0;
+  const rect = getObjectContainRect(wrapperWidth, wrapperHeight, imageWidth, imageHeight);
+  if (!imageWidth || !imageHeight || rect.width <= 0 || rect.height <= 0) {
+    return { left: rect.left, top: rect.top, width: 0, height: 0, imageRect: rect };
+  }
+  const scaleX = rect.width / imageWidth;
+  const scaleY = rect.height / imageHeight;
+  return {
+    left: rect.left + fitBox.x * scaleX,
+    top: rect.top + fitBox.y * scaleY,
+    width: fitBox.width * scaleX,
+    height: fitBox.height * scaleY,
+    imageRect: rect,
+  };
+};
+
+/**
+ * Inverse of projectFitBoxToRenderedImage: convert a pointer location inside
+ * the wrapper back into source-image pixel coordinates. Returns null if the
+ * pointer is outside the rendered image area (e.g. on the letterbox).
+ */
+export const unprojectPointToSourceImage = (
+  pointerX: number,
+  pointerY: number,
+  imageAnalysis: { imageWidth?: number | null; imageHeight?: number | null } | null | undefined,
+  wrapperWidth: number,
+  wrapperHeight: number,
+): { x: number; y: number } | null => {
+  const imageWidth = Number(imageAnalysis?.imageWidth) || 0;
+  const imageHeight = Number(imageAnalysis?.imageHeight) || 0;
+  const rect = getObjectContainRect(wrapperWidth, wrapperHeight, imageWidth, imageHeight);
+  if (!imageWidth || !imageHeight || rect.width <= 0 || rect.height <= 0) return null;
+  const localX = pointerX - rect.left;
+  const localY = pointerY - rect.top;
+  return {
+    x: clamp((localX / rect.width) * imageWidth, 0, imageWidth),
+    y: clamp((localY / rect.height) * imageHeight, 0, imageHeight),
+  };
+};
