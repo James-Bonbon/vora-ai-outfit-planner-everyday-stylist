@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useWeather } from "@/hooks/useWeather";
+import { useWeather, weatherCodeToLabel, type ForecastByDate } from "@/hooks/useWeather";
 import { getCachedSignedUrls } from "@/utils/signedUrlCache";
 import { WeatherWidget } from "@/components/WeatherWidget";
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "@/components/ui/carousel";
@@ -43,9 +43,22 @@ interface CalendarEntry {
   garment_ids: string[];
   weather_temp: number | null;
   weather_label: string | null;
+  weather_code?: number | null;
+  weather_date?: string | null;
   occasion: string | null;
   status: string;
   calendar_events?: CalendarEvent[];
+}
+
+/** Resolve the temp to use when styling for a specific date. */
+function resolveTempForDate(
+  dateStr: string,
+  forecastByDate: ForecastByDate,
+  fallback: number | null | undefined,
+): number | null {
+  const f = forecastByDate[dateStr];
+  if (f && Number.isFinite(f.temp)) return f.temp;
+  return fallback ?? null;
 }
 
 interface GarmentSnapshot extends StylingItem {}
@@ -69,7 +82,7 @@ function isWeekend(date: Date) {
 const OutfitCalendar = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { weather, loading: weatherLoading } = useWeather();
+  const { weather, forecastByDate, loading: weatherLoading } = useWeather();
   const [entries, setEntries] = useState<CalendarEntry[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [garments, setGarments] = useState<Record<string, GarmentSnapshot>>({});
@@ -186,7 +199,7 @@ const OutfitCalendar = () => {
   /* ---- Swap counters per date (deterministic rotation) ---- */
   const [swapCounts, setSwapCounts] = useState<Record<string, number>>({});
 
-  /* ---- Get contextual items for a date ---- */
+  /* ---- Get contextual items for a date (uses per-date forecast temp) ---- */
   const getItemsForDate = useCallback(
     (date: Date, entry?: CalendarEntry, dailyEvents?: CalendarEvent[]): GarmentSnapshot[] => {
       if (entry && entry.garment_ids && entry.garment_ids.length > 0) {
@@ -196,20 +209,41 @@ const OutfitCalendar = () => {
 
       const dateStr = format(date, "yyyy-MM-dd");
       const swapOffset = swapCounts[dateStr] || 0;
-      const temp = weather?.temp ?? null;
+      // Per-date temp: prefer that date's forecast, fall back to current weather.
+      const temp = resolveTempForDate(dateStr, forecastByDate, weather?.temp ?? null);
 
       // Determine occasion from synced calendar
       const occasion = dailyEvents && dailyEvents.length > 0
         ? dailyEvents[0].title
         : entry?.occasion || (isWeekend(date) ? "Casual" : "Smart Casual");
 
-      if (swapOffset > 0) {
-        return generateSwappedOutfit(garmentPool, date, swapOffset, temp, occasion) as GarmentSnapshot[];
+      const result =
+        swapOffset > 0
+          ? (generateSwappedOutfit(garmentPool, date, swapOffset, temp, occasion) as GarmentSnapshot[])
+          : (generateSmartOutfit(garmentPool, date, temp, occasion) as GarmentSnapshot[]);
+
+      if (import.meta.env.DEV) {
+        const hasOuterwear = result.some((g) =>
+          /\b(coat|jacket|sweater|hoodie|cardigan|parka|puffer|fleece|blazer|outerwear)\b/i.test(
+            (g.category || "") + " " + (g.name || ""),
+          ),
+        );
+        const hot = temp != null && temp > 22;
+        const cold = temp != null && temp < 15;
+        // eslint-disable-next-line no-console
+        console.debug("[OutfitCalendar]", {
+          date: dateStr,
+          tempUsed: temp,
+          band: hot ? "hot (>22°C)" : cold ? "cold (<15°C)" : "neutral (15–22°C)",
+          outerwearAdded: cold && hasOuterwear,
+          warmLayersFiltered: hot,
+          forecastSource: forecastByDate[dateStr] ? "daily-forecast" : "current-weather-fallback",
+        });
       }
 
-      return generateSmartOutfit(garmentPool, date, temp, occasion) as GarmentSnapshot[];
+      return result;
     },
-    [garments, garmentPool, meetsThreshold, swapCounts, weather],
+    [garments, garmentPool, meetsThreshold, swapCounts, weather, forecastByDate],
   );
 
   /* ---- Swap handler (deterministic rotation, no Math.random) ---- */
@@ -225,7 +259,14 @@ const OutfitCalendar = () => {
       const dayEvents = calendarEvents.filter((ev) => ev.start_time.startsWith(dateStr));
       const occasion = dayEvents.length > 0 ? dayEvents[0].title : (isWeekend(date) ? "Casual" : "Smart Casual");
 
-      const swapped = generateSwappedOutfit(garmentPool, date, newCount, weather?.temp ?? null, occasion);
+      // Per-date forecast snapshot: this is what we want to persist with the
+      // saved outfit so it doesn't drift if the forecast changes later.
+      const forecast = forecastByDate[dateStr];
+      const tempUsed = forecast?.temp ?? weather?.temp ?? null;
+      const codeUsed = forecast?.code ?? weather?.code ?? null;
+      const labelUsed = codeUsed != null ? weatherCodeToLabel(codeUsed) : null;
+
+      const swapped = generateSwappedOutfit(garmentPool, date, newCount, tempUsed, occasion);
       if (swapped.length === 0) return;
 
       const map = { ...garments };
@@ -235,7 +276,19 @@ const OutfitCalendar = () => {
       setEntries((prev) => {
         const existing = prev.find((e) => e.date === dateStr);
         if (existing) {
-          return prev.map((e) => (e.date === dateStr ? { ...e, garment_ids: swapped.map((g) => g.id), occasion } : e));
+          return prev.map((e) =>
+            e.date === dateStr
+              ? {
+                  ...e,
+                  garment_ids: swapped.map((g) => g.id),
+                  occasion,
+                  weather_temp: tempUsed,
+                  weather_code: codeUsed,
+                  weather_label: labelUsed,
+                  weather_date: dateStr,
+                }
+              : e,
+          );
         }
         return [
           ...prev,
@@ -243,15 +296,17 @@ const OutfitCalendar = () => {
             id: crypto.randomUUID(),
             date: dateStr,
             garment_ids: swapped.map((g) => g.id),
-            weather_temp: weather?.temp ?? null,
-            weather_label: null,
+            weather_temp: tempUsed,
+            weather_label: labelUsed,
+            weather_code: codeUsed,
+            weather_date: dateStr,
             occasion,
             status: "suggested",
           },
         ];
       });
     },
-    [garments, garmentPool, meetsThreshold, swapCounts, weather, calendarEvents],
+    [garments, garmentPool, meetsThreshold, swapCounts, weather, forecastByDate, calendarEvents],
   );
 
   /* ---- Edit: assign specific item ---- */
@@ -489,14 +544,28 @@ const OutfitCalendar = () => {
                 const occasion = slot.calendarEvents.length > 0
                   ? slot.calendarEvents[0].title
                   : slot.entry?.occasion || (isWeekend(slot.date) ? "Casual" : "Office");
+                const slotForecast = forecastByDate[slot.dateStr];
+                const slotTemp =
+                  slot.entry?.weather_temp ?? slotForecast?.temp ?? null;
+                const SlotWeatherIcon =
+                  WEATHER_ICON[
+                    slot.entry?.weather_label ||
+                      (slotForecast ? weatherCodeToLabel(slotForecast.code) : "neutral")
+                  ] || Cloud;
 
                 return (
                   <CarouselItem key={slot.dateStr} className="pl-2 basis-[55%] sm:basis-[42%]">
                     <div className="rounded-2xl bg-card border border-border p-3">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-1">
                         <p className="text-sm font-bold text-foreground font-outfit">{format(slot.date, "EEE d")}</p>
-                        <span className="text-[9px] text-muted-foreground capitalize">{occasion}</span>
+                        {slotTemp != null && (
+                          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-muted text-foreground text-[9px] font-medium">
+                            <SlotWeatherIcon className="w-2.5 h-2.5" />
+                            {Math.round(slotTemp)}°
+                          </span>
+                        )}
                       </div>
+                      <span className="block mt-0.5 text-[9px] text-muted-foreground capitalize truncate">{occasion}</span>
 
                       <div className="mt-2">
                         {slotGarments.length > 0 ? (
