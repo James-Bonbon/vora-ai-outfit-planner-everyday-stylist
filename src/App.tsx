@@ -51,6 +51,7 @@ const lazyWithRetry = <T extends React.ComponentType<any>>(
 
 const WelcomePage = lazyWithRetry(() => import("./pages/WelcomePage"));
 const LoginPage = lazyWithRetry(() => import("./pages/LoginPage"));
+const AuthCallback = lazyWithRetry(() => import("./pages/AuthCallback"));
 const UnsubscribePage = lazyWithRetry(() => import("./pages/UnsubscribePage"));
 const LegalPage = lazyWithRetry(() => import("./pages/LegalPage"));
 const SettingsPage = lazyWithRetry(() => import("./pages/SettingsPage"));
