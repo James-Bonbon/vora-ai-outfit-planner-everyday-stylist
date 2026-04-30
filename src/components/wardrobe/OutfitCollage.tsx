@@ -1177,7 +1177,20 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
       nextItems = nextItems.map((item) => item === mainInner ? { ...item, style: { ...item.style, width: `${item.style.boxWidthPct * scale}%`, height: `${item.style.boxHeightPct * scale}%`, boxWidthPct: item.style.boxWidthPct * scale, boxHeightPct: item.style.boxHeightPct * scale, finalRenderedFitWidth: item.style.finalRenderedFitWidth ? item.style.finalRenderedFitWidth * scale : item.style.finalRenderedFitWidth, sizingDebug: { ...item.style.sizingDebug, relationshipRule: "outerwear_frames_inner_layer", relationshipScale: scale } } } : item);
     }
     const adjustedInner = getFitBoxCanvasRectBeforeNormalization(getFirst(mainInner.visualCategory)!);
-    move(outer, adjustedInner.center.x - outerBox.center.x - 10, adjustedInner.center.y - outerBox.center.y + (mainInner.visualCategory === "dresses" ? 0 : 5));
+    if (archetype === "dress_outerwear") {
+      // Specific dress + outerwear separation: outerwear back-left, dress front-right.
+      // Group is re-centered later by normalizeOutfitGroup, so these are pre-centering offsets.
+      const outerOffsetX = -16; // -16% of canvas
+      const outerOffsetY = 6;   // +6% of canvas (slightly down/back)
+      const dressOffsetX = 13;  // +13% of canvas
+      const dressOffsetY = 0;
+      // First align outer to the inner center, then apply separation offsets to each.
+      move(outer, adjustedInner.center.x - outerBox.center.x + outerOffsetX, adjustedInner.center.y - outerBox.center.y + outerOffsetY);
+      move(mainInner, dressOffsetX, dressOffsetY);
+      constraintsApplied.push("dress_outerwear_separation");
+    } else {
+      move(outer, adjustedInner.center.x - outerBox.center.x - 10, adjustedInner.center.y - outerBox.center.y + (mainInner.visualCategory === "dresses" ? 0 : 5));
+    }
     const finalOuterBox = getFitBoxCanvasRectBeforeNormalization(getFirst("outerwear")!);
     const finalOuterRatio = adjustedInner.width / Math.max(finalOuterBox.width, 1);
     addCheck({ rule: "outerwear_frames_inner_layer", anchorsOrBoundsUsed: missingRelationshipFitBox ? "relationship fitBox unavailable; safe visual fallback used for placement only" : `${outerBox.source} width ↔ ${innerBox.source} width`, targetRatio: "0.95–1.00", currentRatio: missingRelationshipFitBox ? null : finalOuterRatio, horizontalCenterOffset: Math.abs(adjustedInner.center.x - finalOuterBox.center.x), status: missingRelationshipFitBox ? "Needs calibration" : finalOuterRatio >= 0.95 && finalOuterRatio <= 1.0 ? "OK" : topBottomColumnActive ? "Warning" : "Adjusted", reason: missingRelationshipFitBox || undefined, warning: missingRelationshipFitBox || (topBottomColumnActive && (finalOuterRatio < 0.95 || finalOuterRatio > 1.0) ? "Outerwear kept as frame so the connected top/bottom column ratio stays intact." : undefined) });
