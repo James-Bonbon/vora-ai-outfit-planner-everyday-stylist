@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { applyTheme } from "@/components/ThemeProvider";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 import WelcomeHeader from "@/components/welcome/WelcomeHeader";
 import WelcomeHero from "@/components/welcome/WelcomeHero";
 import WelcomeProcess from "@/components/welcome/WelcomeProcess";
