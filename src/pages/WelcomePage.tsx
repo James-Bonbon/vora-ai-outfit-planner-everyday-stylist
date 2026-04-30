@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { applyTheme } from "@/components/ThemeProvider";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 import WelcomeHeader from "@/components/welcome/WelcomeHeader";
 import WelcomeHero from "@/components/welcome/WelcomeHero";
 import WelcomeProcess from "@/components/welcome/WelcomeProcess";
@@ -19,6 +21,25 @@ const WelcomePage = () => {
   const [footerSubmitted, setFooterSubmitted] = useState(false);
 
   const [activeTheme, setActiveTheme] = useState<WelcomeThemeKey>("default");
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { user, loading: authLoading } = useAuth();
+
+  // Preview-environment recovery:
+  // The Lovable preview host can redirect deep links (e.g. /home) back to "/".
+  // Support an explicit `?redirect=/path` escape hatch so users / shared links
+  // can still reach a deep route, and auto-bounce signed-in users into /home
+  // so existing users aren't trapped on the marketing page.
+  useEffect(() => {
+    const requested = searchParams.get("redirect");
+    if (requested && requested.startsWith("/") && !requested.startsWith("//")) {
+      navigate(requested, { replace: true });
+      return;
+    }
+    if (!authLoading && user) {
+      navigate("/home", { replace: true });
+    }
+  }, [searchParams, navigate, authLoading, user]);
 
   // Welcome page is theme-isolated: always preview themes locally,
   // ignore any cached app theme from authenticated sessions.

@@ -1169,31 +1169,97 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
     constraintsApplied.push("outerwear_frames_inner_layer");
     const outerBox = getFitBoxCanvasRectBeforeNormalization(outer);
     const innerBox = getFitBoxCanvasRectBeforeNormalization(mainInner);
-    const missingRelationshipFitBox = !getRelationshipFitBox(outer) ? "outerwear fitBox missing" : !getRelationshipFitBox(mainInner) ? `${mainInner.visualCategory === "tops" ? "top" : "dress"} fitBox missing` : null;
-    const ratio = innerBox.width / Math.max(outerBox.width, 1);
+    const missingRelationshipFitBox = !getRelationshipFitBox(outer)
+      ? "outerwear fitBox missing"
+      : !getRelationshipFitBox(mainInner)
+        ? `${mainInner.visualCategory === "tops" ? "top" : "dress"} fitBox missing`
+        : null;
     const topBottomColumnActive = Boolean(top && bottom);
-    if (!missingRelationshipFitBox && !topBottomColumnActive && (ratio < 0.95 || ratio > 1.0)) {
-      const scale = clamp(0.97 / Math.max(ratio, 0.01), 0.82, 1.22);
-      nextItems = nextItems.map((item) => item === mainInner ? { ...item, style: { ...item.style, width: `${item.style.boxWidthPct * scale}%`, height: `${item.style.boxHeightPct * scale}%`, boxWidthPct: item.style.boxWidthPct * scale, boxHeightPct: item.style.boxHeightPct * scale, finalRenderedFitWidth: item.style.finalRenderedFitWidth ? item.style.finalRenderedFitWidth * scale : item.style.finalRenderedFitWidth, sizingDebug: { ...item.style.sizingDebug, relationshipRule: "outerwear_frames_inner_layer", relationshipScale: scale } } } : item);
+
+    // ---- Build the comparison target for the outerwear frame check.
+    // For 3-garment outfits (top + bottom + outerwear) the outerwear must
+    // frame the *combined inner column* (top ∪ bottom), not just the top.
+    // For dress + outerwear we keep comparing against the dress.
+    let innerColumnBox = innerBox;
+    let innerColumnLabel = mainInner.visualCategory === "tops" ? "top fitBox" : "dress fitBox";
+    if (topBottomColumnActive) {
+      const liveTop = getFirst("tops");
+      const liveBottom = getFirst("bottoms");
+      if (liveTop && liveBottom) {
+        const t = getFitBoxCanvasRectBeforeNormalization(liveTop);
+        const b = getFitBoxCanvasRectBeforeNormalization(liveBottom);
+        const left = Math.min(t.left, b.left);
+        const right = Math.max(t.right, b.right);
+        const topY = Math.min(t.top, b.top);
+        const bottomY = Math.max(t.bottom, b.bottom);
+        innerColumnBox = {
+          left,
+          right,
+          top: topY,
+          bottom: bottomY,
+          width: right - left,
+          height: bottomY - topY,
+          center: { x: (left + right) / 2, y: (topY + bottomY) / 2 },
+          source: `combined(${t.source} + ${b.source})`,
+        } as typeof innerBox;
+        innerColumnLabel = "top+bottom combined column";
+      }
     }
-    const adjustedInner = getFitBoxCanvasRectBeforeNormalization(getFirst(mainInner.visualCategory)!);
+
+    // Pre-resize ratio: how much wider the outerwear is vs the inner column.
+    // ratio = inner / outer. Target band [0.85, 0.95] => outerwear is 5–18% wider
+    // than the inner column, so it visibly frames it without dwarfing it.
+    const preFrameRatio = innerColumnBox.width / Math.max(outerBox.width, 1);
+    const frameTargetRatio = 0.9;
+    const frameMin = 0.85;
+    const frameMax = 0.95;
+
+    let outerResizeScale: number | null = null;
+    if (!missingRelationshipFitBox && (preFrameRatio < frameMin || preFrameRatio > frameMax)) {
+      // We resize the OUTERWEAR (not the inner column) so the inner stack
+      // ratio stays intact. If outer is too small (preFrameRatio > frameMax)
+      // we scale outer up; if too large (preFrameRatio < frameMin) we scale down.
+      const desiredOuterScale = preFrameRatio / frameTargetRatio;
+      const scale = clamp(desiredOuterScale, 0.78, 1.28);
+      nextItems = nextItems.map((item) => (item === outer ? scaleItemAroundFitBoxCenter(item, scale, "outerwear_frames_inner_column") : item));
+      outerResizeScale = scale;
+    }
+
+    // Recenter outerwear over the (possibly recomputed) inner column.
+    const adjustedInner = topBottomColumnActive ? innerColumnBox : getFitBoxCanvasRectBeforeNormalization(getFirst(mainInner.visualCategory)!);
+    const liveOuter = getFitBoxCanvasRectBeforeNormalization(getFirst("outerwear")!);
     if (archetype === "dress_outerwear") {
-      // Specific dress + outerwear separation: outerwear back-left, dress front-right.
-      // Group is re-centered later by normalizeOutfitGroup, so these are pre-centering offsets.
-      const outerOffsetX = -16; // -16% of canvas
-      const outerOffsetY = 6;   // +6% of canvas (slightly down/back)
-      const dressOffsetX = 13;  // +13% of canvas
+      const outerOffsetX = -16;
+      const outerOffsetY = 6;
+      const dressOffsetX = 13;
       const dressOffsetY = 0;
-      // First align outer to the inner center, then apply separation offsets to each.
-      move(outer, adjustedInner.center.x - outerBox.center.x + outerOffsetX, adjustedInner.center.y - outerBox.center.y + outerOffsetY);
+      move(outer, adjustedInner.center.x - liveOuter.center.x + outerOffsetX, adjustedInner.center.y - liveOuter.center.y + outerOffsetY);
       move(mainInner, dressOffsetX, dressOffsetY);
       constraintsApplied.push("dress_outerwear_separation");
     } else {
-      move(outer, adjustedInner.center.x - outerBox.center.x - 10, adjustedInner.center.y - outerBox.center.y + (mainInner.visualCategory === "dresses" ? 0 : 5));
+      move(outer, adjustedInner.center.x - liveOuter.center.x - 10, adjustedInner.center.y - liveOuter.center.y + (mainInner.visualCategory === "dresses" ? 0 : 5));
     }
+
     const finalOuterBox = getFitBoxCanvasRectBeforeNormalization(getFirst("outerwear")!);
-    const finalOuterRatio = adjustedInner.width / Math.max(finalOuterBox.width, 1);
-    addCheck({ rule: "outerwear_frames_inner_layer", anchorsOrBoundsUsed: missingRelationshipFitBox ? "relationship fitBox unavailable; safe visual fallback used for placement only" : `${outerBox.source} width ↔ ${innerBox.source} width`, targetRatio: "0.95–1.00", currentRatio: missingRelationshipFitBox ? null : finalOuterRatio, horizontalCenterOffset: Math.abs(adjustedInner.center.x - finalOuterBox.center.x), status: missingRelationshipFitBox ? "Needs calibration" : finalOuterRatio >= 0.95 && finalOuterRatio <= 1.0 ? "OK" : topBottomColumnActive ? "Warning" : "Adjusted", reason: missingRelationshipFitBox || undefined, warning: missingRelationshipFitBox || (topBottomColumnActive && (finalOuterRatio < 0.95 || finalOuterRatio > 1.0) ? "Outerwear kept as frame so the connected top/bottom column ratio stays intact." : undefined) });
+    const finalFrameRatio = adjustedInner.width / Math.max(finalOuterBox.width, 1);
+    const framePassed = finalFrameRatio >= frameMin && finalFrameRatio <= frameMax;
+    addCheck({
+      rule: topBottomColumnActive ? "outerwear_frames_inner_column" : "outerwear_frames_inner_layer",
+      anchorsOrBoundsUsed: missingRelationshipFitBox
+        ? "relationship fitBox unavailable; safe visual fallback used for placement only"
+        : `${outerBox.source} (outerwear) ↔ ${innerColumnBox.source} (${innerColumnLabel})`,
+      targetRatio: `${frameMin.toFixed(2)}–${frameMax.toFixed(2)}`,
+      currentRatio: missingRelationshipFitBox ? null : finalFrameRatio,
+      preResizeRatio: missingRelationshipFitBox ? null : preFrameRatio,
+      resizeTargetRatio: frameTargetRatio,
+      resizedGarment: outerResizeScale != null ? outer.garment?.name || outer.garment?.category || "Outerwear" : null,
+      resizeScaleApplied: outerResizeScale,
+      resizeHappened: outerResizeScale != null,
+      horizontalCenterOffset: Math.abs(adjustedInner.center.x - finalOuterBox.center.x),
+      status: missingRelationshipFitBox ? "Needs calibration" : framePassed ? (outerResizeScale != null ? "Adjusted" : "OK") : "Warning",
+      reason: missingRelationshipFitBox || undefined,
+      warning: missingRelationshipFitBox || (!framePassed ? `Outerwear width (${roundMetric(finalOuterBox.width)}) does not frame the inner column (${roundMetric(adjustedInner.width)}); ratio ${roundMetric(finalFrameRatio)} outside ${frameMin.toFixed(2)}–${frameMax.toFixed(2)}.` : undefined),
+    });
   }
 
   if (dress) {

@@ -29,14 +29,16 @@ const LoginPage = () => {
     if (!agreed) return;
     setSigningIn(true);
     try {
-      // Stash redirect target so useAuth's SIGNED_IN handler can honor it
-      // after the OAuth round-trip completes.
+      // Persist the intended destination across the OAuth round-trip so the
+      // /auth/callback route (and useAuth's SIGNED_IN handler) can honor it.
       try {
         sessionStorage.setItem("vora_post_login_redirect", redirectTo);
       } catch {}
 
+      // Always use a stable, shallow callback path. Deep callback URIs (e.g.
+      // /home) can fail in the live preview environment.
       const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin + redirectTo,
+        redirect_uri: window.location.origin + "/auth/callback",
       });
       if (result.error) {
         toast.error("Sign in failed. Please try again.");
