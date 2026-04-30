@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import { fadeUp } from "./fadeAnimation";
 import SuccessMessage from "./SuccessMessage";
 import MagneticButton from "./MagneticButton";
@@ -62,9 +63,12 @@ const WelcomeFooterCTA = ({ email, setEmail, loading, submitted, onSubmit }: Pro
 
     <motion.p
       {...fadeUp(0.4)}
-      className="mt-16 text-[10px] uppercase tracking-[0.35em] text-background/25 font-outfit"
+      className="mt-16 text-[11px] uppercase tracking-[0.3em] text-background/60 font-outfit"
     >
-      By invitation only
+      Already have an account?{" "}
+      <Link to="/login" className="underline underline-offset-4 hover:text-background transition-colors">
+        Sign in
+      </Link>
     </motion.p>
   </section>
 );
