@@ -179,6 +179,14 @@ type RelationshipSolverDebug = {
   finalRatio: number | null;
   comparedAnchors: Record<string, any>;
   renderedAnchorLineLengths: Record<string, number | null>;
+  layoutSpacing?: {
+    archetype: OutfitArchetype;
+    outerwearInnerOverlapPct: number | null;
+    outerwearCenterOffset: number | null;
+    spacingCorrectionApplied: boolean;
+    finalGroupCentered: boolean;
+    groupCenterX: number | null;
+  } | null;
 };
 
 type CompositionMetrics = {
