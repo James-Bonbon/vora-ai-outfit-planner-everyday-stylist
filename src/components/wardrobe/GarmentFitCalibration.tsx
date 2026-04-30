@@ -1,9 +1,14 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Check } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  projectFitBoxToRenderedImage,
+  unprojectPointToSourceImage,
+  getObjectContainRect,
+} from "@/utils/garmentFitIntelligence";
 
 type FitBox = {
   x: number;
@@ -72,7 +77,39 @@ export const GarmentFitCalibration = ({ itemId, imageUrl, layoutMetadata, imageA
   const imageHeight = Number(imageAnalysis?.imageHeight) || 1;
   const [fitBox, setFitBox] = useState<FitBox>(() => getDefaultFitBox(layoutMetadata, imageAnalysis));
   const [dragMode, setDragMode] = useState<DragMode>(null);
+  const [wrapperSize, setWrapperSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [saving, setSaving] = useState(false);
+  const debugEnabled = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("outfitDebugAnchors") === "1";
+
+  const setWrapperRef = (node: HTMLDivElement | null) => {
+    wrapperRef.current = node;
+    if (!node) return;
+    const rect = node.getBoundingClientRect();
+    setWrapperSize({ width: rect.width, height: rect.height });
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver((entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+        const { width, height } = entry.contentRect;
+        setWrapperSize({ width, height });
+      });
+      observer.observe(node);
+    }
+  };
+
+  // Project the canonical source-image-pixel fitBox into the rendered image rect
+  // inside the wrapper. This MUST mirror OutfitCollage's projection so the same
+  // saved fitBox covers the same garment pixels in both surfaces.
+  const projected = useMemo(() => {
+    if (wrapperSize.width <= 0 || wrapperSize.height <= 0) return null;
+    return projectFitBoxToRenderedImage(fitBox, imageAnalysis, wrapperSize.width, wrapperSize.height);
+  }, [fitBox, imageAnalysis, wrapperSize.width, wrapperSize.height]);
+
+  const renderedImageRect = useMemo(() => {
+    if (wrapperSize.width <= 0 || wrapperSize.height <= 0) return null;
+    return getObjectContainRect(wrapperSize.width, wrapperSize.height, imageWidth, imageHeight);
+  }, [wrapperSize.width, wrapperSize.height, imageWidth, imageHeight]);
 
   const warning = useMemo(() => {
     if (fitBox.source === "human" && layoutMetadata?.fitBox?.validationStatus === "warning") return layoutMetadata?.fitBox?.notes;
@@ -82,8 +119,12 @@ export const GarmentFitCalibration = ({ itemId, imageUrl, layoutMetadata, imageA
   const updateFromPointer = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!dragMode) return;
     const rect = event.currentTarget.getBoundingClientRect();
-    const x = clamp(((event.clientX - rect.left) / rect.width) * imageWidth, 0, imageWidth);
-    const y = clamp(((event.clientY - rect.top) / rect.height) * imageHeight, 0, imageHeight);
+    const localX = event.clientX - rect.left;
+    const localY = event.clientY - rect.top;
+    const sourcePoint = unprojectPointToSourceImage(localX, localY, imageAnalysis, rect.width, rect.height);
+    if (!sourcePoint) return;
+    const x = sourcePoint.x;
+    const y = sourcePoint.y;
     setFitBox((prev) => {
       if (dragMode === "move") {
         const nextX = clamp(x - prev.width / 2, 0, imageWidth - prev.width);
@@ -117,7 +158,7 @@ export const GarmentFitCalibration = ({ itemId, imageUrl, layoutMetadata, imageA
         source: "human",
         confidence: 1,
         validationStatus: "validated",
-        notes: "Human calibrated fitBox.",
+        notes: "Human calibrated fitBox (canonical source-image pixels).",
       };
       const nextMetadata = {
         ...(layoutMetadata || {}),
@@ -145,6 +186,15 @@ export const GarmentFitCalibration = ({ itemId, imageUrl, layoutMetadata, imageA
     }
   };
 
+  const overlayStyle = projected && projected.width > 0 && projected.height > 0
+    ? {
+        left: `${(projected.left / Math.max(wrapperSize.width, 1)) * 100}%`,
+        top: `${(projected.top / Math.max(wrapperSize.height, 1)) * 100}%`,
+        width: `${(projected.width / Math.max(wrapperSize.width, 1)) * 100}%`,
+        height: `${(projected.height / Math.max(wrapperSize.height, 1)) * 100}%`,
+      }
+    : { left: "0%", top: "0%", width: "0%", height: "0%" };
+
   return (
     <div className="space-y-3 rounded-2xl bg-card p-3">
       <div className="flex items-center justify-between gap-2">
@@ -157,6 +207,7 @@ export const GarmentFitCalibration = ({ itemId, imageUrl, layoutMetadata, imageA
         </Button>
       </div>
       <div
+        ref={setWrapperRef}
         className="relative aspect-square overflow-hidden rounded-xl bg-flatlay touch-none"
         onPointerMove={updateFromPointer}
         onPointerUp={() => setDragMode(null)}
@@ -166,7 +217,7 @@ export const GarmentFitCalibration = ({ itemId, imageUrl, layoutMetadata, imageA
         <button
           type="button"
           className="absolute z-10 cursor-move border-2 border-primary bg-primary/10"
-          style={{ left: `${(fitBox.x / imageWidth) * 100}%`, top: `${(fitBox.y / imageHeight) * 100}%`, width: `${(fitBox.width / imageWidth) * 100}%`, height: `${(fitBox.height / imageHeight) * 100}%` }}
+          style={overlayStyle}
           onPointerDown={(event) => {
             event.currentTarget.setPointerCapture(event.pointerId);
             setDragMode("move");
@@ -186,7 +237,30 @@ export const GarmentFitCalibration = ({ itemId, imageUrl, layoutMetadata, imageA
             />
           ))}
         </button>
+        {debugEnabled && renderedImageRect && (
+          <div
+            className="pointer-events-none absolute border border-dashed border-accent/60"
+            style={{
+              left: `${(renderedImageRect.left / Math.max(wrapperSize.width, 1)) * 100}%`,
+              top: `${(renderedImageRect.top / Math.max(wrapperSize.height, 1)) * 100}%`,
+              width: `${(renderedImageRect.width / Math.max(wrapperSize.width, 1)) * 100}%`,
+              height: `${(renderedImageRect.height / Math.max(wrapperSize.height, 1)) * 100}%`,
+            }}
+            aria-hidden="true"
+          />
+        )}
       </div>
+      {debugEnabled && (
+        <pre className="overflow-x-auto rounded-lg bg-muted/40 p-2 text-[10px] leading-tight text-muted-foreground">
+{JSON.stringify({
+  canonicalFitBox: { x: Math.round(fitBox.x), y: Math.round(fitBox.y), width: Math.round(fitBox.width), height: Math.round(fitBox.height) },
+  imageAnalysis: { imageWidth, imageHeight },
+  wrapper: { width: Math.round(wrapperSize.width), height: Math.round(wrapperSize.height) },
+  renderedImageRect: renderedImageRect ? { left: Math.round(renderedImageRect.left), top: Math.round(renderedImageRect.top), width: Math.round(renderedImageRect.width), height: Math.round(renderedImageRect.height) } : null,
+  projectedFitBox: projected ? { left: Math.round(projected.left), top: Math.round(projected.top), width: Math.round(projected.width), height: Math.round(projected.height) } : null,
+}, null, 2)}
+        </pre>
+      )}
       {warning && <p className="rounded-lg bg-secondary/30 px-2 py-1 text-[11px] text-muted-foreground">{warning}</p>}
     </div>
   );
