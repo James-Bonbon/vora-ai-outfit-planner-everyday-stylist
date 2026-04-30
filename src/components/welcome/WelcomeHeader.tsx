@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import WelcomeThemeSwitcher, { type WelcomeThemeKey } from "./WelcomeThemeSwitcher";
 
 interface Props {
@@ -16,7 +17,15 @@ const WelcomeHeader = ({ activeTheme, onThemeChange }: Props) => (
     <span className="font-serif-display text-2xl tracking-[0.25em] text-foreground/80">
       VORA
     </span>
-    <WelcomeThemeSwitcher active={activeTheme} onChange={onThemeChange} />
+    <div className="flex items-center gap-4 md:gap-6">
+      <Link
+        to="/login"
+        className="text-[10px] uppercase tracking-[0.25em] font-outfit font-medium text-foreground/70 hover:text-foreground transition-colors whitespace-nowrap"
+      >
+        Sign in
+      </Link>
+      <WelcomeThemeSwitcher active={activeTheme} onChange={onThemeChange} />
+    </div>
   </motion.header>
 );
 
