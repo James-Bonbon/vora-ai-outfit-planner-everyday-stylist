@@ -1934,6 +1934,18 @@ export const OutfitCollage = ({ garments, debugAnchors = false, debugLegacyAncho
           </div>
         )}
 
+        {relationshipDebug?.layoutSpacing && (
+          <div className="rounded-lg bg-secondary/20 px-2 py-2">
+            <div className="font-semibold">Layout Spacing</div>
+            <div>Archetype: {relationshipDebug.layoutSpacing.archetype}</div>
+            <div>Outerwear/inner overlap %: {relationshipDebug.layoutSpacing.outerwearInnerOverlapPct != null ? `${relationshipDebug.layoutSpacing.outerwearInnerOverlapPct.toFixed(1)}%` : "—"}</div>
+            <div>Outerwear center offset: {relationshipDebug.layoutSpacing.outerwearCenterOffset != null ? relationshipDebug.layoutSpacing.outerwearCenterOffset.toFixed(2) : "—"}</div>
+            <div>Spacing correction applied: {relationshipDebug.layoutSpacing.spacingCorrectionApplied ? "Yes" : "No"}</div>
+            <div>Final group centered: {relationshipDebug.layoutSpacing.finalGroupCentered ? "Yes" : "No"}</div>
+            <div>Group center X: {relationshipDebug.layoutSpacing.groupCenterX != null ? relationshipDebug.layoutSpacing.groupCenterX.toFixed(2) : "—"}</div>
+          </div>
+        )}
+
         <details>
           <summary className="cursor-pointer font-medium">Advanced JSON</summary>
           <pre className="mt-1 max-h-52 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify({ compositionMetrics, sizingEngineDebug, relationshipDebug }, null, 2)}</pre>
