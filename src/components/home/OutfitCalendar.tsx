@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useWeather } from "@/hooks/useWeather";
+import { useWeather, weatherCodeToLabel, type ForecastByDate } from "@/hooks/useWeather";
 import { getCachedSignedUrls } from "@/utils/signedUrlCache";
 import { WeatherWidget } from "@/components/WeatherWidget";
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "@/components/ui/carousel";
@@ -43,9 +43,22 @@ interface CalendarEntry {
   garment_ids: string[];
   weather_temp: number | null;
   weather_label: string | null;
+  weather_code?: number | null;
+  weather_date?: string | null;
   occasion: string | null;
   status: string;
   calendar_events?: CalendarEvent[];
+}
+
+/** Resolve the temp to use when styling for a specific date. */
+function resolveTempForDate(
+  dateStr: string,
+  forecastByDate: ForecastByDate,
+  fallback: number | null | undefined,
+): number | null {
+  const f = forecastByDate[dateStr];
+  if (f && Number.isFinite(f.temp)) return f.temp;
+  return fallback ?? null;
 }
 
 interface GarmentSnapshot extends StylingItem {}
@@ -69,7 +82,7 @@ function isWeekend(date: Date) {
 const OutfitCalendar = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { weather, loading: weatherLoading } = useWeather();
+  const { weather, forecastByDate, loading: weatherLoading } = useWeather();
   const [entries, setEntries] = useState<CalendarEntry[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [garments, setGarments] = useState<Record<string, GarmentSnapshot>>({});
