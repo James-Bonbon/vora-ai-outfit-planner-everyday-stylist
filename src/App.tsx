@@ -91,6 +91,7 @@ const App = () => (
               <Route path="/welcome" element={<WelcomePage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/auth" element={<LoginPage />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/unsubscribe" element={<UnsubscribePage />} />
               <Route path="/legal" element={<LegalPage />} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
