@@ -108,18 +108,19 @@ const OutfitCalendar = () => {
     queryFn: async () => {
       const today = format(new Date(), "yyyy-MM-dd");
       const end = format(addDays(new Date(), 6), "yyyy-MM-dd");
+      const historyStart = format(addDays(new Date(), -14), "yyyy-MM-dd");
 
-      const [profileRes, closetRes, roleRes, outfitRes, eventsRes] = await Promise.all([
+      const [profileRes, closetRes, roleRes, outfitRes, eventsRes, historyRes] = await Promise.all([
         supabase.from("profiles").select("subscription_tier").eq("user_id", user!.id).maybeSingle(),
         supabase.from("closet_items").select("id, name, image_url, thumbnail_url, category, created_at, is_in_laundry, image_analysis, layout_metadata").eq("user_id", user!.id),
         supabase.from("user_roles").select("role").eq("user_id", user!.id).eq("role", "admin").maybeSingle(),
         supabase.from("outfit_calendar").select("*").eq("user_id", user!.id).gte("date", today).lte("date", end).order("date"),
         supabase.from("user_calendar_events").select("id, title, start_time, end_time, location").eq("user_id", user!.id).gte("start_time", today + "T00:00:00Z").lte("start_time", end + "T23:59:59Z").order("start_time"),
+        supabase.from("outfit_calendar").select("date, garment_ids").eq("user_id", user!.id).gte("date", historyStart).lt("date", today).order("date", { ascending: false }),
       ]);
 
       const pool: GarmentSnapshot[] = [];
       if (closetRes.data && closetRes.data.length > 0) {
-        // Prefer thumbnails for calendar previews; fall back to full image for legacy rows.
         const previewPaths = closetRes.data
           .map((it: any) => it.thumbnail_url || it.image_url)
           .filter(Boolean) as string[];
@@ -141,12 +142,17 @@ const OutfitCalendar = () => {
         }));
       }
 
+      const history: OutfitHistoryEntry[] = (historyRes.data || [])
+        .filter((row: any) => Array.isArray(row.garment_ids) && row.garment_ids.length > 0)
+        .map((row: any) => ({ date: row.date, garmentIds: row.garment_ids }));
+
       return {
         subscriptionTier: profileRes.data?.subscription_tier || "free",
         isAdmin: !!roleRes.data,
         garmentPool: pool,
         entries: outfitRes.data as CalendarEntry[] || [],
         calendarEvents: eventsRes.data as CalendarEvent[] || [],
+        history,
       };
     }
   });
