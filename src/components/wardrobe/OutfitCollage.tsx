@@ -1295,7 +1295,7 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
       const liveOuterAfterRect = liveOuterAfter ? getFitBoxCanvasRectBeforeNormalization(liveOuterAfter) : liveOuter;
       adjustedOuterwearY = liveOuterAfterRect.center.y;
       verticalShiftApplied = adjustedOuterwearY - previousOuterwearY;
-      outerwearVerticalReference = "top fitBox";
+      outerwearVerticalReference = "blended (0.65 top + 0.35 column)";
       constraintsApplied.push("top_bottom_outerwear_separation");
       constraintsApplied.push("outerwear_vertical_aligned_to_top");
     } else {
