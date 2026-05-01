@@ -186,6 +186,10 @@ type RelationshipSolverDebug = {
     spacingCorrectionApplied: boolean;
     finalGroupCentered: boolean;
     groupCenterX: number | null;
+    outerwearVerticalReference?: string | null;
+    previousOuterwearY?: number | null;
+    adjustedOuterwearY?: number | null;
+    verticalShiftApplied?: number | null;
   } | null;
 };
 
@@ -1173,6 +1177,12 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
     }
   }
 
+  // Debug fields populated by the top_bottom_outerwear vertical alignment.
+  let outerwearVerticalReference: string | null = null;
+  let previousOuterwearY: number | null = null;
+  let adjustedOuterwearY: number | null = null;
+  let verticalShiftApplied: number | null = null;
+
   if (outer && mainInner) {
     constraintsApplied.push("outerwear_frames_inner_layer");
     const outerBox = getFitBoxCanvasRectBeforeNormalization(outer);
@@ -1257,16 +1267,31 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
       // Mirror the dress_outerwear diagonal separation while keeping the
       // top + bottom inner column vertically connected. Outerwear sits to
       // the left/back; inner column nudges slightly right.
+      //
+      // VERTICAL REFERENCE FIX: previously we centered outerwear against the
+      // combined top+bottom column center, which dragged the coat down toward
+      // the trousers/skirt. Use the TOP garment fitBox as the vertical
+      // reference so the outerwear frames the upper body.
       const outerOffsetX = -16;
-      const outerOffsetY = 6;
+      const outerOffsetY = -6; // slight lift above the top center
       const innerShiftX = 13;
-      // Center outerwear left of inner column (use the combined column
-      // center so both top and bottom are framed together).
-      move(liveOuterItem, adjustedInner.center.x - liveOuter.center.x + outerOffsetX, adjustedInner.center.y - liveOuter.center.y + outerOffsetY);
+      const topItemLive = getFirst("tops");
+      const topRect = topItemLive ? getFitBoxCanvasRectBeforeNormalization(topItemLive) : adjustedInner;
+      const verticalRefY = topRect.center.y;
+      previousOuterwearY = liveOuter.center.y;
+      // Center outerwear horizontally left of inner column, vertically aligned
+      // to the top fitBox (not the combined column center).
+      move(liveOuterItem, adjustedInner.center.x - liveOuter.center.x + outerOffsetX, verticalRefY - liveOuter.center.y + outerOffsetY);
       // Shift the inner column (top + bottom together) slightly right.
       move(getFirst("tops"), innerShiftX, 0);
       move(getFirst("bottoms"), innerShiftX, 0);
+      const liveOuterAfter = getFirst("outerwear");
+      const liveOuterAfterRect = liveOuterAfter ? getFitBoxCanvasRectBeforeNormalization(liveOuterAfter) : liveOuter;
+      adjustedOuterwearY = liveOuterAfterRect.center.y;
+      verticalShiftApplied = adjustedOuterwearY - previousOuterwearY;
+      outerwearVerticalReference = "top fitBox";
       constraintsApplied.push("top_bottom_outerwear_separation");
+      constraintsApplied.push("outerwear_vertical_aligned_to_top");
     } else {
       move(liveOuterItem, adjustedInner.center.x - liveOuter.center.x - 10, adjustedInner.center.y - liveOuter.center.y + (mainInner.visualCategory === "dresses" ? 0 : 5));
     }
@@ -1421,6 +1446,10 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
         spacingCorrectionApplied: correctionApplied,
         finalGroupCentered: Math.abs(finalGroupCenterX - canvasCenter) <= 1.5,
         groupCenterX: roundMetric(finalGroupCenterX),
+        outerwearVerticalReference,
+        previousOuterwearY: previousOuterwearY != null ? roundMetric(previousOuterwearY) : null,
+        adjustedOuterwearY: adjustedOuterwearY != null ? roundMetric(adjustedOuterwearY) : null,
+        verticalShiftApplied: verticalShiftApplied != null ? roundMetric(verticalShiftApplied) : null,
       };
     }
   }
@@ -1943,6 +1972,14 @@ export const OutfitCollage = ({ garments, debugAnchors = false, debugLegacyAncho
             <div>Spacing correction applied: {relationshipDebug.layoutSpacing.spacingCorrectionApplied ? "Yes" : "No"}</div>
             <div>Final group centered: {relationshipDebug.layoutSpacing.finalGroupCentered ? "Yes" : "No"}</div>
             <div>Group center X: {relationshipDebug.layoutSpacing.groupCenterX != null ? relationshipDebug.layoutSpacing.groupCenterX.toFixed(2) : "—"}</div>
+            {relationshipDebug.layoutSpacing.outerwearVerticalReference && (
+              <>
+                <div>Outerwear vertical reference: {relationshipDebug.layoutSpacing.outerwearVerticalReference}</div>
+                <div>Previous outerwear Y: {relationshipDebug.layoutSpacing.previousOuterwearY != null ? relationshipDebug.layoutSpacing.previousOuterwearY.toFixed(2) : "—"}</div>
+                <div>Adjusted outerwear Y: {relationshipDebug.layoutSpacing.adjustedOuterwearY != null ? relationshipDebug.layoutSpacing.adjustedOuterwearY.toFixed(2) : "—"}</div>
+                <div>Vertical shift applied: {relationshipDebug.layoutSpacing.verticalShiftApplied != null ? relationshipDebug.layoutSpacing.verticalShiftApplied.toFixed(2) : "—"}</div>
+              </>
+            )}
           </div>
         )}
 
