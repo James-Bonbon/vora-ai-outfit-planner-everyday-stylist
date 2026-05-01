@@ -1177,6 +1177,12 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
     }
   }
 
+  // Debug fields populated by the top_bottom_outerwear vertical alignment.
+  let outerwearVerticalReference: string | null = null;
+  let previousOuterwearY: number | null = null;
+  let adjustedOuterwearY: number | null = null;
+  let verticalShiftApplied: number | null = null;
+
   if (outer && mainInner) {
     constraintsApplied.push("outerwear_frames_inner_layer");
     const outerBox = getFitBoxCanvasRectBeforeNormalization(outer);
