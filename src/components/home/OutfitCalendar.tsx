@@ -285,7 +285,7 @@ const OutfitCalendar = () => {
 
       return result.outfit.items as GarmentSnapshot[];
     },
-    [garments, garmentPool, meetsThreshold, swapCounts, weather, forecastByDate, recentSignatures, topsCount, bottomsCount],
+    [garments, garmentPool, meetsThreshold, swapCounts, weather, forecastByDate, recentSignatures, topsCount, bottomsCount, historyForDate],
   );
 
   /* ---- Swap handler — quality-gated cycle ---- */
