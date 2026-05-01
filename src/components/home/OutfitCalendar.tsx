@@ -17,13 +17,16 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from 
 import OutfitCollage from "@/components/wardrobe/OutfitCollage";
 import { useNavigate } from "react-router-dom";
 import {
-  generateSmartOutfit,
-  generateSwappedOutfit,
   countPools,
   MIN_TOPS,
   MIN_BOTTOMS,
   type StylingItem,
 } from "@/utils/stylingEngine";
+import {
+  findNextAcceptableOutfit,
+  outfitSignature,
+  type ScoredOutfit,
+} from "@/utils/outfitScoring";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -198,6 +201,16 @@ const OutfitCalendar = () => {
 
   /* ---- Swap counters per date (deterministic rotation) ---- */
   const [swapCounts, setSwapCounts] = useState<Record<string, number>>({});
+  /* ---- Recent outfit signatures per date (last few swaps) to avoid repeats ---- */
+  const [recentSignatures, setRecentSignatures] = useState<Record<string, string[]>>({});
+  /* ---- Last scored outfit per date — exposed for debug/UI ---- */
+  const [scoredByDate, setScoredByDate] = useState<Record<string, {
+    scored: ScoredOutfit;
+    acceptableCount: number;
+    evaluatedCount: number;
+    exhausted: boolean;
+    fallbackUsed: boolean;
+  }>>({});
 
   /* ---- Get contextual items for a date (uses per-date forecast temp) ---- */
   const getItemsForDate = useCallback(
@@ -209,66 +222,98 @@ const OutfitCalendar = () => {
 
       const dateStr = format(date, "yyyy-MM-dd");
       const swapOffset = swapCounts[dateStr] || 0;
-      // Per-date temp: prefer that date's forecast, fall back to current weather.
       const temp = resolveTempForDate(dateStr, forecastByDate, weather?.temp ?? null);
 
-      // Determine occasion from synced calendar
       const occasion = dailyEvents && dailyEvents.length > 0
         ? dailyEvents[0].title
         : entry?.occasion || (isWeekend(date) ? "Casual" : "Smart Casual");
 
-      const result =
-        swapOffset > 0
-          ? (generateSwappedOutfit(garmentPool, date, swapOffset, temp, occasion) as GarmentSnapshot[])
-          : (generateSmartOutfit(garmentPool, date, temp, occasion) as GarmentSnapshot[]);
+      const wardrobeIsSparse = (topsCount + bottomsCount) < (MIN_TOPS + MIN_BOTTOMS) + 2;
+
+      const result = findNextAcceptableOutfit(garmentPool, {
+        date,
+        tempC: temp,
+        occasion,
+        swapCount: swapOffset,
+        recentSignatures: recentSignatures[dateStr] || [],
+        wardrobeIsSparse,
+      });
+
+      if (!result.outfit) return [];
 
       if (import.meta.env.DEV) {
-        const hasOuterwear = result.some((g) =>
-          /\b(coat|jacket|sweater|hoodie|cardigan|parka|puffer|fleece|blazer|outerwear)\b/i.test(
-            (g.category || "") + " " + (g.name || ""),
-          ),
-        );
-        const hot = temp != null && temp > 22;
-        const cold = temp != null && temp < 15;
         // eslint-disable-next-line no-console
-        console.debug("[OutfitCalendar]", {
+        console.debug("[OutfitCalendar][score]", {
           date: dateStr,
-          tempUsed: temp,
-          band: hot ? "hot (>22°C)" : cold ? "cold (<15°C)" : "neutral (15–22°C)",
-          outerwearAdded: cold && hasOuterwear,
-          warmLayersFiltered: hot,
-          forecastSource: forecastByDate[dateStr] ? "daily-forecast" : "current-weather-fallback",
+          score: result.outfit.score,
+          band: result.outfit.band,
+          passes: result.outfit.passes,
+          reasons: result.outfit.reasons,
+          warnings: result.outfit.warnings,
+          acceptableCount: result.acceptableCount,
+          evaluatedCount: result.evaluatedCount,
+          fallbackUsed: result.fallbackUsed,
+          exhausted: result.exhausted,
+          breakdown: result.outfit.breakdown,
         });
       }
 
-      return result;
+      return result.outfit.items as GarmentSnapshot[];
     },
-    [garments, garmentPool, meetsThreshold, swapCounts, weather, forecastByDate],
+    [garments, garmentPool, meetsThreshold, swapCounts, weather, forecastByDate, recentSignatures, topsCount, bottomsCount],
   );
 
-  /* ---- Swap handler (deterministic rotation, no Math.random) ---- */
+  /* ---- Swap handler — quality-gated cycle ---- */
   const handleSwap = useCallback(
     (dateStr: string) => {
       if (!meetsThreshold) return;
-      const newCount = (swapCounts[dateStr] || 0) + 1;
-      setSwapCounts((prev) => ({ ...prev, [dateStr]: newCount }));
 
       const date = new Date(dateStr + "T00:00");
-
-      // Calculate occasion inside the swap
       const dayEvents = calendarEvents.filter((ev) => ev.start_time.startsWith(dateStr));
       const occasion = dayEvents.length > 0 ? dayEvents[0].title : (isWeekend(date) ? "Casual" : "Smart Casual");
 
-      // Per-date forecast snapshot: this is what we want to persist with the
-      // saved outfit so it doesn't drift if the forecast changes later.
       const forecast = forecastByDate[dateStr];
       const tempUsed = forecast?.temp ?? weather?.temp ?? null;
       const codeUsed = forecast?.code ?? weather?.code ?? null;
       const labelUsed = codeUsed != null ? weatherCodeToLabel(codeUsed) : null;
 
-      const swapped = generateSwappedOutfit(garmentPool, date, newCount, tempUsed, occasion);
-      if (swapped.length === 0) return;
+      const newCount = (swapCounts[dateStr] || 0) + 1;
+      const wardrobeIsSparse = (topsCount + bottomsCount) < (MIN_TOPS + MIN_BOTTOMS) + 2;
 
+      const result = findNextAcceptableOutfit(garmentPool, {
+        date,
+        tempC: tempUsed,
+        occasion,
+        swapCount: newCount,
+        recentSignatures: recentSignatures[dateStr] || [],
+        wardrobeIsSparse,
+      });
+
+      if (!result.outfit) return;
+
+      // Update per-date scoring snapshot for debug/UX
+      setScoredByDate((prev) => ({
+        ...prev,
+        [dateStr]: {
+          scored: result.outfit!,
+          acceptableCount: result.acceptableCount,
+          evaluatedCount: result.evaluatedCount,
+          exhausted: result.exhausted,
+          fallbackUsed: result.fallbackUsed,
+        },
+      }));
+
+      setSwapCounts((prev) => ({ ...prev, [dateStr]: newCount }));
+
+      // Track recency (keep last 5 signatures per date)
+      const sig = outfitSignature(result.outfit.items);
+      setRecentSignatures((prev) => {
+        const list = prev[dateStr] || [];
+        const next = [sig, ...list.filter((s) => s !== sig)].slice(0, 5);
+        return { ...prev, [dateStr]: next };
+      });
+
+      const swapped = result.outfit.items as GarmentSnapshot[];
       const map = { ...garments };
       swapped.forEach((g) => (map[g.id] = g as GarmentSnapshot));
       setGarments(map);
@@ -306,7 +351,7 @@ const OutfitCalendar = () => {
         ];
       });
     },
-    [garments, garmentPool, meetsThreshold, swapCounts, weather, forecastByDate, calendarEvents],
+    [garments, garmentPool, meetsThreshold, swapCounts, weather, forecastByDate, calendarEvents, recentSignatures, topsCount, bottomsCount],
   );
 
   /* ---- Edit: assign specific item ---- */
@@ -445,6 +490,41 @@ const OutfitCalendar = () => {
     ? todaySlot.calendarEvents[0].title
     : todaySlot.entry?.occasion || (isWeekend(todaySlot.date) ? "Casual" : "Smart Casual");
 
+  /* ---- Compute & cache today's score for debug panel / exhausted UI ---- */
+  useEffect(() => {
+    if (!meetsThreshold) return;
+    if (todaySlot.entry?.garment_ids?.length) return; // user-edited override, no score
+    const dateStr = todaySlot.dateStr;
+    const temp = resolveTempForDate(dateStr, forecastByDate, weather?.temp ?? null);
+    const wardrobeIsSparse = (topsCount + bottomsCount) < (MIN_TOPS + MIN_BOTTOMS) + 2;
+    const result = findNextAcceptableOutfit(garmentPool, {
+      date: todaySlot.date,
+      tempC: temp,
+      occasion: todayOccasion,
+      swapCount: swapCounts[dateStr] || 0,
+      recentSignatures: recentSignatures[dateStr] || [],
+      wardrobeIsSparse,
+    });
+    if (!result.outfit) return;
+    setScoredByDate((prev) => {
+      const existing = prev[dateStr];
+      if (existing && existing.scored.score === result.outfit!.score && existing.exhausted === result.exhausted) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [dateStr]: {
+          scored: result.outfit!,
+          acceptableCount: result.acceptableCount,
+          evaluatedCount: result.evaluatedCount,
+          exhausted: result.exhausted,
+          fallbackUsed: result.fallbackUsed,
+        },
+      };
+    });
+  }, [todaySlot, todayOccasion, garmentPool, meetsThreshold, swapCounts, recentSignatures, forecastByDate, weather, topsCount, bottomsCount]);
+
+
   return (
     <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
       <div className="rounded-2xl glass-card p-4">
@@ -527,6 +607,35 @@ const OutfitCalendar = () => {
               </Button>
             </DrawerTrigger>
           </div>
+
+          {/* Exhausted message — no more strong matches */}
+          {scoredByDate[todaySlot.dateStr]?.exhausted && (
+            <p className="mt-3 text-center text-[11px] text-muted-foreground italic">
+              No more strong matches today — looping through your best picks.
+            </p>
+          )}
+
+          {/* Debug score panel */}
+          {import.meta.env.DEV && scoredByDate[todaySlot.dateStr] && (() => {
+            const s = scoredByDate[todaySlot.dateStr];
+            const o = s.scored;
+            return (
+              <div className="mt-3 rounded-xl border border-border bg-muted/40 p-2.5 text-[10px] leading-relaxed text-foreground space-y-0.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold">Outfit score</span>
+                  <span className="font-mono">{o.score} · {o.band}</span>
+                </div>
+                <div>Threshold: {o.passes ? "PASS (≥70)" : s.fallbackUsed ? "FALLBACK" : "FAIL"}</div>
+                <div>Top reasons: {o.reasons.join(", ")}</div>
+                {o.warnings.length > 0 && (
+                  <div className="text-amber-700 dark:text-amber-400">⚠ {o.warnings.join(" · ")}</div>
+                )}
+                <div className="text-muted-foreground">
+                  Acceptable {s.acceptableCount}/{s.evaluatedCount} candidates
+                </div>
+              </div>
+            );
+          })()}
 
           <div className="mt-4 pt-3 border-t border-border text-center">
             <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
