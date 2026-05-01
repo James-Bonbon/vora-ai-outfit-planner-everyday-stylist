@@ -1249,6 +1249,10 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
     const liveInnerItem = getFirst(mainInner.visualCategory);
     const adjustedInner = topBottomColumnActive ? innerColumnBox : (liveInnerItem ? getFitBoxCanvasRectBeforeNormalization(liveInnerItem) : innerColumnBox);
     const liveOuter = liveOuterItem ? getFitBoxCanvasRectBeforeNormalization(liveOuterItem) : outerBox;
+    let outerwearVerticalReference: string | null = null;
+    let previousOuterwearY: number | null = null;
+    let adjustedOuterwearY: number | null = null;
+    let verticalShiftApplied: number | null = null;
     if (archetype === "dress_outerwear") {
       const outerOffsetX = -16;
       const outerOffsetY = 6;
