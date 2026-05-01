@@ -1273,14 +1273,20 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
       // the trousers/skirt. Use the TOP garment fitBox as the vertical
       // reference so the outerwear frames the upper body.
       const outerOffsetX = -16;
-      const outerOffsetY = -6; // slight lift above the top center
+      const outerOffsetY = 2; // small downward nudge so coat overlaps upper body naturally
       const innerShiftX = 13;
       const topItemLive = getFirst("tops");
       const topRect = topItemLive ? getFitBoxCanvasRectBeforeNormalization(topItemLive) : adjustedInner;
-      const verticalRefY = topRect.center.y;
+      // BLENDED VERTICAL REFERENCE: weighted blend between the top fitBox
+      // center (65%) and the combined top+bottom column center (35%).
+      // - Pure top center => coat floats too high.
+      // - Pure column center => coat sags toward the trousers/skirt.
+      // The 65/35 blend keeps the coat framing the upper body while still
+      // overlapping the inner column naturally.
+      const verticalRefY = topRect.center.y * 0.65 + adjustedInner.center.y * 0.35;
       previousOuterwearY = liveOuter.center.y;
       // Center outerwear horizontally left of inner column, vertically aligned
-      // to the top fitBox (not the combined column center).
+      // to the blended reference.
       move(liveOuterItem, adjustedInner.center.x - liveOuter.center.x + outerOffsetX, verticalRefY - liveOuter.center.y + outerOffsetY);
       // Shift the inner column (top + bottom together) slightly right.
       move(getFirst("tops"), innerShiftX, 0);
