@@ -1257,7 +1257,7 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
     const liveOuter = liveOuterItem ? getFitBoxCanvasRectBeforeNormalization(liveOuterItem) : outerBox;
     if (archetype === "dress_outerwear") {
       const outerOffsetX = -16;
-      const outerOffsetY = 6;
+      const outerOffsetY = -2;
       const dressOffsetX = 13;
       const dressOffsetY = 0;
       move(liveOuterItem, adjustedInner.center.x - liveOuter.center.x + outerOffsetX, adjustedInner.center.y - liveOuter.center.y + outerOffsetY);
