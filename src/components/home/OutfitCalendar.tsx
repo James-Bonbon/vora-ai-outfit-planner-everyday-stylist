@@ -26,6 +26,7 @@ import {
   findNextAcceptableOutfit,
   outfitSignature,
   type ScoredOutfit,
+  type OutfitHistoryEntry,
 } from "@/utils/outfitScoring";
 
 /* ------------------------------------------------------------------ */
