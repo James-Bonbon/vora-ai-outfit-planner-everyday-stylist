@@ -1446,6 +1446,10 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
         spacingCorrectionApplied: correctionApplied,
         finalGroupCentered: Math.abs(finalGroupCenterX - canvasCenter) <= 1.5,
         groupCenterX: roundMetric(finalGroupCenterX),
+        outerwearVerticalReference,
+        previousOuterwearY: previousOuterwearY != null ? roundMetric(previousOuterwearY) : null,
+        adjustedOuterwearY: adjustedOuterwearY != null ? roundMetric(adjustedOuterwearY) : null,
+        verticalShiftApplied: verticalShiftApplied != null ? roundMetric(verticalShiftApplied) : null,
       };
     }
   }
