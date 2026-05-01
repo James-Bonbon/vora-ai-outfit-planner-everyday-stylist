@@ -198,6 +198,7 @@ const OutfitCalendar = () => {
       setGarmentPool(cachedData.garmentPool);
       setEntries(cachedData.entries);
       setCalendarEvents(cachedData.calendarEvents);
+      setPastHistory(cachedData.history || []);
     }
   }, [cachedData]);
 
