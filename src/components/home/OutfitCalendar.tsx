@@ -91,6 +91,7 @@ const OutfitCalendar = () => {
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [garments, setGarments] = useState<Record<string, GarmentSnapshot>>({});
   const [garmentPool, setGarmentPool] = useState<GarmentSnapshot[]>([]);
+  const [pastHistory, setPastHistory] = useState<OutfitHistoryEntry[]>([]);
   const [subscriptionTier, setSubscriptionTier] = useState("free");
   const [isAdmin, setIsAdmin] = useState(false);
   const [editingDate, setEditingDate] = useState<string | null>(null);
