@@ -490,41 +490,6 @@ const OutfitCalendar = () => {
     ? todaySlot.calendarEvents[0].title
     : todaySlot.entry?.occasion || (isWeekend(todaySlot.date) ? "Casual" : "Smart Casual");
 
-  /* ---- Compute & cache today's score for debug panel / exhausted UI ---- */
-  useEffect(() => {
-    if (!meetsThreshold) return;
-    if (todaySlot.entry?.garment_ids?.length) return; // user-edited override, no score
-    const dateStr = todaySlot.dateStr;
-    const temp = resolveTempForDate(dateStr, forecastByDate, weather?.temp ?? null);
-    const wardrobeIsSparse = (topsCount + bottomsCount) < (MIN_TOPS + MIN_BOTTOMS) + 2;
-    const result = findNextAcceptableOutfit(garmentPool, {
-      date: todaySlot.date,
-      tempC: temp,
-      occasion: todayOccasion,
-      swapCount: swapCounts[dateStr] || 0,
-      recentSignatures: recentSignatures[dateStr] || [],
-      wardrobeIsSparse,
-    });
-    if (!result.outfit) return;
-    setScoredByDate((prev) => {
-      const existing = prev[dateStr];
-      if (existing && existing.scored.score === result.outfit!.score && existing.exhausted === result.exhausted) {
-        return prev;
-      }
-      return {
-        ...prev,
-        [dateStr]: {
-          scored: result.outfit!,
-          acceptableCount: result.acceptableCount,
-          evaluatedCount: result.evaluatedCount,
-          exhausted: result.exhausted,
-          fallbackUsed: result.fallbackUsed,
-        },
-      };
-    });
-  }, [todaySlot, todayOccasion, garmentPool, meetsThreshold, swapCounts, recentSignatures, forecastByDate, weather, topsCount, bottomsCount]);
-
-
   return (
     <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
       <div className="rounded-2xl glass-card p-4">
