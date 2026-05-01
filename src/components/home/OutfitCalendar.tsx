@@ -431,6 +431,46 @@ const OutfitCalendar = () => {
     };
   }, [upcomingApi, updateUpcomingProgress]);
 
+  /* ---- Compute & cache today's score for debug panel / exhausted UI ---- */
+  useEffect(() => {
+    if (!meetsThreshold) return;
+    const date = new Date();
+    const dateStr = format(date, "yyyy-MM-dd");
+    const entry = entries.find((e) => e.date === dateStr);
+    if (entry?.garment_ids?.length) return; // user-edited override, no score
+    const dayEvents = calendarEvents.filter((ev) => ev.start_time.startsWith(dateStr));
+    const occasion = dayEvents.length > 0
+      ? dayEvents[0].title
+      : entry?.occasion || (isWeekend(date) ? "Casual" : "Smart Casual");
+    const temp = resolveTempForDate(dateStr, forecastByDate, weather?.temp ?? null);
+    const wardrobeIsSparse = (topsCount + bottomsCount) < (MIN_TOPS + MIN_BOTTOMS) + 2;
+    const result = findNextAcceptableOutfit(garmentPool, {
+      date,
+      tempC: temp,
+      occasion,
+      swapCount: swapCounts[dateStr] || 0,
+      recentSignatures: recentSignatures[dateStr] || [],
+      wardrobeIsSparse,
+    });
+    if (!result.outfit) return;
+    setScoredByDate((prev) => {
+      const existing = prev[dateStr];
+      if (existing && existing.scored.score === result.outfit!.score && existing.exhausted === result.exhausted) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [dateStr]: {
+          scored: result.outfit!,
+          acceptableCount: result.acceptableCount,
+          evaluatedCount: result.evaluatedCount,
+          exhausted: result.exhausted,
+          fallbackUsed: result.fallbackUsed,
+        },
+      };
+    });
+  }, [entries, calendarEvents, garmentPool, meetsThreshold, swapCounts, recentSignatures, forecastByDate, weather, topsCount, bottomsCount]);
+
   /* ---- LOCKED STATE: Not enough items ---- */
   if (!isLoading && !meetsThreshold) {
     return (
