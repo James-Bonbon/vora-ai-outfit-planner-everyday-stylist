@@ -260,6 +260,7 @@ const OutfitCalendar = () => {
         occasion,
         swapCount: swapOffset,
         recentSignatures: recentSignatures[dateStr] || [],
+        history: historyForDate(dateStr),
         wardrobeIsSparse,
       });
 
