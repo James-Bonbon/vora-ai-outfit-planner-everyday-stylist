@@ -71,16 +71,48 @@ export const LookbookTab = ({ items, imageUrls }: { items: ClosetItem[]; imageUr
     });
   };
 
-  const handleAISuggest = () => {
+  const handleAISuggest = async () => {
     const pool = items.map((item) => ({
       ...item,
       image_url: imageUrls[item.id] || item.image_url,
       source: "closet" as const,
     }));
-    const suggested = generateSmartOutfit(pool as any, new Date(), null);
-    if (suggested && suggested.length > 0) {
+
+    // Pull last 14 days of outfit history so the suggestion avoids repeats
+    // already worn / planned in the calendar.
+    let history: { date: string; garmentIds: string[] }[] = [];
+    if (user) {
+      const today = new Date();
+      const start = new Date(today);
+      start.setDate(start.getDate() - 14);
+      const fmt = (d: Date) => d.toISOString().slice(0, 10);
+      const { data } = await supabase
+        .from("outfit_calendar")
+        .select("date, garment_ids")
+        .eq("user_id", user.id)
+        .gte("date", fmt(start))
+        .lte("date", fmt(today));
+      history = (data || [])
+        .filter((r: any) => Array.isArray(r.garment_ids) && r.garment_ids.length > 0)
+        .map((r: any) => ({ date: r.date, garmentIds: r.garment_ids }));
+    }
+
+    const result = findNextAcceptableOutfit(pool as any, {
+      date: new Date(),
+      tempC: null,
+      occasion: null,
+      swapCount: 0,
+      history,
+      wardrobeIsSparse: pool.length < 10,
+    });
+    const suggested = result.outfit?.items || [];
+    if (suggested.length > 0) {
       setSelectedIds(new Set(suggested.map((g) => g.id)));
-      toast.success("AI suggested an outfit!");
+      if (result.fallbackUsed) {
+        toast.success("AI suggested an outfit (limited matches available).");
+      } else {
+        toast.success("AI suggested an outfit!");
+      }
     } else {
       toast.error("Not enough items in your closet to auto-suggest.");
     }
