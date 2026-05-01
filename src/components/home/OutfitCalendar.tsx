@@ -17,13 +17,16 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from 
 import OutfitCollage from "@/components/wardrobe/OutfitCollage";
 import { useNavigate } from "react-router-dom";
 import {
-  generateSmartOutfit,
-  generateSwappedOutfit,
   countPools,
   MIN_TOPS,
   MIN_BOTTOMS,
   type StylingItem,
 } from "@/utils/stylingEngine";
+import {
+  findNextAcceptableOutfit,
+  outfitSignature,
+  type ScoredOutfit,
+} from "@/utils/outfitScoring";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
