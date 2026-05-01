@@ -377,7 +377,7 @@ const OutfitCalendar = () => {
         ];
       });
     },
-    [garments, garmentPool, meetsThreshold, swapCounts, weather, forecastByDate, calendarEvents, recentSignatures, topsCount, bottomsCount],
+    [garments, garmentPool, meetsThreshold, swapCounts, weather, forecastByDate, calendarEvents, recentSignatures, topsCount, bottomsCount, historyForDate],
   );
 
   /* ---- Edit: assign specific item ---- */
