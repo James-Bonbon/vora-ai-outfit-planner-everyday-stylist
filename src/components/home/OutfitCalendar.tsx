@@ -311,6 +311,7 @@ const OutfitCalendar = () => {
         occasion,
         swapCount: newCount,
         recentSignatures: recentSignatures[dateStr] || [],
+        history: historyForDate(dateStr),
         wardrobeIsSparse,
       });
 
