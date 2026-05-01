@@ -221,6 +221,21 @@ const OutfitCalendar = () => {
     fallbackUsed: boolean;
   }>>({});
 
+  /* ---- Build outfit history for a target date (past + earlier upcoming) ---- */
+  const historyForDate = useCallback(
+    (targetDateStr: string): OutfitHistoryEntry[] => {
+      // Past 14 days from DB
+      const past = pastHistory;
+      // Already-suggested/planned entries for dates earlier than target
+      // (so consecutive future days don't repeat the same items).
+      const futurePlanned: OutfitHistoryEntry[] = entries
+        .filter((e) => e.date < targetDateStr && Array.isArray(e.garment_ids) && e.garment_ids.length > 0)
+        .map((e) => ({ date: e.date, garmentIds: e.garment_ids }));
+      return [...past, ...futurePlanned];
+    },
+    [pastHistory, entries],
+  );
+
   /* ---- Get contextual items for a date (uses per-date forecast temp) ---- */
   const getItemsForDate = useCallback(
     (date: Date, entry?: CalendarEntry, dailyEvents?: CalendarEvent[]): GarmentSnapshot[] => {
