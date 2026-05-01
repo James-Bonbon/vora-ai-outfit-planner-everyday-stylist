@@ -476,6 +476,7 @@ const OutfitCalendar = () => {
       occasion,
       swapCount: swapCounts[dateStr] || 0,
       recentSignatures: recentSignatures[dateStr] || [],
+      history: historyForDate(dateStr),
       wardrobeIsSparse,
     });
     if (!result.outfit) return;
@@ -495,7 +496,7 @@ const OutfitCalendar = () => {
         },
       };
     });
-  }, [entries, calendarEvents, garmentPool, meetsThreshold, swapCounts, recentSignatures, forecastByDate, weather, topsCount, bottomsCount]);
+  }, [entries, calendarEvents, garmentPool, meetsThreshold, swapCounts, recentSignatures, forecastByDate, weather, topsCount, bottomsCount, historyForDate]);
 
   /* ---- LOCKED STATE: Not enough items ---- */
   if (!isLoading && !meetsThreshold) {
