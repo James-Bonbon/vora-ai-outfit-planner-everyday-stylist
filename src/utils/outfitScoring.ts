@@ -183,18 +183,157 @@ function scoreRecency(items: StylingItem[], recentSignatures: string[]): number 
   return 95;
 }
 
+// ─── Garment repeat / cooldown ──────────────────────────────────────────
+
+/** Recent outfit history entry — one per past day. */
+export interface OutfitHistoryEntry {
+  date: string; // yyyy-MM-dd
+  garmentIds: string[];
+}
+
+/** Pre-computed "days since last worn" map per garment id. */
+type DaysSinceMap = Map<string, number>;
+
+function daysBetween(aStr: string, bStr: string): number {
+  const a = new Date(aStr + "T00:00:00").getTime();
+  const b = new Date(bStr + "T00:00:00").getTime();
+  return Math.round(Math.abs(a - b) / 86_400_000);
+}
+
+/**
+ * Build a map of garmentId → minimum days between targetDate and any
+ * historical use of that garment.
+ */
+export function buildDaysSinceMap(
+  history: OutfitHistoryEntry[],
+  targetDateStr: string,
+): DaysSinceMap {
+  const map: DaysSinceMap = new Map();
+  for (const entry of history) {
+    if (entry.date === targetDateStr) continue; // skip the target day itself
+    const days = daysBetween(entry.date, targetDateStr);
+    for (const id of entry.garmentIds) {
+      const prev = map.get(id);
+      if (prev === undefined || days < prev) map.set(id, days);
+    }
+  }
+  return map;
+}
+
+/**
+ * Count consecutive days a garment has been used immediately preceding the
+ * target date. Used to soft-cap outerwear repeats.
+ */
+function consecutiveStreak(
+  history: OutfitHistoryEntry[],
+  targetDateStr: string,
+  garmentId: string,
+): number {
+  const sorted = [...history].sort((a, b) => (a.date < b.date ? 1 : -1));
+  let streak = 0;
+  let expected = new Date(targetDateStr + "T00:00:00");
+  expected.setDate(expected.getDate() - 1);
+  for (const entry of sorted) {
+    const expectedStr = expected.toISOString().slice(0, 10);
+    if (entry.date !== expectedStr) {
+      if (entry.date < expectedStr) break;
+      continue;
+    }
+    if (!entry.garmentIds.includes(garmentId)) break;
+    streak++;
+    expected.setDate(expected.getDate() - 1);
+  }
+  return streak;
+}
+
+interface RepeatScoreResult {
+  score: number;
+  hardReject: boolean;
+  reasons: string[];
+}
+
+/**
+ * Penalize candidates that re-use main garments worn recently.
+ *
+ * - Same outfit (exact signature) within 14d → hard reject (handled separately
+ *   by recentSignatures, but we double-down here at 30 score).
+ * - Main garment (top/bottom/dress) used yesterday → hard reject unless sparse.
+ * - Used in last 3 days → heavy penalty.
+ * - Used in last 7 days → light penalty.
+ * - Outerwear is exempt unless worn 3+ consecutive days.
+ */
+function scoreGarmentRepeats(
+  items: StylingItem[],
+  history: OutfitHistoryEntry[],
+  targetDateStr: string,
+  daysSince: DaysSinceMap,
+  wardrobeIsSparse: boolean,
+): RepeatScoreResult {
+  if (history.length === 0) return { score: 95, hardReject: false, reasons: [] };
+
+  let score = 100;
+  let hardReject = false;
+  const reasons: string[] = [];
+
+  for (const item of items) {
+    const isOuter = matches(item, OUTERWEAR_RE);
+    const isMain =
+      !isOuter &&
+      (matches(item, TOP_RE) || matches(item, BOTTOM_RE) || matches(item, DRESS_RE));
+    const days = daysSince.get(item.id);
+    if (days === undefined) continue;
+
+    if (isOuter) {
+      const streak = consecutiveStreak(history, targetDateStr, item.id);
+      if (streak >= 3) {
+        score -= 25;
+        reasons.push(`outerwear "${item.name || "item"}" worn ${streak} days running`);
+      } else if (days === 1) {
+        // outerwear repeating yesterday is fine (cold weather), small nudge only
+        score -= 3;
+      }
+      continue;
+    }
+
+    if (isMain) {
+      if (days === 1) {
+        if (!wardrobeIsSparse) {
+          hardReject = true;
+          reasons.push(`"${item.name || "item"}" worn yesterday`);
+        } else {
+          score -= 30;
+          reasons.push(`"${item.name || "item"}" worn yesterday (sparse wardrobe)`);
+        }
+      } else if (days <= 3) {
+        score -= 22;
+        reasons.push(`"${item.name || "item"}" worn ${days}d ago`);
+      } else if (days <= 7) {
+        score -= 10;
+      } else if (days <= 14) {
+        score -= 4;
+      }
+    } else {
+      // Accessories / other: very light touch
+      if (days === 1) score -= 3;
+    }
+  }
+
+  return { score: Math.max(0, score), hardReject, reasons };
+}
+
 // ─── Composite scoring ──────────────────────────────────────────────────
 
 const WEIGHTS = {
-  weather: 0.18,
-  occasion: 0.18,
-  color: 0.12,
-  silhouette: 0.1,
-  category: 0.16,
-  formality: 0.1,
-  season: 0.06,
+  weather: 0.16,
+  occasion: 0.16,
+  color: 0.1,
+  silhouette: 0.08,
+  category: 0.14,
+  formality: 0.08,
+  season: 0.05,
   laundry: 0.05,
-  recency: 0.05,
+  recency: 0.06,
+  repeats: 0.12,
 };
 
 export function outfitSignature(items: StylingItem[]): string {
@@ -208,9 +347,17 @@ export interface ScoreContext {
   tempC: number | null | undefined;
   occasion: string | null | undefined;
   recentSignatures: string[]; // recent outfits to avoid repeating
+  history?: OutfitHistoryEntry[];
+  targetDateStr?: string;
+  daysSince?: DaysSinceMap;
+  wardrobeIsSparse?: boolean;
 }
 
 export function scoreOutfit(items: StylingItem[], ctx: ScoreContext): ScoredOutfit {
+  const repeat = ctx.history && ctx.targetDateStr && ctx.daysSince
+    ? scoreGarmentRepeats(items, ctx.history, ctx.targetDateStr, ctx.daysSince, !!ctx.wardrobeIsSparse)
+    : { score: 90, hardReject: false, reasons: [] };
+
   const breakdown = {
     weather: scoreWeather(items, ctx.tempC),
     occasion: scoreOccasion(items, ctx.occasion),
@@ -221,15 +368,18 @@ export function scoreOutfit(items: StylingItem[], ctx: ScoreContext): ScoredOutf
     season: scoreSeasonMaterial(items, ctx.tempC),
     laundry: scoreLaundry(items),
     recency: scoreRecency(items, ctx.recentSignatures),
+    repeats: repeat.score,
   };
 
   let total = 0;
   for (const k of Object.keys(WEIGHTS) as (keyof typeof WEIGHTS)[]) {
     total += breakdown[k] * WEIGHTS[k];
   }
-  const score = Math.round(total);
+  let score = Math.round(total);
 
-  // Top 2 reasons (highest-scoring dimensions among the meaningful ones)
+  // Hard reject: collapse score below NEVER threshold so it gets dropped
+  if (repeat.hardReject) score = Math.min(score, SCORE_NEVER - 1);
+
   const labels: Record<string, string> = {
     weather: "weather-appropriate",
     occasion: "occasion fit",
@@ -240,6 +390,7 @@ export function scoreOutfit(items: StylingItem[], ctx: ScoreContext): ScoredOutf
     season: "seasonal materials",
     laundry: "everything available",
     recency: "fresh combination",
+    repeats: "fresh garment rotation",
   };
   const reasons = Object.entries(breakdown)
     .sort(([, a], [, b]) => b - a)
@@ -252,6 +403,8 @@ export function scoreOutfit(items: StylingItem[], ctx: ScoreContext): ScoredOutf
   if (breakdown.formality < 50) warnings.push("mixed formality");
   if (breakdown.weather < 50) warnings.push("weather mismatch");
   if (breakdown.occasion < 50) warnings.push("occasion mismatch");
+  if (repeat.hardReject) warnings.push(`repeat: ${repeat.reasons[0] || "main garment reused"}`);
+  else if (repeat.reasons.length > 0 && breakdown.repeats < 70) warnings.push(`repeat: ${repeat.reasons[0]}`);
 
   let band: ConfidenceBand;
   if (score >= SCORE_STRONG) band = "strong";
@@ -273,40 +426,49 @@ export function scoreOutfit(items: StylingItem[], ctx: ScoreContext): ScoredOutf
 
 // ─── Candidate enumeration & selection ──────────────────────────────────
 
-const MAX_CANDIDATES = 40; // enumeration ceiling for swap cycle
+const MAX_CANDIDATES = 40;
 
 export interface FindOptions {
   date: Date;
   tempC: number | null | undefined;
   occasion: string | null | undefined;
-  swapCount: number; // 0 = initial; n = nth swap press
+  swapCount: number;
   recentSignatures?: string[];
-  wardrobeIsSparse?: boolean; // if true, fall back to "low" band
+  /** Recent outfit history (last ~14 days). Used for repeat protection. */
+  history?: OutfitHistoryEntry[];
+  wardrobeIsSparse?: boolean;
 }
 
 export interface FindResult {
   outfit: ScoredOutfit | null;
-  acceptableCount: number; // how many candidates passed acceptable threshold
+  acceptableCount: number;
   evaluatedCount: number;
-  exhausted: boolean; // true when swap looped back / no fresh acceptable left
+  exhausted: boolean;
   fallbackUsed: boolean;
 }
 
-/**
- * Enumerate up to MAX_CANDIDATES outfits from the deterministic engine,
- * score & filter them, then return the swap-Nth acceptable one.
- *
- * When no candidate clears the acceptable threshold, return the highest-scoring
- * one and mark it as low confidence (or rejected if even that is below NEVER).
- */
 export function findNextAcceptableOutfit(
   pool: StylingItem[],
   opts: FindOptions,
 ): FindResult {
+  const targetDateStr = opts.date.toISOString().slice(0, 10);
+  const history = opts.history || [];
+  const daysSince = buildDaysSinceMap(history, targetDateStr);
+
+  // Auto-build recentSignatures from history (last 14 days)
+  const historicalSigs = history
+    .filter((h) => daysBetween(h.date, targetDateStr) <= 14)
+    .map((h) => [...h.garmentIds].sort().join("|"));
+  const recentSignatures = [...(opts.recentSignatures || []), ...historicalSigs];
+
   const ctx: ScoreContext = {
     tempC: opts.tempC,
     occasion: opts.occasion,
-    recentSignatures: opts.recentSignatures || [],
+    recentSignatures,
+    history,
+    targetDateStr,
+    daysSince,
+    wardrobeIsSparse: opts.wardrobeIsSparse,
   };
 
   const seen = new Set<string>();
@@ -326,7 +488,6 @@ export function findNextAcceptableOutfit(
     if (s.score >= SCORE_NEVER) scored.push(s);
   }
 
-  // Acceptable pool — sorted by score so swap visits best→worst within the gate
   const acceptable = scored.filter((s) => s.passes).sort((a, b) => b.score - a.score);
 
   if (acceptable.length > 0) {
@@ -341,7 +502,6 @@ export function findNextAcceptableOutfit(
     };
   }
 
-  // Fallback: best available, mark low confidence
   const best = scored.sort((a, b) => b.score - a.score)[0];
   if (!best) {
     return { outfit: null, acceptableCount: 0, evaluatedCount: 0, exhausted: true, fallbackUsed: false };
@@ -356,3 +516,4 @@ export function findNextAcceptableOutfit(
     fallbackUsed: true,
   };
 }
+

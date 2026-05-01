@@ -26,6 +26,7 @@ import {
   findNextAcceptableOutfit,
   outfitSignature,
   type ScoredOutfit,
+  type OutfitHistoryEntry,
 } from "@/utils/outfitScoring";
 
 /* ------------------------------------------------------------------ */
@@ -90,6 +91,7 @@ const OutfitCalendar = () => {
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [garments, setGarments] = useState<Record<string, GarmentSnapshot>>({});
   const [garmentPool, setGarmentPool] = useState<GarmentSnapshot[]>([]);
+  const [pastHistory, setPastHistory] = useState<OutfitHistoryEntry[]>([]);
   const [subscriptionTier, setSubscriptionTier] = useState("free");
   const [isAdmin, setIsAdmin] = useState(false);
   const [editingDate, setEditingDate] = useState<string | null>(null);
@@ -108,18 +110,19 @@ const OutfitCalendar = () => {
     queryFn: async () => {
       const today = format(new Date(), "yyyy-MM-dd");
       const end = format(addDays(new Date(), 6), "yyyy-MM-dd");
+      const historyStart = format(addDays(new Date(), -14), "yyyy-MM-dd");
 
-      const [profileRes, closetRes, roleRes, outfitRes, eventsRes] = await Promise.all([
+      const [profileRes, closetRes, roleRes, outfitRes, eventsRes, historyRes] = await Promise.all([
         supabase.from("profiles").select("subscription_tier").eq("user_id", user!.id).maybeSingle(),
         supabase.from("closet_items").select("id, name, image_url, thumbnail_url, category, created_at, is_in_laundry, image_analysis, layout_metadata").eq("user_id", user!.id),
         supabase.from("user_roles").select("role").eq("user_id", user!.id).eq("role", "admin").maybeSingle(),
         supabase.from("outfit_calendar").select("*").eq("user_id", user!.id).gte("date", today).lte("date", end).order("date"),
         supabase.from("user_calendar_events").select("id, title, start_time, end_time, location").eq("user_id", user!.id).gte("start_time", today + "T00:00:00Z").lte("start_time", end + "T23:59:59Z").order("start_time"),
+        supabase.from("outfit_calendar").select("date, garment_ids").eq("user_id", user!.id).gte("date", historyStart).lt("date", today).order("date", { ascending: false }),
       ]);
 
       const pool: GarmentSnapshot[] = [];
       if (closetRes.data && closetRes.data.length > 0) {
-        // Prefer thumbnails for calendar previews; fall back to full image for legacy rows.
         const previewPaths = closetRes.data
           .map((it: any) => it.thumbnail_url || it.image_url)
           .filter(Boolean) as string[];
@@ -141,12 +144,17 @@ const OutfitCalendar = () => {
         }));
       }
 
+      const history: OutfitHistoryEntry[] = (historyRes.data || [])
+        .filter((row: any) => Array.isArray(row.garment_ids) && row.garment_ids.length > 0)
+        .map((row: any) => ({ date: row.date, garmentIds: row.garment_ids }));
+
       return {
         subscriptionTier: profileRes.data?.subscription_tier || "free",
         isAdmin: !!roleRes.data,
         garmentPool: pool,
         entries: outfitRes.data as CalendarEntry[] || [],
         calendarEvents: eventsRes.data as CalendarEvent[] || [],
+        history,
       };
     }
   });
@@ -190,6 +198,7 @@ const OutfitCalendar = () => {
       setGarmentPool(cachedData.garmentPool);
       setEntries(cachedData.entries);
       setCalendarEvents(cachedData.calendarEvents);
+      setPastHistory(cachedData.history || []);
     }
   }, [cachedData]);
 
@@ -211,6 +220,21 @@ const OutfitCalendar = () => {
     exhausted: boolean;
     fallbackUsed: boolean;
   }>>({});
+
+  /* ---- Build outfit history for a target date (past + earlier upcoming) ---- */
+  const historyForDate = useCallback(
+    (targetDateStr: string): OutfitHistoryEntry[] => {
+      // Past 14 days from DB
+      const past = pastHistory;
+      // Already-suggested/planned entries for dates earlier than target
+      // (so consecutive future days don't repeat the same items).
+      const futurePlanned: OutfitHistoryEntry[] = entries
+        .filter((e) => e.date < targetDateStr && Array.isArray(e.garment_ids) && e.garment_ids.length > 0)
+        .map((e) => ({ date: e.date, garmentIds: e.garment_ids }));
+      return [...past, ...futurePlanned];
+    },
+    [pastHistory, entries],
+  );
 
   /* ---- Get contextual items for a date (uses per-date forecast temp) ---- */
   const getItemsForDate = useCallback(
@@ -236,6 +260,7 @@ const OutfitCalendar = () => {
         occasion,
         swapCount: swapOffset,
         recentSignatures: recentSignatures[dateStr] || [],
+        history: historyForDate(dateStr),
         wardrobeIsSparse,
       });
 
@@ -260,7 +285,7 @@ const OutfitCalendar = () => {
 
       return result.outfit.items as GarmentSnapshot[];
     },
-    [garments, garmentPool, meetsThreshold, swapCounts, weather, forecastByDate, recentSignatures, topsCount, bottomsCount],
+    [garments, garmentPool, meetsThreshold, swapCounts, weather, forecastByDate, recentSignatures, topsCount, bottomsCount, historyForDate],
   );
 
   /* ---- Swap handler — quality-gated cycle ---- */
@@ -286,6 +311,7 @@ const OutfitCalendar = () => {
         occasion,
         swapCount: newCount,
         recentSignatures: recentSignatures[dateStr] || [],
+        history: historyForDate(dateStr),
         wardrobeIsSparse,
       });
 
@@ -351,7 +377,7 @@ const OutfitCalendar = () => {
         ];
       });
     },
-    [garments, garmentPool, meetsThreshold, swapCounts, weather, forecastByDate, calendarEvents, recentSignatures, topsCount, bottomsCount],
+    [garments, garmentPool, meetsThreshold, swapCounts, weather, forecastByDate, calendarEvents, recentSignatures, topsCount, bottomsCount, historyForDate],
   );
 
   /* ---- Edit: assign specific item ---- */
@@ -450,6 +476,7 @@ const OutfitCalendar = () => {
       occasion,
       swapCount: swapCounts[dateStr] || 0,
       recentSignatures: recentSignatures[dateStr] || [],
+      history: historyForDate(dateStr),
       wardrobeIsSparse,
     });
     if (!result.outfit) return;
@@ -469,7 +496,7 @@ const OutfitCalendar = () => {
         },
       };
     });
-  }, [entries, calendarEvents, garmentPool, meetsThreshold, swapCounts, recentSignatures, forecastByDate, weather, topsCount, bottomsCount]);
+  }, [entries, calendarEvents, garmentPool, meetsThreshold, swapCounts, recentSignatures, forecastByDate, weather, topsCount, bottomsCount, historyForDate]);
 
   /* ---- LOCKED STATE: Not enough items ---- */
   if (!isLoading && !meetsThreshold) {
