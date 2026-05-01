@@ -1972,6 +1972,14 @@ export const OutfitCollage = ({ garments, debugAnchors = false, debugLegacyAncho
             <div>Spacing correction applied: {relationshipDebug.layoutSpacing.spacingCorrectionApplied ? "Yes" : "No"}</div>
             <div>Final group centered: {relationshipDebug.layoutSpacing.finalGroupCentered ? "Yes" : "No"}</div>
             <div>Group center X: {relationshipDebug.layoutSpacing.groupCenterX != null ? relationshipDebug.layoutSpacing.groupCenterX.toFixed(2) : "—"}</div>
+            {relationshipDebug.layoutSpacing.outerwearVerticalReference && (
+              <>
+                <div>Outerwear vertical reference: {relationshipDebug.layoutSpacing.outerwearVerticalReference}</div>
+                <div>Previous outerwear Y: {relationshipDebug.layoutSpacing.previousOuterwearY != null ? relationshipDebug.layoutSpacing.previousOuterwearY.toFixed(2) : "—"}</div>
+                <div>Adjusted outerwear Y: {relationshipDebug.layoutSpacing.adjustedOuterwearY != null ? relationshipDebug.layoutSpacing.adjustedOuterwearY.toFixed(2) : "—"}</div>
+                <div>Vertical shift applied: {relationshipDebug.layoutSpacing.verticalShiftApplied != null ? relationshipDebug.layoutSpacing.verticalShiftApplied.toFixed(2) : "—"}</div>
+              </>
+            )}
           </div>
         )}
 
