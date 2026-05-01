@@ -1257,7 +1257,10 @@ const applyRelationshipAwareComposition = (items: RenderItem[]) => {
     const liveOuter = liveOuterItem ? getFitBoxCanvasRectBeforeNormalization(liveOuterItem) : outerBox;
     if (archetype === "dress_outerwear") {
       const outerOffsetX = -16;
-      const outerOffsetY = 6;
+      // Lift outerwear up by ~8% of canvas height (1600 * 0.08 ≈ 128)
+      // so the coat frames the dress shoulder/upper body instead of the
+      // lower torso. Previous value (+6) sat too low beside the dress.
+      const outerOffsetY = -122;
       const dressOffsetX = 13;
       const dressOffsetY = 0;
       move(liveOuterItem, adjustedInner.center.x - liveOuter.center.x + outerOffsetX, adjustedInner.center.y - liveOuter.center.y + outerOffsetY);
