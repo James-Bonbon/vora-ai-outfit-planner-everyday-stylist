@@ -573,6 +573,35 @@ const OutfitCalendar = () => {
             </DrawerTrigger>
           </div>
 
+          {/* Exhausted message — no more strong matches */}
+          {scoredByDate[todaySlot.dateStr]?.exhausted && (
+            <p className="mt-3 text-center text-[11px] text-muted-foreground italic">
+              No more strong matches today — looping through your best picks.
+            </p>
+          )}
+
+          {/* Debug score panel */}
+          {import.meta.env.DEV && scoredByDate[todaySlot.dateStr] && (() => {
+            const s = scoredByDate[todaySlot.dateStr];
+            const o = s.scored;
+            return (
+              <div className="mt-3 rounded-xl border border-border bg-muted/40 p-2.5 text-[10px] leading-relaxed text-foreground space-y-0.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold">Outfit score</span>
+                  <span className="font-mono">{o.score} · {o.band}</span>
+                </div>
+                <div>Threshold: {o.passes ? "PASS (≥70)" : s.fallbackUsed ? "FALLBACK" : "FAIL"}</div>
+                <div>Top reasons: {o.reasons.join(", ")}</div>
+                {o.warnings.length > 0 && (
+                  <div className="text-amber-700 dark:text-amber-400">⚠ {o.warnings.join(" · ")}</div>
+                )}
+                <div className="text-muted-foreground">
+                  Acceptable {s.acceptableCount}/{s.evaluatedCount} candidates
+                </div>
+              </div>
+            );
+          })()}
+
           <div className="mt-4 pt-3 border-t border-border text-center">
             <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
               {todaySlot.entry ? "Planned Outfit" : "Suggested Outfit"}
