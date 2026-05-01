@@ -186,6 +186,10 @@ type RelationshipSolverDebug = {
     spacingCorrectionApplied: boolean;
     finalGroupCentered: boolean;
     groupCenterX: number | null;
+    outerwearVerticalReference?: string | null;
+    previousOuterwearY?: number | null;
+    adjustedOuterwearY?: number | null;
+    verticalShiftApplied?: number | null;
   } | null;
 };
 
