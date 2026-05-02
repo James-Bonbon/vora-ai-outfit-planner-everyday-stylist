@@ -452,45 +452,76 @@ const OutfitCalendar = () => {
   }, [upcomingApi, updateUpcomingProgress]);
 
   /* ---- Compute & cache today's score for debug panel / exhausted UI ---- */
+  /* ---- AI prefetch: rate today + visible upcoming dates with gpt-5-mini ---- */
   useEffect(() => {
-    if (!meetsThreshold) return;
-    const date = new Date();
-    const dateStr = format(date, "yyyy-MM-dd");
-    const entry = entries.find((e) => e.date === dateStr);
-    if (entry?.garment_ids?.length) return; // user-edited override, no score
-    const dayEvents = calendarEvents.filter((ev) => ev.start_time.startsWith(dateStr));
-    const occasion = dayEvents.length > 0
-      ? dayEvents[0].title
-      : entry?.occasion || (isWeekend(date) ? "Casual" : "Smart Casual");
-    const temp = resolveTempForDate(dateStr, forecastByDate, weather?.temp ?? null);
-    const wardrobeIsSparse = (topsCount + bottomsCount) < (MIN_TOPS + MIN_BOTTOMS) + 2;
-    const result = findNextAcceptableOutfit(garmentPool, {
-      date,
-      tempC: temp,
-      occasion,
-      swapCount: swapCounts[dateStr] || 0,
-      recentSignatures: recentSignatures[dateStr] || [],
-      history: historyForDate(dateStr),
-      wardrobeIsSparse,
-    });
-    if (!result.outfit) return;
-    setScoredByDate((prev) => {
-      const existing = prev[dateStr];
-      if (existing && existing.scored.score === result.outfit!.score && existing.exhausted === result.exhausted) {
-        return prev;
+    if (!meetsThreshold || garmentPool.length === 0) return;
+    const today = new Date();
+    const todayStr = format(today, "yyyy-MM-dd");
+    const horizon = (subscriptionTier === "pro" || isAdmin) ? 7 : 3;
+    const datesToScore: Date[] = [];
+    for (let i = 0; i < horizon; i++) {
+      const d = addDays(today, i);
+      const ds = format(d, "yyyy-MM-dd");
+      const entry = entries.find((e) => e.date === ds);
+      if (entry?.garment_ids?.length) continue; // user override
+      const swap = swapCounts[ds] || 0;
+      if (aiOutfitByKey[`${ds}|${swap}`]) continue; // already scored at this swap
+      datesToScore.push(d);
+    }
+    if (datesToScore.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      const wardrobeIsSparse = (topsCount + bottomsCount) < (MIN_TOPS + MIN_BOTTOMS) + 2;
+      for (const date of datesToScore) {
+        if (cancelled) return;
+        const ds = format(date, "yyyy-MM-dd");
+        const swap = swapCounts[ds] || 0;
+        const dayEvents = calendarEvents.filter((ev) => ev.start_time.startsWith(ds));
+        const entry = entries.find((e) => e.date === ds);
+        const occasion = dayEvents.length > 0
+          ? dayEvents[0].title
+          : entry?.occasion || (isWeekend(date) ? "Casual" : "Smart Casual");
+        const temp = resolveTempForDate(ds, forecastByDate, weather?.temp ?? null);
+        try {
+          const result = await findNextAcceptableOutfitAI(garmentPool, {
+            date,
+            tempC: temp,
+            occasion,
+            swapCount: swap,
+            recentSignatures: recentSignatures[ds] || [],
+            history: historyForDate(ds),
+            wardrobeIsSparse,
+          });
+          if (cancelled || !result.outfit) continue;
+          const items = result.outfit.items as GarmentSnapshot[];
+          setAiOutfitByKey((prev) => ({ ...prev, [`${ds}|${swap}`]: items }));
+          setScoredByDate((prev) => ({
+            ...prev,
+            [ds]: {
+              scored: result.outfit!,
+              acceptableCount: result.acceptableCount,
+              evaluatedCount: result.evaluatedCount,
+              exhausted: result.exhausted,
+              fallbackUsed: result.fallbackUsed,
+              aiUsed: result.aiUsed,
+            },
+          }));
+          if (import.meta.env.DEV) {
+            // eslint-disable-next-line no-console
+            console.debug("[OutfitCalendar][AI]", {
+              date: ds, score: result.outfit.score, aiUsed: result.aiUsed,
+              fallback: result.fallbackUsed, reasons: result.outfit.reasons,
+              ai: (result.outfit as ScoredOutfitAI).aiScore,
+            });
+          }
+        } catch (e) {
+          if (import.meta.env.DEV) console.warn("[OutfitCalendar] AI scoring failed for", ds, e);
+        }
       }
-      return {
-        ...prev,
-        [dateStr]: {
-          scored: result.outfit!,
-          acceptableCount: result.acceptableCount,
-          evaluatedCount: result.evaluatedCount,
-          exhausted: result.exhausted,
-          fallbackUsed: result.fallbackUsed,
-        },
-      };
-    });
-  }, [entries, calendarEvents, garmentPool, meetsThreshold, swapCounts, recentSignatures, forecastByDate, weather, topsCount, bottomsCount, historyForDate]);
+    })();
+    return () => { cancelled = true; };
+  }, [entries, calendarEvents, garmentPool, meetsThreshold, swapCounts, recentSignatures, forecastByDate, weather, topsCount, bottomsCount, historyForDate, subscriptionTier, isAdmin, aiOutfitByKey]);
 
   /* ---- LOCKED STATE: Not enough items ---- */
   if (!isLoading && !meetsThreshold) {
