@@ -24,8 +24,10 @@ import {
 } from "@/utils/stylingEngine";
 import {
   findNextAcceptableOutfit,
+  findNextAcceptableOutfitAI,
   outfitSignature,
   type ScoredOutfit,
+  type ScoredOutfitAI,
   type OutfitHistoryEntry,
 } from "@/utils/outfitScoring";
 
