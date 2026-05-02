@@ -97,7 +97,7 @@ export const LookbookTab = ({ items, imageUrls }: { items: ClosetItem[]; imageUr
         .map((r: any) => ({ date: r.date, garmentIds: r.garment_ids }));
     }
 
-    const result = findNextAcceptableOutfit(pool as any, {
+    const result = await findNextAcceptableOutfitAI(pool as any, {
       date: new Date(),
       tempC: null,
       occasion: null,
