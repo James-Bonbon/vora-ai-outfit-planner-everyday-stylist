@@ -176,57 +176,57 @@
 
   .theme-rose,
   .dark .theme-rose {
-    --background: 346 89% 95%;
-    --foreground: 343 30% 13%;
+    --background: 346 60% 96%;
+    --foreground: 343 35% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 343 30% 13%;
+    --card-foreground: 343 35% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 343 30% 13%;
+    --popover-foreground: 343 35% 15%;
 
-    --primary: 348 52% 75%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 343 35% 22%;
+    --primary-foreground: 346 60% 96%;
 
-    --secondary: 342 59% 90%;
-    --secondary-foreground: 343 30% 13%;
+    --secondary: 346 50% 92%;
+    --secondary-foreground: 343 35% 22%;
 
-    --muted: 342 59% 90%;
-    --muted-foreground: 348 18% 40%;
+    --muted: 346 50% 92%;
+    --muted-foreground: 343 20% 35%;
 
     --accent: 348 52% 75%;
-    --accent-foreground: 0 0% 100%;
+    --accent-foreground: 343 35% 22%;
 
     --destructive: 0 62% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 342 59% 90%;
-    --input: 342 59% 90%;
-    --ring: 348 52% 75%;
+    --border: 346 45% 85%;
+    --input: 346 45% 85%;
+    --ring: 343 35% 22%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 346 89% 93%;
-    --sidebar-foreground: 343 30% 13%;
-    --sidebar-primary: 348 52% 75%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 342 59% 90%;
-    --sidebar-accent-foreground: 343 30% 13%;
-    --sidebar-border: 342 59% 90%;
-    --sidebar-ring: 348 52% 75%;
+    --sidebar-background: 346 60% 94%;
+    --sidebar-foreground: 343 35% 15%;
+    --sidebar-primary: 343 35% 22%;
+    --sidebar-primary-foreground: 346 60% 96%;
+    --sidebar-accent: 346 50% 92%;
+    --sidebar-accent-foreground: 343 35% 22%;
+    --sidebar-border: 346 45% 85%;
+    --sidebar-ring: 343 35% 22%;
 
-    --gold: 348 52% 75%;
-    --gold-foreground: 0 0% 100%;
+    --gold: 343 35% 22%;
+    --gold-foreground: 346 60% 96%;
 
     --calendar-bg: 0 0% 100%;
-    --calendar-card: 342 59% 97%;
-    --calendar-accent: 348 52% 75%;
-    --calendar-accent-foreground: 0 0% 100%;
-    --calendar-text: 343 30% 13%;
-    --calendar-text-muted: 348 18% 40%;
-    --calendar-border: 342 59% 90%;
+    --calendar-card: 346 60% 97%;
+    --calendar-accent: 343 35% 22%;
+    --calendar-accent-foreground: 346 60% 96%;
+    --calendar-text: 343 35% 15%;
+    --calendar-text-muted: 343 20% 35%;
+    --calendar-border: 346 45% 85%;
 
-    --product-bg: 346 89% 97%;
+    --product-bg: 0 0% 100%;
   }
 
   .theme-cream,
