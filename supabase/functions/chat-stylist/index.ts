@@ -749,6 +749,48 @@ Rules:
         "I'm not sure how to help with that. Try asking me about outfit ideas.";
     }
 
+    /* ── Reference-mode guardrail + quick action injection ── */
+    if (refMode) {
+      if (!refConfident) {
+        recommendedIds = [];
+        replyText =
+          "I can't read this product page directly. Please upload a screenshot or product image and I'll find similar pieces or style it with your wardrobe.";
+        quickActions = withIds(REF_QA_UNKNOWN);
+      } else {
+        const refType = canonicalGarmentType(productRef!.category) || canonicalGarmentType(productRef!.title);
+        const refColorFamily = colorFamilyOf(productRef!.color) || colorFamilyOf(productRef!.title);
+
+        const survivors = recommendedIds.filter((id) => {
+          const g: any = wardrobeById.get(id);
+          if (!g) return false;
+          const gType = canonicalGarmentType(g.category) || canonicalGarmentType(g.name);
+          const gColor = colorFamilyOf(g.color) || colorFamilyOf(g.name);
+          if (refType) {
+            if (!gType || gType !== refType) return false;
+          }
+          if (refColorFamily) {
+            if (!gColor || gColor !== refColorFamily) return false;
+          }
+          return true;
+        });
+
+        if (survivors.length === 0) {
+          recommendedIds = [];
+          const understood = [productRef!.color, productRef!.brand, productRef!.category || "piece"]
+            .filter(Boolean)
+            .join(" ")
+            .trim();
+          replyText = understood
+            ? `I found this as a ${understood}, but I don't see a close match in your wardrobe.`
+            : "I don't see anything in your wardrobe that closely matches this piece.";
+          quickActions = withIds(REF_QA_NO_MATCH);
+        } else {
+          recommendedIds = survivors;
+          quickActions = withIds(REF_QA_HIGH_CONF);
+        }
+      }
+    }
+
     await supabase.from("chat_messages").insert({
       user_id: userId,
       role: "assistant",
