@@ -627,12 +627,18 @@ Rules:
     > = sanitizedMessages.map((m) => ({ ...m }));
     const lastMsg = processedMessages[processedMessages.length - 1];
 
-    if (attachment?.base64 && lastMsg?.role === "user") {
+    if (lastMsg?.role === "user") {
       const textContent = typeof lastMsg.content === "string" ? lastMsg.content : "";
-      lastMsg.content = [
-        { type: "text", text: textContent || "What do you think of this?" },
-        { type: "image_url", image_url: { url: attachment.base64 } },
-      ];
+      const parts: Array<{ type: string; text?: string; image_url?: { url: string } }> = [];
+      parts.push({ type: "text", text: textContent || (refMode ? "Take a look at this." : "What do you think?") });
+      if (attachment?.base64) {
+        parts.push({ type: "image_url", image_url: { url: attachment.base64 } });
+      } else if (productRef?.imageUrl && refConfident) {
+        parts.push({ type: "image_url", image_url: { url: productRef.imageUrl } });
+      }
+      if (parts.length > 1) {
+        lastMsg.content = parts as any;
+      }
     }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
