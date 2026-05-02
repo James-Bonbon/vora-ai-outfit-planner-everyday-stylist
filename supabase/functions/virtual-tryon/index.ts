@@ -330,6 +330,7 @@ serve(async (req) => {
       weather: weather ?? null,
       bodyShape,
       stylingInstruction: stylingInstruction ?? null,
+      appTheme,
     });
 
     console.log("VTON prompt:", prompt);
