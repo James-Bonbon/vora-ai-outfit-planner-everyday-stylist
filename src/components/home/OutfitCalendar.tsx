@@ -749,7 +749,7 @@ const OutfitCalendar = () => {
                         {slotGarments.length > 0 ? (
                           <OutfitCollage garments={slotGarments} debugAnchors={debugAnchors} />
                         ) : (
-                          <div className="aspect-[3/4] rounded-2xl bg-muted" />
+                          <div className="aspect-[3/4] rounded-2xl bg-muted animate-pulse" />
                         )}
                       </div>
 
