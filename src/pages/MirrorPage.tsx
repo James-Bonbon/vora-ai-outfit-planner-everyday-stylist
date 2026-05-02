@@ -529,12 +529,6 @@ const MirrorPage = () => {
         <>
           {selectedLook ? (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-              {selectedLookCollageGarments.length > 0 && (
-                <GlassCard className="p-3 mb-3 overflow-hidden">
-                  <OutfitCollage garments={selectedLookCollageGarments} />
-                </GlassCard>
-              )}
-
               <GlassCard className="p-0 overflow-hidden">
                 <SafeImage
                   src={lookUrls[selectedLook.id]}
