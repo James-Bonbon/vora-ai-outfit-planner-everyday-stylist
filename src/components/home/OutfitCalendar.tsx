@@ -723,15 +723,18 @@ const OutfitCalendar = () => {
                   <CarouselItem key={slot.dateStr} className="pl-2 basis-[55%] sm:basis-[42%]">
                     <div className="rounded-2xl bg-card border border-border p-3">
                       <div className="flex items-center justify-between gap-1">
-                        <p className="text-sm font-bold text-foreground font-outfit">{format(slot.date, "EEE d")}</p>
-                        {slotTemp != null && (
-                          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-muted text-foreground text-[9px] font-medium">
-                            <SlotWeatherIcon className="w-2.5 h-2.5" />
-                            {Math.round(slotTemp)}°
-                          </span>
-                        )}
+                        <p className="text-sm font-bold text-foreground font-outfit shrink-0">{format(slot.date, "EEE d")}</p>
+                        <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-muted text-foreground text-[9px] font-medium min-w-0 max-w-[70%]">
+                          {slotTemp != null && (
+                            <>
+                              <SlotWeatherIcon className="w-2.5 h-2.5 shrink-0" />
+                              <span className="shrink-0">{Math.round(slotTemp)}°</span>
+                              <span className="opacity-60 shrink-0">·</span>
+                            </>
+                          )}
+                          <span className="capitalize truncate">{occasion}</span>
+                        </span>
                       </div>
-                      <span className="block mt-0.5 text-[9px] text-muted-foreground capitalize truncate">{occasion}</span>
 
                       <div className="mt-2">
                         {slotGarments.length > 0 ? (
