@@ -648,14 +648,7 @@ const OutfitCalendar = () => {
               </Button>
             </div>
           ) : (
-            <div className="flex gap-2 justify-center py-4">
-              <div className="w-20 h-24 rounded-xl bg-muted flex items-center justify-center">
-                <span className="text-[10px] text-muted-foreground">Top</span>
-              </div>
-              <div className="w-20 h-24 rounded-xl bg-muted flex items-center justify-center">
-                <span className="text-[10px] text-muted-foreground">Bottom</span>
-              </div>
-            </div>
+            <div className="aspect-[3/4] w-full rounded-2xl bg-muted animate-pulse" />
           )}
 
           <div className="flex justify-center gap-4 mt-4 pt-2 w-full">
