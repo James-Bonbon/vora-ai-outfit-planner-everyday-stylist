@@ -517,3 +517,187 @@ export function findNextAcceptableOutfit(
   };
 }
 
+// ─── AI-backed scoring (gpt-5-mini via Lovable AI Gateway) ──────────────
+//
+// Sends the strongest local candidates to the score-outfits edge function,
+// which calls openai/gpt-5-mini and caches results in outfit_score_cache.
+// All AI scores are SERVER-SIDE — the model is never called from the client.
+
+import { supabase } from "@/integrations/supabase/client";
+
+export interface AIScore {
+  signature: string;
+  score: number;            // 0-100
+  decision: "accept" | "fallback" | "reject";
+  confidence: number;       // 0-1
+  reasons: string[];
+  warnings: string[];
+  colorHarmony: number;
+  silhouetteBalance: number;
+  occasionMatch: number;
+  weatherSuitability: number;
+  repeatPenalty: number;
+  stylingNotes: string;
+  cached: boolean;
+}
+
+export interface ScoredOutfitAI extends ScoredOutfit {
+  aiScore: AIScore | null;   // null when AI unavailable / pure local fallback
+}
+
+export interface FindAIResult {
+  outfit: ScoredOutfitAI | null;
+  acceptableCount: number;
+  evaluatedCount: number;
+  exhausted: boolean;
+  fallbackUsed: boolean;
+  aiUsed: boolean;
+}
+
+const MAX_AI_CANDIDATES = 6;
+
+/**
+ * Same as findNextAcceptableOutfit, but also asks gpt-5-mini (server-side) to
+ * rate the strongest local candidates. Cycles swapCount through AI-accepted
+ * outfits only. Falls back to local scoring if the AI call fails / times out.
+ */
+export async function findNextAcceptableOutfitAI(
+  pool: StylingItem[],
+  opts: FindOptions,
+): Promise<FindAIResult> {
+  const targetDateStr = opts.date.toISOString().slice(0, 10);
+  const history = opts.history || [];
+  const daysSince = buildDaysSinceMap(history, targetDateStr);
+  const historicalSigs = history
+    .filter((h) => daysBetween(h.date, targetDateStr) <= 14)
+    .map((h) => [...h.garmentIds].sort().join("|"));
+  const recentSignatures = [...(opts.recentSignatures || []), ...historicalSigs];
+  const ctx: ScoreContext = {
+    tempC: opts.tempC,
+    occasion: opts.occasion,
+    recentSignatures,
+    history,
+    targetDateStr,
+    daysSince,
+    wardrobeIsSparse: opts.wardrobeIsSparse,
+  };
+
+  // 1. Generate local candidates and pre-score
+  const seen = new Set<string>();
+  const scored: ScoredOutfit[] = [];
+  for (let i = 0; i < MAX_CANDIDATES; i++) {
+    const items =
+      i === 0
+        ? generateSmartOutfit(pool, opts.date, opts.tempC, opts.occasion)
+        : generateSwappedOutfit(pool, opts.date, i, opts.tempC, opts.occasion);
+    if (!items.length) continue;
+    const sig = outfitSignature(items);
+    if (seen.has(sig)) continue;
+    seen.add(sig);
+    const s = scoreOutfit(items, ctx);
+    s.swapIndex = i;
+    if (s.score >= SCORE_NEVER) scored.push(s);
+  }
+
+  if (scored.length === 0) {
+    return { outfit: null, acceptableCount: 0, evaluatedCount: 0, exhausted: true, fallbackUsed: false, aiUsed: false };
+  }
+
+  // 2. Take top-N by local score, send to AI
+  const topLocal = [...scored].sort((a, b) => b.score - a.score).slice(0, MAX_AI_CANDIDATES);
+  const aiBySig = new Map<string, AIScore>();
+  let aiUsed = false;
+
+  try {
+    const { data, error } = await supabase.functions.invoke("score-outfits", {
+      body: {
+        candidates: topLocal.map((s) => ({
+          signature: outfitSignature(s.items),
+          items: s.items.map((i) => ({
+            id: i.id,
+            name: (i as any).name ?? null,
+            category: (i as any).category ?? null,
+            color: (i as any).color ?? null,
+            material: (i as any).material ?? null,
+            brand: (i as any).brand ?? null,
+            image_url: (i as any).image_url ?? null,
+          })),
+        })),
+        context: {
+          date: targetDateStr,
+          tempC: opts.tempC ?? null,
+          occasion: opts.occasion ?? null,
+          history: history.slice(-7),
+        },
+      },
+    });
+    if (!error && data?.results) {
+      aiUsed = true;
+      for (const r of data.results as AIScore[]) aiBySig.set(r.signature, r);
+    }
+  } catch (e) {
+    if (import.meta.env.DEV) console.warn("[outfitScoring] AI call failed, falling back to local:", e);
+  }
+
+  // 3. Build merged list. If AI ran, prefer AI score; else fall back to local.
+  const merged: ScoredOutfitAI[] = topLocal.map((s) => {
+    const sig = outfitSignature(s.items);
+    const ai = aiBySig.get(sig) || null;
+    if (ai && ai.score > 0) {
+      // Combined score: weighted average favoring AI but keeping local repeat-aware penalties
+      const blended = Math.round(ai.score * 0.7 + s.score * 0.3);
+      return { ...s, score: blended, aiScore: ai };
+    }
+    return { ...s, aiScore: ai };
+  });
+
+  // Add any non-top-local outfits at the end as last-resort fallbacks (no AI)
+  const considered = new Set(topLocal.map((s) => outfitSignature(s.items)));
+  for (const s of scored) {
+    if (!considered.has(outfitSignature(s.items))) merged.push({ ...s, aiScore: null });
+  }
+
+  // 4. Filter by AI decision when AI ran. Otherwise use local thresholds.
+  const acceptable = merged
+    .filter((m) => {
+      if (m.aiScore) return m.aiScore.decision === "accept" && m.aiScore.score >= SCORE_ACCEPTABLE;
+      return m.passes;
+    })
+    .sort((a, b) => b.score - a.score);
+
+  if (acceptable.length > 0) {
+    const idx = opts.swapCount % acceptable.length;
+    const exhausted = opts.swapCount > 0 && opts.swapCount >= acceptable.length;
+    return {
+      outfit: acceptable[idx],
+      acceptableCount: acceptable.length,
+      evaluatedCount: merged.length,
+      exhausted,
+      fallbackUsed: false,
+      aiUsed,
+    };
+  }
+
+  // 5. Fallback: pick best 55-69 if wardrobe sparse, else best overall
+  const fallbackPool = merged
+    .filter((m) => {
+      if (m.aiScore) return m.aiScore.score >= SCORE_FALLBACK;
+      return m.score >= SCORE_FALLBACK;
+    })
+    .sort((a, b) => b.score - a.score);
+  const best = fallbackPool[0] || merged.sort((a, b) => b.score - a.score)[0];
+  if (!best) {
+    return { outfit: null, acceptableCount: 0, evaluatedCount: merged.length, exhausted: true, fallbackUsed: false, aiUsed };
+  }
+  best.warnings = [...best.warnings, "limited wardrobe options"];
+  best.passes = false;
+  return {
+    outfit: best,
+    acceptableCount: 0,
+    evaluatedCount: merged.length,
+    exhausted: true,
+    fallbackUsed: true,
+    aiUsed,
+  };
+}
+
