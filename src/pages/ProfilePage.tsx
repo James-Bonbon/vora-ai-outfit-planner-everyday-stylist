@@ -442,7 +442,7 @@ const ProfilePage = () => {
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold text-foreground">{displayName}</h3>
                 {isAdmin && (
-                  <Badge className="bg-gradient-to-r from-amber-500 to-yellow-400 text-white border-0 text-[10px] px-2 py-0.5 gap-1">
+                  <Badge className="bg-primary text-primary-foreground border border-primary/20 text-[10px] px-2 py-0.5 gap-1">
                     <Shield className="w-3 h-3" /> Admin
                   </Badge>
                 )}
