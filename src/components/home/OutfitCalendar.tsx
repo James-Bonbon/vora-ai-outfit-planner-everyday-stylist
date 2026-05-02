@@ -225,6 +225,9 @@ const OutfitCalendar = () => {
   }>>({});
   /* ---- AI-resolved outfit items per (date|swapCount) — preferred when present ---- */
   const [aiOutfitByKey, setAiOutfitByKey] = useState<Record<string, GarmentSnapshot[]>>({});
+  /* ---- Tracks whether AI scoring has finished (success or failure) for a (date|swap) key.
+         Used to gate first paint so we don't flash the local fallback before AI resolves. ---- */
+  const [aiAttemptedByKey, setAiAttemptedByKey] = useState<Record<string, boolean>>({});
 
   /* ---- Build outfit history for a target date (past + earlier upcoming) ---- */
   const historyForDate = useCallback(
@@ -258,13 +261,19 @@ const OutfitCalendar = () => {
         return aiOutfitByKey[aiKey];
       }
 
+      // Wait for weather + AI scoring to finish before showing the local fallback.
+      // This prevents a "flash" where the local outfit appears, then is replaced by the AI one.
+      if (weatherLoading) return [];
+      const aiKeyAttempt = `${dateStr}|${swapOffset}`;
+      if (!aiAttemptedByKey[aiKeyAttempt]) return [];
+
       const temp = resolveTempForDate(dateStr, forecastByDate, weather?.temp ?? null);
       const occasion = dailyEvents && dailyEvents.length > 0
         ? dailyEvents[0].title
         : entry?.occasion || (isWeekend(date) ? "Casual" : "Smart Casual");
       const wardrobeIsSparse = (topsCount + bottomsCount) < (MIN_TOPS + MIN_BOTTOMS) + 2;
 
-      // Synchronous local fallback so first paint is instant; AI overrides via effect.
+      // Local fallback only used after AI attempt completed (and produced no override).
       const result = findNextAcceptableOutfit(garmentPool, {
         date,
         tempC: temp,
@@ -278,7 +287,7 @@ const OutfitCalendar = () => {
       if (!result.outfit) return [];
       return result.outfit.items as GarmentSnapshot[];
     },
-    [garments, garmentPool, meetsThreshold, swapCounts, weather, forecastByDate, recentSignatures, topsCount, bottomsCount, historyForDate, aiOutfitByKey],
+    [garments, garmentPool, meetsThreshold, swapCounts, weather, weatherLoading, forecastByDate, recentSignatures, topsCount, bottomsCount, historyForDate, aiOutfitByKey, aiAttemptedByKey],
   );
 
   /* ---- Swap handler — quality-gated cycle (AI-scored) ---- */
@@ -477,6 +486,7 @@ const OutfitCalendar = () => {
         if (cancelled) return;
         const ds = format(date, "yyyy-MM-dd");
         const swap = swapCounts[ds] || 0;
+        const attemptKey = `${ds}|${swap}`;
         const dayEvents = calendarEvents.filter((ev) => ev.start_time.startsWith(ds));
         const entry = entries.find((e) => e.date === ds);
         const occasion = dayEvents.length > 0
@@ -493,35 +503,41 @@ const OutfitCalendar = () => {
             history: historyForDate(ds),
             wardrobeIsSparse,
           });
-          if (cancelled || !result.outfit) continue;
-          const items = result.outfit.items as GarmentSnapshot[];
-          setAiOutfitByKey((prev) => ({ ...prev, [`${ds}|${swap}`]: items }));
-          setScoredByDate((prev) => ({
-            ...prev,
-            [ds]: {
-              scored: result.outfit!,
-              acceptableCount: result.acceptableCount,
-              evaluatedCount: result.evaluatedCount,
-              exhausted: result.exhausted,
-              fallbackUsed: result.fallbackUsed,
-              aiUsed: result.aiUsed,
-            },
-          }));
-          if (import.meta.env.DEV) {
-            // eslint-disable-next-line no-console
-            console.debug("[OutfitCalendar][AI]", {
-              date: ds, score: result.outfit.score, aiUsed: result.aiUsed,
-              fallback: result.fallbackUsed, reasons: result.outfit.reasons,
-              ai: (result.outfit as ScoredOutfitAI).aiScore,
-            });
+          if (cancelled) continue;
+          if (result.outfit) {
+            const items = result.outfit.items as GarmentSnapshot[];
+            setAiOutfitByKey((prev) => ({ ...prev, [attemptKey]: items }));
+            setScoredByDate((prev) => ({
+              ...prev,
+              [ds]: {
+                scored: result.outfit!,
+                acceptableCount: result.acceptableCount,
+                evaluatedCount: result.evaluatedCount,
+                exhausted: result.exhausted,
+                fallbackUsed: result.fallbackUsed,
+                aiUsed: result.aiUsed,
+              },
+            }));
+            if (import.meta.env.DEV) {
+              // eslint-disable-next-line no-console
+              console.debug("[OutfitCalendar][AI]", {
+                date: ds, score: result.outfit.score, aiUsed: result.aiUsed,
+                fallback: result.fallbackUsed, reasons: result.outfit.reasons,
+                ai: (result.outfit as ScoredOutfitAI).aiScore,
+              });
+            }
           }
         } catch (e) {
           if (import.meta.env.DEV) console.warn("[OutfitCalendar] AI scoring failed for", ds, e);
+        } finally {
+          if (!cancelled) {
+            setAiAttemptedByKey((prev) => (prev[attemptKey] ? prev : { ...prev, [attemptKey]: true }));
+          }
         }
       }
     })();
     return () => { cancelled = true; };
-  }, [entries, calendarEvents, garmentPool, meetsThreshold, swapCounts, recentSignatures, forecastByDate, weather, topsCount, bottomsCount, historyForDate, subscriptionTier, isAdmin, aiOutfitByKey]);
+  }, [entries, calendarEvents, garmentPool, meetsThreshold, swapCounts, recentSignatures, forecastByDate, weather, weatherLoading, topsCount, bottomsCount, historyForDate, subscriptionTier, isAdmin, aiOutfitByKey]);
 
   /* ---- LOCKED STATE: Not enough items ---- */
   if (!isLoading && !meetsThreshold) {
@@ -632,14 +648,7 @@ const OutfitCalendar = () => {
               </Button>
             </div>
           ) : (
-            <div className="flex gap-2 justify-center py-4">
-              <div className="w-20 h-24 rounded-xl bg-muted flex items-center justify-center">
-                <span className="text-[10px] text-muted-foreground">Top</span>
-              </div>
-              <div className="w-20 h-24 rounded-xl bg-muted flex items-center justify-center">
-                <span className="text-[10px] text-muted-foreground">Bottom</span>
-              </div>
-            </div>
+            <div className="aspect-[3/4] w-full rounded-2xl bg-muted animate-pulse" />
           )}
 
           <div className="flex justify-center gap-4 mt-4 pt-2 w-full">
@@ -740,7 +749,7 @@ const OutfitCalendar = () => {
                         {slotGarments.length > 0 ? (
                           <OutfitCollage garments={slotGarments} debugAnchors={debugAnchors} />
                         ) : (
-                          <div className="aspect-[3/4] rounded-2xl bg-muted" />
+                          <div className="aspect-[3/4] rounded-2xl bg-muted animate-pulse" />
                         )}
                       </div>
 
