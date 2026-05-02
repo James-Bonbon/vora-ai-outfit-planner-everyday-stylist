@@ -124,23 +124,24 @@ function buildOutfitPrompt(args: {
   }
 
   const outfitDescription = lines.join(" ");
-  const setting = occasion ? `${occasion} setting` : "neutral high-end studio";
+  const styleContext = occasion ? `Styled for a ${occasion} context (affects styling only, NOT the background).` : "";
   const fit = bodyShape ? `Tailored for a ${bodyShape.toLowerCase()} body shape. ` : "";
   const weatherNote = weather ? `Weather context: ${weather}. ` : "";
   const lookNote = desiredLook ? `Style direction: ${desiredLook}. ` : "";
   const extra = stylingInstruction ? `${stylingInstruction}. ` : "";
 
   return [
-    "A high-fashion, photorealistic FULL-BODY WIDE SHOT of the same person from the reference selfie.",
+    "Full-body front-facing fashion studio portrait in a warm cream minimalist studio, soft natural editorial lighting, clean cream wall and seamless cream floor, model facing the camera, head-to-toe visible.",
+    "The same person from the reference selfie — preserve EXACT facial identity, skin tone, hair color, and hairstyle. Do not alter the face.",
     "OUTFIT RULES:",
     outfitDescription,
     "CRITICAL CONSTRAINTS:",
     "- ALL listed garments MUST be distinctly visible in the final image.",
     "- Frame the model from HEAD TO FEET. Do NOT crop the legs, do not crop above the knees, do not zoom in on the torso.",
-    "- Preserve the EXACT facial identity, skin tone, hair color, and hairstyle from the reference selfie. Do not alter the face.",
-    "- Natural standing pose, arms relaxed at sides so the entire outfit is unobstructed.",
-    `- ${fit}${weatherNote}${lookNote}${extra}`,
-    `Setting: ${setting}, soft natural lighting, editorial fashion photography, sharp detail on garment textures, 3:4 vertical aspect ratio.`,
+    "- Natural standing pose facing the camera, arms relaxed at sides so the entire outfit is unobstructed.",
+    "- Background MUST be a warm cream minimalist studio (cream wall + cream floor). No outdoor scenes, no location backgrounds, no props.",
+    `- ${fit}${weatherNote}${lookNote}${extra}${styleContext}`,
+    "Editorial fashion photography, sharp detail on garment textures, 3:4 vertical aspect ratio.",
   ].join(" ");
 }
 
@@ -275,7 +276,7 @@ serve(async (req) => {
       desiredLook: normalize(desiredLook),
       weather: normalize(weather),
       stylingInstruction: normalize(stylingInstruction),
-      promptVersion: "v2-bodyzone",
+      promptVersion: "v3-cream-studio",
     };
 
     const inputHash = await computeInputHash(hashParts);
