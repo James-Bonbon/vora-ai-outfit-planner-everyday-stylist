@@ -251,14 +251,20 @@ const OutfitCalendar = () => {
 
       const dateStr = format(date, "yyyy-MM-dd");
       const swapOffset = swapCounts[dateStr] || 0;
-      const temp = resolveTempForDate(dateStr, forecastByDate, weather?.temp ?? null);
 
+      // Prefer AI-resolved outfit when available for this (date, swap) pair
+      const aiKey = `${dateStr}|${swapOffset}`;
+      if (aiOutfitByKey[aiKey]?.length) {
+        return aiOutfitByKey[aiKey];
+      }
+
+      const temp = resolveTempForDate(dateStr, forecastByDate, weather?.temp ?? null);
       const occasion = dailyEvents && dailyEvents.length > 0
         ? dailyEvents[0].title
         : entry?.occasion || (isWeekend(date) ? "Casual" : "Smart Casual");
-
       const wardrobeIsSparse = (topsCount + bottomsCount) < (MIN_TOPS + MIN_BOTTOMS) + 2;
 
+      // Synchronous local fallback so first paint is instant; AI overrides via effect.
       const result = findNextAcceptableOutfit(garmentPool, {
         date,
         tempC: temp,
@@ -270,27 +276,9 @@ const OutfitCalendar = () => {
       });
 
       if (!result.outfit) return [];
-
-      if (import.meta.env.DEV) {
-        // eslint-disable-next-line no-console
-        console.debug("[OutfitCalendar][score]", {
-          date: dateStr,
-          score: result.outfit.score,
-          band: result.outfit.band,
-          passes: result.outfit.passes,
-          reasons: result.outfit.reasons,
-          warnings: result.outfit.warnings,
-          acceptableCount: result.acceptableCount,
-          evaluatedCount: result.evaluatedCount,
-          fallbackUsed: result.fallbackUsed,
-          exhausted: result.exhausted,
-          breakdown: result.outfit.breakdown,
-        });
-      }
-
       return result.outfit.items as GarmentSnapshot[];
     },
-    [garments, garmentPool, meetsThreshold, swapCounts, weather, forecastByDate, recentSignatures, topsCount, bottomsCount, historyForDate],
+    [garments, garmentPool, meetsThreshold, swapCounts, weather, forecastByDate, recentSignatures, topsCount, bottomsCount, historyForDate, aiOutfitByKey],
   );
 
   /* ---- Swap handler — quality-gated cycle ---- */
