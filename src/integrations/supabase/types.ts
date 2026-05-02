@@ -554,6 +554,42 @@ export type Database = {
         }
         Relationships: []
       }
+      outfit_score_cache: {
+        Row: {
+          cache_key: string
+          confidence: number | null
+          created_at: string
+          decision: string
+          garment_ids: string[]
+          id: string
+          payload: Json
+          score: number
+          user_id: string
+        }
+        Insert: {
+          cache_key: string
+          confidence?: number | null
+          created_at?: string
+          decision: string
+          garment_ids: string[]
+          id?: string
+          payload: Json
+          score: number
+          user_id: string
+        }
+        Update: {
+          cache_key?: string
+          confidence?: number | null
+          created_at?: string
+          decision?: string
+          garment_ids?: string[]
+          id?: string
+          payload?: Json
+          score?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       planned_outfits: {
         Row: {
           created_at: string

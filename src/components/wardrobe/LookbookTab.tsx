@@ -10,7 +10,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/u
 import { Plus, Loader2, Sparkles, Trash2, Wand2, Bug } from "lucide-react";
 import { toast } from "sonner";
 import OutfitCollage from "@/components/wardrobe/OutfitCollage";
-import { findNextAcceptableOutfit } from "@/utils/outfitScoring";
+import { findNextAcceptableOutfitAI } from "@/utils/outfitScoring";
 import type { ClosetItem } from "@/types/wardrobe";
 import { Switch } from "@/components/ui/switch";
 
@@ -97,7 +97,7 @@ export const LookbookTab = ({ items, imageUrls }: { items: ClosetItem[]; imageUr
         .map((r: any) => ({ date: r.date, garmentIds: r.garment_ids }));
     }
 
-    const result = findNextAcceptableOutfit(pool as any, {
+    const result = await findNextAcceptableOutfitAI(pool as any, {
       date: new Date(),
       tempC: null,
       occasion: null,

@@ -24,8 +24,10 @@ import {
 } from "@/utils/stylingEngine";
 import {
   findNextAcceptableOutfit,
+  findNextAcceptableOutfitAI,
   outfitSignature,
   type ScoredOutfit,
+  type ScoredOutfitAI,
   type OutfitHistoryEntry,
 } from "@/utils/outfitScoring";
 
@@ -219,7 +221,10 @@ const OutfitCalendar = () => {
     evaluatedCount: number;
     exhausted: boolean;
     fallbackUsed: boolean;
+    aiUsed?: boolean;
   }>>({});
+  /* ---- AI-resolved outfit items per (date|swapCount) — preferred when present ---- */
+  const [aiOutfitByKey, setAiOutfitByKey] = useState<Record<string, GarmentSnapshot[]>>({});
 
   /* ---- Build outfit history for a target date (past + earlier upcoming) ---- */
   const historyForDate = useCallback(
@@ -246,14 +251,20 @@ const OutfitCalendar = () => {
 
       const dateStr = format(date, "yyyy-MM-dd");
       const swapOffset = swapCounts[dateStr] || 0;
-      const temp = resolveTempForDate(dateStr, forecastByDate, weather?.temp ?? null);
 
+      // Prefer AI-resolved outfit when available for this (date, swap) pair
+      const aiKey = `${dateStr}|${swapOffset}`;
+      if (aiOutfitByKey[aiKey]?.length) {
+        return aiOutfitByKey[aiKey];
+      }
+
+      const temp = resolveTempForDate(dateStr, forecastByDate, weather?.temp ?? null);
       const occasion = dailyEvents && dailyEvents.length > 0
         ? dailyEvents[0].title
         : entry?.occasion || (isWeekend(date) ? "Casual" : "Smart Casual");
-
       const wardrobeIsSparse = (topsCount + bottomsCount) < (MIN_TOPS + MIN_BOTTOMS) + 2;
 
+      // Synchronous local fallback so first paint is instant; AI overrides via effect.
       const result = findNextAcceptableOutfit(garmentPool, {
         date,
         tempC: temp,
@@ -265,32 +276,14 @@ const OutfitCalendar = () => {
       });
 
       if (!result.outfit) return [];
-
-      if (import.meta.env.DEV) {
-        // eslint-disable-next-line no-console
-        console.debug("[OutfitCalendar][score]", {
-          date: dateStr,
-          score: result.outfit.score,
-          band: result.outfit.band,
-          passes: result.outfit.passes,
-          reasons: result.outfit.reasons,
-          warnings: result.outfit.warnings,
-          acceptableCount: result.acceptableCount,
-          evaluatedCount: result.evaluatedCount,
-          fallbackUsed: result.fallbackUsed,
-          exhausted: result.exhausted,
-          breakdown: result.outfit.breakdown,
-        });
-      }
-
       return result.outfit.items as GarmentSnapshot[];
     },
-    [garments, garmentPool, meetsThreshold, swapCounts, weather, forecastByDate, recentSignatures, topsCount, bottomsCount, historyForDate],
+    [garments, garmentPool, meetsThreshold, swapCounts, weather, forecastByDate, recentSignatures, topsCount, bottomsCount, historyForDate, aiOutfitByKey],
   );
 
-  /* ---- Swap handler — quality-gated cycle ---- */
+  /* ---- Swap handler — quality-gated cycle (AI-scored) ---- */
   const handleSwap = useCallback(
-    (dateStr: string) => {
+    async (dateStr: string) => {
       if (!meetsThreshold) return;
 
       const date = new Date(dateStr + "T00:00");
@@ -305,7 +298,7 @@ const OutfitCalendar = () => {
       const newCount = (swapCounts[dateStr] || 0) + 1;
       const wardrobeIsSparse = (topsCount + bottomsCount) < (MIN_TOPS + MIN_BOTTOMS) + 2;
 
-      const result = findNextAcceptableOutfit(garmentPool, {
+      const result = await findNextAcceptableOutfitAI(garmentPool, {
         date,
         tempC: tempUsed,
         occasion,
@@ -317,7 +310,6 @@ const OutfitCalendar = () => {
 
       if (!result.outfit) return;
 
-      // Update per-date scoring snapshot for debug/UX
       setScoredByDate((prev) => ({
         ...prev,
         [dateStr]: {
@@ -326,12 +318,12 @@ const OutfitCalendar = () => {
           evaluatedCount: result.evaluatedCount,
           exhausted: result.exhausted,
           fallbackUsed: result.fallbackUsed,
+          aiUsed: result.aiUsed,
         },
       }));
 
       setSwapCounts((prev) => ({ ...prev, [dateStr]: newCount }));
 
-      // Track recency (keep last 5 signatures per date)
       const sig = outfitSignature(result.outfit.items);
       setRecentSignatures((prev) => {
         const list = prev[dateStr] || [];
@@ -340,6 +332,8 @@ const OutfitCalendar = () => {
       });
 
       const swapped = result.outfit.items as GarmentSnapshot[];
+      setAiOutfitByKey((prev) => ({ ...prev, [`${dateStr}|${newCount}`]: swapped }));
+
       const map = { ...garments };
       swapped.forEach((g) => (map[g.id] = g as GarmentSnapshot));
       setGarments(map);
@@ -458,45 +452,76 @@ const OutfitCalendar = () => {
   }, [upcomingApi, updateUpcomingProgress]);
 
   /* ---- Compute & cache today's score for debug panel / exhausted UI ---- */
+  /* ---- AI prefetch: rate today + visible upcoming dates with gpt-5-mini ---- */
   useEffect(() => {
-    if (!meetsThreshold) return;
-    const date = new Date();
-    const dateStr = format(date, "yyyy-MM-dd");
-    const entry = entries.find((e) => e.date === dateStr);
-    if (entry?.garment_ids?.length) return; // user-edited override, no score
-    const dayEvents = calendarEvents.filter((ev) => ev.start_time.startsWith(dateStr));
-    const occasion = dayEvents.length > 0
-      ? dayEvents[0].title
-      : entry?.occasion || (isWeekend(date) ? "Casual" : "Smart Casual");
-    const temp = resolveTempForDate(dateStr, forecastByDate, weather?.temp ?? null);
-    const wardrobeIsSparse = (topsCount + bottomsCount) < (MIN_TOPS + MIN_BOTTOMS) + 2;
-    const result = findNextAcceptableOutfit(garmentPool, {
-      date,
-      tempC: temp,
-      occasion,
-      swapCount: swapCounts[dateStr] || 0,
-      recentSignatures: recentSignatures[dateStr] || [],
-      history: historyForDate(dateStr),
-      wardrobeIsSparse,
-    });
-    if (!result.outfit) return;
-    setScoredByDate((prev) => {
-      const existing = prev[dateStr];
-      if (existing && existing.scored.score === result.outfit!.score && existing.exhausted === result.exhausted) {
-        return prev;
+    if (!meetsThreshold || garmentPool.length === 0) return;
+    const today = new Date();
+    const todayStr = format(today, "yyyy-MM-dd");
+    const horizon = (subscriptionTier === "pro" || isAdmin) ? 7 : 3;
+    const datesToScore: Date[] = [];
+    for (let i = 0; i < horizon; i++) {
+      const d = addDays(today, i);
+      const ds = format(d, "yyyy-MM-dd");
+      const entry = entries.find((e) => e.date === ds);
+      if (entry?.garment_ids?.length) continue; // user override
+      const swap = swapCounts[ds] || 0;
+      if (aiOutfitByKey[`${ds}|${swap}`]) continue; // already scored at this swap
+      datesToScore.push(d);
+    }
+    if (datesToScore.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      const wardrobeIsSparse = (topsCount + bottomsCount) < (MIN_TOPS + MIN_BOTTOMS) + 2;
+      for (const date of datesToScore) {
+        if (cancelled) return;
+        const ds = format(date, "yyyy-MM-dd");
+        const swap = swapCounts[ds] || 0;
+        const dayEvents = calendarEvents.filter((ev) => ev.start_time.startsWith(ds));
+        const entry = entries.find((e) => e.date === ds);
+        const occasion = dayEvents.length > 0
+          ? dayEvents[0].title
+          : entry?.occasion || (isWeekend(date) ? "Casual" : "Smart Casual");
+        const temp = resolveTempForDate(ds, forecastByDate, weather?.temp ?? null);
+        try {
+          const result = await findNextAcceptableOutfitAI(garmentPool, {
+            date,
+            tempC: temp,
+            occasion,
+            swapCount: swap,
+            recentSignatures: recentSignatures[ds] || [],
+            history: historyForDate(ds),
+            wardrobeIsSparse,
+          });
+          if (cancelled || !result.outfit) continue;
+          const items = result.outfit.items as GarmentSnapshot[];
+          setAiOutfitByKey((prev) => ({ ...prev, [`${ds}|${swap}`]: items }));
+          setScoredByDate((prev) => ({
+            ...prev,
+            [ds]: {
+              scored: result.outfit!,
+              acceptableCount: result.acceptableCount,
+              evaluatedCount: result.evaluatedCount,
+              exhausted: result.exhausted,
+              fallbackUsed: result.fallbackUsed,
+              aiUsed: result.aiUsed,
+            },
+          }));
+          if (import.meta.env.DEV) {
+            // eslint-disable-next-line no-console
+            console.debug("[OutfitCalendar][AI]", {
+              date: ds, score: result.outfit.score, aiUsed: result.aiUsed,
+              fallback: result.fallbackUsed, reasons: result.outfit.reasons,
+              ai: (result.outfit as ScoredOutfitAI).aiScore,
+            });
+          }
+        } catch (e) {
+          if (import.meta.env.DEV) console.warn("[OutfitCalendar] AI scoring failed for", ds, e);
+        }
       }
-      return {
-        ...prev,
-        [dateStr]: {
-          scored: result.outfit!,
-          acceptableCount: result.acceptableCount,
-          evaluatedCount: result.evaluatedCount,
-          exhausted: result.exhausted,
-          fallbackUsed: result.fallbackUsed,
-        },
-      };
-    });
-  }, [entries, calendarEvents, garmentPool, meetsThreshold, swapCounts, recentSignatures, forecastByDate, weather, topsCount, bottomsCount, historyForDate]);
+    })();
+    return () => { cancelled = true; };
+  }, [entries, calendarEvents, garmentPool, meetsThreshold, swapCounts, recentSignatures, forecastByDate, weather, topsCount, bottomsCount, historyForDate, subscriptionTier, isAdmin, aiOutfitByKey]);
 
   /* ---- LOCKED STATE: Not enough items ---- */
   if (!isLoading && !meetsThreshold) {
