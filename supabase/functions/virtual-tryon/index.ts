@@ -267,10 +267,11 @@ serve(async (req) => {
 
     const { data: profileData } = await supabaseUser
       .from("profiles")
-      .select("body_shape")
+      .select("body_shape, app_theme")
       .eq("user_id", userId)
       .maybeSingle();
     const bodyShape = reqBodyShape || profileData?.body_shape || null;
+    const appTheme = reqAppTheme || (profileData as any)?.app_theme || "default";
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
