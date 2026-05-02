@@ -225,6 +225,7 @@ serve(async (req) => {
       weather,
       stylingInstruction,
       bodyShape: reqBodyShape,
+      appTheme: reqAppTheme,
     } = await req.json();
 
     if (!selfieUrl || !garmentUrls?.length || !garmentIds?.length) {
