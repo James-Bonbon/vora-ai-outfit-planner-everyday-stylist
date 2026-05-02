@@ -289,7 +289,8 @@ serve(async (req) => {
       desiredLook: normalize(desiredLook),
       weather: normalize(weather),
       stylingInstruction: normalize(stylingInstruction),
-      promptVersion: "v3-cream-studio",
+      appTheme: normalize(appTheme),
+      promptVersion: "v4-themed-bg",
     };
 
     const inputHash = await computeInputHash(hashParts);
