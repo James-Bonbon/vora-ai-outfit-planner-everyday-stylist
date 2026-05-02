@@ -225,6 +225,9 @@ const OutfitCalendar = () => {
   }>>({});
   /* ---- AI-resolved outfit items per (date|swapCount) — preferred when present ---- */
   const [aiOutfitByKey, setAiOutfitByKey] = useState<Record<string, GarmentSnapshot[]>>({});
+  /* ---- Tracks whether AI scoring has finished (success or failure) for a (date|swap) key.
+         Used to gate first paint so we don't flash the local fallback before AI resolves. ---- */
+  const [aiAttemptedByKey, setAiAttemptedByKey] = useState<Record<string, boolean>>({});
 
   /* ---- Build outfit history for a target date (past + earlier upcoming) ---- */
   const historyForDate = useCallback(
