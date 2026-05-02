@@ -221,7 +221,10 @@ const OutfitCalendar = () => {
     evaluatedCount: number;
     exhausted: boolean;
     fallbackUsed: boolean;
+    aiUsed?: boolean;
   }>>({});
+  /* ---- AI-resolved outfit items per (date|swapCount) — preferred when present ---- */
+  const [aiOutfitByKey, setAiOutfitByKey] = useState<Record<string, GarmentSnapshot[]>>({});
 
   /* ---- Build outfit history for a target date (past + earlier upcoming) ---- */
   const historyForDate = useCallback(
