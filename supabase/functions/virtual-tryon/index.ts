@@ -76,6 +76,7 @@ function buildOutfitPrompt(args: {
   weather: string | null;
   bodyShape: string | null;
   stylingInstruction: string | null;
+  appTheme?: string | null;
 }): string {
   const { garments, occasion, desiredLook, weather, bodyShape, stylingInstruction } = args;
 
