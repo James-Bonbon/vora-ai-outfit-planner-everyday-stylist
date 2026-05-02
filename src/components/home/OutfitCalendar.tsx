@@ -281,9 +281,9 @@ const OutfitCalendar = () => {
     [garments, garmentPool, meetsThreshold, swapCounts, weather, forecastByDate, recentSignatures, topsCount, bottomsCount, historyForDate, aiOutfitByKey],
   );
 
-  /* ---- Swap handler — quality-gated cycle ---- */
+  /* ---- Swap handler — quality-gated cycle (AI-scored) ---- */
   const handleSwap = useCallback(
-    (dateStr: string) => {
+    async (dateStr: string) => {
       if (!meetsThreshold) return;
 
       const date = new Date(dateStr + "T00:00");
@@ -298,7 +298,7 @@ const OutfitCalendar = () => {
       const newCount = (swapCounts[dateStr] || 0) + 1;
       const wardrobeIsSparse = (topsCount + bottomsCount) < (MIN_TOPS + MIN_BOTTOMS) + 2;
 
-      const result = findNextAcceptableOutfit(garmentPool, {
+      const result = await findNextAcceptableOutfitAI(garmentPool, {
         date,
         tempC: tempUsed,
         occasion,
@@ -310,7 +310,6 @@ const OutfitCalendar = () => {
 
       if (!result.outfit) return;
 
-      // Update per-date scoring snapshot for debug/UX
       setScoredByDate((prev) => ({
         ...prev,
         [dateStr]: {
@@ -319,12 +318,12 @@ const OutfitCalendar = () => {
           evaluatedCount: result.evaluatedCount,
           exhausted: result.exhausted,
           fallbackUsed: result.fallbackUsed,
+          aiUsed: result.aiUsed,
         },
       }));
 
       setSwapCounts((prev) => ({ ...prev, [dateStr]: newCount }));
 
-      // Track recency (keep last 5 signatures per date)
       const sig = outfitSignature(result.outfit.items);
       setRecentSignatures((prev) => {
         const list = prev[dateStr] || [];
@@ -333,6 +332,8 @@ const OutfitCalendar = () => {
       });
 
       const swapped = result.outfit.items as GarmentSnapshot[];
+      setAiOutfitByKey((prev) => ({ ...prev, [`${dateStr}|${newCount}`]: swapped }));
+
       const map = { ...garments };
       swapped.forEach((g) => (map[g.id] = g as GarmentSnapshot));
       setGarments(map);
