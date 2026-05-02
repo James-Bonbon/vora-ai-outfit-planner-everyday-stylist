@@ -486,6 +486,7 @@ const OutfitCalendar = () => {
         if (cancelled) return;
         const ds = format(date, "yyyy-MM-dd");
         const swap = swapCounts[ds] || 0;
+        const attemptKey = `${ds}|${swap}`;
         const dayEvents = calendarEvents.filter((ev) => ev.start_time.startsWith(ds));
         const entry = entries.find((e) => e.date === ds);
         const occasion = dayEvents.length > 0
@@ -502,35 +503,41 @@ const OutfitCalendar = () => {
             history: historyForDate(ds),
             wardrobeIsSparse,
           });
-          if (cancelled || !result.outfit) continue;
-          const items = result.outfit.items as GarmentSnapshot[];
-          setAiOutfitByKey((prev) => ({ ...prev, [`${ds}|${swap}`]: items }));
-          setScoredByDate((prev) => ({
-            ...prev,
-            [ds]: {
-              scored: result.outfit!,
-              acceptableCount: result.acceptableCount,
-              evaluatedCount: result.evaluatedCount,
-              exhausted: result.exhausted,
-              fallbackUsed: result.fallbackUsed,
-              aiUsed: result.aiUsed,
-            },
-          }));
-          if (import.meta.env.DEV) {
-            // eslint-disable-next-line no-console
-            console.debug("[OutfitCalendar][AI]", {
-              date: ds, score: result.outfit.score, aiUsed: result.aiUsed,
-              fallback: result.fallbackUsed, reasons: result.outfit.reasons,
-              ai: (result.outfit as ScoredOutfitAI).aiScore,
-            });
+          if (cancelled) continue;
+          if (result.outfit) {
+            const items = result.outfit.items as GarmentSnapshot[];
+            setAiOutfitByKey((prev) => ({ ...prev, [attemptKey]: items }));
+            setScoredByDate((prev) => ({
+              ...prev,
+              [ds]: {
+                scored: result.outfit!,
+                acceptableCount: result.acceptableCount,
+                evaluatedCount: result.evaluatedCount,
+                exhausted: result.exhausted,
+                fallbackUsed: result.fallbackUsed,
+                aiUsed: result.aiUsed,
+              },
+            }));
+            if (import.meta.env.DEV) {
+              // eslint-disable-next-line no-console
+              console.debug("[OutfitCalendar][AI]", {
+                date: ds, score: result.outfit.score, aiUsed: result.aiUsed,
+                fallback: result.fallbackUsed, reasons: result.outfit.reasons,
+                ai: (result.outfit as ScoredOutfitAI).aiScore,
+              });
+            }
           }
         } catch (e) {
           if (import.meta.env.DEV) console.warn("[OutfitCalendar] AI scoring failed for", ds, e);
+        } finally {
+          if (!cancelled) {
+            setAiAttemptedByKey((prev) => (prev[attemptKey] ? prev : { ...prev, [attemptKey]: true }));
+          }
         }
       }
     })();
     return () => { cancelled = true; };
-  }, [entries, calendarEvents, garmentPool, meetsThreshold, swapCounts, recentSignatures, forecastByDate, weather, topsCount, bottomsCount, historyForDate, subscriptionTier, isAdmin, aiOutfitByKey]);
+  }, [entries, calendarEvents, garmentPool, meetsThreshold, swapCounts, recentSignatures, forecastByDate, weather, weatherLoading, topsCount, bottomsCount, historyForDate, subscriptionTier, isAdmin, aiOutfitByKey]);
 
   /* ---- LOCKED STATE: Not enough items ---- */
   if (!isLoading && !meetsThreshold) {
