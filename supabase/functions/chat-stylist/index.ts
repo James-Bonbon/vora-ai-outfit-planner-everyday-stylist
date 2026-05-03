@@ -761,12 +761,37 @@ serve(async (req) => {
       });
     }
 
+    // Upload attachment to private 'selfies' bucket so we can persist its URL on the message.
+    if (attachment?.base64) {
+      try {
+        const mime = parseDataUrlMime(attachment.base64) || "image/jpeg";
+        const ext = mime.split("/")[1] || "jpg";
+        const commaIdx = attachment.base64.indexOf(",");
+        const b64 = commaIdx >= 0 ? attachment.base64.slice(commaIdx + 1) : attachment.base64;
+        const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+        const path = `${userId}/chat/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+        const { error: upErr } = await serviceClient.storage
+          .from("selfies")
+          .upload(path, bin, { contentType: mime, upsert: false });
+        if (!upErr) {
+          attachmentStoragePath = path;
+          const { data: signed } = await serviceClient.storage
+            .from("selfies")
+            .createSignedUrl(path, 60 * 60 * 24 * 30);
+          if (signed?.signedUrl) attachmentSignedUrl = signed.signedUrl;
+        }
+      } catch (e) {
+        console.warn("attachment upload failed:", (e as Error).message);
+      }
+    }
+
     const lastClientMsg = sanitizedMessages[sanitizedMessages.length - 1];
-    if (lastClientMsg?.role === "user" && lastClientMsg.content.trim().length > 0) {
+    if (lastClientMsg?.role === "user" && (lastClientMsg.content.trim().length > 0 || attachmentStoragePath)) {
       await supabase.from("chat_messages").insert({
         user_id: userId,
         role: "user",
         content: lastClientMsg.content,
+        attachment_url: attachmentStoragePath, // store storage path; client signs on read
       });
     }
 
