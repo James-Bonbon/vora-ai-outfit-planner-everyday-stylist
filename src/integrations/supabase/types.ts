@@ -106,29 +106,35 @@ export type Database = {
       }
       chat_messages: {
         Row: {
+          attachment_url: string | null
           content: string
           created_at: string
           id: string
           quick_actions: Json | null
           role: string
+          shopping: Json | null
           suggested_garment_ids: string[] | null
           user_id: string
         }
         Insert: {
+          attachment_url?: string | null
           content: string
           created_at?: string
           id?: string
           quick_actions?: Json | null
           role?: string
+          shopping?: Json | null
           suggested_garment_ids?: string[] | null
           user_id: string
         }
         Update: {
+          attachment_url?: string | null
           content?: string
           created_at?: string
           id?: string
           quick_actions?: Json | null
           role?: string
+          shopping?: Json | null
           suggested_garment_ids?: string[] | null
           user_id?: string
         }
