@@ -467,16 +467,55 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
               )}
             >
               <div className="max-w-[85%] space-y-2">
-                <div
-                  className={cn(
-                    "px-4 py-2.5 rounded-2xl text-sm leading-relaxed",
-                    msg.role === "user"
-                      ? "bg-primary text-primary-foreground rounded-br-md"
-                      : "bg-card border border-border text-foreground rounded-bl-md"
-                  )}
-                >
-                  {msg.content}
-                </div>
+                {msg.role === "user" && msg.attachment_url && resolveAttachment(msg.attachment_url) && (
+                  <div className="flex justify-end">
+                    <img
+                      src={resolveAttachment(msg.attachment_url)}
+                      alt="Attached"
+                      className="max-w-[220px] max-h-[260px] rounded-2xl rounded-br-md border border-border object-cover"
+                    />
+                  </div>
+                )}
+                {msg.content && msg.content.trim().length > 0 && (
+                  <div
+                    className={cn(
+                      "px-4 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words",
+                      msg.role === "user"
+                        ? "bg-primary text-primary-foreground rounded-br-md"
+                        : "bg-card border border-border text-foreground rounded-bl-md"
+                    )}
+                  >
+                    {msg.content}
+                  </div>
+                )}
+
+                {/* Shopping results (cheaper alternatives) */}
+                {msg.role === "assistant" && Array.isArray(msg.shopping) && msg.shopping.length > 0 && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {msg.shopping.map((p, i) => (
+                      <a
+                        key={i}
+                        href={p.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-xl border border-border overflow-hidden bg-card hover:border-primary/40 transition-colors"
+                      >
+                        {p.imageUrl && (
+                          <div className="aspect-square w-full bg-secondary flex items-center justify-center overflow-hidden">
+                            <img src={p.imageUrl} alt={p.title} className="w-full h-full object-cover" loading="lazy" />
+                          </div>
+                        )}
+                        <div className="p-2 space-y-0.5">
+                          <p className="text-[11px] font-medium text-foreground line-clamp-2 leading-tight">{p.title}</p>
+                          <div className="flex items-center justify-between gap-1">
+                            {p.price && <p className="text-xs font-semibold text-foreground">{p.price}</p>}
+                            {p.source && <p className="text-[10px] text-muted-foreground truncate">{p.source}</p>}
+                          </div>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                )}
 
                 {/* Garment cards */}
                 {msg.role === "assistant" &&
