@@ -21,7 +21,7 @@ export function useAuth() {
 
           if (event === "SIGNED_IN") {
             const path = window.location.pathname;
-            const isAuthRoute = path === "/" || path === "/welcome" || path === "/login" || path === "/auth" || path === "/auth/callback";
+            const isAuthRoute = path === "/" || path === "/login" || path === "/auth" || path === "/auth/callback";
             if (isAuthRoute) {
               let target = "/home";
               try {

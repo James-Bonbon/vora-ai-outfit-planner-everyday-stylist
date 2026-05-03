@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import AppLayout from "./components/AppLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
+import RootRedirect from "./components/RootRedirect";
 
 // Auto-retry lazy imports once on failure (handles stale chunk hashes after deploys/HMR).
 const lazyWithRetry = <T extends React.ComponentType<any>>(
@@ -87,8 +88,9 @@ const App = () => (
         <ThemeProvider>
           <Suspense fallback={<RouteFallback />}>
             <Routes>
-              <Route path="/" element={<WelcomePage />} />
+              <Route path="/" element={<RootRedirect />} />
               <Route path="/welcome" element={<WelcomePage />} />
+              <Route path="/waitlist" element={<WelcomePage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/auth" element={<LoginPage />} />
               <Route path="/auth/callback" element={<AuthCallback />} />

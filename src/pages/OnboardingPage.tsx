@@ -202,7 +202,7 @@ const OnboardingPage = () => {
       toast.success("Profile created! Welcome to VORA.", { duration: 3000 });
 
       setTimeout(() => {
-        window.location.href = "/";
+        window.location.href = "/home";
       }, 1500);
     } catch (err) {
       console.error("Onboarding finalization error:", err);
