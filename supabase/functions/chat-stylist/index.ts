@@ -63,7 +63,7 @@ function sanitizeWardrobeForPrompt(items: any[]): any[] {
 
 /* ── Reference Product Mode ─────────────────────────────────── */
 type ProductReference = {
-  source: "metadata" | "web_search" | "firecrawl" | "browser_screenshot" | "user_image" | "image_analysis" | "url_metadata" | "unknown";
+  source: "metadata" | "tavily" | "web_search" | "firecrawl" | "browser_screenshot" | "user_image" | "image_analysis" | "url_metadata" | "unknown";
   confidence: number; // 0..1
   url?: string;
   title?: string;
@@ -301,8 +301,8 @@ function confidenceForProductRef(
   const color = colorFamilyOf(ref.color) || colorFamilyOf(title);
   const hasTitle = !!ref.title;
   const hasImage = !!ref.imageUrl;
-  // For web_search, never reach >=0.7 unless identity is verified (exact product-id or same-retailer URL match).
-  if (source === "web_search" && !identityVerified) {
+  // For search-based sources, never reach >=0.7 unless identity is verified.
+  if ((source === "web_search" || source === "tavily") && !identityVerified) {
     if (hasTitle && type) return 0.6;
     if (hasTitle) return 0.4;
     return 0;
@@ -988,6 +988,127 @@ const REF_QA_AFTER_SHOPPING = [
   { kind: "send_message", label: "Upload another product", message: "I'll upload another product to compare." },
 ];
 
+/* ── Tavily search/extract fallback ─────────────────────────── */
+async function searchProductReferenceTavily(
+  url: string,
+  seed?: ProductReference | null,
+  debug?: ProductLinkDebug,
+): Promise<ProductReference | null> {
+  const key = Deno.env.get("TAVILY_API_KEY");
+  if (!key) {
+    debug?.attempts.push("tavily:skipped_no_key");
+    return null;
+  }
+  const productId = productIdFromUrl(url);
+  const urlBrand = hostBrandFromUrl(url);
+  const seedTitle = seed?.title && seed.confidence > 0 ? seed.title : "";
+  const pathCategory = categoryFromUrlPath(url);
+  const host = (() => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return ""; } })();
+
+  const queries = [
+    url,
+    productId || "",
+    [urlBrand, productId].filter(Boolean).join(" "),
+    [urlBrand, seedTitle].filter(Boolean).join(" "),
+  ].filter((q, i, arr) => q && arr.indexOf(q) === i).slice(0, 4);
+
+  type Cand = { title?: string; url?: string; content?: string; image?: string };
+  const candidates: Cand[] = [];
+
+  try {
+    debug?.attempts.push(`tavily:start:${productId || "no_product_id"}:queries_${queries.length}`);
+    for (const q of queries) {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 8000);
+      const resp = await fetch("https://api.tavily.com/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: ctrl.signal,
+        body: JSON.stringify({
+          api_key: key,
+          query: q,
+          search_depth: "advanced",
+          include_images: true,
+          max_results: 6,
+          include_domains: urlBrand && host ? [host] : undefined,
+        }),
+      }).catch(() => null);
+      clearTimeout(t);
+      if (!resp?.ok) {
+        if (resp) debug?.attempts.push(`tavily:http_${resp.status}`);
+        continue;
+      }
+      const data = await resp.json().catch(() => null);
+      const results = (data?.results || []) as Cand[];
+      const images = (data?.images || []) as string[];
+      for (const r of results) candidates.push({ ...r, image: r.image || images[0] });
+    }
+  } catch (e) {
+    debug?.attempts.push(`tavily:error:${(e as Error).message}`);
+    return null;
+  }
+
+  if (!candidates.length) {
+    debug?.attempts.push("tavily:no_candidates");
+    return null;
+  }
+
+  const cleanedUrlLower = url.toLowerCase();
+  const scored = candidates
+    .map((c) => {
+      const text = [c.title, c.content].filter(Boolean).join(" ");
+      const linkLower = (c.url || "").toLowerCase();
+      const linkHost = (() => { try { return c.url ? new URL(c.url).hostname.replace(/^www\./, "") : ""; } catch { return ""; } })();
+      const exactUrl = !!c.url && linkLower === cleanedUrlLower;
+      const productIdMatch = !!productId && [text, c.url].filter(Boolean).join(" ").toLowerCase().includes(productId.toLowerCase());
+      const sameRetailer = !!host && !!linkHost && linkHost === host;
+      const category = canonicalGarmentType(text) || undefined;
+      const color = colorWordFromText(text);
+      const identity = exactUrl || productIdMatch || (sameRetailer && !!productId);
+      let score = 0;
+      if (exactUrl) score += 6;
+      if (productIdMatch) score += 5;
+      if (sameRetailer) score += 3;
+      if (category) score += 2;
+      if (color) score += 2;
+      if (c.title) score += 1;
+      return { c, score, identity, category, color, sameRetailer, productIdMatch, exactUrl };
+    })
+    .filter((x) => {
+      if (!x.c.title) return false;
+      if (pathCategory && x.category && x.category !== pathCategory) return false;
+      // Strict identity gate: only verified results survive.
+      return x.identity;
+    })
+    .sort((a, b) => b.score - a.score);
+
+  const best = scored[0];
+  if (!best) {
+    debug?.attempts.push("tavily:no_verified_match");
+    return null;
+  }
+
+  const ref: ProductReference = {
+    source: "tavily",
+    confidence: confidenceForProductRef({
+      title: best.c.title,
+      brand: urlBrand || undefined,
+      color: best.color,
+      category: best.category,
+      imageUrl: best.c.image,
+    }, "tavily", true),
+    url: best.c.url || url,
+    title: best.c.title,
+    brand: urlBrand || undefined,
+    color: best.color,
+    category: best.category,
+    description: best.c.content?.slice(0, 600),
+    imageUrl: best.c.image,
+  };
+  debug?.attempts.push(`tavily:best_score_${best.score}:exact_${best.exactUrl}:pid_${best.productIdMatch}:confidence_${ref.confidence}`);
+  return ref;
+}
+
 
 function withIds(actions: any[]): any[] {
   return actions.map((a) => ({ ...a, id: crypto.randomUUID() }));
@@ -1249,6 +1370,12 @@ serve(async (req) => {
         const direct = await fetchProductReference(normalizedUrl, linkDebug);
         recordProductRef(linkDebug, direct, "metadata");
         if (direct && direct.confidence > (productRef?.confidence ?? 0)) productRef = direct;
+      }
+
+      if (!productRef || productRef.confidence < 0.7) {
+        const tav = await searchProductReferenceTavily(normalizedUrl, productRef, linkDebug);
+        if (tav) recordProductRef(linkDebug, tav, "tavily");
+        if (tav && tav.confidence > (productRef?.confidence ?? 0)) productRef = tav;
       }
 
       if (!productRef || productRef.confidence < 0.7) {
