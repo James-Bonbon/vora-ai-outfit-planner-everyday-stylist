@@ -311,13 +311,14 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
     e.target.value = "";
   };
 
+  const canSend = (input.trim().length > 0 || attachment != null) && !sendMutation.isPending;
   const handleSend = () => {
+    if (!canSend) return;
     const text = input.trim();
-    if (!text || sendMutation.isPending) return;
     const attachmentSnapshot = attachment;
     setInput("");
     setAttachment(null);
-    sendMutation.mutate({ userMessage: text, attachmentSnapshot });
+    sendMutation.mutate({ userMessage: text || (attachmentSnapshot ? "What do you think of this?" : ""), attachmentSnapshot });
   };
 
   const sendQuickMessage = (message: string) => {
