@@ -318,6 +318,15 @@ function hostBrandFromUrl(rawUrl: string): string | null {
   }
 }
 
+function categoryFromUrlPath(rawUrl: string): string | null {
+  try {
+    const pathText = new URL(rawUrl).pathname.replace(/[\/_-]+/g, " ");
+    return canonicalGarmentType(pathText);
+  } catch {
+    return null;
+  }
+}
+
 async function fetchProductReference(url: string, debug?: ProductLinkDebug): Promise<ProductReference> {
   const base: ProductReference = { source: "unknown", confidence: 0, url };
   try {
