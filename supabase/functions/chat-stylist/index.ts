@@ -466,6 +466,98 @@ async function analyzeProductImageWithVision(imageUrl: string, sourceUrl?: strin
   }
 }
 
+/* ── Cheaper-alternatives shopping search (Serper) ─────────── */
+type ShoppingProduct = {
+  title: string;
+  source?: string;
+  price?: string;
+  link: string;
+  imageUrl?: string;
+  reason?: string;
+};
+
+function isCheaperAlternativesIntent(text: string): boolean {
+  const t = text.toLowerCase();
+  return /(cheaper|less expensive|more affordable|budget|dupes?|alternatives?|similar online|find online|find similar (?:online|on the web))/.test(t);
+}
+
+function getDirectUrl(rawUrl: string): string {
+  try {
+    if (rawUrl.includes("google.com/url")) {
+      const u = new URL(rawUrl);
+      return u.searchParams.get("url") || u.searchParams.get("q") || rawUrl;
+    }
+    return rawUrl;
+  } catch {
+    return rawUrl;
+  }
+}
+
+async function searchCheaperAlternatives(ref: ProductReference): Promise<ShoppingProduct[]> {
+  const key = Deno.env.get("SERPER_API_KEY");
+  if (!key) return [];
+  const colorWord = ref.color || "";
+  const cat = ref.category || canonicalGarmentType(ref.title || "") || "";
+  // Keep query short and focused; exclude the exact brand to surface alternatives.
+  const baseTerms = [colorWord, cat].filter(Boolean).join(" ").trim() || (ref.title || "").split(/\s+/).slice(0, 3).join(" ");
+  if (!baseTerms) return [];
+  const exclude = ref.brand ? ` -"${ref.brand}"` : "";
+  const q = `${baseTerms}${exclude}`.slice(0, 80);
+
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 8000);
+    const resp = await fetch("https://google.serper.dev/shopping", {
+      method: "POST",
+      headers: { "X-API-KEY": key, "Content-Type": "application/json" },
+      signal: ctrl.signal,
+      body: JSON.stringify({ q, gl: "gb", num: 20 }),
+    }).catch(() => null);
+    clearTimeout(t);
+    if (!resp || !resp.ok) return [];
+    const data = await resp.json();
+    const items = (data?.shopping || []) as any[];
+
+    // Parse a numeric price out of the price string for sorting
+    const parsePrice = (s?: string): number | null => {
+      if (!s) return null;
+      const m = String(s).replace(/,/g, "").match(/(\d+(?:\.\d+)?)/);
+      return m ? parseFloat(m[1]) : null;
+    };
+
+    const filtered: ShoppingProduct[] = items
+      .filter((it) => {
+        const link = it.link || "";
+        if (link.includes("/aclk?") || link.includes("googleadservices.com")) return false;
+        if (ref.brand && (it.title || "").toLowerCase().includes(ref.brand.toLowerCase())) return false;
+        return !!it.title && !!link;
+      })
+      .map((it) => ({
+        title: String(it.title || "").slice(0, 140),
+        source: it.source ? String(it.source).slice(0, 60) : undefined,
+        price: it.price ? String(it.price).slice(0, 30) : undefined,
+        link: getDirectUrl(String(it.link)),
+        imageUrl: it.imageUrl ? String(it.imageUrl) : undefined,
+        reason: [colorWord, cat].filter(Boolean).join(" ").trim() || undefined,
+      }));
+
+    // Sort by price asc when available, otherwise keep order
+    filtered.sort((a, b) => {
+      const pa = parsePrice(a.price);
+      const pb = parsePrice(b.price);
+      if (pa == null && pb == null) return 0;
+      if (pa == null) return 1;
+      if (pb == null) return -1;
+      return pa - pb;
+    });
+
+    return filtered.slice(0, 4);
+  } catch (e) {
+    console.warn("searchCheaperAlternatives failed:", (e as Error).message);
+    return [];
+  }
+}
+
 const REF_QA_HIGH_CONF = [
   { kind: "send_message", label: "Find similar in my wardrobe", message: "Find similar pieces in my wardrobe." },
   { kind: "send_message", label: "Style this with my closet", message: "Style this with pieces from my closet." },
@@ -483,9 +575,15 @@ const REF_QA_NO_MATCH = [
 const REF_QA_UNKNOWN = [
   { kind: "send_message", label: "Upload product screenshot", message: "I'll upload a screenshot of the product." },
   { kind: "send_message", label: "Style this if I buy it", message: "Help me style this if I buy it." },
-  { kind: "send_message", label: "Find cheaper alternatives", message: "Find cheaper alternatives online." },
   { kind: "send_message", label: "Tell you what details to look for", message: "What details should I tell you about this product?" },
 ];
+
+const REF_QA_AFTER_SHOPPING = [
+  { kind: "send_message", label: "Style this with my closet", message: "Style this with pieces from my closet." },
+  { kind: "send_message", label: "Save as wishlist inspiration", message: "Save this as wishlist inspiration." },
+  { kind: "send_message", label: "Upload another product", message: "I'll upload another product to compare." },
+];
+
 
 function withIds(actions: any[]): any[] {
   return actions.map((a) => ({ ...a, id: crypto.randomUUID() }));
