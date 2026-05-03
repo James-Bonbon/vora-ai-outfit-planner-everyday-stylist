@@ -220,9 +220,58 @@ function titleHasTypeAndColor(title: string): boolean {
   return canonicalGarmentType(title) !== null && colorFamilyOf(title) !== null;
 }
 
-async function fetchProductReference(url: string): Promise<ProductReference> {
+function colorWordFromText(text?: string | null): string | undefined {
+  if (!text) return undefined;
+  const lower = text.toLowerCase();
+  for (const [family, words] of Object.entries(COLOR_FAMILIES)) {
+    for (const word of words) {
+      if (lower.includes(word)) return word;
+    }
+    if (lower.includes(family)) return family;
+  }
+  return undefined;
+}
+
+function confidenceForProductRef(ref: Partial<ProductReference>, source: ProductReference["source"]): number {
+  const title = ref.title || "";
+  const type = canonicalGarmentType(ref.category) || canonicalGarmentType(title);
+  const color = colorFamilyOf(ref.color) || colorFamilyOf(title);
+  const hasTitle = !!ref.title;
+  const hasImage = !!ref.imageUrl;
+  if (hasTitle && type && color && (hasImage || ref.brand || source === "web_search")) return source === "metadata" ? 0.9 : 0.85;
+  if (hasTitle && hasImage && type) return 0.65;
+  if (hasTitle && hasImage) return 0.55;
+  if (hasTitle && type && color) return 0.7;
+  if (hasTitle) return 0.4;
+  return 0;
+}
+
+function productIdFromUrl(rawUrl: string): string | null {
+  try {
+    const u = new URL(rawUrl);
+    const candidates = [...u.pathname.split(/[/?#._-]+/), ...u.searchParams.values()]
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return candidates.find((s) => /^[a-z0-9]{6,}$/i.test(s) && /\d/.test(s)) || null;
+  } catch {
+    return null;
+  }
+}
+
+function hostBrandFromUrl(rawUrl: string): string | null {
+  try {
+    const host = new URL(rawUrl).hostname.replace(/^www\./, "");
+    const first = host.split(".")[0];
+    return first && !["shop", "store", "www"].includes(first) ? first : null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchProductReference(url: string, debug?: ProductLinkDebug): Promise<ProductReference> {
   const base: ProductReference = { source: "unknown", confidence: 0, url };
   try {
+    debug?.attempts.push("direct_metadata_fetch:start");
     const ctrl = new AbortController();
     const timeout = setTimeout(() => ctrl.abort(), 4000);
     const res = await fetch(url, {
@@ -236,9 +285,24 @@ async function fetchProductReference(url: string): Promise<ProductReference> {
       redirect: "follow",
     }).catch(() => null);
     clearTimeout(timeout);
-    if (!res || !res.ok) return base;
+    if (!res) {
+      if (debug) debug.failureReason = "direct metadata fetch failed or timed out";
+      return base;
+    }
+    if (debug) {
+      debug.finalRedirectedUrl = res.url || url;
+      debug.httpStatus = res.status;
+      debug.contentType = res.headers.get("content-type") || "";
+    }
+    if (!res.ok) {
+      if (debug) debug.failureReason = `direct metadata HTTP ${res.status}`;
+      return base;
+    }
     const ct = res.headers.get("content-type") || "";
-    if (!ct.includes("text/html") && !ct.includes("application/xhtml")) return base;
+    if (!ct.includes("text/html") && !ct.includes("application/xhtml")) {
+      if (debug) debug.failureReason = `direct metadata unsupported content-type: ${ct || "unknown"}`;
+      return base;
+    }
 
     // Read up to 1MB
     const reader = res.body?.getReader();
@@ -285,9 +349,7 @@ async function fetchProductReference(url: string): Promise<ProductReference> {
         return undefined;
       })();
 
-      const hasNameAndImage = !!name && !!image;
-      const hasColorOrCategory = !!color || !!category;
-      const confidence = hasNameAndImage && (hasColorOrCategory || canonicalGarmentType(name)) ? 0.9 : (hasNameAndImage ? 0.75 : 0.5);
+      const confidence = confidenceForProductRef({ title: name, brand, color, category, imageUrl: image }, "metadata");
       return {
         source: "metadata",
         confidence,
@@ -317,7 +379,7 @@ async function fetchProductReference(url: string): Promise<ProductReference> {
     if (ogTitle && ogImage && (ogBrand || ogColor || ogCategory)) {
       return {
         source: "metadata",
-        confidence: 0.75,
+        confidence: confidenceForProductRef({ title: ogTitle, brand: ogBrand, color: ogColor, category: ogCategory, imageUrl: ogImage }, "metadata"),
         url,
         title: ogTitle,
         brand: ogBrand,
@@ -339,14 +401,7 @@ async function fetchProductReference(url: string): Promise<ProductReference> {
         url,
         title,
         category: canonicalGarmentType(title) || undefined,
-        color: (() => {
-          const fam = colorFamilyOf(title);
-          if (!fam) return undefined;
-          for (const w of COLOR_FAMILIES[fam]) {
-            if (title.toLowerCase().includes(w)) return w;
-          }
-          return fam;
-        })(),
+        color: colorWordFromText(title),
         imageUrl: ogImage,
         description: ogDesc?.slice(0, 600),
         price: ogPrice,
@@ -356,6 +411,7 @@ async function fetchProductReference(url: string): Promise<ProductReference> {
     return base;
   } catch (e) {
     console.warn("fetchProductReference failed:", (e as Error).message);
+    if (debug) debug.failureReason = `direct metadata exception: ${(e as Error).message}`;
     return base;
   }
 }
