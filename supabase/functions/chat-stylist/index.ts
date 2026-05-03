@@ -810,9 +810,25 @@ function getDirectUrl(rawUrl: string): string {
   }
 }
 
-async function searchCheaperAlternatives(ref: ProductReference): Promise<ShoppingProduct[]> {
+async function searchCheaperAlternatives(ref: ProductReference, serviceClient?: any): Promise<ShoppingProduct[]> {
   const key = Deno.env.get("SERPER_API_KEY");
   if (!key) return [];
+  const cacheUrl = ref.url ? normalizeUrl(ref.url) : null;
+  if (serviceClient && cacheUrl) {
+    try {
+      const { data } = await serviceClient
+        .from("product_link_cache")
+        .select("shopping_results, fetched_at")
+        .eq("normalized_url", cacheUrl)
+        .maybeSingle();
+      const fetchedAt = data?.fetched_at ? new Date(data.fetched_at).getTime() : 0;
+      if (Array.isArray(data?.shopping_results) && fetchedAt && Date.now() - fetchedAt < PRODUCT_CACHE_TTL_MS) {
+        return data.shopping_results.slice(0, 4) as ShoppingProduct[];
+      }
+    } catch {
+      // Cache misses/errors should never block search.
+    }
+  }
   const colorWord = ref.color || "";
   const cat = ref.category || canonicalGarmentType(ref.title || "") || "";
   // Keep query short and focused; exclude the exact brand to surface alternatives.
@@ -868,7 +884,24 @@ async function searchCheaperAlternatives(ref: ProductReference): Promise<Shoppin
       return pa - pb;
     });
 
-    return filtered.slice(0, 4);
+    const results = filtered.slice(0, 4);
+    if (serviceClient && cacheUrl && results.length > 0) {
+      try {
+        await serviceClient.from("product_link_cache").upsert({
+          normalized_url: cacheUrl,
+          original_url: ref.url,
+          final_url: ref.url,
+          product_ref: ref,
+          shopping_results: results,
+          extraction_source: ref.source,
+          confidence: ref.confidence,
+          fetched_at: new Date().toISOString(),
+        }, { onConflict: "normalized_url" });
+      } catch {
+        // Non-critical cache write.
+      }
+    }
+    return results;
   } catch (e) {
     console.warn("searchCheaperAlternatives failed:", (e as Error).message);
     return [];
