@@ -89,6 +89,8 @@ type ProductLinkDebug = {
   attempts: string[];
 };
 
+const PRODUCT_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
 function logProductLinkDebug(debug: ProductLinkDebug) {
   console.info("[chat-stylist:product-link-reader]", JSON.stringify(debug));
 }
@@ -104,6 +106,53 @@ function recordProductRef(debug: ProductLinkDebug, ref: ProductReference | null,
     imageUrl: ref.imageUrl,
   };
   debug.confidence = Number((ref.confidence || 0).toFixed(2));
+}
+
+async function getCachedProductReference(serviceClient: any, normalizedUrl: string, debug?: ProductLinkDebug): Promise<ProductReference | null> {
+  try {
+    debug?.attempts.push("cache_lookup:start");
+    const { data } = await serviceClient
+      .from("product_link_cache")
+      .select("product_ref, fetched_at, extraction_source, confidence, failure_reason")
+      .eq("normalized_url", normalizedUrl)
+      .maybeSingle();
+    if (!data?.product_ref) return null;
+    const fetchedAt = data.fetched_at ? new Date(data.fetched_at).getTime() : 0;
+    if (!fetchedAt || Date.now() - fetchedAt > PRODUCT_CACHE_TTL_MS) {
+      debug?.attempts.push("cache_lookup:stale");
+      return null;
+    }
+    const cached = data.product_ref as ProductReference;
+    debug?.attempts.push(`cache_lookup:hit:${data.extraction_source || cached.source}:${data.confidence ?? cached.confidence}`);
+    if (data.failure_reason && debug) debug.failureReason = data.failure_reason;
+    return cached;
+  } catch (e) {
+    debug?.attempts.push(`cache_lookup:error:${(e as Error).message}`);
+    return null;
+  }
+}
+
+async function saveProductReferenceCache(
+  serviceClient: any,
+  normalizedUrl: string,
+  originalUrl: string,
+  ref: ProductReference,
+  debug?: ProductLinkDebug,
+) {
+  try {
+    await serviceClient.from("product_link_cache").upsert({
+      normalized_url: normalizedUrl,
+      original_url: originalUrl,
+      final_url: debug?.finalRedirectedUrl || ref.url || normalizedUrl,
+      product_ref: ref,
+      extraction_source: ref.source,
+      confidence: ref.confidence,
+      failure_reason: debug?.failureReason || null,
+      fetched_at: new Date().toISOString(),
+    }, { onConflict: "normalized_url" });
+  } catch (e) {
+    debug?.attempts.push(`cache_save:error:${(e as Error).message}`);
+  }
 }
 
 const TRACKING_PARAMS = new Set([
