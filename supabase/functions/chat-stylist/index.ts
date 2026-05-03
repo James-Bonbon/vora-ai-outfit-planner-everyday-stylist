@@ -63,7 +63,7 @@ function sanitizeWardrobeForPrompt(items: any[]): any[] {
 
 /* ── Reference Product Mode ─────────────────────────────────── */
 type ProductReference = {
-  source: "metadata" | "firecrawl" | "browser_screenshot" | "user_image" | "image_analysis" | "url_metadata" | "unknown";
+  source: "metadata" | "web_search" | "firecrawl" | "browser_screenshot" | "user_image" | "image_analysis" | "url_metadata" | "unknown";
   confidence: number; // 0..1
   url?: string;
   title?: string;
@@ -75,6 +75,86 @@ type ProductReference = {
   imageUrl?: string;
   price?: string;
 };
+
+type ProductLinkDebug = {
+  originalUrl: string;
+  cleanedUrl?: string;
+  finalRedirectedUrl?: string;
+  httpStatus?: number;
+  contentType?: string;
+  extractionSource?: ProductReference["source"] | "none";
+  extracted?: Pick<ProductReference, "title" | "brand" | "color" | "category" | "imageUrl">;
+  confidence?: number;
+  failureReason?: string;
+  attempts: string[];
+};
+
+const PRODUCT_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+function logProductLinkDebug(debug: ProductLinkDebug) {
+  console.info("[chat-stylist:product-link-reader]", JSON.stringify(debug));
+}
+
+function recordProductRef(debug: ProductLinkDebug, ref: ProductReference | null, source?: ProductReference["source"]) {
+  if (!ref) return;
+  debug.extractionSource = source || ref.source;
+  debug.extracted = {
+    title: ref.title,
+    brand: ref.brand,
+    color: ref.color,
+    category: ref.category,
+    imageUrl: ref.imageUrl,
+  };
+  debug.confidence = Number((ref.confidence || 0).toFixed(2));
+  if (ref.confidence >= 0.7) delete debug.failureReason;
+}
+
+async function getCachedProductReference(serviceClient: any, normalizedUrl: string, debug?: ProductLinkDebug): Promise<ProductReference | null> {
+  try {
+    debug?.attempts.push("cache_lookup:start");
+    const { data } = await serviceClient
+      .from("product_link_cache")
+      .select("product_ref, fetched_at, extraction_source, confidence, failure_reason")
+      .eq("normalized_url", normalizedUrl)
+      .maybeSingle();
+    if (!data?.product_ref) return null;
+    const fetchedAt = data.fetched_at ? new Date(data.fetched_at).getTime() : 0;
+    if (!fetchedAt || Date.now() - fetchedAt > PRODUCT_CACHE_TTL_MS) {
+      debug?.attempts.push("cache_lookup:stale");
+      return null;
+    }
+    const cached = data.product_ref as ProductReference;
+    debug?.attempts.push(`cache_lookup:hit:${data.extraction_source || cached.source}:${data.confidence ?? cached.confidence}`);
+    if (data.failure_reason && debug) debug.failureReason = data.failure_reason;
+    return cached;
+  } catch (e) {
+    debug?.attempts.push(`cache_lookup:error:${(e as Error).message}`);
+    return null;
+  }
+}
+
+async function saveProductReferenceCache(
+  serviceClient: any,
+  normalizedUrl: string,
+  originalUrl: string,
+  ref: ProductReference,
+  debug?: ProductLinkDebug,
+) {
+  try {
+    await serviceClient.from("product_link_cache").upsert({
+      normalized_url: normalizedUrl,
+      original_url: originalUrl,
+      final_url: debug?.finalRedirectedUrl || ref.url || normalizedUrl,
+      product_ref: ref,
+      extraction_source: ref.source,
+      confidence: ref.confidence,
+      failure_reason: debug?.failureReason || null,
+      fetched_at: new Date().toISOString(),
+    }, { onConflict: "normalized_url" });
+  } catch (e) {
+    debug?.attempts.push(`cache_save:error:${(e as Error).message}`);
+  }
+}
 
 const TRACKING_PARAMS = new Set([
   "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
@@ -129,7 +209,7 @@ function colorFamilyOf(color?: string | null): string | null {
 function canonicalGarmentType(input?: string | null): string | null {
   if (!input) return null;
   const s = input.toLowerCase();
-  if (/\bdress\b|\bgown\b|\bjumpsuit\b|\bromper\b/.test(s)) return "dress";
+  if (/\bdresses\b|\bdress\b|\bgowns?\b|\bjumpsuits?\b|\brompers?\b/.test(s)) return "dress";
   if (/\bcoat\b|\bjacket\b|\bblazer\b|\btrench\b|\bparka\b|\bouterwear\b/.test(s)) return "outerwear";
   if (/\bjeans\b|\bpants\b|\btrouser\b|\bshort\b|\bskirt\b|\blegging\b|\bbottom\b/.test(s)) return "bottom";
   if (/\btop\b|\bshirt\b|\bblouse\b|\btee\b|\bt-shirt\b|\btshirt\b|\bsweater\b|\bknit\b|\bjumper\b|\bcardigan\b|\bhoodie\b|\btank\b|\bcami\b/.test(s)) return "top";
@@ -190,9 +270,67 @@ function titleHasTypeAndColor(title: string): boolean {
   return canonicalGarmentType(title) !== null && colorFamilyOf(title) !== null;
 }
 
-async function fetchProductReference(url: string): Promise<ProductReference> {
+function colorWordFromText(text?: string | null): string | undefined {
+  if (!text) return undefined;
+  const lower = text.toLowerCase();
+  for (const [family, words] of Object.entries(COLOR_FAMILIES)) {
+    for (const word of words) {
+      if (lower.includes(word)) return word;
+    }
+    if (lower.includes(family)) return family;
+  }
+  return undefined;
+}
+
+function confidenceForProductRef(ref: Partial<ProductReference>, source: ProductReference["source"]): number {
+  const title = ref.title || "";
+  const type = canonicalGarmentType(ref.category) || canonicalGarmentType(title);
+  const color = colorFamilyOf(ref.color) || colorFamilyOf(title);
+  const hasTitle = !!ref.title;
+  const hasImage = !!ref.imageUrl;
+  if (hasTitle && type && color && (hasImage || ref.brand || source === "web_search")) return source === "metadata" ? 0.9 : 0.85;
+  if (hasTitle && hasImage && type) return 0.65;
+  if (hasTitle && hasImage) return 0.55;
+  if (hasTitle && type && color) return 0.7;
+  if (hasTitle) return 0.4;
+  return 0;
+}
+
+function productIdFromUrl(rawUrl: string): string | null {
+  try {
+    const u = new URL(rawUrl);
+    const candidates = [...u.pathname.split(/[/?#._-]+/), ...u.searchParams.values()]
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return candidates.find((s) => /^[a-z0-9]{6,}$/i.test(s) && /\d/.test(s)) || null;
+  } catch {
+    return null;
+  }
+}
+
+function hostBrandFromUrl(rawUrl: string): string | null {
+  try {
+    const host = new URL(rawUrl).hostname.replace(/^www\./, "");
+    const first = host.split(".")[0];
+    return first && !["shop", "store", "www"].includes(first) ? first : null;
+  } catch {
+    return null;
+  }
+}
+
+function categoryFromUrlPath(rawUrl: string): string | null {
+  try {
+    const pathText = new URL(rawUrl).pathname.replace(/[\/_-]+/g, " ");
+    return canonicalGarmentType(pathText);
+  } catch {
+    return null;
+  }
+}
+
+async function fetchProductReference(url: string, debug?: ProductLinkDebug): Promise<ProductReference> {
   const base: ProductReference = { source: "unknown", confidence: 0, url };
   try {
+    debug?.attempts.push("direct_metadata_fetch:start");
     const ctrl = new AbortController();
     const timeout = setTimeout(() => ctrl.abort(), 4000);
     const res = await fetch(url, {
@@ -206,9 +344,24 @@ async function fetchProductReference(url: string): Promise<ProductReference> {
       redirect: "follow",
     }).catch(() => null);
     clearTimeout(timeout);
-    if (!res || !res.ok) return base;
+    if (!res) {
+      if (debug) debug.failureReason = "direct metadata fetch failed or timed out";
+      return base;
+    }
+    if (debug) {
+      debug.finalRedirectedUrl = res.url || url;
+      debug.httpStatus = res.status;
+      debug.contentType = res.headers.get("content-type") || "";
+    }
+    if (!res.ok) {
+      if (debug) debug.failureReason = `direct metadata HTTP ${res.status}`;
+      return base;
+    }
     const ct = res.headers.get("content-type") || "";
-    if (!ct.includes("text/html") && !ct.includes("application/xhtml")) return base;
+    if (!ct.includes("text/html") && !ct.includes("application/xhtml")) {
+      if (debug) debug.failureReason = `direct metadata unsupported content-type: ${ct || "unknown"}`;
+      return base;
+    }
 
     // Read up to 1MB
     const reader = res.body?.getReader();
@@ -255,9 +408,7 @@ async function fetchProductReference(url: string): Promise<ProductReference> {
         return undefined;
       })();
 
-      const hasNameAndImage = !!name && !!image;
-      const hasColorOrCategory = !!color || !!category;
-      const confidence = hasNameAndImage && (hasColorOrCategory || canonicalGarmentType(name)) ? 0.9 : (hasNameAndImage ? 0.75 : 0.5);
+      const confidence = confidenceForProductRef({ title: name, brand, color, category, imageUrl: image }, "metadata");
       return {
         source: "metadata",
         confidence,
@@ -287,7 +438,7 @@ async function fetchProductReference(url: string): Promise<ProductReference> {
     if (ogTitle && ogImage && (ogBrand || ogColor || ogCategory)) {
       return {
         source: "metadata",
-        confidence: 0.75,
+        confidence: confidenceForProductRef({ title: ogTitle, brand: ogBrand, color: ogColor, category: ogCategory, imageUrl: ogImage }, "metadata"),
         url,
         title: ogTitle,
         brand: ogBrand,
@@ -309,14 +460,7 @@ async function fetchProductReference(url: string): Promise<ProductReference> {
         url,
         title,
         category: canonicalGarmentType(title) || undefined,
-        color: (() => {
-          const fam = colorFamilyOf(title);
-          if (!fam) return undefined;
-          for (const w of COLOR_FAMILIES[fam]) {
-            if (title.toLowerCase().includes(w)) return w;
-          }
-          return fam;
-        })(),
+        color: colorWordFromText(title),
         imageUrl: ogImage,
         description: ogDesc?.slice(0, 600),
         price: ogPrice,
@@ -326,15 +470,20 @@ async function fetchProductReference(url: string): Promise<ProductReference> {
     return base;
   } catch (e) {
     console.warn("fetchProductReference failed:", (e as Error).message);
+    if (debug) debug.failureReason = `direct metadata exception: ${(e as Error).message}`;
     return base;
   }
 }
 
 /* ── Firecrawl fallback ─────────────────────────────────────── */
-async function fetchProductReferenceFirecrawl(url: string): Promise<ProductReference | null> {
+async function fetchProductReferenceFirecrawl(url: string, debug?: ProductLinkDebug): Promise<ProductReference | null> {
   const key = Deno.env.get("FIRECRAWL_API_KEY");
-  if (!key) return null;
+  if (!key) {
+    debug?.attempts.push("firecrawl:skipped_no_key");
+    return null;
+  }
   try {
+    debug?.attempts.push("firecrawl:start");
     const ctrl = new AbortController();
     const timeout = setTimeout(() => ctrl.abort(), 12000);
     const schema = {
@@ -366,10 +515,20 @@ async function fetchProductReferenceFirecrawl(url: string): Promise<ProductRefer
       }),
     }).catch(() => null);
     clearTimeout(timeout);
-    if (!res || !res.ok) return null;
+    if (!res) {
+      debug?.attempts.push("firecrawl:no_response");
+      return null;
+    }
+    if (!res.ok) {
+      debug?.attempts.push(`firecrawl:http_${res.status}`);
+      return null;
+    }
     const data = await res.json().catch(() => null);
     const j = data?.data?.json ?? data?.json ?? null;
-    if (!j || typeof j !== "object") return null;
+    if (!j || typeof j !== "object") {
+      debug?.attempts.push("firecrawl:no_json_product");
+      return null;
+    }
     const title = typeof j.title === "string" ? j.title : undefined;
     const brand = typeof j.brand === "string" ? j.brand : undefined;
     const color = typeof j.color === "string" ? j.color : undefined;
@@ -383,7 +542,10 @@ async function fetchProductReferenceFirecrawl(url: string): Promise<ProductRefer
     const colorFam = colorFamilyOf(color) || colorFamilyOf(title);
     const strong = !!title && !!imageUrl && !!canonType && !!colorFam;
     const ok = !!title && !!imageUrl;
-    if (!ok) return null;
+    if (!ok) {
+      debug?.attempts.push("firecrawl:missing_title_or_image");
+      return null;
+    }
     return {
       source: "firecrawl",
       confidence: strong ? 0.9 : 0.7,
@@ -392,6 +554,184 @@ async function fetchProductReferenceFirecrawl(url: string): Promise<ProductRefer
     };
   } catch (e) {
     console.warn("firecrawl fallback failed:", (e as Error).message);
+    debug?.attempts.push(`firecrawl:error:${(e as Error).message}`);
+    return null;
+  }
+}
+
+/* ── Web/product search fallback ────────────────────────────── */
+async function searchProductReferenceWeb(
+  url: string,
+  seed?: ProductReference | null,
+  debug?: ProductLinkDebug,
+): Promise<ProductReference | null> {
+  const serperKey = Deno.env.get("SERPER_API_KEY");
+  const serpApiKey = Deno.env.get("SERPAPI_KEY");
+  const productId = productIdFromUrl(url);
+  const urlBrand = hostBrandFromUrl(url);
+  const seedTitle = seed?.title && seed.confidence > 0 ? seed.title : "";
+  const terms = [productId ? `"${productId}"` : "", urlBrand, seedTitle]
+    .filter(Boolean)
+    .join(" ")
+    .trim() || url;
+  if (!terms) return null;
+
+  try {
+    debug?.attempts.push(`web_search:start:${productId || "no_product_id"}`);
+
+    const candidates: Array<{
+      title?: string;
+      brand?: string;
+      color?: string;
+      category?: string;
+      description?: string;
+      imageUrl?: string;
+      price?: string;
+      link?: string;
+      source?: string;
+    }> = [];
+
+    if (serperKey) {
+      const ctrl = new AbortController();
+      const timeout = setTimeout(() => ctrl.abort(), 8000);
+      const [searchResp, shoppingResp] = await Promise.all([
+        fetch("https://google.serper.dev/search", {
+          method: "POST",
+          headers: { "X-API-KEY": serperKey, "Content-Type": "application/json" },
+          signal: ctrl.signal,
+          body: JSON.stringify({ q: terms, gl: "gb", num: 6 }),
+        }).catch(() => null),
+        fetch("https://google.serper.dev/shopping", {
+          method: "POST",
+          headers: { "X-API-KEY": serperKey, "Content-Type": "application/json" },
+          signal: ctrl.signal,
+          body: JSON.stringify({ q: terms, gl: "gb", num: 8 }),
+        }).catch(() => null),
+      ]);
+      clearTimeout(timeout);
+
+      if (searchResp?.ok) {
+        const data = await searchResp.json().catch(() => null);
+        for (const item of (data?.organic || []).slice(0, 6)) {
+          candidates.push({
+            title: item.title,
+            brand: urlBrand || item.source,
+            description: item.snippet,
+            link: item.link,
+            source: item.source,
+          });
+        }
+      } else if (searchResp) {
+        debug?.attempts.push(`web_search:serper_search_http_${searchResp.status}`);
+      }
+
+      if (shoppingResp?.ok) {
+        const data = await shoppingResp.json().catch(() => null);
+        for (const item of (data?.shopping || []).slice(0, 8)) {
+          candidates.push({
+            title: item.title,
+            brand: urlBrand || item.source,
+            description: item.snippet,
+            imageUrl: item.imageUrl,
+            price: item.price,
+            link: item.link,
+            source: item.source,
+          });
+        }
+      } else if (shoppingResp) {
+        debug?.attempts.push(`web_search:serper_shopping_http_${shoppingResp.status}`);
+      }
+    } else if (serpApiKey) {
+      const params = new URLSearchParams({
+        engine: "google_shopping",
+        q: terms,
+        gl: "uk",
+        hl: "en",
+        currency: "GBP",
+        num: "10",
+        api_key: serpApiKey,
+      });
+      const resp = await fetch(`https://serpapi.com/search.json?${params.toString()}`).catch(() => null);
+      if (resp?.ok) {
+        const data = await resp.json().catch(() => null);
+        for (const item of (data?.shopping_results || []).slice(0, 10)) {
+          candidates.push({
+            title: item.title,
+            brand: urlBrand || item.source,
+            description: item.snippet,
+            imageUrl: item.high_res_image || item.thumbnail,
+            price: item.price,
+            link: item.link,
+            source: item.source,
+          });
+        }
+      } else if (resp) {
+        debug?.attempts.push(`web_search:serpapi_http_${resp.status}`);
+      }
+    } else {
+      debug?.attempts.push("web_search:skipped_no_key");
+      return null;
+    }
+
+    const host = (() => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return ""; } })();
+    const pathCategory = categoryFromUrlPath(url);
+    const scored = candidates
+      .map((c) => {
+        const text = [c.title, c.description].filter(Boolean).join(" ");
+        const category = canonicalGarmentType(c.category) || canonicalGarmentType(text) || undefined;
+        const color = colorWordFromText(c.color) || colorWordFromText(text);
+        const linkHost = (() => { try { return c.link ? new URL(c.link).hostname.replace(/^www\./, "") : ""; } catch { return ""; } })();
+        const productIdMatch = !!productId && ([text, c.link].filter(Boolean).join(" ").toLowerCase().includes(productId.toLowerCase()));
+        const sameRetailer = !!host && !!linkHost && linkHost.includes(host);
+        let score = 0;
+        if (c.title) score += 2;
+        if (category) score += 2;
+        if (color) score += 2;
+        if (c.imageUrl) score += 1;
+        if (productIdMatch) score += 4;
+        if (sameRetailer) score += 3;
+        if (urlBrand && text.toLowerCase().includes(urlBrand.toLowerCase())) score += 1;
+        return { c, score, category, color, productIdMatch, sameRetailer };
+      })
+      .filter((x) => {
+        if (!x.c.title || !(x.category || x.color)) return false;
+        if (pathCategory && x.category && x.category !== pathCategory) return false;
+        // Product-code URLs are easy to misread from generic shopping results.
+        // Require a direct product-id hit or same-retailer URL before trusting search.
+        if (productId && !x.productIdMatch && !x.sameRetailer) return false;
+        return true;
+      })
+      .sort((a, b) => b.score - a.score);
+
+    const best = scored[0];
+    if (!best) {
+      debug?.attempts.push("web_search:no_product_candidate");
+      return null;
+    }
+
+    const ref: ProductReference = {
+      source: "web_search",
+      confidence: confidenceForProductRef({
+        title: best.c.title,
+        brand: best.c.brand || urlBrand || undefined,
+        color: best.color,
+        category: best.category,
+        imageUrl: best.c.imageUrl,
+      }, "web_search"),
+      url,
+      title: best.c.title,
+      brand: best.c.brand || urlBrand || undefined,
+      color: best.color,
+      category: best.category,
+      description: best.c.description?.slice(0, 600),
+      imageUrl: best.c.imageUrl,
+      price: best.c.price,
+    };
+    debug?.attempts.push(`web_search:best_score_${best.score}:confidence_${ref.confidence}`);
+    return ref;
+  } catch (e) {
+    console.warn("web product search failed:", (e as Error).message);
+    debug?.attempts.push(`web_search:error:${(e as Error).message}`);
     return null;
   }
 }
@@ -493,9 +833,26 @@ function getDirectUrl(rawUrl: string): string {
   }
 }
 
-async function searchCheaperAlternatives(ref: ProductReference): Promise<ShoppingProduct[]> {
-  const key = Deno.env.get("SERPER_API_KEY");
-  if (!key) return [];
+async function searchCheaperAlternatives(ref: ProductReference, serviceClient?: any): Promise<ShoppingProduct[]> {
+  const serperKey = Deno.env.get("SERPER_API_KEY");
+  const serpApiKey = Deno.env.get("SERPAPI_KEY");
+  if (!serperKey && !serpApiKey) return [];
+  const cacheUrl = ref.url ? normalizeUrl(ref.url) : null;
+  if (serviceClient && cacheUrl) {
+    try {
+      const { data } = await serviceClient
+        .from("product_link_cache")
+        .select("shopping_results, fetched_at")
+        .eq("normalized_url", cacheUrl)
+        .maybeSingle();
+      const fetchedAt = data?.fetched_at ? new Date(data.fetched_at).getTime() : 0;
+      if (Array.isArray(data?.shopping_results) && fetchedAt && Date.now() - fetchedAt < PRODUCT_CACHE_TTL_MS) {
+        return data.shopping_results.slice(0, 4) as ShoppingProduct[];
+      }
+    } catch {
+      // Cache misses/errors should never block search.
+    }
+  }
   const colorWord = ref.color || "";
   const cat = ref.category || canonicalGarmentType(ref.title || "") || "";
   // Keep query short and focused; exclude the exact brand to surface alternatives.
@@ -507,16 +864,26 @@ async function searchCheaperAlternatives(ref: ProductReference): Promise<Shoppin
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 8000);
-    const resp = await fetch("https://google.serper.dev/shopping", {
-      method: "POST",
-      headers: { "X-API-KEY": key, "Content-Type": "application/json" },
-      signal: ctrl.signal,
-      body: JSON.stringify({ q, gl: "gb", num: 20 }),
-    }).catch(() => null);
+    const resp = serperKey
+      ? await fetch("https://google.serper.dev/shopping", {
+          method: "POST",
+          headers: { "X-API-KEY": serperKey, "Content-Type": "application/json" },
+          signal: ctrl.signal,
+          body: JSON.stringify({ q, gl: "gb", num: 20 }),
+        }).catch(() => null)
+      : await fetch(`https://serpapi.com/search.json?${new URLSearchParams({
+          engine: "google_shopping",
+          q,
+          gl: "uk",
+          hl: "en",
+          currency: "GBP",
+          num: "20",
+          api_key: serpApiKey!,
+        }).toString()}`).catch(() => null);
     clearTimeout(t);
     if (!resp || !resp.ok) return [];
     const data = await resp.json();
-    const items = (data?.shopping || []) as any[];
+    const items = (data?.shopping || data?.shopping_results || []) as any[];
 
     // Parse a numeric price out of the price string for sorting
     const parsePrice = (s?: string): number | null => {
@@ -537,7 +904,7 @@ async function searchCheaperAlternatives(ref: ProductReference): Promise<Shoppin
         source: it.source ? String(it.source).slice(0, 60) : undefined,
         price: it.price ? String(it.price).slice(0, 30) : undefined,
         link: getDirectUrl(String(it.link)),
-        imageUrl: it.imageUrl ? String(it.imageUrl) : undefined,
+        imageUrl: it.imageUrl || it.thumbnail || it.high_res_image ? String(it.imageUrl || it.thumbnail || it.high_res_image) : undefined,
         reason: [colorWord, cat].filter(Boolean).join(" ").trim() || undefined,
       }));
 
@@ -551,7 +918,24 @@ async function searchCheaperAlternatives(ref: ProductReference): Promise<Shoppin
       return pa - pb;
     });
 
-    return filtered.slice(0, 4);
+    const results = filtered.slice(0, 4);
+    if (serviceClient && cacheUrl && results.length > 0) {
+      try {
+        await serviceClient.from("product_link_cache").upsert({
+          normalized_url: cacheUrl,
+          original_url: ref.url,
+          final_url: ref.url,
+          product_ref: ref,
+          shopping_results: results,
+          extraction_source: ref.source,
+          confidence: ref.confidence,
+          fetched_at: new Date().toISOString(),
+        }, { onConflict: "normalized_url" });
+      } catch {
+        // Non-critical cache write.
+      }
+    }
+    return results;
   } catch (e) {
     console.warn("searchCheaperAlternatives failed:", (e as Error).message);
     return [];
@@ -832,12 +1216,35 @@ serve(async (req) => {
     let productRef: ProductReference | null = null;
     if (firstUrl) {
       const normalizedUrl = normalizeUrl(firstUrl);
-      productRef = await fetchProductReference(normalizedUrl);
+      const linkDebug: ProductLinkDebug = {
+        originalUrl: firstUrl,
+        cleanedUrl: normalizedUrl,
+        extractionSource: "none",
+        attempts: [],
+      };
+      productRef = await getCachedProductReference(serviceClient, normalizedUrl, linkDebug);
+      if (productRef) recordProductRef(linkDebug, productRef, productRef.source);
+
       if (!productRef || productRef.confidence < 0.7) {
-        const fc = await fetchProductReferenceFirecrawl(normalizedUrl);
+        const direct = await fetchProductReference(normalizedUrl, linkDebug);
+        recordProductRef(linkDebug, direct, "metadata");
+        if (direct && direct.confidence > (productRef?.confidence ?? 0)) productRef = direct;
+      }
+
+      if (!productRef || productRef.confidence < 0.7) {
+        const searched = await searchProductReferenceWeb(normalizedUrl, productRef, linkDebug);
+        if (searched) recordProductRef(linkDebug, searched, "web_search");
+        if (searched && searched.confidence > (productRef?.confidence ?? 0)) productRef = searched;
+      }
+
+      if (!productRef || productRef.confidence < 0.7) {
+        const fc = await fetchProductReferenceFirecrawl(normalizedUrl, linkDebug);
+        if (fc) recordProductRef(linkDebug, fc, "firecrawl");
         if (fc && fc.confidence > (productRef?.confidence ?? 0)) productRef = fc;
       }
+
       if (productRef && productRef.confidence < 0.7 && productRef.imageUrl) {
+        linkDebug.attempts.push("vision_from_product_image:start");
         const vis = await analyzeProductImageWithVision(productRef.imageUrl, normalizedUrl);
         if (vis) {
           productRef = {
@@ -847,9 +1254,18 @@ serve(async (req) => {
             imageUrl: productRef.imageUrl,
             confidence: Math.max(productRef.confidence, vis.confidence),
           };
+          recordProductRef(linkDebug, productRef, "browser_screenshot");
+        } else {
+          linkDebug.attempts.push("vision_from_product_image:no_result");
         }
       }
       if (!productRef) productRef = { source: "unknown", confidence: 0, url: normalizedUrl };
+      if (productRef.confidence < 0.7) {
+        linkDebug.failureReason = linkDebug.failureReason || "all URL-reading methods returned low confidence";
+      }
+      recordProductRef(linkDebug, productRef, productRef.source);
+      await saveProductReferenceCache(serviceClient, normalizedUrl, firstUrl, productRef, linkDebug);
+      logProductLinkDebug(linkDebug);
     } else if (hasAttachment) {
       // Try to read product attributes from the user's uploaded image so
       // cheaper-alternatives and wardrobe matching work without a URL.
@@ -861,7 +1277,7 @@ serve(async (req) => {
 
     const refMode = !!productRef;
     const refConfident = !!productRef && productRef.confidence >= 0.7;
-    const shoppingAvailable = !!Deno.env.get("SERPER_API_KEY");
+    const shoppingAvailable = !!(Deno.env.get("SERPER_API_KEY") || Deno.env.get("SERPAPI_KEY"));
 
     // Strip "Find cheaper alternatives" from canned QA lists when shopping is unavailable.
     const filterShopping = (qa: any[]) =>
@@ -869,7 +1285,7 @@ serve(async (req) => {
 
     /* ── Cheaper-alternatives short-circuit ──────────────────── */
     if (refMode && refConfident && cheaperIntent && shoppingAvailable) {
-      const products = await searchCheaperAlternatives(productRef!);
+      const products = await searchCheaperAlternatives(productRef!, serviceClient);
       let replyText: string;
       let shopping: ShoppingProduct[] = [];
       if (products.length === 0) {
@@ -977,7 +1393,7 @@ STYLING RULES:
 4. If body shape matters, mention it gently and practically — never clinically.
 5. If the wardrobe lacks something good, say so honestly and describe the missing piece in one line.
 6. When the user shares an image, react like a friend: colors, vibe, what to pair it with.
-7. If a URL appears, treat it only as a reference the user mentioned — never claim to have visited it.
+7. If a URL appears without a REFERENCE_PRODUCT block, treat it only as a reference the user mentioned. If REFERENCE_PRODUCT exists, use only those extracted fields and never invent missing details.
 8. Always include 1 short styling tip when relevant (e.g., "French tuck the tank, keep the shoes simple").
 
 QUICK ACTIONS (always include 2–4 when sensible):
