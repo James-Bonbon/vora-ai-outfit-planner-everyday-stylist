@@ -157,17 +157,26 @@ async function saveProductReferenceCache(
 }
 
 const TRACKING_PARAMS = new Set([
-  "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
-  "gclid", "fbclid", "mc_cid", "mc_eid", "yclid", "msclkid", "dclid",
-  "_ga", "_gl", "ref", "ref_src", "ref_url", "igshid", "spm",
+  "gclid", "gclsrc", "fbclid", "msclkid", "yclid", "dclid",
+  "gbraid", "wbraid", "wiz_campaign",
+  "mc_cid", "mc_eid", "_ga", "_gl",
+  "ref", "ref_src", "ref_url", "igshid", "spm",
 ]);
+
+const TRACKING_PREFIXES = ["utm_", "gad_", "ga_", "hsa_", "mkt_", "pk_", "piwik_", "matomo_"];
+
+function isTrackingParam(key: string): boolean {
+  const k = key.toLowerCase();
+  if (TRACKING_PARAMS.has(k)) return true;
+  return TRACKING_PREFIXES.some((p) => k.startsWith(p));
+}
 
 function normalizeUrl(raw: string): string {
   try {
     const u = new URL(raw);
     const keep: [string, string][] = [];
     for (const [k, v] of u.searchParams.entries()) {
-      if (!TRACKING_PARAMS.has(k.toLowerCase())) keep.push([k, v]);
+      if (!isTrackingParam(k)) keep.push([k, v]);
     }
     u.search = "";
     for (const [k, v] of keep) u.searchParams.append(k, v);
