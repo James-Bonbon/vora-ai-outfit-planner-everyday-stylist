@@ -687,7 +687,7 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
           size="icon"
           className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shrink-0 h-10 w-10"
           onClick={handleSend}
-          disabled={!input.trim() || sendMutation.isPending}
+          disabled={!canSend}
         >
           {sendMutation.isPending ? (
             <Loader2 className="w-4 h-4 animate-spin" />
