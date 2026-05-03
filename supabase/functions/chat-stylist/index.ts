@@ -1255,7 +1255,7 @@ serve(async (req) => {
 
     const refMode = !!productRef;
     const refConfident = !!productRef && productRef.confidence >= 0.7;
-    const shoppingAvailable = !!Deno.env.get("SERPER_API_KEY");
+    const shoppingAvailable = !!(Deno.env.get("SERPER_API_KEY") || Deno.env.get("SERPAPI_KEY"));
 
     // Strip "Find cheaper alternatives" from canned QA lists when shopping is unavailable.
     const filterShopping = (qa: any[]) =>
