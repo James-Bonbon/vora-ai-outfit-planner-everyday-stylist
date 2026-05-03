@@ -106,6 +106,7 @@ function recordProductRef(debug: ProductLinkDebug, ref: ProductReference | null,
     imageUrl: ref.imageUrl,
   };
   debug.confidence = Number((ref.confidence || 0).toFixed(2));
+  if (ref.confidence >= 0.7) delete debug.failureReason;
 }
 
 async function getCachedProductReference(serviceClient: any, normalizedUrl: string, debug?: ProductLinkDebug): Promise<ProductReference | null> {
