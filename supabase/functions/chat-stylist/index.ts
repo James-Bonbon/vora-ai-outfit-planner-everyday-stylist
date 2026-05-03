@@ -1371,7 +1371,7 @@ ${refConfident
   : `- Reference confidence is LOW (source=${productRef!.source}, confidence=${productRef!.confidence.toFixed(2)}). We could NOT reliably read the product.
 - Do NOT infer the product's type, color, or material.
 - Do NOT recommend any wardrobe items. Set recommended_ids to [].
-- Reply exactly: "I can't read this product page directly. Please upload a screenshot or product image and I'll find similar pieces or style it with your wardrobe."`}
+- Reply exactly: "${hasAttachment ? "I couldn't read this product page clearly, and I couldn't pull confident details from your screenshot either. Tell me what it is (e.g. \\\"white midi dress\\\") and I'll style it or find alternatives." : "I can't read this product page directly. Please upload a screenshot or product image and I'll find similar pieces or style it with your wardrobe."}"`}
 - Quick actions are injected by the server in reference mode — keep your quick_actions array empty ([]); the server will replace it.
 `
       : "";
