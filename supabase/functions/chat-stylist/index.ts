@@ -63,7 +63,7 @@ function sanitizeWardrobeForPrompt(items: any[]): any[] {
 
 /* ── Reference Product Mode ─────────────────────────────────── */
 type ProductReference = {
-  source: "metadata" | "firecrawl" | "browser_screenshot" | "user_image" | "image_analysis" | "url_metadata" | "unknown";
+  source: "metadata" | "web_search" | "firecrawl" | "browser_screenshot" | "user_image" | "image_analysis" | "url_metadata" | "unknown";
   confidence: number; // 0..1
   url?: string;
   title?: string;
@@ -75,6 +75,36 @@ type ProductReference = {
   imageUrl?: string;
   price?: string;
 };
+
+type ProductLinkDebug = {
+  originalUrl: string;
+  cleanedUrl?: string;
+  finalRedirectedUrl?: string;
+  httpStatus?: number;
+  contentType?: string;
+  extractionSource?: ProductReference["source"] | "none";
+  extracted?: Pick<ProductReference, "title" | "brand" | "color" | "category" | "imageUrl">;
+  confidence?: number;
+  failureReason?: string;
+  attempts: string[];
+};
+
+function logProductLinkDebug(debug: ProductLinkDebug) {
+  console.info("[chat-stylist:product-link-reader]", JSON.stringify(debug));
+}
+
+function recordProductRef(debug: ProductLinkDebug, ref: ProductReference | null, source?: ProductReference["source"]) {
+  if (!ref) return;
+  debug.extractionSource = source || ref.source;
+  debug.extracted = {
+    title: ref.title,
+    brand: ref.brand,
+    color: ref.color,
+    category: ref.category,
+    imageUrl: ref.imageUrl,
+  };
+  debug.confidence = Number((ref.confidence || 0).toFixed(2));
+}
 
 const TRACKING_PARAMS = new Set([
   "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
