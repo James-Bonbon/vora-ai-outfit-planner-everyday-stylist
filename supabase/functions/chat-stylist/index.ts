@@ -812,8 +812,9 @@ function getDirectUrl(rawUrl: string): string {
 }
 
 async function searchCheaperAlternatives(ref: ProductReference, serviceClient?: any): Promise<ShoppingProduct[]> {
-  const key = Deno.env.get("SERPER_API_KEY");
-  if (!key) return [];
+  const serperKey = Deno.env.get("SERPER_API_KEY");
+  const serpApiKey = Deno.env.get("SERPAPI_KEY");
+  if (!serperKey && !serpApiKey) return [];
   const cacheUrl = ref.url ? normalizeUrl(ref.url) : null;
   if (serviceClient && cacheUrl) {
     try {
@@ -841,16 +842,26 @@ async function searchCheaperAlternatives(ref: ProductReference, serviceClient?: 
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 8000);
-    const resp = await fetch("https://google.serper.dev/shopping", {
-      method: "POST",
-      headers: { "X-API-KEY": key, "Content-Type": "application/json" },
-      signal: ctrl.signal,
-      body: JSON.stringify({ q, gl: "gb", num: 20 }),
-    }).catch(() => null);
+    const resp = serperKey
+      ? await fetch("https://google.serper.dev/shopping", {
+          method: "POST",
+          headers: { "X-API-KEY": serperKey, "Content-Type": "application/json" },
+          signal: ctrl.signal,
+          body: JSON.stringify({ q, gl: "gb", num: 20 }),
+        }).catch(() => null)
+      : await fetch(`https://serpapi.com/search.json?${new URLSearchParams({
+          engine: "google_shopping",
+          q,
+          gl: "uk",
+          hl: "en",
+          currency: "GBP",
+          num: "20",
+          api_key: serpApiKey!,
+        }).toString()}`).catch(() => null);
     clearTimeout(t);
     if (!resp || !resp.ok) return [];
     const data = await resp.json();
-    const items = (data?.shopping || []) as any[];
+    const items = (data?.shopping || data?.shopping_results || []) as any[];
 
     // Parse a numeric price out of the price string for sorting
     const parsePrice = (s?: string): number | null => {
@@ -871,7 +882,7 @@ async function searchCheaperAlternatives(ref: ProductReference, serviceClient?: 
         source: it.source ? String(it.source).slice(0, 60) : undefined,
         price: it.price ? String(it.price).slice(0, 30) : undefined,
         link: getDirectUrl(String(it.link)),
-        imageUrl: it.imageUrl ? String(it.imageUrl) : undefined,
+        imageUrl: it.imageUrl || it.thumbnail || it.high_res_image ? String(it.imageUrl || it.thumbnail || it.high_res_image) : undefined,
         reason: [colorWord, cat].filter(Boolean).join(" ").trim() || undefined,
       }));
 
