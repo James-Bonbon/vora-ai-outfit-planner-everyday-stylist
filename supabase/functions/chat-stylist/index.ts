@@ -209,7 +209,7 @@ function colorFamilyOf(color?: string | null): string | null {
 function canonicalGarmentType(input?: string | null): string | null {
   if (!input) return null;
   const s = input.toLowerCase();
-  if (/\bdress\b|\bgown\b|\bjumpsuit\b|\bromper\b/.test(s)) return "dress";
+  if (/\bdresses\b|\bdress\b|\bgowns?\b|\bjumpsuits?\b|\brompers?\b/.test(s)) return "dress";
   if (/\bcoat\b|\bjacket\b|\bblazer\b|\btrench\b|\bparka\b|\bouterwear\b/.test(s)) return "outerwear";
   if (/\bjeans\b|\bpants\b|\btrouser\b|\bshort\b|\bskirt\b|\blegging\b|\bbottom\b/.test(s)) return "bottom";
   if (/\btop\b|\bshirt\b|\bblouse\b|\btee\b|\bt-shirt\b|\btshirt\b|\bsweater\b|\bknit\b|\bjumper\b|\bcardigan\b|\bhoodie\b|\btank\b|\bcami\b/.test(s)) return "top";
