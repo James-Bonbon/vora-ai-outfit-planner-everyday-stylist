@@ -33,12 +33,23 @@ const ALLOWED_KINDS = new Set([
   "open_stylist",
 ]);
 
+interface ShoppingProduct {
+  title: string;
+  source?: string;
+  price?: string;
+  link: string;
+  imageUrl?: string;
+  reason?: string;
+}
+
 interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   suggested_garment_ids?: string[] | null;
   quick_actions?: ChatQuickAction[] | null;
+  attachment_url?: string | null;
+  shopping?: ShoppingProduct[] | null;
   created_at: string;
 }
 
@@ -123,6 +134,26 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
     refetchOnMount: false,
   });
 
+  // Sign chat attachment paths from the 'selfies' bucket so they render in history
+  const attachmentPaths = messages
+    .map((m) => m.attachment_url)
+    .filter((p): p is string => !!p && !p.startsWith("data:") && !p.startsWith("http"));
+  const { data: attachmentUrls = {} } = useQuery<Record<string, string>>({
+    queryKey: ["chat-attachment-urls", attachmentPaths],
+    queryFn: async () => {
+      if (attachmentPaths.length === 0) return {};
+      return await getCachedSignedUrls("selfies", attachmentPaths);
+    },
+    enabled: attachmentPaths.length > 0,
+    staleTime: 30 * 60 * 1000,
+    refetchOnMount: false,
+  });
+  const resolveAttachment = (raw?: string | null): string | undefined => {
+    if (!raw) return undefined;
+    if (raw.startsWith("data:") || raw.startsWith("http")) return raw;
+    return attachmentUrls[raw];
+  };
+
   // Send message mutation (with optimistic update + reliable 30s timeout)
   const sendMutation = useMutation({
     mutationFn: async (
@@ -192,8 +223,7 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
       if (data?.error) throw new Error(data.error);
       return data as { reply_text: string; recommended_ids: string[] };
     },
-    onMutate: async ({ userMessage }) => {
-      // Optimistically append the user message so the UI feels instant.
+    onMutate: async ({ userMessage, attachmentSnapshot }) => {
       await queryClient.cancelQueries({ queryKey: ["chat-messages"] });
       const previous = queryClient.getQueryData<ChatMessage[]>(["chat-messages"]) || [];
       const optimistic: ChatMessage = {
@@ -201,12 +231,10 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
         role: "user",
         content: userMessage,
         suggested_garment_ids: null,
+        attachment_url: attachmentSnapshot?.base64 || null,
         created_at: new Date().toISOString(),
       };
-      queryClient.setQueryData<ChatMessage[]>(
-        ["chat-messages"],
-        [...previous, optimistic]
-      );
+      queryClient.setQueryData<ChatMessage[]>(["chat-messages"], [...previous, optimistic]);
       return { previous };
     },
     onSuccess: () => {
@@ -283,13 +311,14 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
     e.target.value = "";
   };
 
+  const canSend = (input.trim().length > 0 || attachment != null) && !sendMutation.isPending;
   const handleSend = () => {
+    if (!canSend) return;
     const text = input.trim();
-    if (!text || sendMutation.isPending) return;
     const attachmentSnapshot = attachment;
     setInput("");
     setAttachment(null);
-    sendMutation.mutate({ userMessage: text, attachmentSnapshot });
+    sendMutation.mutate({ userMessage: text || (attachmentSnapshot ? "What do you think of this?" : ""), attachmentSnapshot });
   };
 
   const sendQuickMessage = (message: string) => {
@@ -438,16 +467,55 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
               )}
             >
               <div className="max-w-[85%] space-y-2">
-                <div
-                  className={cn(
-                    "px-4 py-2.5 rounded-2xl text-sm leading-relaxed",
-                    msg.role === "user"
-                      ? "bg-primary text-primary-foreground rounded-br-md"
-                      : "bg-card border border-border text-foreground rounded-bl-md"
-                  )}
-                >
-                  {msg.content}
-                </div>
+                {msg.role === "user" && msg.attachment_url && resolveAttachment(msg.attachment_url) && (
+                  <div className="flex justify-end">
+                    <img
+                      src={resolveAttachment(msg.attachment_url)}
+                      alt="Attached"
+                      className="max-w-[220px] max-h-[260px] rounded-2xl rounded-br-md border border-border object-cover"
+                    />
+                  </div>
+                )}
+                {msg.content && msg.content.trim().length > 0 && (
+                  <div
+                    className={cn(
+                      "px-4 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words",
+                      msg.role === "user"
+                        ? "bg-primary text-primary-foreground rounded-br-md"
+                        : "bg-card border border-border text-foreground rounded-bl-md"
+                    )}
+                  >
+                    {msg.content}
+                  </div>
+                )}
+
+                {/* Shopping results (cheaper alternatives) */}
+                {msg.role === "assistant" && Array.isArray(msg.shopping) && msg.shopping.length > 0 && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {msg.shopping.map((p, i) => (
+                      <a
+                        key={i}
+                        href={p.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-xl border border-border overflow-hidden bg-card hover:border-primary/40 transition-colors"
+                      >
+                        {p.imageUrl && (
+                          <div className="aspect-square w-full bg-secondary flex items-center justify-center overflow-hidden">
+                            <img src={p.imageUrl} alt={p.title} className="w-full h-full object-cover" loading="lazy" />
+                          </div>
+                        )}
+                        <div className="p-2 space-y-0.5">
+                          <p className="text-[11px] font-medium text-foreground line-clamp-2 leading-tight">{p.title}</p>
+                          <div className="flex items-center justify-between gap-1">
+                            {p.price && <p className="text-xs font-semibold text-foreground">{p.price}</p>}
+                            {p.source && <p className="text-[10px] text-muted-foreground truncate">{p.source}</p>}
+                          </div>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                )}
 
                 {/* Garment cards */}
                 {msg.role === "assistant" &&
@@ -551,7 +619,7 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
       {/* Attachment preview */}
       {attachment && (
         <div className="flex items-center gap-2 px-2 pt-2">
-          <div className="relative w-12 h-12 rounded-lg overflow-hidden border border-border bg-secondary">
+          <div className="relative w-14 h-14 rounded-lg overflow-hidden border border-border bg-secondary">
             {attachment.base64 ? (
               <img src={attachment.base64} alt="Attachment" className="w-full h-full object-cover" />
             ) : (
@@ -560,10 +628,12 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
               </div>
             )}
             <button
+              type="button"
+              aria-label="Remove attachment"
               onClick={() => setAttachment(null)}
-              className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center"
+              className="absolute top-0.5 right-0.5 z-10 w-[22px] h-[22px] rounded-full bg-foreground/85 text-background shadow-md flex items-center justify-center hover:bg-foreground transition-colors"
             >
-              <X className="w-3 h-3" />
+              <X className="w-3 h-3" strokeWidth={2.5} />
             </button>
           </div>
           <span className="text-xs text-muted-foreground truncate max-w-[200px]">
@@ -617,7 +687,7 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
           size="icon"
           className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shrink-0 h-10 w-10"
           onClick={handleSend}
-          disabled={!input.trim() || sendMutation.isPending}
+          disabled={!canSend}
         >
           {sendMutation.isPending ? (
             <Loader2 className="w-4 h-4 animate-spin" />
