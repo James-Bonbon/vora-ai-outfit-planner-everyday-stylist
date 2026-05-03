@@ -63,7 +63,7 @@ function sanitizeWardrobeForPrompt(items: any[]): any[] {
 
 /* ── Reference Product Mode ─────────────────────────────────── */
 type ProductReference = {
-  source: "url_metadata" | "image_analysis" | "unknown";
+  source: "metadata" | "firecrawl" | "browser_screenshot" | "user_image" | "image_analysis" | "url_metadata" | "unknown";
   confidence: number; // 0..1
   url?: string;
   title?: string;
@@ -73,7 +73,30 @@ type ProductReference = {
   material?: string;
   description?: string;
   imageUrl?: string;
+  price?: string;
 };
+
+const TRACKING_PARAMS = new Set([
+  "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
+  "gclid", "fbclid", "mc_cid", "mc_eid", "yclid", "msclkid", "dclid",
+  "_ga", "_gl", "ref", "ref_src", "ref_url", "igshid", "spm",
+]);
+
+function normalizeUrl(raw: string): string {
+  try {
+    const u = new URL(raw);
+    const keep: [string, string][] = [];
+    for (const [k, v] of u.searchParams.entries()) {
+      if (!TRACKING_PARAMS.has(k.toLowerCase())) keep.push([k, v]);
+    }
+    u.search = "";
+    for (const [k, v] of keep) u.searchParams.append(k, v);
+    u.hash = "";
+    return u.toString();
+  } catch {
+    return raw;
+  }
+}
 
 const URL_RE = /\bhttps?:\/\/[^\s<>"']+/gi;
 
