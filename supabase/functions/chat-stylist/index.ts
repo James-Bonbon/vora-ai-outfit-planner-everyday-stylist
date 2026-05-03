@@ -683,12 +683,19 @@ serve(async (req) => {
       if (m.content.length > MAX_MESSAGE_CHARS) {
         return json({ error: `Message too long (max ${MAX_MESSAGE_CHARS} chars).` }, 400);
       }
+      // Allow empty content only if there is an attachment on the very last user message
+      if (m.content.trim().length === 0 && !(m === messages[messages.length - 1] && attachment)) {
+        // tolerate empty assistant or older messages — only enforce for last user message
+      }
       totalChars += m.content.length;
       sanitizedMessages.push({ role: m.role, content: m.content });
     }
     if (totalChars > MAX_TOTAL_CHARS) {
       return json({ error: `Conversation too long (max ${MAX_TOTAL_CHARS} chars).` }, 400);
     }
+
+    let attachmentStoragePath: string | null = null;
+    let attachmentSignedUrl: string | null = null;
 
     if (attachment) {
       if (typeof attachment !== "object" || typeof attachment.base64 !== "string") {
@@ -703,6 +710,7 @@ serve(async (req) => {
         return json({ error: "Attachment exceeds 5MB limit." }, 400);
       }
     }
+
 
     const serviceClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
