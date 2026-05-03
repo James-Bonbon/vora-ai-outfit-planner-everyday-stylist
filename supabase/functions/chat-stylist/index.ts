@@ -63,7 +63,7 @@ function sanitizeWardrobeForPrompt(items: any[]): any[] {
 
 /* ── Reference Product Mode ─────────────────────────────────── */
 type ProductReference = {
-  source: "metadata" | "web_search" | "firecrawl" | "browser_screenshot" | "user_image" | "image_analysis" | "url_metadata" | "unknown";
+  source: "metadata" | "tavily" | "web_search" | "firecrawl" | "browser_screenshot" | "user_image" | "image_analysis" | "url_metadata" | "unknown";
   confidence: number; // 0..1
   url?: string;
   title?: string;
