@@ -194,11 +194,13 @@ async function fetchProductReference(url: string): Promise<ProductReference> {
   const base: ProductReference = { source: "unknown", confidence: 0, url };
   try {
     const ctrl = new AbortController();
-    const timeout = setTimeout(() => ctrl.abort(), 1500);
+    const timeout = setTimeout(() => ctrl.abort(), 4000);
     const res = await fetch(url, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; VoraStylist/1.0)",
-        Accept: "text/html,application/xhtml+xml",
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
       },
       signal: ctrl.signal,
       redirect: "follow",
@@ -208,12 +210,12 @@ async function fetchProductReference(url: string): Promise<ProductReference> {
     const ct = res.headers.get("content-type") || "";
     if (!ct.includes("text/html") && !ct.includes("application/xhtml")) return base;
 
-    // Read up to 512KB
+    // Read up to 1MB
     const reader = res.body?.getReader();
     if (!reader) return base;
     const chunks: Uint8Array[] = [];
     let total = 0;
-    const cap = 512 * 1024;
+    const cap = 1024 * 1024;
     while (total < cap) {
       const { value, done } = await reader.read();
       if (done) break;
@@ -242,12 +244,22 @@ async function fetchProductReference(url: string): Promise<ProductReference> {
       const material = typeof product.material === "string" ? product.material : undefined;
       const category = typeof product.category === "string" ? product.category : undefined;
       const description = typeof product.description === "string" ? product.description.slice(0, 600) : undefined;
+      const offers = product.offers;
+      const price = (() => {
+        const o = Array.isArray(offers) ? offers[0] : offers;
+        if (o && typeof o === "object") {
+          const p = (o as any).price ?? (o as any).lowPrice;
+          const cur = (o as any).priceCurrency;
+          if (p) return cur ? `${p} ${cur}` : String(p);
+        }
+        return undefined;
+      })();
 
       const hasNameAndImage = !!name && !!image;
       const hasColorOrCategory = !!color || !!category;
       const confidence = hasNameAndImage && (hasColorOrCategory || canonicalGarmentType(name)) ? 0.9 : (hasNameAndImage ? 0.75 : 0.5);
       return {
-        source: "url_metadata",
+        source: "metadata",
         confidence,
         url,
         title: name,
@@ -257,6 +269,7 @@ async function fetchProductReference(url: string): Promise<ProductReference> {
         material,
         description,
         imageUrl: typeof image === "string" ? image : undefined,
+        price,
       };
     }
 
@@ -267,10 +280,13 @@ async function fetchProductReference(url: string): Promise<ProductReference> {
     const ogBrand = extractMetaContent(html, ["product:brand", "og:brand"]) || undefined;
     const ogColor = extractMetaContent(html, ["product:color"]) || undefined;
     const ogCategory = extractMetaContent(html, ["product:category", "article:section"]) || undefined;
+    const ogPriceAmount = extractMetaContent(html, ["product:price:amount", "og:price:amount"]) || undefined;
+    const ogPriceCurrency = extractMetaContent(html, ["product:price:currency", "og:price:currency"]) || undefined;
+    const ogPrice = ogPriceAmount ? (ogPriceCurrency ? `${ogPriceAmount} ${ogPriceCurrency}` : ogPriceAmount) : undefined;
 
     if (ogTitle && ogImage && (ogBrand || ogColor || ogCategory)) {
       return {
-        source: "url_metadata",
+        source: "metadata",
         confidence: 0.75,
         url,
         title: ogTitle,
@@ -279,6 +295,7 @@ async function fetchProductReference(url: string): Promise<ProductReference> {
         category: ogCategory || canonicalGarmentType(ogTitle) || undefined,
         description: ogDesc?.slice(0, 600),
         imageUrl: ogImage,
+        price: ogPrice,
       };
     }
 
@@ -287,7 +304,7 @@ async function fetchProductReference(url: string): Promise<ProductReference> {
     if (title) {
       const strong = titleHasTypeAndColor(title);
       return {
-        source: "url_metadata",
+        source: "metadata",
         confidence: strong ? 0.7 : 0.4,
         url,
         title,
@@ -295,7 +312,6 @@ async function fetchProductReference(url: string): Promise<ProductReference> {
         color: (() => {
           const fam = colorFamilyOf(title);
           if (!fam) return undefined;
-          // return the matched word from title for transparency
           for (const w of COLOR_FAMILIES[fam]) {
             if (title.toLowerCase().includes(w)) return w;
           }
@@ -303,6 +319,7 @@ async function fetchProductReference(url: string): Promise<ProductReference> {
         })(),
         imageUrl: ogImage,
         description: ogDesc?.slice(0, 600),
+        price: ogPrice,
       };
     }
 
@@ -310,6 +327,142 @@ async function fetchProductReference(url: string): Promise<ProductReference> {
   } catch (e) {
     console.warn("fetchProductReference failed:", (e as Error).message);
     return base;
+  }
+}
+
+/* ── Firecrawl fallback ─────────────────────────────────────── */
+async function fetchProductReferenceFirecrawl(url: string): Promise<ProductReference | null> {
+  const key = Deno.env.get("FIRECRAWL_API_KEY");
+  if (!key) return null;
+  try {
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 12000);
+    const schema = {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        brand: { type: "string" },
+        category: { type: "string" },
+        color: { type: "string" },
+        material: { type: "string" },
+        description: { type: "string" },
+        imageUrl: { type: "string" },
+        price: { type: "string" },
+      },
+    };
+    const res = await fetch("https://api.firecrawl.dev/v2/scrape", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        url,
+        onlyMainContent: true,
+        formats: [
+          { type: "json", schema, prompt: "Extract the product details from this product page. imageUrl must be the main product image absolute URL." },
+        ],
+      }),
+    }).catch(() => null);
+    clearTimeout(timeout);
+    if (!res || !res.ok) return null;
+    const data = await res.json().catch(() => null);
+    const j = data?.data?.json ?? data?.json ?? null;
+    if (!j || typeof j !== "object") return null;
+    const title = typeof j.title === "string" ? j.title : undefined;
+    const brand = typeof j.brand === "string" ? j.brand : undefined;
+    const color = typeof j.color === "string" ? j.color : undefined;
+    const category = typeof j.category === "string" ? j.category : undefined;
+    const material = typeof j.material === "string" ? j.material : undefined;
+    const description = typeof j.description === "string" ? j.description.slice(0, 600) : undefined;
+    const imageUrl = typeof j.imageUrl === "string" ? j.imageUrl : undefined;
+    const price = typeof j.price === "string" ? j.price : undefined;
+
+    const canonType = canonicalGarmentType(category) || canonicalGarmentType(title);
+    const colorFam = colorFamilyOf(color) || colorFamilyOf(title);
+    const strong = !!title && !!imageUrl && !!canonType && !!colorFam;
+    const ok = !!title && !!imageUrl;
+    if (!ok) return null;
+    return {
+      source: "firecrawl",
+      confidence: strong ? 0.9 : 0.7,
+      url, title, brand, color, category: category || canonType || undefined,
+      material, description, imageUrl, price,
+    };
+  } catch (e) {
+    console.warn("firecrawl fallback failed:", (e as Error).message);
+    return null;
+  }
+}
+
+/* ── Vision fallback: analyze a product image with Gemini ──── */
+async function analyzeProductImageWithVision(imageUrl: string, sourceUrl?: string): Promise<ProductReference | null> {
+  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!apiKey) return null;
+  try {
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 15000);
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: "Identify the single fashion product in the image. Return concise attributes." },
+          { role: "user", content: [
+            { type: "text", text: "Identify this product." },
+            { type: "image_url", image_url: { url: imageUrl } },
+          ] },
+        ],
+        tools: [{
+          type: "function",
+          function: {
+            name: "product_attributes",
+            description: "Return product attributes",
+            parameters: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                brand: { type: "string" },
+                category: { type: "string", description: "Garment type, e.g. dress, top, bottom, outerwear, shoes, bag" },
+                color: { type: "string" },
+                material: { type: "string" },
+                description: { type: "string" },
+              },
+              required: ["title", "category", "color"],
+              additionalProperties: false,
+            },
+          },
+        }],
+        tool_choice: { type: "function", function: { name: "product_attributes" } },
+      }),
+    }).catch(() => null);
+    clearTimeout(timeout);
+    if (!res || !res.ok) return null;
+    const data = await res.json().catch(() => null);
+    const args = data?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+    if (!args) return null;
+    const j = JSON.parse(args);
+    const canonType = canonicalGarmentType(j.category) || canonicalGarmentType(j.title);
+    const colorFam = colorFamilyOf(j.color);
+    if (!canonType || !colorFam) return null;
+    return {
+      source: "browser_screenshot",
+      confidence: 0.8,
+      url: sourceUrl,
+      title: j.title,
+      brand: j.brand,
+      category: j.category,
+      color: j.color,
+      material: j.material,
+      description: typeof j.description === "string" ? j.description.slice(0, 600) : undefined,
+      imageUrl,
+    };
+  } catch (e) {
+    console.warn("vision fallback failed:", (e as Error).message);
+    return null;
   }
 }
 
