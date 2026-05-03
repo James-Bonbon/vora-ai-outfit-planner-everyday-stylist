@@ -1259,6 +1259,26 @@ serve(async (req) => {
           linkDebug.attempts.push("vision_from_product_image:no_result");
         }
       }
+
+      // If the URL still couldn't be read confidently AND the user attached an
+      // image/screenshot, analyze the attachment and prefer it over the URL.
+      if ((!productRef || productRef.confidence < 0.7) && hasAttachment) {
+        linkDebug.attempts.push("vision_from_user_attachment:start");
+        const visUrl = attachmentSignedUrl || attachment!.base64;
+        const vis = await analyzeProductImageWithVision(visUrl);
+        if (vis) {
+          productRef = {
+            ...vis,
+            source: "image_analysis",
+            url: normalizedUrl,
+            confidence: Math.max(vis.confidence ?? 0, 0.85),
+          };
+          recordProductRef(linkDebug, productRef, "image_analysis");
+        } else {
+          linkDebug.attempts.push("vision_from_user_attachment:no_result");
+        }
+      }
+
       if (!productRef) productRef = { source: "unknown", confidence: 0, url: normalizedUrl };
       if (productRef.confidence < 0.7) {
         linkDebug.failureReason = linkDebug.failureReason || "all URL-reading methods returned low confidence";
@@ -1267,12 +1287,15 @@ serve(async (req) => {
       await saveProductReferenceCache(serviceClient, normalizedUrl, firstUrl, productRef, linkDebug);
       logProductLinkDebug(linkDebug);
     } else if (hasAttachment) {
-      // Try to read product attributes from the user's uploaded image so
+      // No URL — read product attributes from the user's uploaded image so
       // cheaper-alternatives and wardrobe matching work without a URL.
       const visUrl = attachmentSignedUrl || attachment!.base64;
       const vis = await analyzeProductImageWithVision(visUrl);
-      productRef = vis ?? { source: "user_image", confidence: 0.85 };
-      if (vis && !vis.source) productRef.source = "user_image";
+      if (vis) {
+        productRef = { ...vis, source: "image_analysis", confidence: Math.max(vis.confidence ?? 0, 0.85) };
+      } else {
+        productRef = { source: "user_image", confidence: 0.85 };
+      }
     }
 
     const refMode = !!productRef;
