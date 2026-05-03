@@ -619,7 +619,7 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
       {/* Attachment preview */}
       {attachment && (
         <div className="flex items-center gap-2 px-2 pt-2">
-          <div className="relative w-12 h-12 rounded-lg overflow-hidden border border-border bg-secondary">
+          <div className="relative w-14 h-14 rounded-lg overflow-hidden border border-border bg-secondary">
             {attachment.base64 ? (
               <img src={attachment.base64} alt="Attachment" className="w-full h-full object-cover" />
             ) : (
@@ -628,10 +628,12 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
               </div>
             )}
             <button
+              type="button"
+              aria-label="Remove attachment"
               onClick={() => setAttachment(null)}
-              className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center"
+              className="absolute top-0.5 right-0.5 z-10 w-[22px] h-[22px] rounded-full bg-foreground/85 text-background shadow-md flex items-center justify-center hover:bg-foreground transition-colors"
             >
-              <X className="w-3 h-3" />
+              <X className="w-3 h-3" strokeWidth={2.5} />
             </button>
           </div>
           <span className="text-xs text-muted-foreground truncate max-w-[200px]">
