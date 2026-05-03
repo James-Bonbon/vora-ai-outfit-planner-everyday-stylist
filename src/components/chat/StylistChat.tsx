@@ -223,8 +223,7 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
       if (data?.error) throw new Error(data.error);
       return data as { reply_text: string; recommended_ids: string[] };
     },
-    onMutate: async ({ userMessage }) => {
-      // Optimistically append the user message so the UI feels instant.
+    onMutate: async ({ userMessage, attachmentSnapshot }) => {
       await queryClient.cancelQueries({ queryKey: ["chat-messages"] });
       const previous = queryClient.getQueryData<ChatMessage[]>(["chat-messages"]) || [];
       const optimistic: ChatMessage = {
@@ -232,12 +231,10 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
         role: "user",
         content: userMessage,
         suggested_garment_ids: null,
+        attachment_url: attachmentSnapshot?.base64 || null,
         created_at: new Date().toISOString(),
       };
-      queryClient.setQueryData<ChatMessage[]>(
-        ["chat-messages"],
-        [...previous, optimistic]
-      );
+      queryClient.setQueryData<ChatMessage[]>(["chat-messages"], [...previous, optimistic]);
       return { previous };
     },
     onSuccess: () => {
