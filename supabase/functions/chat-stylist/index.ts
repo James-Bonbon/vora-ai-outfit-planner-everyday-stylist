@@ -674,6 +674,7 @@ async function searchProductReferenceWeb(
     }
 
     const host = (() => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return ""; } })();
+    const pathCategory = categoryFromUrlPath(url);
     const scored = candidates
       .map((c) => {
         const text = [c.title, c.description].filter(Boolean).join(" ");
@@ -694,6 +695,7 @@ async function searchProductReferenceWeb(
       })
       .filter((x) => {
         if (!x.c.title || !(x.category || x.color)) return false;
+        if (pathCategory && x.category && x.category !== pathCategory) return false;
         // Product-code URLs are easy to misread from generic shopping results.
         // Require a direct product-id hit or same-retailer URL before trusting search.
         if (productId && !x.productIdMatch && !x.sameRetailer) return false;
