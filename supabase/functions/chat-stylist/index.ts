@@ -466,10 +466,14 @@ async function fetchProductReference(url: string, debug?: ProductLinkDebug): Pro
 }
 
 /* ── Firecrawl fallback ─────────────────────────────────────── */
-async function fetchProductReferenceFirecrawl(url: string): Promise<ProductReference | null> {
+async function fetchProductReferenceFirecrawl(url: string, debug?: ProductLinkDebug): Promise<ProductReference | null> {
   const key = Deno.env.get("FIRECRAWL_API_KEY");
-  if (!key) return null;
+  if (!key) {
+    debug?.attempts.push("firecrawl:skipped_no_key");
+    return null;
+  }
   try {
+    debug?.attempts.push("firecrawl:start");
     const ctrl = new AbortController();
     const timeout = setTimeout(() => ctrl.abort(), 12000);
     const schema = {
@@ -501,10 +505,20 @@ async function fetchProductReferenceFirecrawl(url: string): Promise<ProductRefer
       }),
     }).catch(() => null);
     clearTimeout(timeout);
-    if (!res || !res.ok) return null;
+    if (!res) {
+      debug?.attempts.push("firecrawl:no_response");
+      return null;
+    }
+    if (!res.ok) {
+      debug?.attempts.push(`firecrawl:http_${res.status}`);
+      return null;
+    }
     const data = await res.json().catch(() => null);
     const j = data?.data?.json ?? data?.json ?? null;
-    if (!j || typeof j !== "object") return null;
+    if (!j || typeof j !== "object") {
+      debug?.attempts.push("firecrawl:no_json_product");
+      return null;
+    }
     const title = typeof j.title === "string" ? j.title : undefined;
     const brand = typeof j.brand === "string" ? j.brand : undefined;
     const color = typeof j.color === "string" ? j.color : undefined;
@@ -518,7 +532,10 @@ async function fetchProductReferenceFirecrawl(url: string): Promise<ProductRefer
     const colorFam = colorFamilyOf(color) || colorFamilyOf(title);
     const strong = !!title && !!imageUrl && !!canonType && !!colorFam;
     const ok = !!title && !!imageUrl;
-    if (!ok) return null;
+    if (!ok) {
+      debug?.attempts.push("firecrawl:missing_title_or_image");
+      return null;
+    }
     return {
       source: "firecrawl",
       confidence: strong ? 0.9 : 0.7,
@@ -527,6 +544,7 @@ async function fetchProductReferenceFirecrawl(url: string): Promise<ProductRefer
     };
   } catch (e) {
     console.warn("firecrawl fallback failed:", (e as Error).message);
+    debug?.attempts.push(`firecrawl:error:${(e as Error).message}`);
     return null;
   }
 }
