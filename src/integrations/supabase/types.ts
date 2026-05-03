@@ -628,6 +628,51 @@ export type Database = {
           },
         ]
       }
+      product_link_cache: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          extraction_source: string | null
+          failure_reason: string | null
+          fetched_at: string
+          final_url: string | null
+          id: string
+          normalized_url: string
+          original_url: string | null
+          product_ref: Json | null
+          shopping_results: Json | null
+          updated_at: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          extraction_source?: string | null
+          failure_reason?: string | null
+          fetched_at?: string
+          final_url?: string | null
+          id?: string
+          normalized_url: string
+          original_url?: string | null
+          product_ref?: Json | null
+          shopping_results?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          extraction_source?: string | null
+          failure_reason?: string | null
+          fetched_at?: string
+          final_url?: string | null
+          id?: string
+          normalized_url?: string
+          original_url?: string | null
+          product_ref?: Json | null
+          shopping_results?: Json | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           app_theme: string
