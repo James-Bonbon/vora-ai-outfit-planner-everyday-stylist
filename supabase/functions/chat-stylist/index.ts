@@ -728,6 +728,7 @@ async function searchProductReferenceWeb(
       return null;
     }
 
+    const identityVerified = !!(best.productIdMatch || best.sameRetailer);
     const ref: ProductReference = {
       source: "web_search",
       confidence: confidenceForProductRef({
@@ -736,7 +737,7 @@ async function searchProductReferenceWeb(
         color: best.color,
         category: best.category,
         imageUrl: best.c.imageUrl,
-      }, "web_search"),
+      }, "web_search", identityVerified),
       url,
       title: best.c.title,
       brand: best.c.brand || urlBrand || undefined,
@@ -746,7 +747,7 @@ async function searchProductReferenceWeb(
       imageUrl: best.c.imageUrl,
       price: best.c.price,
     };
-    debug?.attempts.push(`web_search:best_score_${best.score}:confidence_${ref.confidence}`);
+    debug?.attempts.push(`web_search:best_score_${best.score}:identity_${identityVerified}:confidence_${ref.confidence}`);
     return ref;
   } catch (e) {
     console.warn("web product search failed:", (e as Error).message);
