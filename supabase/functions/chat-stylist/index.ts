@@ -1573,8 +1573,9 @@ Rules:
     if (refMode) {
       if (!refConfident) {
         recommendedIds = [];
-        replyText =
-          "I can't read this product page directly. Please upload a screenshot or product image and I'll find similar pieces or style it with your wardrobe.";
+        replyText = hasAttachment
+          ? "I couldn't read this product page clearly, and I couldn't pull confident details from your screenshot either. Tell me what it is (e.g. \"white midi dress\") and I'll style it or find alternatives."
+          : "I can't read this product page directly. Please upload a screenshot or product image and I'll find similar pieces or style it with your wardrobe.";
         quickActions = withIds(filterShopping(REF_QA_UNKNOWN));
       } else {
         const refType = canonicalGarmentType(productRef!.category) || canonicalGarmentType(productRef!.title);
