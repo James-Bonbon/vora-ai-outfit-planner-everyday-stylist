@@ -690,9 +690,34 @@ serve(async (req) => {
 
     let productRef: ProductReference | null = null;
     if (firstUrl) {
-      productRef = await fetchProductReference(firstUrl);
+      const normalizedUrl = normalizeUrl(firstUrl);
+      // 1) Fast HTML metadata
+      productRef = await fetchProductReference(normalizedUrl);
+
+      // 2) Firecrawl if metadata weak
+      if (!productRef || productRef.confidence < 0.7) {
+        const fc = await fetchProductReferenceFirecrawl(normalizedUrl);
+        if (fc && fc.confidence > (productRef?.confidence ?? 0)) productRef = fc;
+      }
+
+      // 3) Vision on extracted product image if still weak
+      if (productRef && productRef.confidence < 0.7 && productRef.imageUrl) {
+        const vis = await analyzeProductImageWithVision(productRef.imageUrl, normalizedUrl);
+        if (vis) {
+          productRef = {
+            ...productRef,
+            ...vis,
+            source: "browser_screenshot",
+            url: normalizedUrl,
+            imageUrl: productRef.imageUrl,
+            confidence: Math.max(productRef.confidence, vis.confidence),
+          };
+        }
+      }
+
+      if (!productRef) productRef = { source: "unknown", confidence: 0, url: normalizedUrl };
     } else if (hasAttachment) {
-      productRef = { source: "image_analysis", confidence: 0.85 };
+      productRef = { source: "user_image", confidence: 0.85 };
     }
 
     const refMode = !!productRef;
