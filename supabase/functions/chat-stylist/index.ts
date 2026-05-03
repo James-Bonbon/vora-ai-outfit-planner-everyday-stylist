@@ -1251,7 +1251,7 @@ serve(async (req) => {
 
     /* ── Cheaper-alternatives short-circuit ──────────────────── */
     if (refMode && refConfident && cheaperIntent && shoppingAvailable) {
-      const products = await searchCheaperAlternatives(productRef!);
+      const products = await searchCheaperAlternatives(productRef!, serviceClient);
       let replyText: string;
       let shopping: ShoppingProduct[] = [];
       if (products.length === 0) {
