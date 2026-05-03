@@ -531,6 +531,170 @@ async function fetchProductReferenceFirecrawl(url: string): Promise<ProductRefer
   }
 }
 
+/* ── Web/product search fallback ────────────────────────────── */
+async function searchProductReferenceWeb(
+  url: string,
+  seed?: ProductReference | null,
+  debug?: ProductLinkDebug,
+): Promise<ProductReference | null> {
+  const serperKey = Deno.env.get("SERPER_API_KEY");
+  const serpApiKey = Deno.env.get("SERPAPI_KEY");
+  const productId = productIdFromUrl(url);
+  const urlBrand = hostBrandFromUrl(url);
+  const seedTitle = seed?.title && seed.confidence > 0 ? seed.title : "";
+  const terms = [urlBrand, productId, seedTitle].filter(Boolean).join(" ").trim() || url;
+  if (!terms) return null;
+
+  try {
+    debug?.attempts.push(`web_search:start:${productId || "no_product_id"}`);
+
+    const candidates: Array<{
+      title?: string;
+      brand?: string;
+      color?: string;
+      category?: string;
+      description?: string;
+      imageUrl?: string;
+      price?: string;
+      link?: string;
+      source?: string;
+    }> = [];
+
+    if (serperKey) {
+      const ctrl = new AbortController();
+      const timeout = setTimeout(() => ctrl.abort(), 8000);
+      const [searchResp, shoppingResp] = await Promise.all([
+        fetch("https://google.serper.dev/search", {
+          method: "POST",
+          headers: { "X-API-KEY": serperKey, "Content-Type": "application/json" },
+          signal: ctrl.signal,
+          body: JSON.stringify({ q: terms, gl: "gb", num: 6 }),
+        }).catch(() => null),
+        fetch("https://google.serper.dev/shopping", {
+          method: "POST",
+          headers: { "X-API-KEY": serperKey, "Content-Type": "application/json" },
+          signal: ctrl.signal,
+          body: JSON.stringify({ q: terms, gl: "gb", num: 8 }),
+        }).catch(() => null),
+      ]);
+      clearTimeout(timeout);
+
+      if (searchResp?.ok) {
+        const data = await searchResp.json().catch(() => null);
+        for (const item of (data?.organic || []).slice(0, 6)) {
+          candidates.push({
+            title: item.title,
+            brand: urlBrand || item.source,
+            description: item.snippet,
+            link: item.link,
+            source: item.source,
+          });
+        }
+      } else if (searchResp) {
+        debug?.attempts.push(`web_search:serper_search_http_${searchResp.status}`);
+      }
+
+      if (shoppingResp?.ok) {
+        const data = await shoppingResp.json().catch(() => null);
+        for (const item of (data?.shopping || []).slice(0, 8)) {
+          candidates.push({
+            title: item.title,
+            brand: urlBrand || item.source,
+            description: item.snippet,
+            imageUrl: item.imageUrl,
+            price: item.price,
+            link: item.link,
+            source: item.source,
+          });
+        }
+      } else if (shoppingResp) {
+        debug?.attempts.push(`web_search:serper_shopping_http_${shoppingResp.status}`);
+      }
+    } else if (serpApiKey) {
+      const params = new URLSearchParams({
+        engine: "google_shopping",
+        q: terms,
+        gl: "uk",
+        hl: "en",
+        currency: "GBP",
+        num: "10",
+        api_key: serpApiKey,
+      });
+      const resp = await fetch(`https://serpapi.com/search.json?${params.toString()}`).catch(() => null);
+      if (resp?.ok) {
+        const data = await resp.json().catch(() => null);
+        for (const item of (data?.shopping_results || []).slice(0, 10)) {
+          candidates.push({
+            title: item.title,
+            brand: urlBrand || item.source,
+            description: item.snippet,
+            imageUrl: item.high_res_image || item.thumbnail,
+            price: item.price,
+            link: item.link,
+            source: item.source,
+          });
+        }
+      } else if (resp) {
+        debug?.attempts.push(`web_search:serpapi_http_${resp.status}`);
+      }
+    } else {
+      debug?.attempts.push("web_search:skipped_no_key");
+      return null;
+    }
+
+    const host = (() => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return ""; } })();
+    const scored = candidates
+      .map((c) => {
+        const text = [c.title, c.description].filter(Boolean).join(" ");
+        const category = canonicalGarmentType(c.category) || canonicalGarmentType(text) || undefined;
+        const color = colorWordFromText(c.color) || colorWordFromText(text);
+        const linkHost = (() => { try { return c.link ? new URL(c.link).hostname.replace(/^www\./, "") : ""; } catch { return ""; } })();
+        let score = 0;
+        if (c.title) score += 2;
+        if (category) score += 2;
+        if (color) score += 2;
+        if (c.imageUrl) score += 1;
+        if (productId && text.toLowerCase().includes(productId.toLowerCase())) score += 2;
+        if (host && linkHost.includes(host)) score += 2;
+        if (urlBrand && text.toLowerCase().includes(urlBrand.toLowerCase())) score += 1;
+        return { c, score, category, color };
+      })
+      .filter((x) => x.c.title && (x.category || x.color))
+      .sort((a, b) => b.score - a.score);
+
+    const best = scored[0];
+    if (!best) {
+      debug?.attempts.push("web_search:no_product_candidate");
+      return null;
+    }
+
+    const ref: ProductReference = {
+      source: "web_search",
+      confidence: confidenceForProductRef({
+        title: best.c.title,
+        brand: best.c.brand || urlBrand || undefined,
+        color: best.color,
+        category: best.category,
+        imageUrl: best.c.imageUrl,
+      }, "web_search"),
+      url,
+      title: best.c.title,
+      brand: best.c.brand || urlBrand || undefined,
+      color: best.color,
+      category: best.category,
+      description: best.c.description?.slice(0, 600),
+      imageUrl: best.c.imageUrl,
+      price: best.c.price,
+    };
+    debug?.attempts.push(`web_search:best_score_${best.score}:confidence_${ref.confidence}`);
+    return ref;
+  } catch (e) {
+    console.warn("web product search failed:", (e as Error).message);
+    debug?.attempts.push(`web_search:error:${(e as Error).message}`);
+    return null;
+  }
+}
+
 /* ── Vision fallback: analyze a product image with Gemini ──── */
 async function analyzeProductImageWithVision(imageUrl: string, sourceUrl?: string): Promise<ProductReference | null> {
   const apiKey = Deno.env.get("LOVABLE_API_KEY");
