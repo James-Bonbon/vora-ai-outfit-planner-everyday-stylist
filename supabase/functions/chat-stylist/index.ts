@@ -1136,7 +1136,7 @@ Rules:
         recommendedIds = [];
         replyText =
           "I can't read this product page directly. Please upload a screenshot or product image and I'll find similar pieces or style it with your wardrobe.";
-        quickActions = withIds(REF_QA_UNKNOWN);
+        quickActions = withIds(filterShopping(REF_QA_UNKNOWN));
       } else {
         const refType = canonicalGarmentType(productRef!.category) || canonicalGarmentType(productRef!.title);
         const refColorFamily = colorFamilyOf(productRef!.color) || colorFamilyOf(productRef!.title);
@@ -1164,10 +1164,10 @@ Rules:
           replyText = understood
             ? `I found this as a ${understood}, but I don't see a close match in your wardrobe.`
             : "I don't see anything in your wardrobe that closely matches this piece.";
-          quickActions = withIds(REF_QA_NO_MATCH);
+          quickActions = withIds(filterShopping(REF_QA_NO_MATCH));
         } else {
           recommendedIds = survivors;
-          quickActions = withIds(REF_QA_HIGH_CONF);
+          quickActions = withIds(filterShopping(REF_QA_HIGH_CONF));
         }
       }
     }
