@@ -1373,6 +1373,12 @@ serve(async (req) => {
       }
 
       if (!productRef || productRef.confidence < 0.7) {
+        const tav = await searchProductReferenceTavily(normalizedUrl, productRef, linkDebug);
+        if (tav) recordProductRef(linkDebug, tav, "tavily");
+        if (tav && tav.confidence > (productRef?.confidence ?? 0)) productRef = tav;
+      }
+
+      if (!productRef || productRef.confidence < 0.7) {
         const searched = await searchProductReferenceWeb(normalizedUrl, productRef, linkDebug);
         if (searched) recordProductRef(linkDebug, searched, "web_search");
         if (searched && searched.confidence > (productRef?.confidence ?? 0)) productRef = searched;
