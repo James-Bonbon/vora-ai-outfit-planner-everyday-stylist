@@ -301,8 +301,8 @@ function confidenceForProductRef(
   const color = colorFamilyOf(ref.color) || colorFamilyOf(title);
   const hasTitle = !!ref.title;
   const hasImage = !!ref.imageUrl;
-  // For web_search, never reach >=0.7 unless identity is verified (exact product-id or same-retailer URL match).
-  if (source === "web_search" && !identityVerified) {
+  // For search-based sources, never reach >=0.7 unless identity is verified.
+  if ((source === "web_search" || source === "tavily") && !identityVerified) {
     if (hasTitle && type) return 0.6;
     if (hasTitle) return 0.4;
     return 0;
