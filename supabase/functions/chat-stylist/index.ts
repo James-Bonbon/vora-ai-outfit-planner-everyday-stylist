@@ -1064,7 +1064,11 @@ async function searchProductReferenceTavily(
       const sameRetailer = !!host && !!linkHost && linkHost === host;
       const category = canonicalGarmentType(text) || undefined;
       const color = colorWordFromText(text);
-      const identity = exactUrl || productIdMatch || (sameRetailer && !!productId);
+      const sameProductPath = !!productId && !!c.url && (() => {
+        try { return new URL(c.url).pathname.toLowerCase().includes(productId.toLowerCase()); }
+        catch { return false; }
+      })();
+      const identity = exactUrl || productIdMatch || (sameRetailer && sameProductPath);
       let score = 0;
       if (exactUrl) score += 6;
       if (productIdMatch) score += 5;
