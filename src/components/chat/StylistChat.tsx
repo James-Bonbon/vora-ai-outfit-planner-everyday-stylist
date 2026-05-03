@@ -33,12 +33,23 @@ const ALLOWED_KINDS = new Set([
   "open_stylist",
 ]);
 
+interface ShoppingProduct {
+  title: string;
+  source?: string;
+  price?: string;
+  link: string;
+  imageUrl?: string;
+  reason?: string;
+}
+
 interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   suggested_garment_ids?: string[] | null;
   quick_actions?: ChatQuickAction[] | null;
+  attachment_url?: string | null;
+  shopping?: ShoppingProduct[] | null;
   created_at: string;
 }
 
