@@ -134,6 +134,26 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
     refetchOnMount: false,
   });
 
+  // Sign chat attachment paths from the 'selfies' bucket so they render in history
+  const attachmentPaths = messages
+    .map((m) => m.attachment_url)
+    .filter((p): p is string => !!p && !p.startsWith("data:") && !p.startsWith("http"));
+  const { data: attachmentUrls = {} } = useQuery<Record<string, string>>({
+    queryKey: ["chat-attachment-urls", attachmentPaths],
+    queryFn: async () => {
+      if (attachmentPaths.length === 0) return {};
+      return await getCachedSignedUrls("selfies", attachmentPaths);
+    },
+    enabled: attachmentPaths.length > 0,
+    staleTime: 30 * 60 * 1000,
+    refetchOnMount: false,
+  });
+  const resolveAttachment = (raw?: string | null): string | undefined => {
+    if (!raw) return undefined;
+    if (raw.startsWith("data:") || raw.startsWith("http")) return raw;
+    return attachmentUrls[raw];
+  };
+
   // Send message mutation (with optimistic update + reliable 30s timeout)
   const sendMutation = useMutation({
     mutationFn: async (
