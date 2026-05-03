@@ -561,7 +561,10 @@ async function searchProductReferenceWeb(
   const productId = productIdFromUrl(url);
   const urlBrand = hostBrandFromUrl(url);
   const seedTitle = seed?.title && seed.confidence > 0 ? seed.title : "";
-  const terms = [urlBrand, productId, seedTitle].filter(Boolean).join(" ").trim() || url;
+  const terms = [productId ? `"${productId}"` : "", urlBrand, seedTitle]
+    .filter(Boolean)
+    .join(" ")
+    .trim() || url;
   if (!terms) return null;
 
   try {
@@ -668,17 +671,25 @@ async function searchProductReferenceWeb(
         const category = canonicalGarmentType(c.category) || canonicalGarmentType(text) || undefined;
         const color = colorWordFromText(c.color) || colorWordFromText(text);
         const linkHost = (() => { try { return c.link ? new URL(c.link).hostname.replace(/^www\./, "") : ""; } catch { return ""; } })();
+        const productIdMatch = !!productId && ([text, c.link].filter(Boolean).join(" ").toLowerCase().includes(productId.toLowerCase()));
+        const sameRetailer = !!host && !!linkHost && linkHost.includes(host);
         let score = 0;
         if (c.title) score += 2;
         if (category) score += 2;
         if (color) score += 2;
         if (c.imageUrl) score += 1;
-        if (productId && text.toLowerCase().includes(productId.toLowerCase())) score += 2;
-        if (host && linkHost.includes(host)) score += 2;
+        if (productIdMatch) score += 4;
+        if (sameRetailer) score += 3;
         if (urlBrand && text.toLowerCase().includes(urlBrand.toLowerCase())) score += 1;
-        return { c, score, category, color };
+        return { c, score, category, color, productIdMatch, sameRetailer };
       })
-      .filter((x) => x.c.title && (x.category || x.color))
+      .filter((x) => {
+        if (!x.c.title || !(x.category || x.color)) return false;
+        // Product-code URLs are easy to misread from generic shopping results.
+        // Require a direct product-id hit or same-retailer URL before trusting search.
+        if (productId && !x.productIdMatch && !x.sameRetailer) return false;
+        return true;
+      })
       .sort((a, b) => b.score - a.score);
 
     const best = scored[0];
