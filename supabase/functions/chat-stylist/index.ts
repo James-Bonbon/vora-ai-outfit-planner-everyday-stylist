@@ -1149,12 +1149,35 @@ serve(async (req) => {
     let productRef: ProductReference | null = null;
     if (firstUrl) {
       const normalizedUrl = normalizeUrl(firstUrl);
-      productRef = await fetchProductReference(normalizedUrl);
+      const linkDebug: ProductLinkDebug = {
+        originalUrl: firstUrl,
+        cleanedUrl: normalizedUrl,
+        extractionSource: "none",
+        attempts: [],
+      };
+      productRef = await getCachedProductReference(serviceClient, normalizedUrl, linkDebug);
+      if (productRef) recordProductRef(linkDebug, productRef, productRef.source);
+
       if (!productRef || productRef.confidence < 0.7) {
-        const fc = await fetchProductReferenceFirecrawl(normalizedUrl);
+        const direct = await fetchProductReference(normalizedUrl, linkDebug);
+        recordProductRef(linkDebug, direct, "metadata");
+        if (direct && direct.confidence > (productRef?.confidence ?? 0)) productRef = direct;
+      }
+
+      if (!productRef || productRef.confidence < 0.7) {
+        const searched = await searchProductReferenceWeb(normalizedUrl, productRef, linkDebug);
+        if (searched) recordProductRef(linkDebug, searched, "web_search");
+        if (searched && searched.confidence > (productRef?.confidence ?? 0)) productRef = searched;
+      }
+
+      if (!productRef || productRef.confidence < 0.7) {
+        const fc = await fetchProductReferenceFirecrawl(normalizedUrl, linkDebug);
+        if (fc) recordProductRef(linkDebug, fc, "firecrawl");
         if (fc && fc.confidence > (productRef?.confidence ?? 0)) productRef = fc;
       }
+
       if (productRef && productRef.confidence < 0.7 && productRef.imageUrl) {
+        linkDebug.attempts.push("vision_from_product_image:start");
         const vis = await analyzeProductImageWithVision(productRef.imageUrl, normalizedUrl);
         if (vis) {
           productRef = {
@@ -1164,9 +1187,18 @@ serve(async (req) => {
             imageUrl: productRef.imageUrl,
             confidence: Math.max(productRef.confidence, vis.confidence),
           };
+          recordProductRef(linkDebug, productRef, "browser_screenshot");
+        } else {
+          linkDebug.attempts.push("vision_from_product_image:no_result");
         }
       }
       if (!productRef) productRef = { source: "unknown", confidence: 0, url: normalizedUrl };
+      if (productRef.confidence < 0.7) {
+        linkDebug.failureReason = linkDebug.failureReason || "all URL-reading methods returned low confidence";
+      }
+      recordProductRef(linkDebug, productRef, productRef.source);
+      await saveProductReferenceCache(serviceClient, normalizedUrl, firstUrl, productRef, linkDebug);
+      logProductLinkDebug(linkDebug);
     } else if (hasAttachment) {
       // Try to read product attributes from the user's uploaded image so
       // cheaper-alternatives and wardrobe matching work without a URL.
