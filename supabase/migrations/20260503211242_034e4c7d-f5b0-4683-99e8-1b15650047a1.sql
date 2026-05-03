@@ -1,0 +1,1 @@
+DELETE FROM public.product_link_cache WHERE normalized_url ILIKE '%8055380553877%' AND normalized_url <> 'https://www.fendi.com/gb-en/8055380553877.html';

@@ -157,17 +157,26 @@ async function saveProductReferenceCache(
 }
 
 const TRACKING_PARAMS = new Set([
-  "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
-  "gclid", "fbclid", "mc_cid", "mc_eid", "yclid", "msclkid", "dclid",
-  "_ga", "_gl", "ref", "ref_src", "ref_url", "igshid", "spm",
+  "gclid", "gclsrc", "fbclid", "msclkid", "yclid", "dclid",
+  "gbraid", "wbraid", "wiz_campaign",
+  "mc_cid", "mc_eid", "_ga", "_gl",
+  "ref", "ref_src", "ref_url", "igshid", "spm",
 ]);
+
+const TRACKING_PREFIXES = ["utm_", "gad_", "ga_", "hsa_", "mkt_", "pk_", "piwik_", "matomo_"];
+
+function isTrackingParam(key: string): boolean {
+  const k = key.toLowerCase();
+  if (TRACKING_PARAMS.has(k)) return true;
+  return TRACKING_PREFIXES.some((p) => k.startsWith(p));
+}
 
 function normalizeUrl(raw: string): string {
   try {
     const u = new URL(raw);
     const keep: [string, string][] = [];
     for (const [k, v] of u.searchParams.entries()) {
-      if (!TRACKING_PARAMS.has(k.toLowerCase())) keep.push([k, v]);
+      if (!isTrackingParam(k)) keep.push([k, v]);
     }
     u.search = "";
     for (const [k, v] of keep) u.searchParams.append(k, v);
@@ -282,12 +291,22 @@ function colorWordFromText(text?: string | null): string | undefined {
   return undefined;
 }
 
-function confidenceForProductRef(ref: Partial<ProductReference>, source: ProductReference["source"]): number {
+function confidenceForProductRef(
+  ref: Partial<ProductReference>,
+  source: ProductReference["source"],
+  identityVerified = false,
+): number {
   const title = ref.title || "";
   const type = canonicalGarmentType(ref.category) || canonicalGarmentType(title);
   const color = colorFamilyOf(ref.color) || colorFamilyOf(title);
   const hasTitle = !!ref.title;
   const hasImage = !!ref.imageUrl;
+  // For web_search, never reach >=0.7 unless identity is verified (exact product-id or same-retailer URL match).
+  if (source === "web_search" && !identityVerified) {
+    if (hasTitle && type) return 0.6;
+    if (hasTitle) return 0.4;
+    return 0;
+  }
   if (hasTitle && type && color && (hasImage || ref.brand || source === "web_search")) return source === "metadata" ? 0.9 : 0.85;
   if (hasTitle && hasImage && type) return 0.65;
   if (hasTitle && hasImage) return 0.55;
@@ -709,6 +728,7 @@ async function searchProductReferenceWeb(
       return null;
     }
 
+    const identityVerified = !!(best.productIdMatch || best.sameRetailer);
     const ref: ProductReference = {
       source: "web_search",
       confidence: confidenceForProductRef({
@@ -717,7 +737,7 @@ async function searchProductReferenceWeb(
         color: best.color,
         category: best.category,
         imageUrl: best.c.imageUrl,
-      }, "web_search"),
+      }, "web_search", identityVerified),
       url,
       title: best.c.title,
       brand: best.c.brand || urlBrand || undefined,
@@ -727,7 +747,7 @@ async function searchProductReferenceWeb(
       imageUrl: best.c.imageUrl,
       price: best.c.price,
     };
-    debug?.attempts.push(`web_search:best_score_${best.score}:confidence_${ref.confidence}`);
+    debug?.attempts.push(`web_search:best_score_${best.score}:identity_${identityVerified}:confidence_${ref.confidence}`);
     return ref;
   } catch (e) {
     console.warn("web product search failed:", (e as Error).message);
