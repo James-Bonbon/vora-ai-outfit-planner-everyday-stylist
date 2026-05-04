@@ -352,7 +352,7 @@ function confidenceForProductRef(
   const hasTitle = !!ref.title;
   const hasImage = !!ref.imageUrl;
   // For search-based sources, never reach >=0.7 unless identity is verified.
-  if ((source === "web_search" || source === "tavily") && !identityVerified) {
+  if ((source === "web_search" || source === "tavily_search") && !identityVerified) {
     if (hasTitle && type) return 0.6;
     if (hasTitle) return 0.4;
     return 0;
