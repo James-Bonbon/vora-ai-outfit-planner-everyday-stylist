@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { applyTheme } from "@/components/ThemeProvider";
 import { toast } from "sonner";
-import { useAuth } from "@/hooks/useAuth";
 import WelcomeHeader from "@/components/welcome/WelcomeHeader";
 import WelcomeHero from "@/components/welcome/WelcomeHero";
 import WelcomeProcess from "@/components/welcome/WelcomeProcess";
@@ -15,6 +14,26 @@ import WelcomeContactSection from "@/components/welcome/WelcomeContactSection";
 import WelcomeFooter from "@/components/welcome/WelcomeFooter";
 import { type WelcomeThemeKey, WELCOME_THEME_CLASS_MAP } from "@/components/welcome/WelcomeThemeSwitcher";
 
+const isLovableEditorPreview = () => {
+  if (typeof window === "undefined") return false;
+
+  const host = window.location.hostname;
+  let isEmbeddedPreview = false;
+  try {
+    isEmbeddedPreview = window.self !== window.top;
+  } catch {
+    isEmbeddedPreview = true;
+  }
+
+  return (
+    isEmbeddedPreview ||
+    host.includes("lovableproject.com") ||
+    host.includes("lovable.dev") ||
+    host === "localhost" ||
+    host === "127.0.0.1"
+  );
+};
+
 const WelcomePage = () => {
   const [footerEmail, setFooterEmail] = useState("");
   const [footerLoading, setFooterLoading] = useState(false);
@@ -22,32 +41,10 @@ const WelcomePage = () => {
 
   const [activeTheme, setActiveTheme] = useState<WelcomeThemeKey>("default");
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const { user, loading: authLoading } = useAuth();
-  const isLovablePreview =
-    typeof window !== "undefined" &&
-    (window.location.hostname.includes("lovableproject.com") ||
-      window.location.hostname.includes("lovable.app") ||
-      window.location.hostname.includes("localhost"));
+  const isLovablePreview = isLovableEditorPreview();
 
-  // Preview-environment recovery:
-  // The Lovable preview host can redirect deep links (e.g. /home) back to "/".
-  // Support an explicit `?redirect=/path` escape hatch so users / shared links
-  // can still reach a deep route, and auto-bounce signed-in users into /home
-  // so existing users aren't trapped on the marketing page.
-  useEffect(() => {
-    const requested = searchParams.get("redirect");
-    if (requested && requested.startsWith("/") && !requested.startsWith("//")) {
-      navigate(requested, { replace: true });
-      return;
-    }
-    if (!authLoading && user) {
-      navigate("/home", { replace: true });
-    }
-  }, [searchParams, navigate, authLoading, user]);
-
-  // Welcome page is theme-isolated: always preview themes locally,
-  // ignore any cached app theme from authenticated sessions.
+  // Waitlist is intentionally isolated from the authenticated app. Auth routing
+  // belongs to RootRedirect, ProtectedRoute, LoginPage, and AuthCallback only.
   useEffect(() => {
     applyTheme(activeTheme);
   }, [activeTheme]);
@@ -82,7 +79,7 @@ const WelcomePage = () => {
   };
 
   const themeClass = WELCOME_THEME_CLASS_MAP[activeTheme];
-  const openApp = () => navigate(user ? "/home" : "/login");
+  const openApp = () => navigate("/home");
 
   return (
     <div
