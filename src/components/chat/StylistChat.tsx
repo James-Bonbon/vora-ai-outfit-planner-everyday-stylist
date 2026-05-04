@@ -634,6 +634,11 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
                         })}
                     </div>
                   )}
+
+                {/* Dev-only debug chip */}
+                {IS_DEV_PREVIEW && msg.role === "assistant" && msg.debug_info && (
+                  <DebugChip debug={msg.debug_info} productRef={msg.product_reference || undefined} />
+                )}
               </div>
             </motion.div>
           ))}
