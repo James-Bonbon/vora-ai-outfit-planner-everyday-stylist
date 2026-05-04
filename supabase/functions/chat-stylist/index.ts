@@ -806,7 +806,16 @@ async function searchProductReferenceWeb(
   }
 }
 
-/* ── Vision fallback: analyze a product image with Gemini ──── */
+/* ── Vision fallback: analyze a product image with Gemini ────
+ * Strict color validation:
+ * - Vision must return dominantColor + dominantColorCoveragePct + dominantColorConfidence + print.
+ * - If print is "logo" or "graphic", the small accent color CANNOT become product color —
+ *   only dominantColor is used (this fixes "black hoodie with red logo → red top").
+ * - Coverage is vision-reported (we mark evidence as "vision_reported_coverage"),
+ *   never claimed as a real pixel histogram unless we actually compute one.
+ * - On parse/network failure: return null. Caller maps null to source="unknown",
+ *   confidence=0, needsClarification=true. NO 0.85 floor anywhere.
+ */
 async function analyzeProductImageWithVision(imageUrl: string, sourceUrl?: string): Promise<ProductReference | null> {
   const apiKey = Deno.env.get("LOVABLE_API_KEY");
   if (!apiKey) return null;
@@ -820,9 +829,16 @@ async function analyzeProductImageWithVision(imageUrl: string, sourceUrl?: strin
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: "Identify the single fashion product in the image. Return concise attributes." },
+          { role: "system", content:
+            "Identify the single fashion garment in the image. " +
+            "CRITICAL color rule: dominantColor = the color that covers MOST of the garment surface. " +
+            "Logos, prints, embroidery, small graphics, tags, or accent trim are NEVER the dominant color. " +
+            "Example: a black hoodie with a small red logo has dominantColor='black', not 'red'. " +
+            "secondaryColors may include the accent/logo colors. " +
+            "Return per-field confidence and a coverage percentage estimate."
+          },
           { role: "user", content: [
-            { type: "text", text: "Identify this product." },
+            { type: "text", text: "Identify this single garment, focusing on the dominant body color (ignore logos and prints when picking dominantColor)." },
             { type: "image_url", image_url: { url: imageUrl } },
           ] },
         ],
@@ -830,18 +846,23 @@ async function analyzeProductImageWithVision(imageUrl: string, sourceUrl?: strin
           type: "function",
           function: {
             name: "product_attributes",
-            description: "Return product attributes",
+            description: "Return strict product attributes with per-field confidence",
             parameters: {
               type: "object",
               properties: {
                 title: { type: "string" },
                 brand: { type: "string" },
-                category: { type: "string", description: "Garment type, e.g. dress, top, bottom, outerwear, shoes, bag" },
-                color: { type: "string" },
+                category: { type: "string", description: "dress, top, bottom, outerwear, shoes, bag, accessory" },
+                dominantColor: { type: "string", description: "Single color word for the garment body — NOT for logos or prints." },
+                dominantColorCoveragePct: { type: "number", description: "Estimated 0–100 % of garment surface covered by dominantColor." },
+                dominantColorConfidence: { type: "number", description: "0..1 confidence in dominantColor." },
+                secondaryColors: { type: "array", items: { type: "string" } },
+                print: { type: "string", enum: ["none", "logo", "graphic", "pattern"] },
                 material: { type: "string" },
+                categoryConfidence: { type: "number", description: "0..1 confidence in category." },
                 description: { type: "string" },
               },
-              required: ["title", "category", "color"],
+              required: ["category", "dominantColor", "dominantColorCoveragePct", "dominantColorConfidence", "print", "categoryConfidence"],
               additionalProperties: false,
             },
           },
@@ -854,21 +875,67 @@ async function analyzeProductImageWithVision(imageUrl: string, sourceUrl?: strin
     const data = await res.json().catch(() => null);
     const args = data?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
     if (!args) return null;
-    const j = JSON.parse(args);
+
+    let j: any;
+    try { j = JSON.parse(args); } catch { return null; }
+
     const canonType = canonicalGarmentType(j.category) || canonicalGarmentType(j.title);
-    const colorFam = colorFamilyOf(j.color);
+    const dominantColor: string | undefined = typeof j.dominantColor === "string" ? j.dominantColor : undefined;
+    const colorFam = colorFamilyOf(dominantColor);
     if (!canonType || !colorFam) return null;
+
+    const evidence: string[] = ["vision:gemini-3-flash"];
+    const coveragePct = Number(j.dominantColorCoveragePct ?? 0);
+    const dominantColorConfidence = Number(j.dominantColorConfidence ?? 0);
+    const categoryConfidence = Number(j.categoryConfidence ?? 0);
+    const print: string = typeof j.print === "string" ? j.print : "none";
+
+    evidence.push(`vision_reported_coverage:${Math.round(coveragePct)}%`);
+    evidence.push(`vision_color_confidence:${dominantColorConfidence.toFixed(2)}`);
+    evidence.push(`print:${print}`);
+
+    // Color confidence gating — never invent confidence we don't have.
+    let confidence = 0;
+    const strongColor = coveragePct >= 60 && dominantColorConfidence >= 0.6;
+    const strongCategory = categoryConfidence >= 0.6;
+
+    if (strongColor && strongCategory) {
+      confidence = 0.8; // user-image vision tops out at 0.8, never the old 0.85 false floor
+    } else if (strongCategory && coveragePct >= 45) {
+      confidence = 0.6;
+      evidence.push("color:medium_coverage_demoted");
+    } else {
+      confidence = 0.4;
+      evidence.push("color:low_coverage_or_low_confidence");
+    }
+
+    // Logo/graphic guard — secondaryColors may carry the accent, dominantColor stays
+    const secondaryColors: string[] = Array.isArray(j.secondaryColors)
+      ? j.secondaryColors.filter((s: unknown): s is string => typeof s === "string").slice(0, 4)
+      : [];
+    if (print === "logo" || print === "graphic") {
+      evidence.push("color:print_present_dominant_only");
+    }
+
+    const missingFields: string[] = [];
+    if (!j.title) missingFields.push("title");
+    if (!strongColor) missingFields.push("color_strong");
+
     return {
-      source: "browser_screenshot",
-      confidence: 0.8,
+      source: "image_analysis",
+      confidence,
       url: sourceUrl,
-      title: j.title,
-      brand: j.brand,
+      title: typeof j.title === "string" ? j.title : undefined,
+      brand: typeof j.brand === "string" ? j.brand : undefined,
       category: j.category,
-      color: j.color,
-      material: j.material,
+      color: dominantColor,
+      secondaryColors,
+      material: typeof j.material === "string" ? j.material : undefined,
       description: typeof j.description === "string" ? j.description.slice(0, 600) : undefined,
       imageUrl,
+      evidence,
+      missingFields,
+      needsClarification: confidence < 0.7,
     };
   } catch (e) {
     console.warn("vision fallback failed:", (e as Error).message);
