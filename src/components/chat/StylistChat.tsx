@@ -201,10 +201,14 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
       // Build conversation context (last 20 messages). The Edge Function persists
       // the latest user message ONLY after validation + rate-limit checks pass,
       // so we no longer insert it here.
-      const recentMessages = messages.slice(-20).map((m) => ({
-        role: m.role,
-        content: m.content,
-      }));
+      const recentMessages = messages.slice(-20).map((m) => {
+        const hadAttachment = m.role === "user" && !!m.attachment_url;
+        const text = m.content || "";
+        const content = hadAttachment
+          ? `${text ? text + "\n" : ""}[image attached]`
+          : text;
+        return { role: m.role, content };
+      });
       recentMessages.push({ role: "user", content: userMessage });
 
       // Reliable client-side 30s timeout via Promise.race (does not rely on
