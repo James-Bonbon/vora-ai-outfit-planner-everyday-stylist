@@ -5,9 +5,11 @@ import WelcomeThemeSwitcher, { type WelcomeThemeKey } from "./WelcomeThemeSwitch
 interface Props {
   activeTheme: WelcomeThemeKey;
   onThemeChange: (key: WelcomeThemeKey) => void;
+  showPreviewAppEscape?: boolean;
+  onOpenApp?: () => void;
 }
 
-const WelcomeHeader = ({ activeTheme, onThemeChange }: Props) => (
+const WelcomeHeader = ({ activeTheme, onThemeChange, showPreviewAppEscape = false, onOpenApp }: Props) => (
   <motion.header
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
@@ -18,6 +20,15 @@ const WelcomeHeader = ({ activeTheme, onThemeChange }: Props) => (
       VORA
     </span>
     <div className="flex items-center gap-4 md:gap-6">
+      {showPreviewAppEscape && (
+        <button
+          type="button"
+          onClick={onOpenApp}
+          className="rounded-full border border-foreground/25 bg-background/75 px-3 py-2 text-[10px] uppercase tracking-[0.2em] font-outfit font-medium text-foreground/80 shadow-sm backdrop-blur-md transition-colors hover:bg-foreground hover:text-background"
+        >
+          Open App
+        </button>
+      )}
       <Link
         to="/login"
         className="text-[10px] uppercase tracking-[0.25em] font-outfit font-medium text-foreground/70 hover:text-foreground transition-colors whitespace-nowrap"
