@@ -112,10 +112,7 @@ function classifyReferenceIntent(text: string): ReferenceIntent {
   return "general_opinion";
 }
 
-function ensureEvidence(ref: ProductReference, ev: string) {
-  ref.evidence = ref.evidence || [];
-  if (!ref.evidence.includes(ev)) ref.evidence.push(ev);
-}
+// (helper ensureEvidence removed — evidence is appended directly where it's produced)
 
 function computeMissingFields(ref: ProductReference): string[] {
   const missing: string[] = [];
@@ -147,6 +144,11 @@ function logProductLinkDebug(debug: ProductLinkDebug) {
 
 function recordProductRef(debug: ProductLinkDebug, ref: ProductReference | null, source?: ProductReference["source"]) {
   if (!ref) return;
+  // Guarantee every persisted ProductReference carries evidence/missingFields/needsClarification.
+  ref.evidence = ref.evidence || [];
+  if (source && !ref.evidence.includes(`source:${source}`)) ref.evidence.push(`source:${source}`);
+  ref.missingFields = computeMissingFields(ref);
+  ref.needsClarification = (ref.confidence ?? 0) < 0.7;
   debug.extractionSource = source || ref.source;
   debug.extracted = {
     title: ref.title,
@@ -953,10 +955,7 @@ type ShoppingProduct = {
   reason?: string;
 };
 
-function isCheaperAlternativesIntent(text: string): boolean {
-  const t = text.toLowerCase();
-  return /(cheaper|less expensive|more affordable|budget|dupes?|alternatives?|similar online|find online|find similar (?:online|on the web))/.test(t);
-}
+// (removed dead helper isCheaperAlternativesIntent — intent classification is centralised in classifyReferenceIntent)
 
 function getDirectUrl(rawUrl: string): string {
   try {
