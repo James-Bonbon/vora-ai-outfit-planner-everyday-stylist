@@ -958,10 +958,7 @@ type ShoppingProduct = {
   reason?: string;
 };
 
-function isCheaperAlternativesIntent(text: string): boolean {
-  const t = text.toLowerCase();
-  return /(cheaper|less expensive|more affordable|budget|dupes?|alternatives?|similar online|find online|find similar (?:online|on the web))/.test(t);
-}
+// (removed dead helper isCheaperAlternativesIntent — intent classification is centralised in classifyReferenceIntent)
 
 function getDirectUrl(rawUrl: string): string {
   try {
