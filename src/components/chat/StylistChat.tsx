@@ -42,6 +42,35 @@ interface ShoppingProduct {
   reason?: string;
 }
 
+interface ProductReference {
+  source?: string;
+  confidence?: number;
+  url?: string;
+  title?: string;
+  brand?: string;
+  color?: string;
+  category?: string;
+  imageUrl?: string;
+  evidence?: string[];
+  missingFields?: string[];
+  needsClarification?: boolean;
+  [key: string]: unknown;
+}
+
+interface DebugInfo {
+  referenceIntent?: string;
+  source?: string;
+  confidence?: number;
+  detected?: { category?: string; color?: string; secondaryColors?: string[]; title?: string } | null;
+  evidence?: string[];
+  missingFields?: string[];
+  shoppingAvailable?: boolean;
+  recommendation?: { acceptedIds?: string[]; rejected?: Array<{ id: string; reason: string }> };
+  pipeline?: unknown;
+  wishlistInserted?: boolean;
+  [key: string]: unknown;
+}
+
 interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -50,8 +79,16 @@ interface ChatMessage {
   quick_actions?: ChatQuickAction[] | null;
   attachment_url?: string | null;
   shopping?: ShoppingProduct[] | null;
+  product_reference?: ProductReference | null;
+  debug_info?: DebugInfo | null;
   created_at: string;
 }
+
+const IS_DEV_PREVIEW =
+  typeof window !== "undefined" &&
+  (window.location.hostname === "localhost" ||
+    window.location.hostname.endsWith(".lovable.app") ||
+    window.location.hostname.endsWith(".lovable.dev"));
 
 interface GarmentMini {
   id: string;
