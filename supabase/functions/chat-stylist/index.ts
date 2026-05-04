@@ -1038,7 +1038,80 @@ const REF_QA_AFTER_SHOPPING = [
   { kind: "send_message", label: "Upload another product", message: "I'll upload another product to compare." },
 ];
 
-/* ── Tavily search/extract fallback ─────────────────────────── */
+/* ── Tavily Extract (exact URL) ─────────────────────────────── */
+async function extractProductReferenceTavily(
+  url: string,
+  debug?: ProductLinkDebug,
+): Promise<ProductReference | null> {
+  const key = Deno.env.get("TAVILY_API_KEY");
+  if (!key) {
+    debug?.attempts.push("tavily_extract:skipped_no_key");
+    return null;
+  }
+  try {
+    debug?.attempts.push("tavily_extract:start");
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 10000);
+    const resp = await fetch("https://api.tavily.com/extract", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      signal: ctrl.signal,
+      body: JSON.stringify({ urls: [url], extract_depth: "advanced", include_images: true }),
+    }).catch(() => null);
+    clearTimeout(t);
+    if (!resp?.ok) {
+      if (resp) debug?.attempts.push(`tavily_extract:http_${resp.status}`);
+      return null;
+    }
+    const data = await resp.json().catch(() => null);
+    const result = (data?.results || [])[0];
+    if (!result) {
+      debug?.attempts.push("tavily_extract:no_result");
+      return null;
+    }
+    const rawContent: string = String(result.raw_content || result.content || "").slice(0, 20000);
+    if (!rawContent) {
+      debug?.attempts.push("tavily_extract:empty_content");
+      return null;
+    }
+    const images: string[] = Array.isArray(result.images) ? result.images : [];
+    const title = (() => {
+      const m = rawContent.match(/^([^\n]{8,160})/);
+      return m ? m[1].trim() : undefined;
+    })();
+    const category = canonicalGarmentType(rawContent) || undefined;
+    const color = colorWordFromText(rawContent);
+    const urlBrand = hostBrandFromUrl(url) || undefined;
+    const priceMatch = rawContent.match(/(?:£|\$|€|USD|GBP|EUR)\s?\d{1,5}(?:[.,]\d{2})?/);
+    const ref: ProductReference = {
+      source: "tavily_extract",
+      confidence: 0,
+      url,
+      title,
+      brand: urlBrand,
+      color,
+      category,
+      imageUrl: images[0],
+      price: priceMatch ? priceMatch[0] : undefined,
+      description: rawContent.slice(0, 600),
+      evidence: ["tavily_extract:exact_url"],
+    };
+    // Confidence requires both category AND color from extracted content.
+    ref.confidence = confidenceForProductRef(ref, "tavily_extract", true);
+    if (!category || !color) {
+      ref.confidence = Math.min(ref.confidence, 0.55);
+      ref.evidence!.push("tavily_extract:missing_category_or_color");
+    }
+    ref.missingFields = computeMissingFields(ref);
+    debug?.attempts.push(`tavily_extract:ok:cat=${!!category}:color=${!!color}:conf=${ref.confidence}`);
+    return ref;
+  } catch (e) {
+    debug?.attempts.push(`tavily_extract:error:${(e as Error).message}`);
+    return null;
+  }
+}
+
+/* ── Tavily Search (productId + brand) ──────────────────────── */
 async function searchProductReferenceTavily(
   url: string,
   seed?: ProductReference | null,
@@ -1046,7 +1119,7 @@ async function searchProductReferenceTavily(
 ): Promise<ProductReference | null> {
   const key = Deno.env.get("TAVILY_API_KEY");
   if (!key) {
-    debug?.attempts.push("tavily:skipped_no_key");
+    debug?.attempts.push("tavily_search:skipped_no_key");
     return null;
   }
   const productId = productIdFromUrl(url);
@@ -1066,7 +1139,7 @@ async function searchProductReferenceTavily(
   const candidates: Cand[] = [];
 
   try {
-    debug?.attempts.push(`tavily:start:${productId || "no_product_id"}:queries_${queries.length}`);
+    debug?.attempts.push(`tavily_search:start:${productId || "no_product_id"}:queries_${queries.length}`);
     for (const q of queries) {
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 8000);
@@ -1085,7 +1158,7 @@ async function searchProductReferenceTavily(
       }).catch(() => null);
       clearTimeout(t);
       if (!resp?.ok) {
-        if (resp) debug?.attempts.push(`tavily:http_${resp.status}`);
+        if (resp) debug?.attempts.push(`tavily_search:http_${resp.status}`);
         continue;
       }
       const data = await resp.json().catch(() => null);
@@ -1094,12 +1167,12 @@ async function searchProductReferenceTavily(
       for (const r of results) candidates.push({ ...r, image: r.image || images[0] });
     }
   } catch (e) {
-    debug?.attempts.push(`tavily:error:${(e as Error).message}`);
+    debug?.attempts.push(`tavily_search:error:${(e as Error).message}`);
     return null;
   }
 
   if (!candidates.length) {
-    debug?.attempts.push("tavily:no_candidates");
+    debug?.attempts.push("tavily_search:no_candidates");
     return null;
   }
 
@@ -1138,19 +1211,19 @@ async function searchProductReferenceTavily(
 
   const best = scored[0];
   if (!best) {
-    debug?.attempts.push("tavily:no_verified_match");
+    debug?.attempts.push("tavily_search:no_verified_match");
     return null;
   }
 
   const ref: ProductReference = {
-    source: "tavily",
+    source: "tavily_search",
     confidence: confidenceForProductRef({
       title: best.c.title,
       brand: urlBrand || undefined,
       color: best.color,
       category: best.category,
       imageUrl: best.c.image,
-    }, "tavily", true),
+    }, "tavily_search", true),
     url: best.c.url || url,
     title: best.c.title,
     brand: urlBrand || undefined,
@@ -1158,8 +1231,10 @@ async function searchProductReferenceTavily(
     category: best.category,
     description: best.c.content?.slice(0, 600),
     imageUrl: best.c.image,
+    evidence: [`tavily_search:identity_verified:exact=${best.exactUrl}:pid=${best.productIdMatch}`],
   };
-  debug?.attempts.push(`tavily:best_score_${best.score}:exact_${best.exactUrl}:pid_${best.productIdMatch}:confidence_${ref.confidence}`);
+  ref.missingFields = computeMissingFields(ref);
+  debug?.attempts.push(`tavily_search:best_score_${best.score}:exact_${best.exactUrl}:pid_${best.productIdMatch}:confidence_${ref.confidence}`);
   return ref;
 }
 
