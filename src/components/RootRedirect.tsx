@@ -4,8 +4,8 @@ import { useAuth } from "@/hooks/useAuth";
 
 /**
  * Auth-aware root route. Signed-in users go to /home; signed-out users go
- * to /login. The Welcome page is intentionally NOT rendered here — it lives
- * at /welcome (and /waitlist) as a standalone public marketing page.
+ * to /login. The public waitlist is intentionally not rendered here and
+ * lives only at /waitlist.
  */
 const RootRedirect = () => {
   const { user, loading } = useAuth();
