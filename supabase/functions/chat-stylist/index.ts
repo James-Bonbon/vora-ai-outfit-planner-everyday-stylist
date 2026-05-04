@@ -1079,31 +1079,62 @@ async function searchCheaperAlternatives(ref: ProductReference, serviceClient?: 
   }
 }
 
-const REF_QA_HIGH_CONF = [
-  { kind: "send_message", label: "Find similar in my wardrobe", message: "Find similar pieces in my wardrobe." },
-  { kind: "send_message", label: "Style this with my closet", message: "Style this with pieces from my closet." },
-  { kind: "send_message", label: "Find cheaper alternatives", message: "Find cheaper alternatives online." },
-  { kind: "send_message", label: "What would I wear it with?", message: "What would I wear it with?" },
-];
+/* ── Intent-driven quick action builder ─────────────────────── */
+type QAItem = { kind: string; label: string; message?: string; emoji?: string; garment_ids?: string[]; outfit_name?: string };
 
-const REF_QA_NO_MATCH = [
-  { kind: "send_message", label: "Style this with my closet", message: "Style this with pieces from my closet." },
-  { kind: "send_message", label: "Find cheaper alternatives", message: "Find cheaper alternatives online." },
-  { kind: "send_message", label: "Save as wishlist inspiration", message: "Save this as wishlist inspiration." },
-  { kind: "send_message", label: "Upload another product", message: "I'll upload another product to compare." },
-];
+function quickActionsFor(opts: {
+  intent: ReferenceIntent;
+  refConfident: boolean;
+  hasMatches: boolean;
+  shoppingUsable: boolean;
+  hasRecommendations: boolean;
+  recommendedIds?: string[];
+}): QAItem[] {
+  const { intent, refConfident, hasMatches, shoppingUsable, hasRecommendations, recommendedIds } = opts;
 
-const REF_QA_UNKNOWN = [
-  { kind: "send_message", label: "Upload product screenshot", message: "I'll upload a screenshot of the product." },
-  { kind: "send_message", label: "Style this if I buy it", message: "Help me style this if I buy it." },
-  { kind: "send_message", label: "Tell you what details to look for", message: "What details should I tell you about this product?" },
-];
+  // Unclear product
+  if (!refConfident) {
+    return [
+      { kind: "send_message", label: "Upload product screenshot", message: "I'll upload a screenshot of the product." },
+      { kind: "send_message", label: "Tell me what it is", message: "Let me describe the product to you." },
+    ];
+  }
 
-const REF_QA_AFTER_SHOPPING = [
-  { kind: "send_message", label: "Style this with my closet", message: "Style this with pieces from my closet." },
-  { kind: "send_message", label: "Save as wishlist inspiration", message: "Save this as wishlist inspiration." },
-  { kind: "send_message", label: "Upload another product", message: "I'll upload another product to compare." },
-];
+  // After actual outfit recommendation (server produced surviving IDs)
+  if (hasRecommendations && recommendedIds && recommendedIds.length > 0) {
+    const out: QAItem[] = [
+      { kind: "see_on_me", label: "Try it on", garment_ids: recommendedIds },
+      { kind: "save_to_lookbook", label: "Save to lookbook", garment_ids: recommendedIds, outfit_name: "Vora Stylist Look" },
+      { kind: "send_message", label: "Make it more casual", message: "Make this outfit more casual." },
+    ];
+    if (shoppingUsable && intent === "find_similar_owned" && !hasMatches) {
+      out.push({ kind: "send_message", label: "Find cheaper alternatives", message: "Find cheaper alternatives online." });
+    }
+    return out;
+  }
+
+  // Confident product, no recommendation yet (general_opinion / save_wishlist_reference / no-match find_similar)
+  const base: QAItem[] = [
+    { kind: "send_message", label: "Style this with my closet", message: "Style this with pieces from my closet." },
+    { kind: "send_message", label: "Find similar in my wardrobe", message: "Find similar pieces in my wardrobe." },
+  ];
+  if (shoppingUsable) {
+    base.push({ kind: "send_message", label: "Find cheaper alternatives", message: "Find cheaper alternatives online." });
+  }
+  if (intent !== "save_wishlist_reference") {
+    base.push({ kind: "send_message", label: "Save inspiration", message: "Save this as wishlist inspiration." });
+  }
+  return base.slice(0, 4);
+}
+
+function quickActionsAfterShopping(): QAItem[] {
+  return [
+    { kind: "send_message", label: "Style this with my closet", message: "Style this with pieces from my closet." },
+    { kind: "send_message", label: "Save inspiration", message: "Save this as wishlist inspiration." },
+    { kind: "send_message", label: "Upload another product", message: "I'll upload another product to compare." },
+  ];
+}
+
 
 /* ── Tavily Extract (exact URL) ─────────────────────────────── */
 async function extractProductReferenceTavily(
