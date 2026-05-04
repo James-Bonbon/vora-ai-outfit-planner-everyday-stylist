@@ -109,7 +109,9 @@ export type Database = {
           attachment_url: string | null
           content: string
           created_at: string
+          debug_info: Json | null
           id: string
+          product_reference: Json | null
           quick_actions: Json | null
           role: string
           shopping: Json | null
@@ -120,7 +122,9 @@ export type Database = {
           attachment_url?: string | null
           content: string
           created_at?: string
+          debug_info?: Json | null
           id?: string
+          product_reference?: Json | null
           quick_actions?: Json | null
           role?: string
           shopping?: Json | null
@@ -131,7 +135,9 @@ export type Database = {
           attachment_url?: string | null
           content?: string
           created_at?: string
+          debug_info?: Json | null
           id?: string
+          product_reference?: Json | null
           quick_actions?: Json | null
           role?: string
           shopping?: Json | null
