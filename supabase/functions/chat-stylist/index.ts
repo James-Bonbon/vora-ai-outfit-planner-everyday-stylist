@@ -62,19 +62,69 @@ function sanitizeWardrobeForPrompt(items: any[]): any[] {
 }
 
 /* ── Reference Product Mode ─────────────────────────────────── */
+type ProductReferenceSource =
+  | "metadata"
+  | "tavily_extract"
+  | "tavily_search"
+  | "web_search"
+  | "firecrawl"
+  | "image_analysis"
+  | "user_text"
+  | "memory"
+  | "unknown";
+
 type ProductReference = {
-  source: "metadata" | "tavily" | "web_search" | "firecrawl" | "browser_screenshot" | "user_image" | "image_analysis" | "url_metadata" | "unknown";
+  source: ProductReferenceSource;
   confidence: number; // 0..1
   url?: string;
+  productUrl?: string;
   title?: string;
   brand?: string;
   color?: string;
+  secondaryColors?: string[];
   category?: string;
   material?: string;
   description?: string;
   imageUrl?: string;
   price?: string;
+  evidence?: string[];
+  missingFields?: string[];
+  needsClarification?: boolean;
 };
+
+type ReferenceIntent =
+  | "find_similar_owned"
+  | "style_with_owned"
+  | "find_cheaper_alternatives"
+  | "save_wishlist_reference"
+  | "general_opinion";
+
+function classifyReferenceIntent(text: string): ReferenceIntent {
+  const t = (text || "").toLowerCase();
+  if (/(cheaper|less expensive|more affordable|budget|dupes?|alternatives?|similar online|find online|find similar (?:online|on the web))/.test(t))
+    return "find_cheaper_alternatives";
+  if (/(save|wishlist|wish list|bookmark|inspiration)/.test(t))
+    return "save_wishlist_reference";
+  if (/(find similar|do i (?:have|own)|in my (?:wardrobe|closet)|something like this in my)/.test(t))
+    return "find_similar_owned";
+  if (/(style this|wear (?:it|this) with|pair with|outfit (?:with|around)|what (?:do i|would i) wear (?:it|this)|how would i wear|build an outfit)/.test(t))
+    return "style_with_owned";
+  return "general_opinion";
+}
+
+function ensureEvidence(ref: ProductReference, ev: string) {
+  ref.evidence = ref.evidence || [];
+  if (!ref.evidence.includes(ev)) ref.evidence.push(ev);
+}
+
+function computeMissingFields(ref: ProductReference): string[] {
+  const missing: string[] = [];
+  if (!ref.title) missing.push("title");
+  if (!ref.category) missing.push("category");
+  if (!ref.color) missing.push("color");
+  if (!ref.imageUrl) missing.push("imageUrl");
+  return missing;
+}
 
 type ProductLinkDebug = {
   originalUrl: string;
