@@ -24,6 +24,11 @@ const WelcomePage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, loading: authLoading } = useAuth();
+  const isLovablePreview =
+    typeof window !== "undefined" &&
+    (window.location.hostname.includes("lovableproject.com") ||
+      window.location.hostname.includes("lovable.app") ||
+      window.location.hostname.includes("localhost"));
 
   // Preview-environment recovery:
   // The Lovable preview host can redirect deep links (e.g. /home) back to "/".
@@ -77,12 +82,18 @@ const WelcomePage = () => {
   };
 
   const themeClass = WELCOME_THEME_CLASS_MAP[activeTheme];
+  const openApp = () => navigate(user ? "/home" : "/login");
 
   return (
     <div
       className={`min-h-screen bg-background text-foreground selection:bg-foreground/20 transition-colors duration-700 ${themeClass}`}
     >
-      <WelcomeHeader activeTheme={activeTheme} onThemeChange={setActiveTheme} />
+      <WelcomeHeader
+        activeTheme={activeTheme}
+        onThemeChange={setActiveTheme}
+        showPreviewAppEscape={isLovablePreview}
+        onOpenApp={openApp}
+      />
       <WelcomeHero />
       <WelcomeProcess />
       <WelcomeFeatures />
