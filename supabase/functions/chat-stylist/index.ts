@@ -112,10 +112,7 @@ function classifyReferenceIntent(text: string): ReferenceIntent {
   return "general_opinion";
 }
 
-function ensureEvidence(ref: ProductReference, ev: string) {
-  ref.evidence = ref.evidence || [];
-  if (!ref.evidence.includes(ev)) ref.evidence.push(ev);
-}
+// (helper ensureEvidence removed — evidence is appended directly where it's produced)
 
 function computeMissingFields(ref: ProductReference): string[] {
   const missing: string[] = [];
