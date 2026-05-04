@@ -89,7 +89,6 @@ const App = () => (
           <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route path="/" element={<RootRedirect />} />
-              <Route path="/welcome" element={<WelcomePage />} />
               <Route path="/waitlist" element={<WelcomePage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/auth" element={<LoginPage />} />
@@ -108,9 +107,9 @@ const App = () => (
                 <Route path="/feed" element={<CommunityPage />} />
                 <Route path="/beauty" element={<BeautyPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
-<Route path="/library" element={<LibraryPage />} />
-<Route path="/style-stats" element={<StyleAnalytics />} />
-<Route path="/color-dna" element={<ColorDNA />} />
+                <Route path="/library" element={<LibraryPage />} />
+                <Route path="/style-stats" element={<StyleAnalytics />} />
+                <Route path="/color-dna" element={<ColorDNA />} />
                 <Route path="/travel" element={<TravelPacker />} />
               </Route>
               <Route path="*" element={<NotFound />} />
