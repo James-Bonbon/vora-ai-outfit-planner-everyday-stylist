@@ -147,6 +147,11 @@ function logProductLinkDebug(debug: ProductLinkDebug) {
 
 function recordProductRef(debug: ProductLinkDebug, ref: ProductReference | null, source?: ProductReference["source"]) {
   if (!ref) return;
+  // Guarantee every persisted ProductReference carries evidence/missingFields/needsClarification.
+  ref.evidence = ref.evidence || [];
+  if (source && !ref.evidence.includes(`source:${source}`)) ref.evidence.push(`source:${source}`);
+  ref.missingFields = computeMissingFields(ref);
+  ref.needsClarification = (ref.confidence ?? 0) < 0.7;
   debug.extractionSource = source || ref.source;
   debug.extracted = {
     title: ref.title,
