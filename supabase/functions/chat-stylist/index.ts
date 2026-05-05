@@ -2566,7 +2566,7 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
       onlineSearchAttempted,
       recommendedIds,
       shoppingResultsCount: shoppingResults.length,
-      ...(typeof shoppingDebug !== "undefined" ? shoppingDebug : {}),
+      ...shoppingDebug,
       quickActionReason,
     };
 
