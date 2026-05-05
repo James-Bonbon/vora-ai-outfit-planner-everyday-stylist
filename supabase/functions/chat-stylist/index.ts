@@ -2328,6 +2328,79 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
       }
     }
 
+    /* ── Non-reference (general chat) post-processing ─────────── */
+    let shoppingResults: ShoppingProduct[] = [];
+    let onlineSearchAttempted = false;
+    let quickActionReason = "";
+    if (!refMode) {
+      // Filter shoes for shoe_recommendation
+      if (chatIntent === "shoe_recommendation") {
+        const beforeIds = recommendedIds;
+        recommendedIds = recommendedIds.filter((id) => {
+          const g: any = wardrobeById.get(id);
+          if (!g) { rejected.push({ id, reason: "not_in_wardrobe" }); return false; }
+          const t = canonicalGarmentType(g.category) || canonicalGarmentType(g.name);
+          if (t !== "shoes") { rejected.push({ id, reason: "not_shoes" }); return false; }
+          return true;
+        });
+        if (recommendedIds.length === 0 && beforeIds.length > 0) {
+          quickActionReason = hasShoesInWardrobe ? "shoes_no_match" : "no_shoes_in_wardrobe";
+        }
+        if (recommendedIds.length === 0 && !hasShoesInWardrobe) {
+          // Strip card grid; keep text-only suggestion
+          if (!/no shoes|don't (own|have)|don't see/i.test(replyText)) {
+            replyText = replyText.trim() + (replyText ? "\n\n" : "") + "I don't see any shoes in your wardrobe yet — for this look I'd reach for clean white sneakers or a low ankle boot. Want me to look online?";
+          }
+        }
+      }
+
+      // Online shopping search trigger
+      if (chatIntent === "online_shopping_search" && shoppingAvailable) {
+        onlineSearchAttempted = true;
+        const ref: ProductReference = {
+          source: "user_text", confidence: 0.6,
+          title: lastUserText.slice(0, 80),
+          category: (() => {
+            const t = canonicalGarmentType(lastUserText);
+            return t || undefined;
+          })(),
+          color: colorWordFromText(lastUserText),
+        };
+        shoppingResults = await searchCheaperAlternatives(ref, serviceClient);
+        if (shoppingResults.length === 0) {
+          replyText = "I tried looking online but couldn't find solid options right now. Want me to try a different style or brand?";
+        } else {
+          replyText = (replyText && replyText.length > 0)
+            ? replyText
+            : `Here are a few options I found online${ref.category ? ` for ${ref.category}` : ""}:`;
+        }
+        recommendedIds = []; // never show wardrobe cards alongside online results
+      } else if (chatIntent === "online_shopping_search" && !shoppingAvailable) {
+        replyText = "I can't search live shops right now. Try again in a moment, or I can style something from your closet instead.";
+        recommendedIds = [];
+      }
+
+      // Active outfit follow-ups: if AI returned no IDs but intent implies they apply, fall back to active outfit
+      if ((chatIntent === "style_active_outfit" || chatIntent === "add_layer_to_active_outfit" || chatIntent === "swap_item")
+          && recommendedIds.length === 0 && activeOutfit) {
+        recommendedIds = activeOutfit.garmentIds.filter((id) => validIds.has(id) && !laundryIds.has(id));
+        quickActionReason = quickActionReason || "fallback_to_active_outfit";
+      }
+
+      quickActions = withIds(quickActionsForChat({
+        intent: chatIntent,
+        hasRecommendations: recommendedIds.length > 0,
+        recommendedIds,
+        shoppingUsable: shoppingAvailable,
+        shoppingCount: shoppingResults.length,
+        hasShoesInWardrobe,
+        activeOutfitIds: activeOutfit?.garmentIds || [],
+      }));
+      if (!quickActionReason) quickActionReason = `chat:${chatIntent}`;
+    } else {
+      quickActionReason = `ref:${referenceIntent}`;
+    }
+
     // Strip banned weak-match phrases when nothing was recommended
     if (refMode && recommendedIds.length === 0) {
       replyText = replyText
@@ -2338,7 +2411,24 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
         .trim();
     }
 
+    // Build/refresh activeOutfit on outputs that include a meaningful look
+    let nextActiveOutfit: ActiveOutfit | null = activeOutfit;
+    const outfitProducingIntents = new Set<string>([
+      "outfit_today", "add_layer_to_active_outfit", "style_active_outfit", "swap_item",
+    ]);
+    if (!refMode && recommendedIds.length >= 2 && outfitProducingIntents.has(chatIntent)) {
+      nextActiveOutfit = {
+        garmentIds: recommendedIds,
+        garmentNames: recommendedIds.map((id) => (wardrobeById.get(id) as any)?.name).filter(Boolean),
+        categories: recommendedIds.map((id) => (wardrobeById.get(id) as any)?.category).filter(Boolean),
+        occasion: null,
+        weather: null,
+        reason: chatIntent,
+      };
+    }
+
     const debugInfo = {
+      // Product-reference fields (kept for compatibility)
       referenceIntent,
       source: productRef?.source || "none",
       confidence: productRef ? Number(productRef.confidence.toFixed(2)) : 0,
@@ -2352,6 +2442,17 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
       recommendation: { acceptedIds: recommendedIds, rejected },
       pipeline: pipelineLog,
       wishlistInserted,
+      // General chat fields
+      chatIntent,
+      activeOutfit: nextActiveOutfit,
+      activeOutfitIds: nextActiveOutfit?.garmentIds || [],
+      usedWardrobe: wardrobeSanitized.length > 0,
+      usedWeather: false,
+      usedProfile: !!profile,
+      onlineSearchAttempted,
+      recommendedIds,
+      shoppingResultsCount: shoppingResults.length,
+      quickActionReason,
     };
 
     await supabase.from("chat_messages").insert({
@@ -2360,6 +2461,7 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
       content: replyText,
       suggested_garment_ids: recommendedIds.length > 0 ? recommendedIds : null,
       quick_actions: quickActions.length > 0 ? quickActions : null,
+      shopping: shoppingResults.length > 0 ? shoppingResults : null,
       product_reference: productRef as any,
       debug_info: debugInfo as any,
     });
@@ -2369,6 +2471,7 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
       recommended_ids: recommendedIds,
       styling_instruction: stylingInstruction,
       quick_actions: quickActions,
+      shopping: shoppingResults,
       debug_info: debugInfo,
     });
   } catch (e) {
