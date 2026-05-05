@@ -955,6 +955,91 @@ type ShoppingProduct = {
   reason?: string;
 };
 
+/* ── Strict category filtering for online shopping results ─── */
+const SHOE_POSITIVE = /\b(shoe|shoes|sneaker|sneakers|trainer|trainers|loafer|loafers|boot|boots|bootie|booties|heel|heels|sandal|sandals|flat|flats|mule|mules|pump|pumps|oxford|brogue|espadrille|ballerina|moccasin|derby|slingback)\b/i;
+const SHOE_NEGATIVE = /\b(dress|dresses|gown|co[-\s]?ord|coord|top|tops|tee|t-shirt|tshirt|blouse|shirt|skirt|skirts|trouser|trousers|pant|pants|jean|jeans|jumper|sweater|knit|cardigan|coat|jacket|blazer|hoodie|bag|handbag|tote|earring|necklace|ring|bracelet|sunglasses|hat|scarf|belt)\b/i;
+
+type ShoppingFilterResult = {
+  accepted: ShoppingProduct[];
+  rejected: { title: string; reason: string }[];
+};
+
+function filterShoppingByCategory(
+  items: ShoppingProduct[],
+  targetCategory: string,
+): ShoppingFilterResult {
+  const accepted: ShoppingProduct[] = [];
+  const rejected: { title: string; reason: string }[] = [];
+  for (const it of items) {
+    const hay = `${it.title || ""} ${it.source || ""}`;
+    if (targetCategory === "shoes") {
+      if (SHOE_NEGATIVE.test(hay)) {
+        rejected.push({ title: it.title, reason: "non_shoe_term_in_title" });
+        continue;
+      }
+      if (!SHOE_POSITIVE.test(hay)) {
+        rejected.push({ title: it.title, reason: "no_shoe_term_in_title" });
+        continue;
+      }
+      accepted.push(it);
+    } else {
+      accepted.push(it);
+    }
+  }
+  return { accepted, rejected };
+}
+
+async function searchShoppingByQuery(
+  query: string,
+  num = 20,
+): Promise<ShoppingProduct[]> {
+  const serperKey = Deno.env.get("SERPER_API_KEY");
+  const serpApiKey = Deno.env.get("SERPAPI_KEY");
+  if (!serperKey && !serpApiKey) return [];
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 8000);
+    const resp = serperKey
+      ? await fetch("https://google.serper.dev/shopping", {
+          method: "POST",
+          headers: { "X-API-KEY": serperKey, "Content-Type": "application/json" },
+          signal: ctrl.signal,
+          body: JSON.stringify({ q: query, gl: "gb", num }),
+        }).catch(() => null)
+      : await fetch(`https://serpapi.com/search.json?${new URLSearchParams({
+          engine: "google_shopping",
+          q: query,
+          gl: "uk",
+          hl: "en",
+          currency: "GBP",
+          num: String(num),
+          api_key: serpApiKey!,
+        }).toString()}`).catch(() => null);
+    clearTimeout(t);
+    if (!resp || !resp.ok) return [];
+    const data = await resp.json();
+    const items = (data?.shopping || data?.shopping_results || []) as any[];
+    return items
+      .filter((it) => {
+        const link = it.link || "";
+        if (link.includes("/aclk?") || link.includes("googleadservices.com")) return false;
+        return !!it.title && !!link;
+      })
+      .map((it) => ({
+        title: String(it.title || "").slice(0, 140),
+        source: it.source ? String(it.source).slice(0, 60) : undefined,
+        price: it.price ? String(it.price).slice(0, 30) : undefined,
+        link: getDirectUrl(String(it.link)),
+        imageUrl: it.imageUrl || it.thumbnail || it.high_res_image
+          ? String(it.imageUrl || it.thumbnail || it.high_res_image)
+          : undefined,
+      }));
+  } catch (e) {
+    console.warn("searchShoppingByQuery failed:", (e as Error).message);
+    return [];
+  }
+}
+
 // (removed dead helper isCheaperAlternativesIntent — intent classification is centralised in classifyReferenceIntent)
 
 function getDirectUrl(rawUrl: string): string {
@@ -2332,6 +2417,13 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
     let shoppingResults: ShoppingProduct[] = [];
     let onlineSearchAttempted = false;
     let quickActionReason = "";
+    let shoppingDebug: {
+      shoppingQuery?: string;
+      targetShoppingCategory?: string;
+      rawShoppingResultsCount?: number;
+      acceptedShoppingResultsCount?: number;
+      rejectedShoppingResults?: { title: string; reason: string }[];
+    } = {};
     if (!refMode) {
       // Filter shoes for shoe_recommendation
       if (chatIntent === "shoe_recommendation") {
@@ -2354,25 +2446,47 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
         }
       }
 
-      // Online shopping search trigger
       if (chatIntent === "online_shopping_search" && shoppingAvailable) {
         onlineSearchAttempted = true;
-        const ref: ProductReference = {
-          source: "user_text", confidence: 0.6,
-          title: lastUserText.slice(0, 80),
-          category: (() => {
-            const t = canonicalGarmentType(lastUserText);
-            return t || undefined;
-          })(),
-          color: colorWordFromText(lastUserText),
-        };
-        shoppingResults = await searchCheaperAlternatives(ref, serviceClient);
-        if (shoppingResults.length === 0) {
-          replyText = "I tried looking online but couldn't find solid options right now. Want me to try a different style or brand?";
+
+        // Force category from user text (default to shoes when shoe terms appear)
+        const userTextLower = lastUserText.toLowerCase();
+        const explicitCat = canonicalGarmentType(lastUserText);
+        const wantsShoes = /\b(shoe|shoes|sneaker|trainer|loafer|boot|heel|sandal|mule|flat|pump)\b/i.test(userTextLower);
+        const targetCategory = wantsShoes ? "shoes" : (explicitCat || "shoes");
+
+        // Build a category-anchored query (NOT generic outfit garment names)
+        let shoppingQuery = "";
+        if (targetCategory === "shoes") {
+          const outfitColors = (activeOutfit?.garmentNames || [])
+            .map((n) => colorWordFromText(n))
+            .filter(Boolean) as string[];
+          const palette = colorWordFromText(lastUserText) || outfitColors[0] || "neutral";
+          shoppingQuery = `${palette} loafers OR ${palette} sneakers OR tan ankle boots womens UK`.slice(0, 100);
         } else {
+          const userColor = colorWordFromText(lastUserText) || "";
+          shoppingQuery = `${userColor} ${targetCategory} womens UK`.trim().slice(0, 100);
+        }
+
+        const rawResults = await searchShoppingByQuery(shoppingQuery, 20);
+        const { accepted, rejected: rejectedShop } = filterShoppingByCategory(rawResults, targetCategory);
+
+        shoppingDebug = {
+          shoppingQuery,
+          targetShoppingCategory: targetCategory,
+          rawShoppingResultsCount: rawResults.length,
+          acceptedShoppingResultsCount: accepted.length,
+          rejectedShoppingResults: rejectedShop.slice(0, 12),
+        };
+
+        if (accepted.length === 0) {
+          shoppingResults = [];
+          replyText = "I searched, but the results were not reliable enough to show. Want me to try a different style or brand?";
+        } else {
+          shoppingResults = accepted.slice(0, 4);
           replyText = (replyText && replyText.length > 0)
             ? replyText
-            : `Here are a few options I found online${ref.category ? ` for ${ref.category}` : ""}:`;
+            : `Here are a few ${targetCategory} I found online that should work with this look:`;
         }
         recommendedIds = []; // never show wardrobe cards alongside online results
       } else if (chatIntent === "online_shopping_search" && !shoppingAvailable) {
@@ -2452,6 +2566,7 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
       onlineSearchAttempted,
       recommendedIds,
       shoppingResultsCount: shoppingResults.length,
+      ...shoppingDebug,
       quickActionReason,
     };
 
