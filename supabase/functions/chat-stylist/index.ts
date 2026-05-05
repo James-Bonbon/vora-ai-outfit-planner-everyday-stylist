@@ -2446,14 +2446,6 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
         }
       }
 
-      // Online shopping search trigger
-      let shoppingDebug: {
-        shoppingQuery?: string;
-        targetShoppingCategory?: string;
-        rawShoppingResultsCount?: number;
-        acceptedShoppingResultsCount?: number;
-        rejectedShoppingResults?: { title: string; reason: string }[];
-      } = {};
       if (chatIntent === "online_shopping_search" && shoppingAvailable) {
         onlineSearchAttempted = true;
 
