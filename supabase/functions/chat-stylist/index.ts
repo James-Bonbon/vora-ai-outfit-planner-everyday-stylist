@@ -1658,7 +1658,7 @@ serve(async (req) => {
     }
 
     /* ── Load richer personalization context in parallel ─────── */
-    const [wardrobeRes, profileRes, looksRes, lookbookRes, lastRefRes] = await Promise.all([
+    const [wardrobeRes, profileRes, looksRes, lookbookRes, lastRefRes, lastOutfitRes] = await Promise.all([
       supabase
         .from("closet_items")
         .select("id, name, category, color, material, brand, is_in_laundry")
@@ -1680,12 +1680,20 @@ serve(async (req) => {
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(10),
-      // Latest persisted product reference (for follow-ups w/o URL/attachment)
       supabase
         .from("chat_messages")
         .select("product_reference, created_at")
         .eq("user_id", userId)
         .not("product_reference", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("chat_messages")
+        .select("debug_info, suggested_garment_ids, created_at")
+        .eq("user_id", userId)
+        .eq("role", "assistant")
+        .not("suggested_garment_ids", "is", null)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
@@ -1695,13 +1703,36 @@ serve(async (req) => {
     const recentLooks = looksRes.data || [];
     const recentLookbook = lookbookRes.data || [];
 
-    // Stored memory (≤ 24h)
     let memoryRef: ProductReference | null = null;
     const lastRefRow: any = lastRefRes.data;
     if (lastRefRow?.product_reference && lastRefRow.created_at) {
       const ageMs = Date.now() - new Date(lastRefRow.created_at).getTime();
       if (ageMs < 24 * 60 * 60 * 1000) {
         memoryRef = { ...(lastRefRow.product_reference as ProductReference), source: "memory" };
+      }
+    }
+
+    let activeOutfit: ActiveOutfit | null = null;
+    const lastOutfitRow: any = lastOutfitRes.data;
+    if (lastOutfitRow?.created_at) {
+      const ageMs = Date.now() - new Date(lastOutfitRow.created_at).getTime();
+      if (ageMs < 12 * 60 * 60 * 1000) {
+        const fromDebug = (lastOutfitRow.debug_info && typeof lastOutfitRow.debug_info === "object")
+          ? (lastOutfitRow.debug_info.activeOutfit as ActiveOutfit | undefined)
+          : undefined;
+        const ids = fromDebug?.garmentIds?.length
+          ? fromDebug.garmentIds
+          : (Array.isArray(lastOutfitRow.suggested_garment_ids) ? lastOutfitRow.suggested_garment_ids : []);
+        if (ids.length > 0) {
+          activeOutfit = {
+            garmentIds: ids,
+            garmentNames: fromDebug?.garmentNames,
+            categories: fromDebug?.categories,
+            occasion: fromDebug?.occasion ?? null,
+            weather: fromDebug?.weather ?? null,
+            reason: fromDebug?.reason ?? null,
+          };
+        }
       }
     }
 
