@@ -1134,6 +1134,117 @@ function quickActionsAfterShopping(): QAItem[] {
   ];
 }
 
+/* ── General Chat Intent (non-product-reference) ─────────────── */
+type ChatIntent =
+  | "outfit_today"
+  | "add_layer_to_active_outfit"
+  | "shoe_recommendation"
+  | "online_shopping_search"
+  | "style_active_outfit"
+  | "swap_item"
+  | "save_lookbook"
+  | "general_opinion";
+
+function classifyChatIntent(text: string, hasActiveOutfit: boolean): ChatIntent {
+  const t = (text || "").toLowerCase().trim();
+  if (!t) return "general_opinion";
+  if (/(look online|search online|find online|online and )/.test(t) && /(shoe|sneaker|boot|heel|sandal|loafer|trainer|item|piece|dress|top|jacket|trouser|skirt)/.test(t))
+    return "online_shopping_search";
+  if (/(what|which|recommend|suggest|find).{0,30}(shoe|sneaker|boot|heel|sandal|loafer|trainer|mule|flat)/.test(t))
+    return "shoe_recommendation";
+  if (/(swap|replace|change).{0,30}(the|my|this)/.test(t))
+    return "swap_item";
+  if (/(save (this|to) ?(look|lookbook)|add to lookbook|save the outfit)/.test(t))
+    return "save_lookbook";
+  if (hasActiveOutfit && /(add (the|a|an|my)|should i add|with the |throw on|layer|put on the)/.test(t))
+    return "add_layer_to_active_outfit";
+  if (hasActiveOutfit && /(this look|this outfit|with this|style (this|it)|make (it|this) (more|dressier|casual))/.test(t))
+    return "style_active_outfit";
+  if (/(what (should i|to) wear|outfit (today|for today)|dress me|pick (me )?an outfit|what (do|should) i wear)/.test(t))
+    return "outfit_today";
+  return "general_opinion";
+}
+
+type ActiveOutfit = {
+  garmentIds: string[];
+  garmentNames?: string[];
+  categories?: string[];
+  occasion?: string | null;
+  weather?: string | null;
+  reason?: string | null;
+};
+
+function quickActionsForChat(opts: {
+  intent: ChatIntent;
+  hasRecommendations: boolean;
+  recommendedIds: string[];
+  shoppingUsable: boolean;
+  shoppingCount?: number;
+  hasShoesInWardrobe: boolean;
+  activeOutfitIds: string[];
+}): QAItem[] {
+  const { intent, hasRecommendations, recommendedIds, shoppingUsable, shoppingCount, hasShoesInWardrobe, activeOutfitIds } = opts;
+  const ids = recommendedIds.length > 0 ? recommendedIds : activeOutfitIds;
+  const out: QAItem[] = [];
+
+  if (intent === "shoe_recommendation") {
+    if (hasRecommendations && hasShoesInWardrobe) {
+      out.push({ kind: "see_on_me", label: "Try with these", garment_ids: recommendedIds });
+    }
+    if (shoppingUsable) out.push({ kind: "send_message", label: "Find shoes online", message: "Look online and suggest me some shoes for this outfit." });
+    out.push({ kind: "send_message", label: "Try with boots", message: "What if I wore boots instead?" });
+    out.push({ kind: "send_message", label: "Make it dressier", message: "Make this outfit dressier." });
+    if (ids.length > 0) out.push({ kind: "save_to_lookbook", label: "Save this outfit", garment_ids: ids, outfit_name: "Vora Stylist Look" });
+    return out.slice(0, 4);
+  }
+
+  if (intent === "online_shopping_search") {
+    if (typeof shoppingCount === "number" && shoppingCount > 0) {
+      out.push({ kind: "send_message", label: "Show cheaper options", message: "Show me even cheaper options." });
+      out.push({ kind: "send_message", label: "Try a different style", message: "Suggest a different style of shoe." });
+    } else {
+      out.push({ kind: "send_message", label: "Try sneakers", message: "Look online and suggest me sneakers." });
+      out.push({ kind: "send_message", label: "Try boots", message: "Look online and suggest me boots." });
+    }
+    if (ids.length > 0) out.push({ kind: "save_to_lookbook", label: "Save this outfit", garment_ids: ids, outfit_name: "Vora Stylist Look" });
+    out.push({ kind: "send_message", label: "Style with closet", message: "Style this with what's in my closet instead." });
+    return out.slice(0, 4);
+  }
+
+  if (intent === "add_layer_to_active_outfit" || intent === "swap_item" || intent === "style_active_outfit") {
+    if (ids.length > 0) {
+      out.push({ kind: "see_on_me", label: "Try it on", garment_ids: ids });
+      out.push({ kind: "save_to_lookbook", label: "Save to lookbook", garment_ids: ids, outfit_name: "Vora Stylist Look" });
+    }
+    out.push({ kind: "send_message", label: "Make it dressier", message: "Make this outfit dressier." });
+    out.push({ kind: "send_message", label: "What shoes?", message: "What shoes would look best with this?" });
+    return out.slice(0, 4);
+  }
+
+  if (intent === "outfit_today") {
+    if (hasRecommendations) {
+      out.push({ kind: "see_on_me", label: "Try it on", garment_ids: recommendedIds });
+      out.push({ kind: "save_to_lookbook", label: "Save to lookbook", garment_ids: recommendedIds, outfit_name: "Today's Outfit" });
+    }
+    out.push({ kind: "send_message", label: "Make it more casual", message: "Make this outfit more casual." });
+    out.push({ kind: "send_message", label: "What shoes?", message: "What shoes would look best with this?" });
+    return out.slice(0, 4);
+  }
+
+  if (intent === "save_lookbook" && ids.length > 0) {
+    out.push({ kind: "save_to_lookbook", label: "Save to lookbook", garment_ids: ids, outfit_name: "Vora Stylist Look" });
+    out.push({ kind: "send_message", label: "Rename and save", message: "Save this look with a custom name." });
+    out.push({ kind: "open_wardrobe", label: "Open wardrobe" });
+    return out.slice(0, 4);
+  }
+
+  // general_opinion fallback — always return 3
+  out.push({ kind: "send_message", label: "Style something now", message: "What should I wear today?" });
+  out.push({ kind: "send_message", label: "What's missing?", message: "What's missing from my wardrobe?" });
+  out.push({ kind: "open_wardrobe", label: "Open wardrobe" });
+  return out;
+}
+
 
 /* ── Tavily Extract (exact URL) ─────────────────────────────── */
 async function extractProductReferenceTavily(
