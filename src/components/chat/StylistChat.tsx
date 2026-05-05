@@ -68,6 +68,17 @@ interface DebugInfo {
   recommendation?: { acceptedIds?: string[]; rejected?: Array<{ id: string; reason: string }> };
   pipeline?: unknown;
   wishlistInserted?: boolean;
+  // General chat
+  chatIntent?: string;
+  activeOutfit?: { garmentIds?: string[]; garmentNames?: string[]; categories?: string[]; occasion?: string | null; weather?: string | null; reason?: string | null } | null;
+  activeOutfitIds?: string[];
+  usedWardrobe?: boolean;
+  usedWeather?: boolean;
+  usedProfile?: boolean;
+  onlineSearchAttempted?: boolean;
+  recommendedIds?: string[];
+  shoppingResultsCount?: number;
+  quickActionReason?: string;
   [key: string]: unknown;
 }
 
@@ -121,6 +132,11 @@ const DebugChip: React.FC<{ debug: DebugInfo; productRef?: ProductReference }> =
   const conf = typeof debug.confidence === "number" ? debug.confidence.toFixed(2) : "—";
   const rejected = debug.recommendation?.rejected || [];
   const accepted = debug.recommendation?.acceptedIds || [];
+  const isRefMode = !!productRef && (productRef.confidence ?? 0) > 0;
+  const headerLabel = isRefMode
+    ? `${debug.referenceIntent || "—"} · ${debug.source || "—"} · conf ${conf}`
+    : `${debug.chatIntent || "general_opinion"} · ${(debug.recommendedIds || []).length} recs${typeof debug.shoppingResultsCount === "number" ? ` · shop ${debug.shoppingResultsCount}` : ""}`;
+  const yn = (v?: boolean) => (v ? "yes" : "no");
   return (
     <div className="mt-1 text-[10px] font-mono">
       <button
@@ -129,35 +145,51 @@ const DebugChip: React.FC<{ debug: DebugInfo; productRef?: ProductReference }> =
         className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-dashed border-muted-foreground/40 text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
       >
         <span>debug</span>
-        <span className="opacity-70">
-          · {debug.referenceIntent || "—"} · {debug.source || "—"} · conf {conf}
-        </span>
+        <span className="opacity-70">· {headerLabel}</span>
         <ChevronDown className={cn("w-3 h-3 transition-transform", open && "rotate-180")} />
       </button>
       {open && (
         <div className="mt-1 p-2 rounded-md border border-border bg-muted/30 text-muted-foreground space-y-1 leading-relaxed">
-          <div><b>intent:</b> {debug.referenceIntent || "—"}</div>
-          <div><b>source:</b> {debug.source || "—"} · <b>confidence:</b> {conf}</div>
+          <div><b>chatIntent:</b> {debug.chatIntent || "—"} · <b>quickActionReason:</b> {debug.quickActionReason || "—"}</div>
           <div>
-            <b>detected:</b>{" "}
-            {debug.detected
-              ? `${debug.detected.category || "—"} / ${debug.detected.color || "—"}${debug.detected.title ? ` · ${debug.detected.title}` : ""}`
-              : "—"}
+            <b>used:</b> wardrobe={yn(debug.usedWardrobe)} · weather={yn(debug.usedWeather)} · profile={yn(debug.usedProfile)}
           </div>
-          <div><b>evidence:</b> {(debug.evidence || []).join(", ") || "—"}</div>
-          <div><b>missingFields:</b> {(debug.missingFields || []).join(", ") || "—"}</div>
-          <div><b>shoppingAvailable:</b> {String(debug.shoppingAvailable ?? false)}</div>
-          <div><b>needsClarification:</b> {String(productRef?.needsClarification ?? false)}</div>
           <div>
-            <b>recommendation:</b> accepted={accepted.length}
-            {rejected.length > 0 && (
+            <b>onlineSearchAttempted:</b> {yn(debug.onlineSearchAttempted)} · <b>shoppingResultsCount:</b> {debug.shoppingResultsCount ?? 0} · <b>shoppingAvailable:</b> {yn(debug.shoppingAvailable)}
+          </div>
+          <div>
+            <b>recommendedIds:</b> {(debug.recommendedIds || accepted).length}
+          </div>
+          <div>
+            <b>activeOutfitIds:</b> {(debug.activeOutfitIds || debug.activeOutfit?.garmentIds || []).length}
+            {debug.activeOutfit?.garmentNames && debug.activeOutfit.garmentNames.length > 0 && (
+              <span className="opacity-70"> · {debug.activeOutfit.garmentNames.slice(0, 4).join(", ")}</span>
+            )}
+          </div>
+          {isRefMode && (
+            <>
+              <div className="pt-1 border-t border-border/50"><b>refIntent:</b> {debug.referenceIntent || "—"} · <b>source:</b> {debug.source || "—"} · <b>confidence:</b> {conf}</div>
+              <div>
+                <b>detected:</b>{" "}
+                {debug.detected
+                  ? `${debug.detected.category || "—"} / ${debug.detected.color || "—"}${debug.detected.title ? ` · ${debug.detected.title}` : ""}`
+                  : "—"}
+              </div>
+              <div><b>evidence:</b> {(debug.evidence || []).join(", ") || "—"}</div>
+              <div><b>missingFields:</b> {(debug.missingFields || []).join(", ") || "—"}</div>
+              <div><b>needsClarification:</b> {String(productRef?.needsClarification ?? false)}</div>
+            </>
+          )}
+          {rejected.length > 0 && (
+            <div>
+              <b>rejected:</b>
               <ul className="list-disc list-inside opacity-80">
                 {rejected.slice(0, 8).map((r, i) => (
                   <li key={i}>{r.id}: {r.reason}</li>
                 ))}
               </ul>
-            )}
-          </div>
+            </div>
+          )}
           {debug.pipeline != null && (
             <details className="mt-1">
               <summary className="cursor-pointer">pipeline</summary>
