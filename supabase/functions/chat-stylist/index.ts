@@ -1789,6 +1789,11 @@ serve(async (req) => {
     const hasAttachment = !!attachment?.base64;
     const referenceIntent: ReferenceIntent = classifyReferenceIntent(lastUserText);
     const cheaperIntent = referenceIntent === "find_cheaper_alternatives";
+    const chatIntent: ChatIntent = classifyChatIntent(lastUserText, !!activeOutfit);
+    const hasShoesInWardrobe = wardrobeSanitized.some((w) => {
+      const t = canonicalGarmentType(w.category) || canonicalGarmentType(w.name);
+      return t === "shoes" && !w.is_in_laundry;
+    });
 
     let productRef: ProductReference | null = null;
     let pipelineLog: string[] = [];
