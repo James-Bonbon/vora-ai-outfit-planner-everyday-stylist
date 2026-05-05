@@ -2440,24 +2440,54 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
       }
 
       // Online shopping search trigger
+      let shoppingDebug: {
+        shoppingQuery?: string;
+        targetShoppingCategory?: string;
+        rawShoppingResultsCount?: number;
+        acceptedShoppingResultsCount?: number;
+        rejectedShoppingResults?: { title: string; reason: string }[];
+      } = {};
       if (chatIntent === "online_shopping_search" && shoppingAvailable) {
         onlineSearchAttempted = true;
-        const ref: ProductReference = {
-          source: "user_text", confidence: 0.6,
-          title: lastUserText.slice(0, 80),
-          category: (() => {
-            const t = canonicalGarmentType(lastUserText);
-            return t || undefined;
-          })(),
-          color: colorWordFromText(lastUserText),
-        };
-        shoppingResults = await searchCheaperAlternatives(ref, serviceClient);
-        if (shoppingResults.length === 0) {
-          replyText = "I tried looking online but couldn't find solid options right now. Want me to try a different style or brand?";
+
+        // Force category from user text (default to shoes when shoe terms appear)
+        const userTextLower = lastUserText.toLowerCase();
+        const explicitCat = canonicalGarmentType(lastUserText);
+        const wantsShoes = /\b(shoe|shoes|sneaker|trainer|loafer|boot|heel|sandal|mule|flat|pump)\b/i.test(userTextLower);
+        const targetCategory = wantsShoes ? "shoes" : (explicitCat || "shoes");
+
+        // Build a category-anchored query (NOT generic outfit garment names)
+        let shoppingQuery = "";
+        if (targetCategory === "shoes") {
+          const outfitColors = (activeOutfit?.garmentNames || [])
+            .map((n) => colorWordFromText(n))
+            .filter(Boolean) as string[];
+          const palette = colorWordFromText(lastUserText) || outfitColors[0] || "neutral";
+          shoppingQuery = `${palette} loafers OR ${palette} sneakers OR tan ankle boots womens UK`.slice(0, 100);
         } else {
+          const userColor = colorWordFromText(lastUserText) || "";
+          shoppingQuery = `${userColor} ${targetCategory} womens UK`.trim().slice(0, 100);
+        }
+
+        const rawResults = await searchShoppingByQuery(shoppingQuery, 20);
+        const { accepted, rejected: rejectedShop } = filterShoppingByCategory(rawResults, targetCategory);
+
+        shoppingDebug = {
+          shoppingQuery,
+          targetShoppingCategory: targetCategory,
+          rawShoppingResultsCount: rawResults.length,
+          acceptedShoppingResultsCount: accepted.length,
+          rejectedShoppingResults: rejectedShop.slice(0, 12),
+        };
+
+        if (accepted.length === 0) {
+          shoppingResults = [];
+          replyText = "I searched, but the results were not reliable enough to show. Want me to try a different style or brand?";
+        } else {
+          shoppingResults = accepted.slice(0, 4);
           replyText = (replyText && replyText.length > 0)
             ? replyText
-            : `Here are a few options I found online${ref.category ? ` for ${ref.category}` : ""}:`;
+            : `Here are a few ${targetCategory} I found online that should work with this look:`;
         }
         recommendedIds = []; // never show wardrobe cards alongside online results
       } else if (chatIntent === "online_shopping_search" && !shoppingAvailable) {
