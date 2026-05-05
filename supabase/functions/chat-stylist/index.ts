@@ -2417,6 +2417,13 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
     let shoppingResults: ShoppingProduct[] = [];
     let onlineSearchAttempted = false;
     let quickActionReason = "";
+    let shoppingDebug: {
+      shoppingQuery?: string;
+      targetShoppingCategory?: string;
+      rawShoppingResultsCount?: number;
+      acceptedShoppingResultsCount?: number;
+      rejectedShoppingResults?: { title: string; reason: string }[];
+    } = {};
     if (!refMode) {
       // Filter shoes for shoe_recommendation
       if (chatIntent === "shoe_recommendation") {
