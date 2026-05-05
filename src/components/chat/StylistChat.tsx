@@ -68,6 +68,17 @@ interface DebugInfo {
   recommendation?: { acceptedIds?: string[]; rejected?: Array<{ id: string; reason: string }> };
   pipeline?: unknown;
   wishlistInserted?: boolean;
+  // General chat
+  chatIntent?: string;
+  activeOutfit?: { garmentIds?: string[]; garmentNames?: string[]; categories?: string[]; occasion?: string | null; weather?: string | null; reason?: string | null } | null;
+  activeOutfitIds?: string[];
+  usedWardrobe?: boolean;
+  usedWeather?: boolean;
+  usedProfile?: boolean;
+  onlineSearchAttempted?: boolean;
+  recommendedIds?: string[];
+  shoppingResultsCount?: number;
+  quickActionReason?: string;
   [key: string]: unknown;
 }
 
