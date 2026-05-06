@@ -1978,7 +1978,17 @@ serve(async (req) => {
     const hasAttachment = !!attachment?.base64;
     const referenceIntent: ReferenceIntent = classifyReferenceIntent(lastUserText);
     const cheaperIntent = referenceIntent === "find_cheaper_alternatives";
-    const chatIntent: ChatIntent = classifyChatIntent(lastUserText, !!activeOutfit);
+    // Carry over previous assistant intent + shopping context (for "try again")
+    const prevAssistantDebug: any = (lastAssistantRes as any)?.data?.debug_info || null;
+    const prevAssistantIntent: ChatIntent | null =
+      (prevAssistantDebug?.chatIntent as ChatIntent) || null;
+    const prevShoppingContext = {
+      shoppingQuery: typeof prevAssistantDebug?.shoppingQuery === "string" ? prevAssistantDebug.shoppingQuery : null,
+      targetShoppingCategory: typeof prevAssistantDebug?.targetShoppingCategory === "string"
+        ? prevAssistantDebug.targetShoppingCategory : null,
+      providerTried: Array.isArray(prevAssistantDebug?.providerTried) ? prevAssistantDebug.providerTried as string[] : [],
+    };
+    const chatIntent: ChatIntent = classifyChatIntent(lastUserText, !!activeOutfit, prevAssistantIntent);
     const hasShoesInWardrobe = wardrobeSanitized.some((w) => {
       const t = canonicalGarmentType(w.category) || canonicalGarmentType(w.name);
       return t === "shoes" && !w.is_in_laundry;
