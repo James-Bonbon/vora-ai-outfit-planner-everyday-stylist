@@ -989,9 +989,64 @@ function filterShoppingByCategory(
   return { accepted, rejected };
 }
 
+const BLOCKED_SHOPPING_HOSTS = new Set([
+  "google.com",
+  "www.google.com",
+  "google.co.uk",
+  "www.google.co.uk",
+  "googleadservices.com",
+  "www.googleadservices.com",
+  "doubleclick.net",
+  "www.doubleclick.net",
+  "googlesyndication.com",
+]);
+
+type LinkPick = { finalLink: string | null; rawLink: string; rejectedReason?: string };
+
+function pickMerchantLink(it: any): LinkPick {
+  const candidates: string[] = [];
+  for (const k of ["product_link", "merchant_link", "source_link", "offer_link", "link"]) {
+    const v = it?.[k];
+    if (typeof v === "string" && v.trim()) candidates.push(v.trim());
+  }
+  const raw = candidates[0] || "";
+  if (!raw) return { finalLink: null, rawLink: "", rejectedReason: "no_link_field" };
+
+  const tryUrl = (u: string): string | null => {
+    try {
+      const parsed = new URL(u);
+      const host = parsed.hostname.toLowerCase();
+      if (BLOCKED_SHOPPING_HOSTS.has(host)) {
+        // Try to extract real merchant URL from common wrapper params
+        for (const p of ["url", "q", "adurl", "dest"]) {
+          const inner = parsed.searchParams.get(p);
+          if (inner) {
+            try {
+              const innerHost = new URL(inner).hostname.toLowerCase();
+              if (!BLOCKED_SHOPPING_HOSTS.has(innerHost)) return inner;
+            } catch { /* ignore */ }
+          }
+        }
+        return null;
+      }
+      if (parsed.pathname.includes("/aclk") || parsed.pathname.includes("/url")) return null;
+      return u;
+    } catch {
+      return null;
+    }
+  };
+
+  for (const c of candidates) {
+    const ok = tryUrl(c);
+    if (ok) return { finalLink: ok, rawLink: raw };
+  }
+  return { finalLink: null, rawLink: raw, rejectedReason: "google_wrapper_or_invalid_host" };
+}
+
 async function searchShoppingByQuery(
   query: string,
   num = 20,
+  linkDebug?: { rejected: { title: string; rawShoppingLink: string; reason: string }[] },
 ): Promise<ShoppingProduct[]> {
   const serperKey = Deno.env.get("SERPER_API_KEY");
   const serpApiKey = Deno.env.get("SERPAPI_KEY");
