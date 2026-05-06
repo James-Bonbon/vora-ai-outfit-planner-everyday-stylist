@@ -1839,7 +1839,7 @@ serve(async (req) => {
     }
 
     /* ── Load richer personalization context in parallel ─────── */
-    const [wardrobeRes, profileRes, looksRes, lookbookRes, lastRefRes, lastOutfitRes] = await Promise.all([
+    const [wardrobeRes, profileRes, looksRes, lookbookRes, lastRefRes, lastOutfitRes, lastAssistantRes] = await Promise.all([
       supabase
         .from("closet_items")
         .select("id, name, category, color, material, brand, is_in_laundry")
