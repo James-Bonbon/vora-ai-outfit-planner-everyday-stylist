@@ -1060,21 +1060,28 @@ function pickMerchantLink(it: any): LinkPick {
   return { finalLink: null, rawLink: raw, rejectedReason: "google_wrapper_or_invalid_host" };
 }
 
+type ShoppingProvider = "serper" | "serpapi";
+
 async function searchShoppingByQuery(
   query: string,
   num = 20,
   linkDebug?: { rejected: { title: string; rawShoppingLink: string; reason: string }[] },
-): Promise<ShoppingProduct[]> {
+  providerOverride?: ShoppingProvider,
+): Promise<{ items: ShoppingProduct[]; provider: ShoppingProvider | null }> {
   const serperKey = Deno.env.get("SERPER_API_KEY");
   const serpApiKey = Deno.env.get("SERPAPI_KEY");
-  if (!serperKey && !serpApiKey) return [];
+  let provider: ShoppingProvider | null = null;
+  if (providerOverride === "serper" && serperKey) provider = "serper";
+  else if (providerOverride === "serpapi" && serpApiKey) provider = "serpapi";
+  else if (!providerOverride) provider = serperKey ? "serper" : (serpApiKey ? "serpapi" : null);
+  if (!provider) return { items: [], provider: null };
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 8000);
-    const resp = serperKey
+    const resp = provider === "serper"
       ? await fetch("https://google.serper.dev/shopping", {
           method: "POST",
-          headers: { "X-API-KEY": serperKey, "Content-Type": "application/json" },
+          headers: { "X-API-KEY": serperKey!, "Content-Type": "application/json" },
           signal: ctrl.signal,
           body: JSON.stringify({ q: query, gl: "gb", num }),
         }).catch(() => null)
@@ -1088,7 +1095,7 @@ async function searchShoppingByQuery(
           api_key: serpApiKey!,
         }).toString()}`).catch(() => null);
     clearTimeout(t);
-    if (!resp || !resp.ok) return [];
+    if (!resp || !resp.ok) return { items: [], provider };
     const data = await resp.json();
     const items = (data?.shopping || data?.shopping_results || []) as any[];
     const out: ShoppingProduct[] = [];
@@ -1113,10 +1120,10 @@ async function searchShoppingByQuery(
           : undefined,
       });
     }
-    return out;
+    return { items: out, provider };
   } catch (e) {
     console.warn("searchShoppingByQuery failed:", (e as Error).message);
-    return [];
+    return { items: [], provider };
   }
 }
 
