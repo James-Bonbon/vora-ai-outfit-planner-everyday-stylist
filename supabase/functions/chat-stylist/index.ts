@@ -1005,10 +1005,26 @@ type LinkPick = { finalLink: string | null; rawLink: string; rejectedReason?: st
 
 function pickMerchantLink(it: any): LinkPick {
   const candidates: string[] = [];
-  for (const k of ["product_link", "merchant_link", "source_link", "offer_link", "link"]) {
+  // Prefer direct merchant fields, then generic link
+  const directKeys = [
+    "product_link", "merchant_link", "source_link", "offer_link",
+    "direct_link", "seller_link", "store_link",
+  ];
+  for (const k of directKeys) {
     const v = it?.[k];
     if (typeof v === "string" && v.trim()) candidates.push(v.trim());
   }
+  // SerpAPI nested merchant.link
+  if (it?.merchant && typeof it.merchant === "object" && typeof it.merchant.link === "string") {
+    candidates.push(it.merchant.link.trim());
+  }
+  // Serper sometimes nests in offers[]
+  if (Array.isArray(it?.offers)) {
+    for (const o of it.offers) {
+      if (typeof o?.link === "string" && o.link.trim()) candidates.push(o.link.trim());
+    }
+  }
+  if (typeof it?.link === "string" && it.link.trim()) candidates.push(it.link.trim());
   const raw = candidates[0] || "";
   if (!raw) return { finalLink: null, rawLink: "", rejectedReason: "no_link_field" };
 
