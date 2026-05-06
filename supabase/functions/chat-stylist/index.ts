@@ -989,9 +989,64 @@ function filterShoppingByCategory(
   return { accepted, rejected };
 }
 
+const BLOCKED_SHOPPING_HOSTS = new Set([
+  "google.com",
+  "www.google.com",
+  "google.co.uk",
+  "www.google.co.uk",
+  "googleadservices.com",
+  "www.googleadservices.com",
+  "doubleclick.net",
+  "www.doubleclick.net",
+  "googlesyndication.com",
+]);
+
+type LinkPick = { finalLink: string | null; rawLink: string; rejectedReason?: string };
+
+function pickMerchantLink(it: any): LinkPick {
+  const candidates: string[] = [];
+  for (const k of ["product_link", "merchant_link", "source_link", "offer_link", "link"]) {
+    const v = it?.[k];
+    if (typeof v === "string" && v.trim()) candidates.push(v.trim());
+  }
+  const raw = candidates[0] || "";
+  if (!raw) return { finalLink: null, rawLink: "", rejectedReason: "no_link_field" };
+
+  const tryUrl = (u: string): string | null => {
+    try {
+      const parsed = new URL(u);
+      const host = parsed.hostname.toLowerCase();
+      if (BLOCKED_SHOPPING_HOSTS.has(host)) {
+        // Try to extract real merchant URL from common wrapper params
+        for (const p of ["url", "q", "adurl", "dest"]) {
+          const inner = parsed.searchParams.get(p);
+          if (inner) {
+            try {
+              const innerHost = new URL(inner).hostname.toLowerCase();
+              if (!BLOCKED_SHOPPING_HOSTS.has(innerHost)) return inner;
+            } catch { /* ignore */ }
+          }
+        }
+        return null;
+      }
+      if (parsed.pathname.includes("/aclk") || parsed.pathname.includes("/url")) return null;
+      return u;
+    } catch {
+      return null;
+    }
+  };
+
+  for (const c of candidates) {
+    const ok = tryUrl(c);
+    if (ok) return { finalLink: ok, rawLink: raw };
+  }
+  return { finalLink: null, rawLink: raw, rejectedReason: "google_wrapper_or_invalid_host" };
+}
+
 async function searchShoppingByQuery(
   query: string,
   num = 20,
+  linkDebug?: { rejected: { title: string; rawShoppingLink: string; reason: string }[] },
 ): Promise<ShoppingProduct[]> {
   const serperKey = Deno.env.get("SERPER_API_KEY");
   const serpApiKey = Deno.env.get("SERPAPI_KEY");
@@ -1019,21 +1074,29 @@ async function searchShoppingByQuery(
     if (!resp || !resp.ok) return [];
     const data = await resp.json();
     const items = (data?.shopping || data?.shopping_results || []) as any[];
-    return items
-      .filter((it) => {
-        const link = it.link || "";
-        if (link.includes("/aclk?") || link.includes("googleadservices.com")) return false;
-        return !!it.title && !!link;
-      })
-      .map((it) => ({
+    const out: ShoppingProduct[] = [];
+    for (const it of items) {
+      if (!it?.title) continue;
+      const pick = pickMerchantLink(it);
+      if (!pick.finalLink) {
+        linkDebug?.rejected.push({
+          title: String(it.title).slice(0, 140),
+          rawShoppingLink: pick.rawLink,
+          reason: pick.rejectedReason || "unknown",
+        });
+        continue;
+      }
+      out.push({
         title: String(it.title || "").slice(0, 140),
         source: it.source ? String(it.source).slice(0, 60) : undefined,
         price: it.price ? String(it.price).slice(0, 30) : undefined,
-        link: getDirectUrl(String(it.link)),
+        link: pick.finalLink,
         imageUrl: it.imageUrl || it.thumbnail || it.high_res_image
           ? String(it.imageUrl || it.thumbnail || it.high_res_image)
           : undefined,
-      }));
+      });
+    }
+    return out;
   } catch (e) {
     console.warn("searchShoppingByQuery failed:", (e as Error).message);
     return [];
@@ -1113,21 +1176,21 @@ async function searchCheaperAlternatives(ref: ProductReference, serviceClient?: 
       return m ? parseFloat(m[1]) : null;
     };
 
-    const filtered: ShoppingProduct[] = items
-      .filter((it) => {
-        const link = it.link || "";
-        if (link.includes("/aclk?") || link.includes("googleadservices.com")) return false;
-        if (ref.brand && (it.title || "").toLowerCase().includes(ref.brand.toLowerCase())) return false;
-        return !!it.title && !!link;
-      })
-      .map((it) => ({
+    const filtered: ShoppingProduct[] = [];
+    for (const it of items) {
+      if (!it?.title) continue;
+      if (ref.brand && String(it.title).toLowerCase().includes(ref.brand.toLowerCase())) continue;
+      const pick = pickMerchantLink(it);
+      if (!pick.finalLink) continue;
+      filtered.push({
         title: String(it.title || "").slice(0, 140),
         source: it.source ? String(it.source).slice(0, 60) : undefined,
         price: it.price ? String(it.price).slice(0, 30) : undefined,
-        link: getDirectUrl(String(it.link)),
+        link: pick.finalLink,
         imageUrl: it.imageUrl || it.thumbnail || it.high_res_image ? String(it.imageUrl || it.thumbnail || it.high_res_image) : undefined,
         reason: [colorWord, cat].filter(Boolean).join(" ").trim() || undefined,
-      }));
+      });
+    }
 
     // Sort by price asc when available, otherwise keep order
     filtered.sort((a, b) => {
@@ -2423,6 +2486,8 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
       rawShoppingResultsCount?: number;
       acceptedShoppingResultsCount?: number;
       rejectedShoppingResults?: { title: string; reason: string }[];
+      rejectedShoppingLinks?: { title: string; rawShoppingLink: string; reason: string }[];
+      finalShoppingLinks?: string[];
     } = {};
     if (!refMode) {
       // Filter shoes for shoe_recommendation
@@ -2468,22 +2533,32 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
           shoppingQuery = `${userColor} ${targetCategory} womens UK`.trim().slice(0, 100);
         }
 
-        const rawResults = await searchShoppingByQuery(shoppingQuery, 20);
+        const linkDebug = { rejected: [] as { title: string; rawShoppingLink: string; reason: string }[] };
+        const rawResults = await searchShoppingByQuery(shoppingQuery, 20, linkDebug);
         const { accepted, rejected: rejectedShop } = filterShoppingByCategory(rawResults, targetCategory);
+        // Final safety filter: only render cards with valid direct merchant link (non-google host)
+        const safeAccepted = accepted.filter((p) => {
+          try {
+            const h = new URL(p.link).hostname.toLowerCase();
+            return !BLOCKED_SHOPPING_HOSTS.has(h);
+          } catch { return false; }
+        });
 
         shoppingDebug = {
           shoppingQuery,
           targetShoppingCategory: targetCategory,
           rawShoppingResultsCount: rawResults.length,
-          acceptedShoppingResultsCount: accepted.length,
+          acceptedShoppingResultsCount: safeAccepted.length,
           rejectedShoppingResults: rejectedShop.slice(0, 12),
-        };
+          rejectedShoppingLinks: linkDebug.rejected.slice(0, 12),
+          finalShoppingLinks: safeAccepted.slice(0, 4).map((p) => p.link),
+        } as any;
 
-        if (accepted.length === 0) {
+        if (safeAccepted.length === 0) {
           shoppingResults = [];
-          replyText = "I searched, but the results were not reliable enough to show. Want me to try a different style or brand?";
+          replyText = "I searched, but none of the results had a usable direct retailer link. Want me to try a different style or brand?";
         } else {
-          shoppingResults = accepted.slice(0, 4);
+          shoppingResults = safeAccepted.slice(0, 4);
           replyText = (replyText && replyText.length > 0)
             ? replyText
             : `Here are a few ${targetCategory} I found online that should work with this look:`;
