@@ -1317,10 +1317,19 @@ type ChatIntent =
   | "save_lookbook"
   | "general_opinion";
 
-function classifyChatIntent(text: string, hasActiveOutfit: boolean): ChatIntent {
+function classifyChatIntent(
+  text: string,
+  hasActiveOutfit: boolean,
+  prevAssistantIntent?: ChatIntent | null,
+): ChatIntent {
   const t = (text || "").toLowerCase().trim();
   if (!t) return "general_opinion";
-  if (/(look online|search online|find online|online and )/.test(t) && /(shoe|sneaker|boot|heel|sandal|loafer|trainer|item|piece|dress|top|jacket|trouser|skirt)/.test(t))
+  // Retry phrases inherit the previous assistant intent (especially online shopping)
+  if (/^(try again|search again|retry|find more|more options|other options|different ones|show more)\b/.test(t)
+      && prevAssistantIntent === "online_shopping_search") {
+    return "online_shopping_search";
+  }
+  if (/(look online|search online|find online|online and |shop online)/.test(t) && /(shoe|sneaker|boot|heel|sandal|loafer|trainer|item|piece|dress|top|jacket|trouser|skirt)/.test(t))
     return "online_shopping_search";
   if (/(what|which|recommend|suggest|find).{0,30}(shoe|sneaker|boot|heel|sandal|loafer|trainer|mule|flat)/.test(t))
     return "shoe_recommendation";
