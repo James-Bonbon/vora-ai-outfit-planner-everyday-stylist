@@ -2532,6 +2532,7 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
     let onlineSearchAttempted = false;
     let quickActionReason = "";
     let shoppingDebug: {
+      lastShoppingIntent?: string;
       shoppingQuery?: string;
       targetShoppingCategory?: string;
       rawShoppingResultsCount?: number;
@@ -2539,6 +2540,9 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
       rejectedShoppingResults?: { title: string; reason: string }[];
       rejectedShoppingLinks?: { title: string; rawShoppingLink: string; reason: string }[];
       finalShoppingLinks?: string[];
+      providerTried?: string[];
+      retryAvailable?: boolean;
+      attempts?: { provider: string; query: string; raw: number; accepted: number }[];
     } = {};
     if (!refMode) {
       // Filter shoes for shoe_recommendation
