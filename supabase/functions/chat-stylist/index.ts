@@ -2552,11 +2552,11 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
           finalShoppingLinks: safeAccepted.slice(0, 4).map((p) => p.link),
         } as any;
 
-        if (accepted.length === 0) {
+        if (safeAccepted.length === 0) {
           shoppingResults = [];
-          replyText = "I searched, but the results were not reliable enough to show. Want me to try a different style or brand?";
+          replyText = "I searched, but none of the results had a usable direct retailer link. Want me to try a different style or brand?";
         } else {
-          shoppingResults = accepted.slice(0, 4);
+          shoppingResults = safeAccepted.slice(0, 4);
           replyText = (replyText && replyText.length > 0)
             ? replyText
             : `Here are a few ${targetCategory} I found online that should work with this look:`;
