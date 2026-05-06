@@ -2486,6 +2486,8 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
       rawShoppingResultsCount?: number;
       acceptedShoppingResultsCount?: number;
       rejectedShoppingResults?: { title: string; reason: string }[];
+      rejectedShoppingLinks?: { title: string; rawShoppingLink: string; reason: string }[];
+      finalShoppingLinks?: string[];
     } = {};
     if (!refMode) {
       // Filter shoes for shoe_recommendation
