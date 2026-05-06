@@ -1018,12 +1018,13 @@ function pickMerchantLink(it: any): LinkPick {
       const host = parsed.hostname.toLowerCase();
       if (BLOCKED_SHOPPING_HOSTS.has(host)) {
         // Try to extract real merchant URL from common wrapper params
-        for (const p of ["url", "q", "adurl", "dest"]) {
+        for (const p of ["url", "u", "q", "adurl", "dest", "target", "redirect"]) {
           const inner = parsed.searchParams.get(p);
           if (inner) {
             try {
-              const innerHost = new URL(inner).hostname.toLowerCase();
-              if (!BLOCKED_SHOPPING_HOSTS.has(innerHost)) return inner;
+              const decoded = decodeURIComponent(inner);
+              const innerHost = new URL(decoded).hostname.toLowerCase();
+              if (!BLOCKED_SHOPPING_HOSTS.has(innerHost)) return decoded;
             } catch { /* ignore */ }
           }
         }
