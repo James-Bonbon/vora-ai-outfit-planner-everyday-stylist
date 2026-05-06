@@ -1176,21 +1176,21 @@ async function searchCheaperAlternatives(ref: ProductReference, serviceClient?: 
       return m ? parseFloat(m[1]) : null;
     };
 
-    const filtered: ShoppingProduct[] = items
-      .filter((it) => {
-        const link = it.link || "";
-        if (link.includes("/aclk?") || link.includes("googleadservices.com")) return false;
-        if (ref.brand && (it.title || "").toLowerCase().includes(ref.brand.toLowerCase())) return false;
-        return !!it.title && !!link;
-      })
-      .map((it) => ({
+    const filtered: ShoppingProduct[] = [];
+    for (const it of items) {
+      if (!it?.title) continue;
+      if (ref.brand && String(it.title).toLowerCase().includes(ref.brand.toLowerCase())) continue;
+      const pick = pickMerchantLink(it);
+      if (!pick.finalLink) continue;
+      filtered.push({
         title: String(it.title || "").slice(0, 140),
         source: it.source ? String(it.source).slice(0, 60) : undefined,
         price: it.price ? String(it.price).slice(0, 30) : undefined,
-        link: getDirectUrl(String(it.link)),
+        link: pick.finalLink,
         imageUrl: it.imageUrl || it.thumbnail || it.high_res_image ? String(it.imageUrl || it.thumbnail || it.high_res_image) : undefined,
         reason: [colorWord, cat].filter(Boolean).join(" ").trim() || undefined,
-      }));
+      });
+    }
 
     // Sort by price asc when available, otherwise keep order
     filtered.sort((a, b) => {
