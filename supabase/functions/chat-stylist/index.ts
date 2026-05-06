@@ -2531,16 +2531,26 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
           shoppingQuery = `${userColor} ${targetCategory} womens UK`.trim().slice(0, 100);
         }
 
-        const rawResults = await searchShoppingByQuery(shoppingQuery, 20);
+        const linkDebug = { rejected: [] as { title: string; rawShoppingLink: string; reason: string }[] };
+        const rawResults = await searchShoppingByQuery(shoppingQuery, 20, linkDebug);
         const { accepted, rejected: rejectedShop } = filterShoppingByCategory(rawResults, targetCategory);
+        // Final safety filter: only render cards with valid direct merchant link (non-google host)
+        const safeAccepted = accepted.filter((p) => {
+          try {
+            const h = new URL(p.link).hostname.toLowerCase();
+            return !BLOCKED_SHOPPING_HOSTS.has(h);
+          } catch { return false; }
+        });
 
         shoppingDebug = {
           shoppingQuery,
           targetShoppingCategory: targetCategory,
           rawShoppingResultsCount: rawResults.length,
-          acceptedShoppingResultsCount: accepted.length,
+          acceptedShoppingResultsCount: safeAccepted.length,
           rejectedShoppingResults: rejectedShop.slice(0, 12),
-        };
+          rejectedShoppingLinks: linkDebug.rejected.slice(0, 12),
+          finalShoppingLinks: safeAccepted.slice(0, 4).map((p) => p.link),
+        } as any;
 
         if (accepted.length === 0) {
           shoppingResults = [];
