@@ -2569,49 +2569,95 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
       if (chatIntent === "online_shopping_search" && shoppingAvailable) {
         onlineSearchAttempted = true;
 
-        // Force category from user text (default to shoes when shoe terms appear)
+        // Detect retry phrasing — reuse previous query/category if available
+        const isRetry = /^(try again|search again|retry|find more|more options|other options|different ones|show more)\b/i
+          .test(lastUserText.trim());
         const userTextLower = lastUserText.toLowerCase();
         const explicitCat = canonicalGarmentType(lastUserText);
         const wantsShoes = /\b(shoe|shoes|sneaker|trainer|loafer|boot|heel|sandal|mule|flat|pump)\b/i.test(userTextLower);
-        const targetCategory = wantsShoes ? "shoes" : (explicitCat || "shoes");
+        let targetCategory =
+          (isRetry && prevShoppingContext.targetShoppingCategory) ||
+          (wantsShoes ? "shoes" : (explicitCat || "shoes"));
 
-        // Build a category-anchored query (NOT generic outfit garment names)
-        let shoppingQuery = "";
-        if (targetCategory === "shoes") {
-          const outfitColors = (activeOutfit?.garmentNames || [])
-            .map((n) => colorWordFromText(n))
-            .filter(Boolean) as string[];
-          const palette = colorWordFromText(lastUserText) || outfitColors[0] || "neutral";
-          shoppingQuery = `${palette} loafers OR ${palette} sneakers OR tan ankle boots womens UK`.slice(0, 100);
-        } else {
+        const buildPrimaryQuery = (): string => {
+          if (targetCategory === "shoes") {
+            const outfitColors = (activeOutfit?.garmentNames || [])
+              .map((n) => colorWordFromText(n))
+              .filter(Boolean) as string[];
+            const palette = colorWordFromText(lastUserText) || outfitColors[0] || "neutral";
+            return `${palette} loafers OR ${palette} sneakers OR tan ankle boots womens UK`.slice(0, 100);
+          }
           const userColor = colorWordFromText(lastUserText) || "";
-          shoppingQuery = `${userColor} ${targetCategory} womens UK`.trim().slice(0, 100);
-        }
+          return `${userColor} ${targetCategory} womens UK`.trim().slice(0, 100);
+        };
+        const buildNarrowQueries = (): string[] => {
+          if (targetCategory === "shoes") {
+            return [
+              "women neutral loafers UK direct retailer",
+              "women tan ankle boots UK direct retailer",
+              "women white leather sneakers UK site:clarks.co.uk OR site:office.co.uk OR site:schuh.co.uk",
+            ];
+          }
+          return [`women ${targetCategory} UK direct retailer`];
+        };
 
         const linkDebug = { rejected: [] as { title: string; rawShoppingLink: string; reason: string }[] };
-        const rawResults = await searchShoppingByQuery(shoppingQuery, 20, linkDebug);
-        const { accepted, rejected: rejectedShop } = filterShoppingByCategory(rawResults, targetCategory);
-        // Final safety filter: only render cards with valid direct merchant link (non-google host)
-        const safeAccepted = accepted.filter((p) => {
-          try {
-            const h = new URL(p.link).hostname.toLowerCase();
-            return !BLOCKED_SHOPPING_HOSTS.has(h);
-          } catch { return false; }
-        });
+        const attempts: { provider: string; query: string; raw: number; accepted: number }[] = [];
+        const providersAvailable: ShoppingProvider[] = [];
+        if (Deno.env.get("SERPER_API_KEY")) providersAvailable.push("serper");
+        if (Deno.env.get("SERPAPI_KEY")) providersAvailable.push("serpapi");
+
+        // Build query plan: primary + narrowers; on retry rotate provider order
+        const primaryQuery = (isRetry && prevShoppingContext.shoppingQuery) || buildPrimaryQuery();
+        const queries = [primaryQuery, ...buildNarrowQueries()];
+        const providerOrder = isRetry
+          ? [...providersAvailable].reverse()
+          : providersAvailable;
+
+        let safeAccepted: ShoppingProduct[] = [];
+        let usedQuery = primaryQuery;
+        const providerTried: string[] = [];
+        let totalRaw = 0;
+        let lastRejectedShop: { title: string; reason: string }[] = [];
+
+        outer: for (const q of queries) {
+          for (const prov of providerOrder) {
+            const { items, provider } = await searchShoppingByQuery(q, 20, linkDebug, prov);
+            if (provider) providerTried.push(provider);
+            const { accepted, rejected: rejectedShop } = filterShoppingByCategory(items, targetCategory);
+            const filteredSafe = accepted.filter((p) => {
+              try { return !BLOCKED_SHOPPING_HOSTS.has(new URL(p.link).hostname.toLowerCase()); }
+              catch { return false; }
+            });
+            attempts.push({ provider: provider || "none", query: q, raw: items.length, accepted: filteredSafe.length });
+            totalRaw += items.length;
+            lastRejectedShop = rejectedShop;
+            if (filteredSafe.length > 0) {
+              safeAccepted = filteredSafe;
+              usedQuery = q;
+              break outer;
+            }
+          }
+        }
 
         shoppingDebug = {
-          shoppingQuery,
+          lastShoppingIntent: "online_shopping_search",
+          shoppingQuery: usedQuery,
           targetShoppingCategory: targetCategory,
-          rawShoppingResultsCount: rawResults.length,
+          rawShoppingResultsCount: totalRaw,
           acceptedShoppingResultsCount: safeAccepted.length,
-          rejectedShoppingResults: rejectedShop.slice(0, 12),
+          rejectedShoppingResults: lastRejectedShop.slice(0, 12),
           rejectedShoppingLinks: linkDebug.rejected.slice(0, 12),
           finalShoppingLinks: safeAccepted.slice(0, 4).map((p) => p.link),
-        } as any;
+          providerTried: Array.from(new Set(providerTried)),
+          retryAvailable: safeAccepted.length === 0 && providersAvailable.length > 0,
+          attempts,
+        };
 
         if (safeAccepted.length === 0) {
           shoppingResults = [];
-          replyText = "I searched, but none of the results had a usable direct retailer link. Want me to try a different style or brand?";
+          const provLabel = providerTried.length > 0 ? providerTried.join(" + ") : "any provider";
+          replyText = `I searched ${provLabel} with several queries, but none of the results had a usable direct retailer link (only Google wrapper URLs). Want me to try a different style or brand?`;
         } else {
           shoppingResults = safeAccepted.slice(0, 4);
           replyText = (replyText && replyText.length > 0)
