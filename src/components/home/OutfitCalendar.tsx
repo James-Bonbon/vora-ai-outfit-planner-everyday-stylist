@@ -262,19 +262,13 @@ const OutfitCalendar = () => {
         return aiOutfitByKey[aiKey];
       }
 
-      // Wait for weather + AI scoring to finish before showing the local fallback.
-      // This prevents a "flash" where the local outfit appears, then is replaced by the AI one.
-      if (weatherLoading) return [];
-      const aiKeyAttempt = `${dateStr}|${swapOffset}`;
-      if (!aiAttemptedByKey[aiKeyAttempt]) return [];
-
+      // Always render local outfit immediately while AI is pending in the background.
       const temp = resolveTempForDate(dateStr, forecastByDate, weather?.temp ?? null);
       const occasion = dailyEvents && dailyEvents.length > 0
         ? dailyEvents[0].title
         : entry?.occasion || (isWeekend(date) ? "Casual" : "Smart Casual");
       const wardrobeIsSparse = (topsCount + bottomsCount) < (MIN_TOPS + MIN_BOTTOMS) + 2;
 
-      // Local fallback only used after AI attempt completed (and produced no override).
       const result = findNextAcceptableOutfit(garmentPool, {
         date,
         tempC: temp,
@@ -288,7 +282,7 @@ const OutfitCalendar = () => {
       if (!result.outfit) return [];
       return result.outfit.items as GarmentSnapshot[];
     },
-    [garments, garmentPool, meetsThreshold, swapCounts, weather, weatherLoading, forecastByDate, recentSignatures, topsCount, bottomsCount, historyForDate, aiOutfitByKey, aiAttemptedByKey],
+    [garments, garmentPool, meetsThreshold, swapCounts, weather, forecastByDate, recentSignatures, topsCount, bottomsCount, historyForDate, aiOutfitByKey],
   );
 
   /* ---- Swap handler — quality-gated cycle (AI-scored) ---- */
