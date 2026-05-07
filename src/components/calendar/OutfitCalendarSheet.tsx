@@ -37,11 +37,36 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
   });
 
   const { data: lookbook = [], isLoading: isLoadingLookbook } = useQuery({
-    queryKey: ["lookbook", user?.id],
+    queryKey: ["lookbook-with-garments", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("lookbook_outfits").select("*").eq("user_id", user!.id);
+      const { data: outfits, error } = await supabase
+        .from("lookbook_outfits")
+        .select("*")
+        .eq("user_id", user!.id);
       if (error) throw error;
-      return data;
+      if (!outfits || outfits.length === 0) return [];
+
+      const allIds = Array.from(new Set(outfits.flatMap((o: any) => o.garment_ids || [])));
+      if (allIds.length === 0) return outfits.map((o: any) => ({ ...o, garments: [] }));
+
+      const { data: items } = await supabase
+        .from("closet_items")
+        .select("id, name, category, image_url, thumbnail_url")
+        .in("id", allIds);
+
+      const paths = (items || []).map((g: any) => g.thumbnail_url || g.image_url).filter(Boolean) as string[];
+      const urlMap = await getCachedSignedUrls("garments", paths);
+
+      const itemMap = new Map<string, any>();
+      for (const g of items || []) {
+        const path = g.thumbnail_url || g.image_url;
+        itemMap.set(g.id, { ...g, image_url: urlMap[path] || g.image_url });
+      }
+
+      return outfits.map((o: any) => ({
+        ...o,
+        garments: (o.garment_ids || []).map((id: string) => itemMap.get(id)).filter(Boolean),
+      }));
     },
     enabled: !!user && isLookbookOpen,
   });
