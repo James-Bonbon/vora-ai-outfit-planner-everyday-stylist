@@ -299,6 +299,13 @@ serve(async (req) => {
             status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
+        if (msg === "AI_TIMEOUT") {
+          // Graceful: return empty results so client falls back to local scoring.
+          console.warn("score-outfits AI timed out; returning fallback");
+          return new Response(JSON.stringify({ results: [], fallback: "ai_timeout" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
         console.error("score-outfits AI error:", msg);
         // Continue with cached results only
       }
