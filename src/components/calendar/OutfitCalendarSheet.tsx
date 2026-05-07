@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, addDays, startOfToday } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,9 +7,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import GlassCard from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
-import { Plus, Calendar as CalendarIcon, Loader2, X } from "lucide-react";
+import SafeImage from "@/components/ui/SafeImage";
+import { Plus, Calendar as CalendarIcon, Loader2, X, Shirt } from "lucide-react";
 import { toast } from "sonner";
 import { ignoreToastInteractOutside } from "@/lib/radixToastGuard";
+import { getCachedSignedUrls } from "@/utils/signedUrlCache";
 
 export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const { user } = useAuth();
