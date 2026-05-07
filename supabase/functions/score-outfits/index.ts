@@ -166,22 +166,34 @@ Always echo each outfit's signature exactly so we can map your response back.`;
     })),
   };
 
-  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "openai/gpt-5-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: JSON.stringify(userPayload) },
-      ],
-      tools: [scoreToolSchema],
-      tool_choice: { type: "function", function: { name: "rate_outfits" } },
-    }),
-  });
+  // Hard timeout so the edge function never hangs on a slow AI response.
+  const ctrl = new AbortController();
+  const timeoutId = setTimeout(() => ctrl.abort(), 12000);
+  let resp: Response;
+  try {
+    resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-5-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: JSON.stringify(userPayload) },
+        ],
+        tools: [scoreToolSchema],
+        tool_choice: { type: "function", function: { name: "rate_outfits" } },
+      }),
+      signal: ctrl.signal,
+    });
+  } catch (e: any) {
+    clearTimeout(timeoutId);
+    if (e?.name === "AbortError") throw new Error("AI_TIMEOUT");
+    throw e;
+  }
+  clearTimeout(timeoutId);
 
   if (!resp.ok) {
     const status = resp.status;
