@@ -475,61 +475,74 @@ const OutfitCalendar = () => {
     if (datesToScore.length === 0) return;
 
     let cancelled = false;
-    (async () => {
+    const AI_TIMEOUT_MS = 10000;
+    const CONCURRENCY = 2;
+
+    const runOne = async (date: Date) => {
+      if (cancelled) return;
+      const ds = format(date, "yyyy-MM-dd");
+      const swap = swapCounts[ds] || 0;
+      const attemptKey = `${ds}|${swap}`;
+      const dayEvents = calendarEvents.filter((ev) => ev.start_time.startsWith(ds));
+      const entry = entries.find((e) => e.date === ds);
+      const occasion = dayEvents.length > 0
+        ? dayEvents[0].title
+        : entry?.occasion || (isWeekend(date) ? "Casual" : "Smart Casual");
+      const temp = resolveTempForDate(ds, forecastByDate, weather?.temp ?? null);
       const wardrobeIsSparse = (topsCount + bottomsCount) < (MIN_TOPS + MIN_BOTTOMS) + 2;
-      for (const date of datesToScore) {
-        if (cancelled) return;
-        const ds = format(date, "yyyy-MM-dd");
-        const swap = swapCounts[ds] || 0;
-        const attemptKey = `${ds}|${swap}`;
-        const dayEvents = calendarEvents.filter((ev) => ev.start_time.startsWith(ds));
-        const entry = entries.find((e) => e.date === ds);
-        const occasion = dayEvents.length > 0
-          ? dayEvents[0].title
-          : entry?.occasion || (isWeekend(date) ? "Casual" : "Smart Casual");
-        const temp = resolveTempForDate(ds, forecastByDate, weather?.temp ?? null);
-        try {
-          const result = await findNextAcceptableOutfitAI(garmentPool, {
-            date,
-            tempC: temp,
-            occasion,
-            swapCount: swap,
+
+      setAiStatusByKey((prev) => prev[attemptKey] ? prev : { ...prev, [attemptKey]: 'ai_pending' });
+
+      try {
+        const result = await Promise.race([
+          findNextAcceptableOutfitAI(garmentPool, {
+            date, tempC: temp, occasion, swapCount: swap,
             recentSignatures: recentSignatures[ds] || [],
             history: historyForDate(ds),
             wardrobeIsSparse,
-          });
-          if (cancelled) continue;
-          if (result.outfit) {
-            const items = result.outfit.items as GarmentSnapshot[];
-            setAiOutfitByKey((prev) => ({ ...prev, [attemptKey]: items }));
-            setScoredByDate((prev) => ({
-              ...prev,
-              [ds]: {
-                scored: result.outfit!,
-                acceptableCount: result.acceptableCount,
-                evaluatedCount: result.evaluatedCount,
-                exhausted: result.exhausted,
-                fallbackUsed: result.fallbackUsed,
-                aiUsed: result.aiUsed,
-              },
-            }));
-            if (import.meta.env.DEV) {
-              // eslint-disable-next-line no-console
-              console.debug("[OutfitCalendar][AI]", {
-                date: ds, score: result.outfit.score, aiUsed: result.aiUsed,
-                fallback: result.fallbackUsed, reasons: result.outfit.reasons,
-                ai: (result.outfit as ScoredOutfitAI).aiScore,
-              });
-            }
-          }
-        } catch (e) {
-          if (import.meta.env.DEV) console.warn("[OutfitCalendar] AI scoring failed for", ds, e);
-        } finally {
-          if (!cancelled) {
-            setAiAttemptedByKey((prev) => (prev[attemptKey] ? prev : { ...prev, [attemptKey]: true }));
-          }
+          }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('ai_timeout')), AI_TIMEOUT_MS)
+          ),
+        ]);
+        if (cancelled) return;
+        if (result.outfit) {
+          const items = result.outfit.items as GarmentSnapshot[];
+          setAiOutfitByKey((prev) => ({ ...prev, [attemptKey]: items }));
+          setScoredByDate((prev) => ({
+            ...prev,
+            [ds]: {
+              scored: result.outfit!,
+              acceptableCount: result.acceptableCount,
+              evaluatedCount: result.evaluatedCount,
+              exhausted: result.exhausted,
+              fallbackUsed: result.fallbackUsed,
+              aiUsed: result.aiUsed,
+            },
+          }));
+          setAiStatusByKey((prev) => ({ ...prev, [attemptKey]: result.aiUsed ? 'ai_success' : 'using_local_fallback' }));
+        } else {
+          setAiStatusByKey((prev) => ({ ...prev, [attemptKey]: 'using_local_fallback' }));
+        }
+      } catch (e: any) {
+        const isTimeout = String(e?.message || e) === 'ai_timeout';
+        if (import.meta.env.DEV) console.warn("[OutfitCalendar] AI scoring", isTimeout ? 'timed out' : 'failed', "for", ds, e);
+        if (!cancelled) {
+          setAiStatusByKey((prev) => ({ ...prev, [attemptKey]: isTimeout ? 'ai_timeout' : 'ai_error' }));
         }
       }
+    };
+
+    (async () => {
+      // Run with limited concurrency so one slow date doesn't block the rest.
+      const queue = [...datesToScore];
+      const workers = Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
+        while (queue.length > 0 && !cancelled) {
+          const next = queue.shift();
+          if (next) await runOne(next);
+        }
+      });
+      await Promise.all(workers);
     })();
     return () => { cancelled = true; };
   }, [entries, calendarEvents, garmentPool, meetsThreshold, swapCounts, recentSignatures, forecastByDate, weather, weatherLoading, topsCount, bottomsCount, historyForDate, subscriptionTier, isAdmin, aiOutfitByKey]);
