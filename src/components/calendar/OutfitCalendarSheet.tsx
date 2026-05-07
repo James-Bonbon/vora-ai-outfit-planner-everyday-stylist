@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, addDays, startOfToday } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,9 +7,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import GlassCard from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
-import { Plus, Calendar as CalendarIcon, Loader2, X } from "lucide-react";
+import SafeImage from "@/components/ui/SafeImage";
+import { Plus, Calendar as CalendarIcon, Loader2, X, Shirt } from "lucide-react";
 import { toast } from "sonner";
 import { ignoreToastInteractOutside } from "@/lib/radixToastGuard";
+import { getCachedSignedUrls } from "@/utils/signedUrlCache";
 
 export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const { user } = useAuth();
@@ -35,11 +37,36 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
   });
 
   const { data: lookbook = [], isLoading: isLoadingLookbook } = useQuery({
-    queryKey: ["lookbook", user?.id],
+    queryKey: ["lookbook-with-garments", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("lookbook_outfits").select("*").eq("user_id", user!.id);
+      const { data: outfits, error } = await supabase
+        .from("lookbook_outfits")
+        .select("*")
+        .eq("user_id", user!.id);
       if (error) throw error;
-      return data;
+      if (!outfits || outfits.length === 0) return [];
+
+      const allIds = Array.from(new Set(outfits.flatMap((o: any) => o.garment_ids || [])));
+      if (allIds.length === 0) return outfits.map((o: any) => ({ ...o, garments: [] }));
+
+      const { data: items } = await supabase
+        .from("closet_items")
+        .select("id, name, category, image_url, thumbnail_url")
+        .in("id", allIds);
+
+      const paths = (items || []).map((g: any) => g.thumbnail_url || g.image_url).filter(Boolean) as string[];
+      const urlMap = await getCachedSignedUrls("garments", paths);
+
+      const itemMap = new Map<string, any>();
+      for (const g of items || []) {
+        const path = g.thumbnail_url || g.image_url;
+        itemMap.set(g.id, { ...g, image_url: urlMap[path] || g.image_url });
+      }
+
+      return outfits.map((o: any) => ({
+        ...o,
+        garments: (o.garment_ids || []).map((id: string) => itemMap.get(id)).filter(Boolean),
+      }));
     },
     enabled: !!user && isLookbookOpen,
   });
@@ -145,13 +172,13 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
       </Sheet>
 
       <Drawer open={isLookbookOpen} onOpenChange={setIsLookbookOpen}>
-        <DrawerContent className="max-h-[60vh]">
+        <DrawerContent className="max-h-[88vh]">
           <DrawerHeader>
             <DrawerTitle className="font-outfit">
               Select for {selectedDate && format(selectedDate, 'MMM d')}
             </DrawerTitle>
           </DrawerHeader>
-          <div className="px-4 pb-8 space-y-2 overflow-y-auto">
+          <div className="px-4 pb-8 space-y-3 overflow-y-auto">
             {isLoadingLookbook ? (
               <div className="flex justify-center py-10">
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -161,18 +188,57 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
                 Your Lookbook is empty. Create outfits in your Wardrobe first!
               </p>
             ) : (
-              lookbook.map((outfit: any) => (
-                <GlassCard
-                  key={outfit.id}
-                  className="flex items-center justify-between p-3 !rounded-xl cursor-pointer"
-                  onClick={() => selectedDate && assignMutation.mutate({ date: selectedDate, lookbookId: outfit.id })}
-                >
-                  <p className="text-sm font-semibold text-foreground">{outfit.name}</p>
-                  <Button size="sm" variant="secondary" className="rounded-lg text-xs">
-                    Select
-                  </Button>
-                </GlassCard>
-              ))
+              lookbook.map((outfit: any) => {
+                const garments: any[] = outfit.garments || [];
+                const isGenericName = !outfit.name || /^(my outfit|vora stylist look|outfit)$/i.test(String(outfit.name).trim());
+                const subtitle = garments.length > 0
+                  ? garments.slice(0, 2).map((g) => g.name || g.category || "Item").join(" + ")
+                  : `${outfit.garment_ids?.length ?? 0} items`;
+                const thumbs = garments.slice(0, 4);
+                return (
+                  <GlassCard
+                    key={outfit.id}
+                    className="p-3 !rounded-2xl cursor-pointer hover:border-primary/40 transition-colors"
+                    onClick={() => selectedDate && assignMutation.mutate({ date: selectedDate, lookbookId: outfit.id })}
+                  >
+                    <div className="flex gap-3">
+                      <div className="grid grid-cols-2 gap-1 w-20 h-20 shrink-0 rounded-xl overflow-hidden bg-muted">
+                        {thumbs.length > 0 ? (
+                          <>
+                            {thumbs.map((g, i) => (
+                              <div key={g.id || i} className="bg-muted overflow-hidden">
+                                <SafeImage src={g.image_url} alt={g.name || "Garment"} fit="contain" />
+                              </div>
+                            ))}
+                            {thumbs.length < 4 && Array.from({ length: 4 - thumbs.length }).map((_, i) => (
+                              <div key={`empty-${i}`} className="bg-muted/50" />
+                            ))}
+                          </>
+                        ) : (
+                          <div className="col-span-2 row-span-2 flex items-center justify-center text-muted-foreground">
+                            <Shirt className="w-6 h-6" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0 flex flex-col justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-foreground truncate">
+                            {outfit.name || "Outfit"}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">
+                            {isGenericName ? subtitle : `${garments.length || outfit.garment_ids?.length || 0} items · ${subtitle}`}
+                          </p>
+                        </div>
+                        <div className="flex justify-end mt-2">
+                          <Button size="sm" variant="secondary" className="rounded-lg text-xs h-7 px-3">
+                            Select
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </GlassCard>
+                );
+              })
             )}
           </div>
         </DrawerContent>
