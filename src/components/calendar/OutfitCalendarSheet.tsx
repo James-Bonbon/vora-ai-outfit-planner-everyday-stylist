@@ -172,13 +172,13 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
       </Sheet>
 
       <Drawer open={isLookbookOpen} onOpenChange={setIsLookbookOpen}>
-        <DrawerContent className="max-h-[60vh]">
+        <DrawerContent className="max-h-[88vh]">
           <DrawerHeader>
             <DrawerTitle className="font-outfit">
               Select for {selectedDate && format(selectedDate, 'MMM d')}
             </DrawerTitle>
           </DrawerHeader>
-          <div className="px-4 pb-8 space-y-2 overflow-y-auto">
+          <div className="px-4 pb-8 space-y-3 overflow-y-auto">
             {isLoadingLookbook ? (
               <div className="flex justify-center py-10">
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -188,18 +188,57 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
                 Your Lookbook is empty. Create outfits in your Wardrobe first!
               </p>
             ) : (
-              lookbook.map((outfit: any) => (
-                <GlassCard
-                  key={outfit.id}
-                  className="flex items-center justify-between p-3 !rounded-xl cursor-pointer"
-                  onClick={() => selectedDate && assignMutation.mutate({ date: selectedDate, lookbookId: outfit.id })}
-                >
-                  <p className="text-sm font-semibold text-foreground">{outfit.name}</p>
-                  <Button size="sm" variant="secondary" className="rounded-lg text-xs">
-                    Select
-                  </Button>
-                </GlassCard>
-              ))
+              lookbook.map((outfit: any) => {
+                const garments: any[] = outfit.garments || [];
+                const isGenericName = !outfit.name || /^(my outfit|vora stylist look|outfit)$/i.test(String(outfit.name).trim());
+                const subtitle = garments.length > 0
+                  ? garments.slice(0, 2).map((g) => g.name || g.category || "Item").join(" + ")
+                  : `${outfit.garment_ids?.length ?? 0} items`;
+                const thumbs = garments.slice(0, 4);
+                return (
+                  <GlassCard
+                    key={outfit.id}
+                    className="p-3 !rounded-2xl cursor-pointer hover:border-primary/40 transition-colors"
+                    onClick={() => selectedDate && assignMutation.mutate({ date: selectedDate, lookbookId: outfit.id })}
+                  >
+                    <div className="flex gap-3">
+                      <div className="grid grid-cols-2 gap-1 w-20 h-20 shrink-0 rounded-xl overflow-hidden bg-muted">
+                        {thumbs.length > 0 ? (
+                          <>
+                            {thumbs.map((g, i) => (
+                              <div key={g.id || i} className="bg-muted overflow-hidden">
+                                <SafeImage src={g.image_url} alt={g.name || "Garment"} fit="contain" />
+                              </div>
+                            ))}
+                            {thumbs.length < 4 && Array.from({ length: 4 - thumbs.length }).map((_, i) => (
+                              <div key={`empty-${i}`} className="bg-muted/50" />
+                            ))}
+                          </>
+                        ) : (
+                          <div className="col-span-2 row-span-2 flex items-center justify-center text-muted-foreground">
+                            <Shirt className="w-6 h-6" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0 flex flex-col justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-foreground truncate">
+                            {outfit.name || "Outfit"}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">
+                            {isGenericName ? subtitle : `${garments.length || outfit.garment_ids?.length || 0} items · ${subtitle}`}
+                          </p>
+                        </div>
+                        <div className="flex justify-end mt-2">
+                          <Button size="sm" variant="secondary" className="rounded-lg text-xs h-7 px-3">
+                            Select
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </GlassCard>
+                );
+              })
             )}
           </div>
         </DrawerContent>
