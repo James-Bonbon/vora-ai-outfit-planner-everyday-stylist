@@ -375,8 +375,31 @@ const OutfitCalendar = () => {
           },
         ];
       });
+
+      // Persist swap to outfit_calendar so Calendar planner shows the same outfit.
+      // status='suggested', source='home_swap' → auto-fill won't overwrite this.
+      if (user) {
+        void (supabase as any)
+          .from("outfit_calendar")
+          .upsert({
+            user_id: user.id,
+            date: dateStr,
+            garment_ids: swapped.map((g) => g.id),
+            occasion,
+            weather_temp: tempUsed,
+            weather_code: codeUsed,
+            weather_label: labelUsed,
+            weather_date: dateStr,
+            status: "suggested",
+            source: "home_swap",
+          }, { onConflict: "user_id,date" })
+          .then(({ error }: any) => {
+            if (error) console.warn("[OutfitCalendar] swap persist failed", error.message);
+            else queryClient.invalidateQueries({ queryKey: ["outfit-calendar"] });
+          });
+      }
     },
-    [garments, garmentPool, meetsThreshold, swapCounts, weather, forecastByDate, calendarEvents, recentSignatures, topsCount, bottomsCount, historyForDate],
+    [garments, garmentPool, meetsThreshold, swapCounts, weather, forecastByDate, calendarEvents, recentSignatures, topsCount, bottomsCount, historyForDate, user, queryClient],
   );
 
   /* ---- Edit: assign specific item ---- */
