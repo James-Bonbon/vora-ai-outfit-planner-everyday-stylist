@@ -863,6 +863,18 @@ const OutfitCalendar = () => {
             </div>
           </Carousel>
         )}
+
+        {/* "Plan my week" CTA — show if any of next 6 days lacks a saved entry */}
+        {visibleUpcoming.some((s) => !s.entry || s.entry.status === "suggested") && (
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event("open-outfit-planner"))}
+            className="mt-4 w-full rounded-2xl border border-dashed border-primary/40 bg-primary/5 px-4 py-3 text-sm font-medium text-primary hover:bg-primary/10 transition-colors flex items-center justify-center gap-2"
+          >
+            <Sparkles className="w-4 h-4" />
+            Plan my week
+          </button>
+        )}
       </div>
 
       {/* ===== EDIT DRAWER ===== */}
