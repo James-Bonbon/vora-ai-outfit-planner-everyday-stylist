@@ -522,10 +522,12 @@ export type Database = {
         Row: {
           created_at: string
           date: string
+          debug_info: Json | null
           garment_ids: string[] | null
           id: string
           notes: string | null
           occasion: string | null
+          source: string | null
           status: string
           updated_at: string
           user_id: string
@@ -537,10 +539,12 @@ export type Database = {
         Insert: {
           created_at?: string
           date: string
+          debug_info?: Json | null
           garment_ids?: string[] | null
           id?: string
           notes?: string | null
           occasion?: string | null
+          source?: string | null
           status?: string
           updated_at?: string
           user_id: string
@@ -552,10 +556,12 @@ export type Database = {
         Update: {
           created_at?: string
           date?: string
+          debug_info?: Json | null
           garment_ids?: string[] | null
           id?: string
           notes?: string | null
           occasion?: string | null
+          source?: string | null
           status?: string
           updated_at?: string
           user_id?: string
