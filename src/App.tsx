@@ -89,8 +89,6 @@ const App = () => (
           <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route path="/" element={<RootRedirect />} />
-              {/* Public waitlist is intentionally isolated from authenticated app routes. */}
-              <Route path="/waitlist" element={<WelcomePage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/auth" element={<LoginPage />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
