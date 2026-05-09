@@ -1,112 +1,342 @@
-import { useState, useMemo } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, addDays, startOfToday } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
-import GlassCard from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
+import GlassCard from "@/components/GlassCard";
 import SafeImage from "@/components/ui/SafeImage";
-import { Plus, Calendar as CalendarIcon, Loader2, X, Shirt } from "lucide-react";
+import { Sparkles, Calendar as CalendarIcon, Loader2, Shirt, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { ignoreToastInteractOutside } from "@/lib/radixToastGuard";
 import { getCachedSignedUrls } from "@/utils/signedUrlCache";
+import { useWeather, weatherCodeToLabel } from "@/hooks/useWeather";
+import {
+  useOutfitCalendarRange,
+  useUpsertOutfit,
+  useDeleteOutfitDate,
+  type OutfitCalendarRow,
+} from "@/hooks/useOutfitForDate";
+import { autoFillRange } from "@/utils/planner/autoFillRange";
+import { suggestOutfitForDate } from "@/utils/planner/suggestOutfit";
+import DatePlannerCard from "./DatePlannerCard";
+import type { StylingItem } from "@/utils/stylingEngine";
+import type { OutfitHistoryEntry } from "@/utils/outfitScoring";
+import { getDay } from "date-fns";
+
+const HORIZON_DAYS = 7;
+
+function isWeekend(d: Date) {
+  const w = getDay(d);
+  return w === 0 || w === 6;
+}
 
 export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [isLookbookOpen, setIsLookbookOpen] = useState(false);
-
   const today = startOfToday();
-  const next14Days = Array.from({ length: 14 }).map((_, i) => addDays(today, i));
+  const { weather, forecastByDate } = useWeather();
 
-  const { data: plannedOutfits = [], isLoading: isLoadingPlanned } = useQuery({
-    queryKey: ["planned-outfits", user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("planned_outfits")
-        .select(`*, lookbook_outfits (id, name, garment_ids)`)
-        .eq("user_id", user!.id)
-        .gte("planned_date", format(today, 'yyyy-MM-dd'));
-      if (error) throw error;
-      return data;
-    },
+  const [pickerDate, setPickerDate] = useState<string | null>(null);
+  const [autoFilling, setAutoFilling] = useState(false);
+  const [busyDate, setBusyDate] = useState<string | null>(null);
+
+  // Wardrobe + history (lightweight; only when sheet is open)
+  const { data: wardrobeData } = useQuery({
+    queryKey: ["planner-wardrobe", user?.id],
     enabled: !!user && isOpen,
+    staleTime: 1000 * 60 * 10,
+    queryFn: async () => {
+      const todayStr = format(today, "yyyy-MM-dd");
+      const historyStart = format(addDays(today, -14), "yyyy-MM-dd");
+      const [closetRes, historyRes] = await Promise.all([
+        supabase.from("closet_items")
+          .select("id, name, image_url, thumbnail_url, category, created_at, is_in_laundry, image_analysis, layout_metadata")
+          .eq("user_id", user!.id),
+        supabase.from("outfit_calendar")
+          .select("date, garment_ids")
+          .eq("user_id", user!.id)
+          .gte("date", historyStart)
+          .lt("date", todayStr),
+      ]);
+
+      const items = closetRes.data || [];
+      const previewPaths = items.map((it: any) => it.thumbnail_url || it.image_url).filter(Boolean) as string[];
+      const urlMap = await getCachedSignedUrls("garments", previewPaths);
+      const wardrobe: StylingItem[] = items.map((it: any) => ({
+        id: it.id,
+        name: it.name,
+        image_url: urlMap[it.thumbnail_url || it.image_url] || it.image_url,
+        category: it.category,
+        created_at: it.created_at,
+        is_in_laundry: it.is_in_laundry,
+        image_analysis: it.image_analysis,
+        layout_metadata: it.layout_metadata,
+        source: "closet" as const,
+      }));
+
+      const history: OutfitHistoryEntry[] = (historyRes.data || [])
+        .filter((r: any) => Array.isArray(r.garment_ids) && r.garment_ids.length > 0)
+        .map((r: any) => ({ date: r.date, garmentIds: r.garment_ids }));
+
+      return { wardrobe, history };
+    },
   });
 
+  const wardrobe = wardrobeData?.wardrobe || [];
+  const pastHistory = wardrobeData?.history || [];
+
+  // Calendar entries for the visible range
+  const { data: rows = [], isLoading: rowsLoading } = useOutfitCalendarRange(today, HORIZON_DAYS);
+
+  // Resolve garments referenced by entries (for cards)
+  const [garmentMap, setGarmentMap] = useState<Record<string, StylingItem>>({});
+  useEffect(() => {
+    const fromWardrobe: Record<string, StylingItem> = {};
+    for (const g of wardrobe) fromWardrobe[g.id] = g;
+    const allIds = rows.flatMap((r) => r.garment_ids || []);
+    const missing = [...new Set(allIds)].filter((id) => !fromWardrobe[id] && !garmentMap[id]);
+    if (missing.length === 0) {
+      setGarmentMap((prev) => ({ ...fromWardrobe, ...prev }));
+      return;
+    }
+    (async () => {
+      const { data } = await supabase
+        .from("closet_items")
+        .select("id, name, image_url, thumbnail_url, category, image_analysis, layout_metadata")
+        .in("id", missing);
+      const paths = (data || []).map((g: any) => g.thumbnail_url || g.image_url).filter(Boolean) as string[];
+      const urlMap = await getCachedSignedUrls("garments", paths);
+      const next: Record<string, StylingItem> = { ...fromWardrobe, ...garmentMap };
+      for (const g of data || []) {
+        next[(g as any).id] = {
+          ...(g as any),
+          image_url: urlMap[(g as any).thumbnail_url || (g as any).image_url] || (g as any).image_url,
+          source: "closet",
+        } as StylingItem;
+      }
+      setGarmentMap(next);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, wardrobe]);
+
+  // Build day list with resolved items
+  const days = useMemo(() => {
+    const rowsByDate = new Map(rows.map((r) => [r.date, r]));
+    return Array.from({ length: HORIZON_DAYS }, (_, i) => {
+      const date = addDays(today, i);
+      const dateStr = format(date, "yyyy-MM-dd");
+      const row = rowsByDate.get(dateStr);
+      const forecast = forecastByDate[dateStr];
+      const tempC = row?.weather_temp ?? forecast?.temp ?? null;
+      const weatherLabel = row?.weather_label ?? (forecast ? weatherCodeToLabel(forecast.code) : null);
+      const occasion = row?.occasion ?? (isWeekend(date) ? "Casual" : "Smart Casual");
+      let items: StylingItem[] = (row?.garment_ids || []).map((id) => garmentMap[id]).filter(Boolean) as StylingItem[];
+      let emptyReason: "wardrobe_too_small" | "no_match" | null = null;
+
+      // If no row, generate ephemeral local suggestion (do NOT persist here)
+      if (!row && wardrobe.length > 0) {
+        const sug = suggestOutfitForDate({
+          date, wardrobe, tempC, occasion,
+          history: pastHistory,
+        });
+        if (sug.ok) items = sug.items;
+        else emptyReason = sug.reason || "no_match";
+      }
+      return { date, dateStr, row, items, tempC, weatherLabel, occasion, emptyReason };
+    });
+  }, [rows, garmentMap, wardrobe, today, forecastByDate, pastHistory]);
+
+  // Mutations
+  const upsert = useUpsertOutfit();
+  const del = useDeleteOutfitDate();
+
+  const upsertSync = useCallback(async (args: Parameters<typeof upsert.mutateAsync>[0]) => {
+    await upsert.mutateAsync(args);
+  }, [upsert]);
+
+  // Auto-fill week
+  const handleAutoFill = useCallback(async (replaceSuggestions = false) => {
+    if (!user) return;
+    if (wardrobe.length === 0) {
+      toast.error("Add items to your closet first.");
+      return;
+    }
+    setAutoFilling(true);
+    try {
+      const contextByDate: Record<string, { tempC?: number | null; occasion?: string | null }> = {};
+      for (const d of days) {
+        contextByDate[d.dateStr] = { tempC: d.tempC, occasion: d.occasion };
+      }
+      const existing = rows.map((r) => ({
+        id: r.id, date: r.date, garment_ids: r.garment_ids, status: r.status, source: r.source,
+      }));
+      const result = await autoFillRange({
+        userId: user.id,
+        startDate: today,
+        days: HORIZON_DAYS,
+        wardrobe,
+        contextByDate,
+        existing,
+        pastHistory,
+        replaceSuggestions,
+        onProgress: () => {
+          queryClient.invalidateQueries({ queryKey: ["outfit-calendar"] });
+        },
+        onAIRefined: () => {
+          queryClient.invalidateQueries({ queryKey: ["outfit-calendar"] });
+        },
+      });
+      queryClient.invalidateQueries({ queryKey: ["outfit-calendar"] });
+      queryClient.invalidateQueries({ queryKey: ["outfit-calendar-data"] });
+      if (result.filled.length === 0 && result.skipped.length > 0) {
+        toast.info("Nothing to auto-fill — your week is already planned.");
+      } else {
+        toast.success(`Auto-filled ${result.filled.length} day${result.filled.length === 1 ? "" : "s"}.`);
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Auto-fill failed.");
+    } finally {
+      setAutoFilling(false);
+    }
+  }, [user, wardrobe, days, rows, pastHistory, today, queryClient]);
+
+  // Per-card actions
+  const handleSwap = useCallback(async (dateStr: string) => {
+    setBusyDate(dateStr);
+    try {
+      const day = days.find((d) => d.dateStr === dateStr);
+      if (!day) return;
+      const recent = day.items.length > 0 ? [[...day.items.map((i) => i.id)].sort().join("|")] : [];
+      // Try several swap counts to find a different outfit
+      let swap = 1;
+      let chosen = null;
+      for (; swap < 12; swap++) {
+        const sug = suggestOutfitForDate({
+          date: day.date, wardrobe, tempC: day.tempC, occasion: day.occasion,
+          swapCount: swap, recentSignatures: recent, history: pastHistory,
+        });
+        if (sug.ok && sug.signature && !recent.includes(sug.signature)) {
+          chosen = sug;
+          break;
+        }
+      }
+      if (!chosen?.ok) {
+        toast.info("No more strong matches.");
+        return;
+      }
+      await upsertSync({
+        date: dateStr,
+        garmentIds: chosen.items.map((i) => i.id),
+        status: day.row?.status === "planned" ? "planned" : "suggested",
+        source: "manual",
+        occasion: day.occasion,
+        tempC: day.tempC,
+        weatherLabel: day.weatherLabel,
+        debugInfo: chosen.scored ? {
+          score: chosen.scored.score, band: chosen.scored.band,
+          reasons: chosen.scored.reasons, ai_status: "fallback",
+        } : null,
+      });
+    } finally {
+      setBusyDate(null);
+    }
+  }, [days, wardrobe, pastHistory, upsertSync]);
+
+  const handleSave = useCallback(async (dateStr: string) => {
+    const day = days.find((d) => d.dateStr === dateStr);
+    if (!day || day.items.length === 0) return;
+    setBusyDate(dateStr);
+    try {
+      await upsertSync({
+        date: dateStr,
+        garmentIds: day.items.map((i) => i.id),
+        status: "planned",
+        source: "manual",
+        occasion: day.occasion,
+        tempC: day.tempC,
+        weatherLabel: day.weatherLabel,
+      });
+      toast.success("Outfit planned.");
+    } finally {
+      setBusyDate(null);
+    }
+  }, [days, upsertSync]);
+
+  const handleToggleLock = useCallback(async (dateStr: string) => {
+    const day = days.find((d) => d.dateStr === dateStr);
+    if (!day || day.items.length === 0) return;
+    setBusyDate(dateStr);
+    try {
+      const isLocked = day.row?.status === "locked";
+      await upsertSync({
+        date: dateStr,
+        garmentIds: day.items.map((i) => i.id),
+        status: isLocked ? "planned" : "locked",
+        source: day.row?.source as any || "manual",
+        occasion: day.occasion,
+        tempC: day.tempC,
+        weatherLabel: day.weatherLabel,
+      });
+    } finally {
+      setBusyDate(null);
+    }
+  }, [days, upsertSync]);
+
+  // Saved Looks picker (drawer)
   const { data: lookbook = [], isLoading: isLoadingLookbook } = useQuery({
     queryKey: ["lookbook-with-garments", user?.id],
+    enabled: !!user && !!pickerDate,
     queryFn: async () => {
-      const { data: outfits, error } = await supabase
-        .from("lookbook_outfits")
-        .select("*")
-        .eq("user_id", user!.id);
-      if (error) throw error;
+      const { data: outfits } = await supabase.from("lookbook_outfits").select("*").eq("user_id", user!.id);
       if (!outfits || outfits.length === 0) return [];
-
       const allIds = Array.from(new Set(outfits.flatMap((o: any) => o.garment_ids || [])));
-      if (allIds.length === 0) return outfits.map((o: any) => ({ ...o, garments: [] }));
-
       const { data: items } = await supabase
         .from("closet_items")
         .select("id, name, category, image_url, thumbnail_url")
         .in("id", allIds);
-
       const paths = (items || []).map((g: any) => g.thumbnail_url || g.image_url).filter(Boolean) as string[];
       const urlMap = await getCachedSignedUrls("garments", paths);
-
       const itemMap = new Map<string, any>();
       for (const g of items || []) {
-        const path = g.thumbnail_url || g.image_url;
-        itemMap.set(g.id, { ...g, image_url: urlMap[path] || g.image_url });
+        itemMap.set(g.id, { ...g, image_url: urlMap[g.thumbnail_url || g.image_url] || g.image_url });
       }
-
       return outfits.map((o: any) => ({
         ...o,
         garments: (o.garment_ids || []).map((id: string) => itemMap.get(id)).filter(Boolean),
       }));
     },
-    enabled: !!user && isLookbookOpen,
   });
 
-  const assignMutation = useMutation({
-    mutationFn: async ({ date, lookbookId }: { date: Date; lookbookId: string }) => {
-      const dateStr = format(date, 'yyyy-MM-dd');
-      const { error } = await supabase.from("planned_outfits").upsert(
-        { user_id: user!.id, planned_date: dateStr, lookbook_id: lookbookId },
-        { onConflict: 'user_id, planned_date' }
-      );
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["planned-outfits"] });
-      toast.success("Outfit scheduled!");
-      setIsLookbookOpen(false);
-    },
-  });
+  const handlePickSavedLook = useCallback(async (outfit: any) => {
+    if (!pickerDate) return;
+    const day = days.find((d) => d.dateStr === pickerDate);
+    await upsertSync({
+      date: pickerDate,
+      garmentIds: outfit.garment_ids || [],
+      status: "planned",
+      source: "saved_look",
+      occasion: day?.occasion ?? null,
+      tempC: day?.tempC ?? null,
+      weatherLabel: day?.weatherLabel ?? null,
+    });
+    toast.success("Outfit scheduled.");
+    setPickerDate(null);
+  }, [pickerDate, days, upsertSync]);
 
-  const removeMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("planned_outfits").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["planned-outfits"] });
-      toast.success("Outfit removed from schedule.");
-    },
-  });
-
-  const handleDayClick = (date: Date) => {
-    setSelectedDate(date);
-    setIsLookbookOpen(true);
-  };
+  // Has any empty/suggestible day → show prominent auto-fill action
+  const emptyCount = days.filter((d) => !d.row || d.row.status === "suggested").length;
 
   return (
     <>
       <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto pb-10" onInteractOutside={ignoreToastInteractOutside}>
+        <SheetContent
+          side="bottom"
+          className="rounded-t-3xl max-h-[90vh] overflow-y-auto pb-10"
+          onInteractOutside={ignoreToastInteractOutside}
+        >
           <SheetHeader className="pb-2">
             <SheetTitle className="flex items-center gap-2 font-outfit">
               <CalendarIcon className="w-5 h-5 text-primary" />
@@ -114,71 +344,99 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
             </SheetTitle>
           </SheetHeader>
 
-          <div className="mt-2">
-            {isLoadingPlanned ? (
+          {/* Auto-fill action row */}
+          <div className="mt-2 mb-4 rounded-2xl bg-card border border-border p-3">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <Wand2 className="w-4 h-4 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground font-outfit">Auto-fill your week</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Suggestions for the next {HORIZON_DAYS} days using your wardrobe, weather and schedule.
+                </p>
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  <Button
+                    size="sm"
+                    className="rounded-lg text-[12px] h-8 px-3"
+                    onClick={() => handleAutoFill(false)}
+                    disabled={autoFilling || wardrobe.length === 0}
+                  >
+                    {autoFilling ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+                    Auto-fill week
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-lg text-[12px] h-8 px-3"
+                    onClick={() => handleAutoFill(true)}
+                    disabled={autoFilling || wardrobe.length === 0}
+                  >
+                    Replace suggestions
+                  </Button>
+                  {emptyCount > 0 && (
+                    <span className="text-[11px] text-muted-foreground">
+                      {emptyCount} day{emptyCount === 1 ? "" : "s"} pending
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Day cards */}
+          <div className="space-y-3">
+            {rowsLoading ? (
               <div className="flex justify-center py-10">
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
               </div>
             ) : (
-              <div className="space-y-3">
-                {next14Days.map((date) => {
-                  const dateStr = format(date, 'yyyy-MM-dd');
-                  const planned = plannedOutfits.find((p: any) => p.planned_date === dateStr);
-
-                  return (
-                    <div key={dateStr} className="flex items-center gap-3 min-h-[56px]">
-                      <div className="w-12 text-center shrink-0">
-                        <p className="text-[10px] uppercase text-muted-foreground font-medium">
-                          {format(date, 'EEE')}
-                        </p>
-                        <p className="text-lg font-bold text-foreground font-outfit">
-                          {format(date, 'd')}
-                        </p>
-                      </div>
-
-                      {planned ? (
-                        <GlassCard className="flex-1 flex items-center justify-between p-3 !rounded-xl">
-                          <div>
-                            <p className="text-sm font-semibold text-foreground">
-                              {(planned as any).lookbook_outfits?.name ?? "Outfit"}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {(planned as any).lookbook_outfits?.garment_ids?.length ?? 0} items
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => removeMutation.mutate(planned.id)}
-                            className="w-7 h-7 rounded-full bg-destructive/10 flex items-center justify-center text-destructive hover:bg-destructive/20 transition-colors"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </GlassCard>
-                      ) : (
-                        <button
-                          onClick={() => handleDayClick(date)}
-                          className="flex-1 rounded-xl border-2 border-dashed border-border flex items-center gap-2 px-4 py-3 text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors"
-                        >
-                          <Plus className="w-4 h-4" />
-                          <span className="text-sm">Plan Outfit</span>
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+              days.map((day) => (
+                <DatePlannerCard
+                  key={day.dateStr}
+                  date={day.date}
+                  items={day.items}
+                  status={day.row?.status || "suggested"}
+                  source={day.row?.source}
+                  occasion={day.occasion}
+                  tempC={day.tempC}
+                  weatherLabel={day.weatherLabel}
+                  emptyReason={day.emptyReason}
+                  isBusy={busyDate === day.dateStr}
+                  onSwap={() => handleSwap(day.dateStr)}
+                  onSave={() => handleSave(day.dateStr)}
+                  onToggleLock={() => handleToggleLock(day.dateStr)}
+                  onOpenEdit={() => setPickerDate(day.dateStr)}
+                />
+              ))
             )}
           </div>
         </SheetContent>
       </Sheet>
 
-      <Drawer open={isLookbookOpen} onOpenChange={setIsLookbookOpen}>
+      {/* Saved Looks picker drawer */}
+      <Drawer open={!!pickerDate} onOpenChange={(o) => !o && setPickerDate(null)}>
         <DrawerContent className="max-h-[88vh]">
           <DrawerHeader>
             <DrawerTitle className="font-outfit">
-              Select for {selectedDate && format(selectedDate, 'MMM d')}
+              Pick a saved look for {pickerDate && format(new Date(pickerDate + "T00:00"), "MMM d")}
             </DrawerTitle>
           </DrawerHeader>
           <div className="px-4 pb-8 space-y-3 overflow-y-auto">
+            {pickerDate && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full rounded-lg text-xs"
+                onClick={async () => {
+                  await del.mutateAsync(pickerDate);
+                  toast.success("Cleared.");
+                  setPickerDate(null);
+                }}
+              >
+                Clear this day
+              </Button>
+            )}
             {isLoadingLookbook ? (
               <div className="flex justify-center py-10">
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -199,7 +457,7 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
                   <GlassCard
                     key={outfit.id}
                     className="p-3 !rounded-2xl cursor-pointer hover:border-primary/40 transition-colors"
-                    onClick={() => selectedDate && assignMutation.mutate({ date: selectedDate, lookbookId: outfit.id })}
+                    onClick={() => handlePickSavedLook(outfit)}
                   >
                     <div className="flex gap-3">
                       <div className="grid grid-cols-2 gap-1 w-20 h-20 shrink-0 rounded-xl overflow-hidden bg-muted">
