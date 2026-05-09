@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import GlassCard from "@/components/GlassCard";
@@ -286,7 +286,14 @@ const HomePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  
+
+  // Allow nested components (OutfitCalendar's "Plan my week" CTA) to open the planner sheet
+  useEffect(() => {
+    const open = () => setIsCalendarOpen(true);
+    window.addEventListener("open-outfit-planner", open);
+    return () => window.removeEventListener("open-outfit-planner", open);
+  }, []);
+
   
 
   const { data: userStats } = useQuery({

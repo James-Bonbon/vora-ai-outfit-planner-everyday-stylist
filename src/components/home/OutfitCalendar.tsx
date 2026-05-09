@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { addDays, format, isToday, getDay } from "date-fns";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Snowflake, Sun, Cloud, CloudRain, RefreshCw, Pencil, Lock, ShirtIcon, Layers, Sparkles, Bug } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SafeImage from "@/components/ui/SafeImage";
@@ -88,6 +88,7 @@ function isWeekend(date: Date) {
 const OutfitCalendar = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { weather, forecastByDate, loading: weatherLoading } = useWeather();
   const [entries, setEntries] = useState<CalendarEntry[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
@@ -374,8 +375,31 @@ const OutfitCalendar = () => {
           },
         ];
       });
+
+      // Persist swap to outfit_calendar so Calendar planner shows the same outfit.
+      // status='suggested', source='home_swap' → auto-fill won't overwrite this.
+      if (user) {
+        void (supabase as any)
+          .from("outfit_calendar")
+          .upsert({
+            user_id: user.id,
+            date: dateStr,
+            garment_ids: swapped.map((g) => g.id),
+            occasion,
+            weather_temp: tempUsed,
+            weather_code: codeUsed,
+            weather_label: labelUsed,
+            weather_date: dateStr,
+            status: "suggested",
+            source: "home_swap",
+          }, { onConflict: "user_id,date" })
+          .then(({ error }: any) => {
+            if (error) console.warn("[OutfitCalendar] swap persist failed", error.message);
+            else queryClient.invalidateQueries({ queryKey: ["outfit-calendar"] });
+          });
+      }
     },
-    [garments, garmentPool, meetsThreshold, swapCounts, weather, forecastByDate, calendarEvents, recentSignatures, topsCount, bottomsCount, historyForDate],
+    [garments, garmentPool, meetsThreshold, swapCounts, weather, forecastByDate, calendarEvents, recentSignatures, topsCount, bottomsCount, historyForDate, user, queryClient],
   );
 
   /* ---- Edit: assign specific item ---- */
@@ -411,9 +435,36 @@ const OutfitCalendar = () => {
           },
         ];
       });
+
+      // Persist edit to outfit_calendar as planned/manual.
+      if (user) {
+        const existing = entries.find((e) => e.date === editingDate);
+        const currentIds = existing?.garment_ids || [];
+        const newIds = [...currentIds];
+        if (editingSlotIndex < newIds.length) newIds[editingSlotIndex] = item.id;
+        else newIds.push(item.id);
+        void (supabase as any)
+          .from("outfit_calendar")
+          .upsert({
+            user_id: user.id,
+            date: editingDate,
+            garment_ids: newIds,
+            occasion: existing?.occasion ?? null,
+            weather_temp: existing?.weather_temp ?? null,
+            weather_code: existing?.weather_code ?? null,
+            weather_label: existing?.weather_label ?? null,
+            weather_date: editingDate,
+            status: "planned",
+            source: "manual",
+          }, { onConflict: "user_id,date" })
+          .then(({ error }: any) => {
+            if (error) console.warn("[OutfitCalendar] edit persist failed", error.message);
+            else queryClient.invalidateQueries({ queryKey: ["outfit-calendar"] });
+          });
+      }
       setDrawerOpen(false);
     },
-    [editingDate, editingSlotIndex, garments],
+    [editingDate, editingSlotIndex, garments, entries, user, queryClient],
   );
 
   /* ---- Build day slots ---- */
@@ -811,6 +862,18 @@ const OutfitCalendar = () => {
               </div>
             </div>
           </Carousel>
+        )}
+
+        {/* "Plan my week" CTA — show if any of next 6 days lacks a saved entry */}
+        {visibleUpcoming.some((s) => !s.entry || s.entry.status === "suggested") && (
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event("open-outfit-planner"))}
+            className="mt-4 w-full rounded-2xl border border-dashed border-primary/40 bg-primary/5 px-4 py-3 text-sm font-medium text-primary hover:bg-primary/10 transition-colors flex items-center justify-center gap-2"
+          >
+            <Sparkles className="w-4 h-4" />
+            Plan my week
+          </button>
         )}
       </div>
 
