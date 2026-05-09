@@ -88,6 +88,7 @@ function isWeekend(date: Date) {
 const OutfitCalendar = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { weather, forecastByDate, loading: weatherLoading } = useWeather();
   const [entries, setEntries] = useState<CalendarEntry[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
