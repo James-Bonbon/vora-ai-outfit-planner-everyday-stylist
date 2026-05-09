@@ -286,7 +286,14 @@ const HomePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  
+
+  // Allow nested components (OutfitCalendar's "Plan my week" CTA) to open the planner sheet
+  useEffect(() => {
+    const open = () => setIsCalendarOpen(true);
+    window.addEventListener("open-outfit-planner", open);
+    return () => window.removeEventListener("open-outfit-planner", open);
+  }, []);
+
   
 
   const { data: userStats } = useQuery({
