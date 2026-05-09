@@ -435,9 +435,36 @@ const OutfitCalendar = () => {
           },
         ];
       });
+
+      // Persist edit to outfit_calendar as planned/manual.
+      if (user) {
+        const existing = entries.find((e) => e.date === editingDate);
+        const currentIds = existing?.garment_ids || [];
+        const newIds = [...currentIds];
+        if (editingSlotIndex < newIds.length) newIds[editingSlotIndex] = item.id;
+        else newIds.push(item.id);
+        void (supabase as any)
+          .from("outfit_calendar")
+          .upsert({
+            user_id: user.id,
+            date: editingDate,
+            garment_ids: newIds,
+            occasion: existing?.occasion ?? null,
+            weather_temp: existing?.weather_temp ?? null,
+            weather_code: existing?.weather_code ?? null,
+            weather_label: existing?.weather_label ?? null,
+            weather_date: editingDate,
+            status: "planned",
+            source: "manual",
+          }, { onConflict: "user_id,date" })
+          .then(({ error }: any) => {
+            if (error) console.warn("[OutfitCalendar] edit persist failed", error.message);
+            else queryClient.invalidateQueries({ queryKey: ["outfit-calendar"] });
+          });
+      }
       setDrawerOpen(false);
     },
-    [editingDate, editingSlotIndex, garments],
+    [editingDate, editingSlotIndex, garments, entries, user, queryClient],
   );
 
   /* ---- Build day slots ---- */
