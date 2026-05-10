@@ -99,8 +99,8 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
   const wardrobe = wardrobeData?.wardrobe || [];
   const pastHistory = wardrobeData?.history || [];
 
-  // Calendar entries for the visible range
-  const { data: rows = [], isLoading: rowsLoading } = useOutfitCalendarRange(today, HORIZON_DAYS);
+  // Calendar entries for the visible range (week)
+  const { data: rows = [], isLoading: rowsLoading } = useOutfitCalendarRange(viewStart, WEEK_DAYS);
 
   // Resolve garments referenced by entries (for cards)
   const [garmentMap, setGarmentMap] = useState<Record<string, StylingItem>>({});
@@ -136,29 +136,34 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
   // Build day list with resolved items
   const days = useMemo(() => {
     const rowsByDate = new Map(rows.map((r) => [r.date, r]));
-    return Array.from({ length: HORIZON_DAYS }, (_, i) => {
-      const date = addDays(today, i);
+    return Array.from({ length: WEEK_DAYS }, (_, i) => {
+      const date = addDays(viewStart, i);
       const dateStr = format(date, "yyyy-MM-dd");
+      const dateKind = classifyDate(date, today);
       const row = rowsByDate.get(dateStr);
       const forecast = forecastByDate[dateStr];
       const tempC = row?.weather_temp ?? forecast?.temp ?? null;
       const weatherLabel = row?.weather_label ?? (forecast ? weatherCodeToLabel(forecast.code) : null);
-      const occasion = row?.occasion ?? (isWeekend(date) ? "Casual" : "Smart Casual");
+      const events = eventsForDate(dateStr);
+      const eventOccasion = occasionForDate(dateStr);
+      const occasion = row?.occasion ?? eventOccasion ?? (isWeekend(date) ? "Casual" : "Smart Casual");
       let items: StylingItem[] = (row?.garment_ids || []).map((id) => garmentMap[id]).filter(Boolean) as StylingItem[];
       let emptyReason: "wardrobe_too_small" | "no_match" | null = null;
 
-      // If no row, generate ephemeral local suggestion (do NOT persist here)
-      if (!row && wardrobe.length > 0) {
+      // Future / today: ephemeral local suggestion when no row.
+      // Past: NEVER auto-generate.
+      if (!row && dateKind !== "past" && wardrobe.length > 0) {
         const sug = suggestOutfitForDate({
           date, wardrobe, tempC, occasion,
+          events,
           history: pastHistory,
         });
         if (sug.ok) items = sug.items;
         else emptyReason = sug.reason || "no_match";
       }
-      return { date, dateStr, row, items, tempC, weatherLabel, occasion, emptyReason };
+      return { date, dateStr, dateKind, row, items, tempC, weatherLabel, occasion, emptyReason, events };
     });
-  }, [rows, garmentMap, wardrobe, today, forecastByDate, pastHistory]);
+  }, [rows, garmentMap, wardrobe, viewStart, today, forecastByDate, pastHistory, eventsForDate, occasionForDate]);
 
   // Mutations
   const upsert = useUpsertOutfit();
