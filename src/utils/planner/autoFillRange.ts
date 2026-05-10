@@ -14,7 +14,7 @@ import { addDays, format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import type { OutfitHistoryEntry } from "@/utils/outfitScoring";
 import type { StylingItem } from "@/utils/stylingEngine";
-import { suggestOutfitForDate, refineWithAI } from "./suggestOutfit";
+import { suggestOutfitForDate, refineWithAI, type EventLike } from "./suggestOutfit";
 
 export type CalendarSource = "auto_fill" | "home_swap" | "manual" | "saved_look";
 export type CalendarStatus = "suggested" | "planned" | "locked";
@@ -27,13 +27,19 @@ export interface ExistingRow {
   source: CalendarSource | string | null;
 }
 
+export interface DateContext {
+  tempC?: number | null;
+  occasion?: string | null;
+  events?: (EventLike & { id: string })[];
+}
+
 export interface AutoFillArgs {
   userId: string;
   startDate: Date;
   days: number;
   wardrobe: StylingItem[];
-  /** Map date -> { tempC, occasion } */
-  contextByDate: Record<string, { tempC?: number | null; occasion?: string | null }>;
+  /** Map date -> { tempC, occasion, events } */
+  contextByDate: Record<string, DateContext>;
   existing: ExistingRow[];
   pastHistory?: OutfitHistoryEntry[];
   replaceSuggestions?: boolean;
