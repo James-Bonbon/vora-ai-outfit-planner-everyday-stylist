@@ -178,6 +178,7 @@ export async function autoFillRange(args: AutoFillArgs): Promise<{
             wardrobe,
             tempC: ctx.tempC ?? null,
             occasion: ctx.occasion ?? null,
+            events: ctx.events,
             history: [...pastHistory, ...futurePlanned],
           });
           if (!aiResult?.outfit) continue;
