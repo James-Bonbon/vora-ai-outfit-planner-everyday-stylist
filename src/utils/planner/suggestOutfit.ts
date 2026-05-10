@@ -15,15 +15,31 @@ import {
   type FindOptions,
 } from "@/utils/outfitScoring";
 import { type StylingItem, MIN_TOPS, MIN_BOTTOMS, countPools } from "@/utils/stylingEngine";
+import { dominantOccasion, type InferredOccasion } from "./inferOccasion";
+
+export interface EventLike {
+  occasion: InferredOccasion;
+}
 
 export interface SuggestArgs {
   date: Date;
   wardrobe: StylingItem[];
   tempC?: number | null;
   occasion?: string | null;
+  /** Optional calendar events for the date — derives effectiveOccasion. */
+  events?: EventLike[];
   swapCount?: number;
   recentSignatures?: string[];
   history?: OutfitHistoryEntry[];
+}
+
+/** Resolves the occasion to use for scoring: events override the manual occasion. */
+function resolveEffectiveOccasion(args: SuggestArgs): string | null | undefined {
+  if (args.events && args.events.length > 0) {
+    const dom = dominantOccasion(args.events.map((e) => e.occasion));
+    if (dom) return dom;
+  }
+  return args.occasion ?? null;
 }
 
 export interface LocalSuggestion {
@@ -38,7 +54,8 @@ export interface LocalSuggestion {
 
 /** Synchronous, local-only suggestion. Returns immediately. */
 export function suggestOutfitForDate(args: SuggestArgs): LocalSuggestion {
-  const { wardrobe, date, tempC, occasion, swapCount = 0, recentSignatures = [], history = [] } = args;
+  const { wardrobe, date, tempC, swapCount = 0, recentSignatures = [], history = [] } = args;
+  const occasion = resolveEffectiveOccasion(args);
 
   const { topsCount, bottomsCount, meetsThreshold } = countPools(wardrobe);
   const wardrobeIsSparse = (topsCount + bottomsCount) < (MIN_TOPS + MIN_BOTTOMS) + 2;
@@ -48,13 +65,7 @@ export function suggestOutfitForDate(args: SuggestArgs): LocalSuggestion {
   }
 
   const result = findNextAcceptableOutfit(wardrobe, {
-    date,
-    tempC,
-    occasion,
-    swapCount,
-    recentSignatures,
-    history,
-    wardrobeIsSparse,
+    date, tempC, occasion, swapCount, recentSignatures, history, wardrobeIsSparse,
   });
 
   if (!result.outfit) {
@@ -73,7 +84,8 @@ export function suggestOutfitForDate(args: SuggestArgs): LocalSuggestion {
 
 /** Background AI refinement. Caller should treat failures as non-fatal. */
 export async function refineWithAI(args: SuggestArgs, timeoutMs = 10_000) {
-  const { wardrobe, date, tempC, occasion, swapCount = 0, recentSignatures = [], history = [] } = args;
+  const { wardrobe, date, tempC, swapCount = 0, recentSignatures = [], history = [] } = args;
+  const occasion = resolveEffectiveOccasion(args);
   const { topsCount, bottomsCount, meetsThreshold } = countPools(wardrobe);
   if (!meetsThreshold) return null;
   const wardrobeIsSparse = (topsCount + bottomsCount) < (MIN_TOPS + MIN_BOTTOMS) + 2;

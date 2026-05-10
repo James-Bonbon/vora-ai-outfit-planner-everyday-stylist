@@ -66,6 +66,9 @@ export interface UpsertOutfitArgs {
   weatherCode?: number | null;
   weatherLabel?: string | null;
   debugInfo?: any;
+  eventIds?: string[];
+  wornAt?: string | null;
+  wornStatus?: "worn" | "skipped" | null;
 }
 
 /** Mutation: upsert a calendar row. Invalidates all outfit-calendar queries. */
@@ -75,7 +78,7 @@ export function useUpsertOutfit() {
   return useMutation({
     mutationFn: async (args: UpsertOutfitArgs) => {
       if (!user) throw new Error("not_authenticated");
-      const payload = {
+      const payload: any = {
         user_id: user.id,
         date: args.date,
         garment_ids: args.garmentIds,
@@ -88,6 +91,9 @@ export function useUpsertOutfit() {
         weather_date: args.date,
         debug_info: args.debugInfo ?? null,
       };
+      if (args.eventIds !== undefined) payload.event_ids = args.eventIds;
+      if (args.wornAt !== undefined) payload.worn_at = args.wornAt;
+      if (args.wornStatus !== undefined) payload.worn_status = args.wornStatus;
       const { error } = await (supabase as any)
         .from("outfit_calendar")
         .upsert(payload, { onConflict: "user_id,date" });

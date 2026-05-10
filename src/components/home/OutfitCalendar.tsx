@@ -30,6 +30,15 @@ import {
   type ScoredOutfitAI,
   type OutfitHistoryEntry,
 } from "@/utils/outfitScoring";
+import { inferOccasion, dominantOccasion } from "@/utils/planner/inferOccasion";
+
+function deriveOccasion(events: { title?: string | null; location?: string | null }[], date: Date, fallback: string | null): string {
+  if (events.length > 0) {
+    const dom = dominantOccasion(events.map((e) => inferOccasion(e)));
+    if (dom) return dom;
+  }
+  return fallback || (isWeekend(date) ? "Casual" : "Smart Casual");
+}
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -265,9 +274,7 @@ const OutfitCalendar = () => {
 
       // Always render local outfit immediately while AI is pending in the background.
       const temp = resolveTempForDate(dateStr, forecastByDate, weather?.temp ?? null);
-      const occasion = dailyEvents && dailyEvents.length > 0
-        ? dailyEvents[0].title
-        : entry?.occasion || (isWeekend(date) ? "Casual" : "Smart Casual");
+      const occasion = deriveOccasion(dailyEvents || [], date, entry?.occasion ?? null);
       const wardrobeIsSparse = (topsCount + bottomsCount) < (MIN_TOPS + MIN_BOTTOMS) + 2;
 
       const result = findNextAcceptableOutfit(garmentPool, {
@@ -293,7 +300,7 @@ const OutfitCalendar = () => {
 
       const date = new Date(dateStr + "T00:00");
       const dayEvents = calendarEvents.filter((ev) => ev.start_time.startsWith(dateStr));
-      const occasion = dayEvents.length > 0 ? dayEvents[0].title : (isWeekend(date) ? "Casual" : "Smart Casual");
+      const occasion = deriveOccasion(dayEvents, date, null);
 
       const forecast = forecastByDate[dateStr];
       const tempUsed = forecast?.temp ?? weather?.temp ?? null;
@@ -653,9 +660,7 @@ const OutfitCalendar = () => {
   const todayGarments = getItemsForDate(todaySlot.date, todaySlot.entry, todaySlot.calendarEvents);
   const WeatherIconComp = WEATHER_ICON[todaySlot.entry?.weather_label || "neutral"] || Cloud;
   const tempDisplay = todaySlot.entry?.weather_temp ? `${Math.round(todaySlot.entry.weather_temp)}°C` : "";
-  const todayOccasion = todaySlot.calendarEvents.length > 0
-    ? todaySlot.calendarEvents[0].title
-    : todaySlot.entry?.occasion || (isWeekend(todaySlot.date) ? "Casual" : "Smart Casual");
+  const todayOccasion = deriveOccasion(todaySlot.calendarEvents, todaySlot.date, todaySlot.entry?.occasion ?? null);
 
   return (
     <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
