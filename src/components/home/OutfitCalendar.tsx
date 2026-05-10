@@ -30,6 +30,15 @@ import {
   type ScoredOutfitAI,
   type OutfitHistoryEntry,
 } from "@/utils/outfitScoring";
+import { inferOccasion, dominantOccasion } from "@/utils/planner/inferOccasion";
+
+function deriveOccasion(events: { title?: string | null; location?: string | null }[], date: Date, fallback: string | null): string {
+  if (events.length > 0) {
+    const dom = dominantOccasion(events.map((e) => inferOccasion(e)));
+    if (dom) return dom;
+  }
+  return fallback || (isWeekend(date) ? "Casual" : "Smart Casual");
+}
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
