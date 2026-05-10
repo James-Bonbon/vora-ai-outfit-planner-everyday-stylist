@@ -72,6 +72,9 @@ export async function autoFillRange(args: AutoFillArgs): Promise<{
   const filled: string[] = [];
   const skipped: string[] = [];
 
+  // Hard rule: never auto-generate for past dates.
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+
   // Anti-repeat: build rolling window of garments used in last 3 days (past + already-filled future)
   const recentSignatures: string[] = [];
   const futurePlanned: OutfitHistoryEntry[] = [];
@@ -79,11 +82,20 @@ export async function autoFillRange(args: AutoFillArgs): Promise<{
   for (let i = 0; i < days; i++) {
     const date = addDays(startDate, i);
     const dateStr = format(date, "yyyy-MM-dd");
-    const row = existingByDate.get(dateStr);
 
+    // Skip past dates entirely — never auto-generate history.
+    if (dateStr < todayStr) {
+      skipped.push(dateStr);
+      const row = existingByDate.get(dateStr);
+      if (row?.garment_ids?.length) {
+        futurePlanned.push({ date: dateStr, garmentIds: row.garment_ids });
+      }
+      continue;
+    }
+
+    const row = existingByDate.get(dateStr);
     if (!isEligibleForOverwrite(row, replaceSuggestions)) {
       skipped.push(dateStr);
-      // Treat the existing planned/locked outfit as part of history so following days don't repeat it
       if (row?.garment_ids?.length) {
         futurePlanned.push({ date: dateStr, garmentIds: row.garment_ids });
       }
@@ -98,6 +110,7 @@ export async function autoFillRange(args: AutoFillArgs): Promise<{
       wardrobe,
       tempC: ctx.tempC ?? null,
       occasion: ctx.occasion ?? null,
+      events: ctx.events,
       recentSignatures,
       history,
     });
@@ -122,7 +135,8 @@ export async function autoFillRange(args: AutoFillArgs): Promise<{
       generated_at: new Date().toISOString(),
     };
 
-    // Upsert row
+    const eventIds = (ctx.events || []).map((e) => e.id);
+
     const payload = {
       user_id: userId,
       date: dateStr,
@@ -133,6 +147,7 @@ export async function autoFillRange(args: AutoFillArgs): Promise<{
       status: "suggested" as const,
       source: "auto_fill" as CalendarSource,
       debug_info: debugInfo,
+      event_ids: eventIds,
     };
 
     const { error } = await (supabase as any)
