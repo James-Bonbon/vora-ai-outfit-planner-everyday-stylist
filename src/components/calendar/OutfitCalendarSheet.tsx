@@ -348,8 +348,63 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
     setPickerDate(null);
   }, [pickerDate, days, upsertSync]);
 
-  // Has any empty/suggestible day → show prominent auto-fill action
-  const emptyCount = days.filter((d) => !d.row || d.row.status === "suggested").length;
+  // Past-only handlers
+  const handleSuggestForPast = useCallback(async (dateStr: string) => {
+    const day = days.find((d) => d.dateStr === dateStr);
+    if (!day || wardrobe.length === 0) return;
+    setBusyDate(dateStr);
+    try {
+      const sug = suggestOutfitForDate({
+        date: day.date, wardrobe, tempC: day.tempC, occasion: day.occasion,
+        events: day.events, history: pastHistory,
+      });
+      if (!sug.ok) {
+        toast.info("No outfit could be generated for this day.");
+        return;
+      }
+      // Persist as suggested + manual so a future auto-fill won't overwrite it.
+      await upsertSync({
+        date: dateStr,
+        garmentIds: sug.items.map((i) => i.id),
+        status: "suggested",
+        source: "manual",
+        occasion: day.occasion,
+        tempC: day.tempC,
+        weatherLabel: day.weatherLabel,
+        eventIds: day.events.map((e) => e.id),
+      });
+    } finally {
+      setBusyDate(null);
+    }
+  }, [days, wardrobe, pastHistory, upsertSync]);
+
+  const handleMarkWorn = useCallback(async (dateStr: string, status: "worn" | "skipped") => {
+    const day = days.find((d) => d.dateStr === dateStr);
+    if (!day || day.items.length === 0) return;
+    setBusyDate(dateStr);
+    try {
+      await upsertSync({
+        date: dateStr,
+        garmentIds: day.items.map((i) => i.id),
+        status: (day.row?.status as any) || "planned",
+        source: (day.row?.source as any) || "manual",
+        occasion: day.occasion,
+        tempC: day.tempC,
+        weatherLabel: day.weatherLabel,
+        wornAt: new Date().toISOString(),
+        wornStatus: status,
+      });
+    } finally {
+      setBusyDate(null);
+    }
+  }, [days, upsertSync]);
+
+  // Visible-week stats
+  const futureDays = days.filter((d) => d.dateKind !== "past");
+  const emptyCount = futureDays.filter((d) => !d.row || d.row.status === "suggested").length;
+  const allPast = futureDays.length === 0;
+
+  const weekLabel = `${format(viewStart, "MMM d")} – ${format(viewEnd, "MMM d")}`;
 
   return (
     <>
@@ -366,45 +421,78 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
             </SheetTitle>
           </SheetHeader>
 
-          {/* Auto-fill action row */}
-          <div className="mt-2 mb-4 rounded-2xl bg-card border border-border p-3">
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                <Wand2 className="w-4 h-4 text-primary" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground font-outfit">Auto-fill your week</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Suggestions for the next {HORIZON_DAYS} days using your wardrobe, weather and schedule.
-                </p>
-                <div className="flex items-center gap-2 mt-2 flex-wrap">
-                  <Button
-                    size="sm"
-                    className="rounded-lg text-[12px] h-8 px-3"
-                    onClick={() => handleAutoFill(false)}
-                    disabled={autoFilling || wardrobe.length === 0}
-                  >
-                    {autoFilling ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
-                    Auto-fill week
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="rounded-lg text-[12px] h-8 px-3"
-                    onClick={() => handleAutoFill(true)}
-                    disabled={autoFilling || wardrobe.length === 0}
-                  >
-                    Replace suggestions
-                  </Button>
-                  {emptyCount > 0 && (
-                    <span className="text-[11px] text-muted-foreground">
-                      {emptyCount} day{emptyCount === 1 ? "" : "s"} pending
-                    </span>
-                  )}
+          {/* Week navigation */}
+          <div className="flex items-center justify-between mb-3 px-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="rounded-lg h-8 px-2 text-xs"
+              onClick={() => setViewStart((d) => addDays(d, -WEEK_DAYS))}
+            >
+              <ChevronLeft className="w-3.5 h-3.5 mr-0.5" /> Prev
+            </Button>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold text-foreground font-outfit">{weekLabel}</p>
+              {!isCurrentWeek && (
+                <button
+                  className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary"
+                  onClick={() => setViewStart(startOfWeek(today, { weekStartsOn: 1 }))}
+                >
+                  This week
+                </button>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="rounded-lg h-8 px-2 text-xs"
+              onClick={() => setViewStart((d) => addDays(d, WEEK_DAYS))}
+            >
+              Next <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+            </Button>
+          </div>
+
+          {/* Auto-fill action row (future weeks only) */}
+          {!allPast && (
+            <div className="mt-2 mb-4 rounded-2xl bg-card border border-border p-3">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <Wand2 className="w-4 h-4 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground font-outfit">Auto-fill this week</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Suggestions for future days using your wardrobe, weather and schedule. Past days are never auto-filled.
+                  </p>
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    <Button
+                      size="sm"
+                      className="rounded-lg text-[12px] h-8 px-3"
+                      onClick={() => handleAutoFill(false)}
+                      disabled={autoFilling || wardrobe.length === 0}
+                    >
+                      {autoFilling ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+                      Auto-fill week
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-lg text-[12px] h-8 px-3"
+                      onClick={() => handleAutoFill(true)}
+                      disabled={autoFilling || wardrobe.length === 0}
+                    >
+                      Replace suggestions
+                    </Button>
+                    {emptyCount > 0 && (
+                      <span className="text-[11px] text-muted-foreground">
+                        {emptyCount} day{emptyCount === 1 ? "" : "s"} pending
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Day cards */}
           <div className="space-y-3">
@@ -417,6 +505,7 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
                 <DatePlannerCard
                   key={day.dateStr}
                   date={day.date}
+                  dateKind={day.dateKind}
                   items={day.items}
                   status={day.row?.status || "suggested"}
                   source={day.row?.source}
@@ -424,11 +513,16 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
                   tempC={day.tempC}
                   weatherLabel={day.weatherLabel}
                   emptyReason={day.emptyReason}
+                  events={day.events}
+                  wornStatus={(day.row as any)?.worn_status ?? null}
                   isBusy={busyDate === day.dateStr}
-                  onSwap={() => handleSwap(day.dateStr)}
-                  onSave={() => handleSave(day.dateStr)}
-                  onToggleLock={() => handleToggleLock(day.dateStr)}
+                  onSwap={day.dateKind === "past" ? undefined : () => handleSwap(day.dateStr)}
+                  onSave={day.dateKind === "past" ? undefined : () => handleSave(day.dateStr)}
+                  onToggleLock={day.dateKind === "future" ? () => handleToggleLock(day.dateStr) : undefined}
                   onOpenEdit={() => setPickerDate(day.dateStr)}
+                  onSuggestForPast={day.dateKind === "past" && day.items.length === 0 ? () => handleSuggestForPast(day.dateStr) : undefined}
+                  onMarkWorn={day.dateKind === "past" && day.items.length > 0 ? () => handleMarkWorn(day.dateStr, "worn") : undefined}
+                  onMarkSkipped={day.dateKind === "past" && day.items.length > 0 ? () => handleMarkWorn(day.dateStr, "skipped") : undefined}
                 />
               ))
             )}
