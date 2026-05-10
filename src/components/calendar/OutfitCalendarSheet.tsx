@@ -182,17 +182,23 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
     }
     setAutoFilling(true);
     try {
-      const contextByDate: Record<string, { tempC?: number | null; occasion?: string | null }> = {};
+      const contextByDate: Record<string, any> = {};
       for (const d of days) {
-        contextByDate[d.dateStr] = { tempC: d.tempC, occasion: d.occasion };
+        contextByDate[d.dateStr] = {
+          tempC: d.tempC,
+          occasion: d.occasion,
+          events: d.events.map((e) => ({ id: e.id, occasion: e.occasion })),
+        };
       }
       const existing = rows.map((r) => ({
         id: r.id, date: r.date, garment_ids: r.garment_ids, status: r.status, source: r.source,
       }));
+      // Auto-fill operates on the visible week, but autoFillRange itself
+      // skips any past date. So pass viewStart + WEEK_DAYS and let it filter.
       const result = await autoFillRange({
         userId: user.id,
-        startDate: today,
-        days: HORIZON_DAYS,
+        startDate: viewStart,
+        days: WEEK_DAYS,
         wardrobe,
         contextByDate,
         existing,
@@ -208,7 +214,7 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
       queryClient.invalidateQueries({ queryKey: ["outfit-calendar"] });
       queryClient.invalidateQueries({ queryKey: ["outfit-calendar-data"] });
       if (result.filled.length === 0 && result.skipped.length > 0) {
-        toast.info("Nothing to auto-fill — your week is already planned.");
+        toast.info("Nothing to auto-fill — week is already planned or in the past.");
       } else {
         toast.success(`Auto-filled ${result.filled.length} day${result.filled.length === 1 ? "" : "s"}.`);
       }
@@ -217,7 +223,7 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
     } finally {
       setAutoFilling(false);
     }
-  }, [user, wardrobe, days, rows, pastHistory, today, queryClient]);
+  }, [user, wardrobe, days, rows, pastHistory, viewStart, queryClient]);
 
   // Per-card actions
   const handleSwap = useCallback(async (dateStr: string) => {
