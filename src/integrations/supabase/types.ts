@@ -523,6 +523,7 @@ export type Database = {
           created_at: string
           date: string
           debug_info: Json | null
+          event_ids: string[] | null
           garment_ids: string[] | null
           id: string
           notes: string | null
@@ -535,11 +536,14 @@ export type Database = {
           weather_date: string | null
           weather_label: string | null
           weather_temp: number | null
+          worn_at: string | null
+          worn_status: string | null
         }
         Insert: {
           created_at?: string
           date: string
           debug_info?: Json | null
+          event_ids?: string[] | null
           garment_ids?: string[] | null
           id?: string
           notes?: string | null
@@ -552,11 +556,14 @@ export type Database = {
           weather_date?: string | null
           weather_label?: string | null
           weather_temp?: number | null
+          worn_at?: string | null
+          worn_status?: string | null
         }
         Update: {
           created_at?: string
           date?: string
           debug_info?: Json | null
+          event_ids?: string[] | null
           garment_ids?: string[] | null
           id?: string
           notes?: string | null
@@ -569,6 +576,8 @@ export type Database = {
           weather_date?: string | null
           weather_label?: string | null
           weather_temp?: number | null
+          worn_at?: string | null
+          worn_status?: string | null
         }
         Relationships: []
       }
@@ -856,6 +865,7 @@ export type Database = {
           end_time: string
           external_event_id: string
           id: string
+          inferred_occasion: string | null
           is_all_day: boolean
           location: string | null
           provider: string | null
@@ -869,6 +879,7 @@ export type Database = {
           end_time: string
           external_event_id: string
           id?: string
+          inferred_occasion?: string | null
           is_all_day?: boolean
           location?: string | null
           provider?: string | null
@@ -882,6 +893,7 @@ export type Database = {
           end_time?: string
           external_event_id?: string
           id?: string
+          inferred_occasion?: string | null
           is_all_day?: boolean
           location?: string | null
           provider?: string | null
