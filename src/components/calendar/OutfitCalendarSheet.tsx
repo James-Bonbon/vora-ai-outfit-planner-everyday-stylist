@@ -47,6 +47,12 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
   const [pickerDate, setPickerDate] = useState<string | null>(null);
   const [autoFilling, setAutoFilling] = useState(false);
   const [busyDate, setBusyDate] = useState<string | null>(null);
+  // Monday of the visible week (local TZ).
+  const [viewStart, setViewStart] = useState<Date>(() => startOfWeek(today, { weekStartsOn: 1 }));
+  const isCurrentWeek = isSameDay(viewStart, startOfWeek(today, { weekStartsOn: 1 }));
+  const viewEnd = addDays(viewStart, WEEK_DAYS - 1);
+
+  const { eventsForDate, occasionForDate } = useCalendarEventsRange(viewStart, WEEK_DAYS);
 
   // Wardrobe + history (lightweight; only when sheet is open)
   const { data: wardrobeData } = useQuery({
