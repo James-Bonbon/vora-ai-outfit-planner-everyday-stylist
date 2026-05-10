@@ -15,15 +15,31 @@ import {
   type FindOptions,
 } from "@/utils/outfitScoring";
 import { type StylingItem, MIN_TOPS, MIN_BOTTOMS, countPools } from "@/utils/stylingEngine";
+import { dominantOccasion, type InferredOccasion } from "./inferOccasion";
+
+export interface EventLike {
+  occasion: InferredOccasion;
+}
 
 export interface SuggestArgs {
   date: Date;
   wardrobe: StylingItem[];
   tempC?: number | null;
   occasion?: string | null;
+  /** Optional calendar events for the date — derives effectiveOccasion. */
+  events?: EventLike[];
   swapCount?: number;
   recentSignatures?: string[];
   history?: OutfitHistoryEntry[];
+}
+
+/** Resolves the occasion to use for scoring: events override the manual occasion. */
+function resolveEffectiveOccasion(args: SuggestArgs): string | null | undefined {
+  if (args.events && args.events.length > 0) {
+    const dom = dominantOccasion(args.events.map((e) => e.occasion));
+    if (dom) return dom;
+  }
+  return args.occasion ?? null;
 }
 
 export interface LocalSuggestion {
