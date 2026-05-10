@@ -300,7 +300,7 @@ const OutfitCalendar = () => {
 
       const date = new Date(dateStr + "T00:00");
       const dayEvents = calendarEvents.filter((ev) => ev.start_time.startsWith(dateStr));
-      const occasion = dayEvents.length > 0 ? dayEvents[0].title : (isWeekend(date) ? "Casual" : "Smart Casual");
+      const occasion = deriveOccasion(dayEvents, date, null);
 
       const forecast = forecastByDate[dateStr];
       const tempUsed = forecast?.temp ?? weather?.temp ?? null;
@@ -660,9 +660,7 @@ const OutfitCalendar = () => {
   const todayGarments = getItemsForDate(todaySlot.date, todaySlot.entry, todaySlot.calendarEvents);
   const WeatherIconComp = WEATHER_ICON[todaySlot.entry?.weather_label || "neutral"] || Cloud;
   const tempDisplay = todaySlot.entry?.weather_temp ? `${Math.round(todaySlot.entry.weather_temp)}°C` : "";
-  const todayOccasion = todaySlot.calendarEvents.length > 0
-    ? todaySlot.calendarEvents[0].title
-    : todaySlot.entry?.occasion || (isWeekend(todaySlot.date) ? "Casual" : "Smart Casual");
+  const todayOccasion = deriveOccasion(todaySlot.calendarEvents, todaySlot.date, todaySlot.entry?.occasion ?? null);
 
   return (
     <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
