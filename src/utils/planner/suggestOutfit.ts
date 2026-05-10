@@ -54,7 +54,8 @@ export interface LocalSuggestion {
 
 /** Synchronous, local-only suggestion. Returns immediately. */
 export function suggestOutfitForDate(args: SuggestArgs): LocalSuggestion {
-  const { wardrobe, date, tempC, occasion, swapCount = 0, recentSignatures = [], history = [] } = args;
+  const { wardrobe, date, tempC, swapCount = 0, recentSignatures = [], history = [] } = args;
+  const occasion = resolveEffectiveOccasion(args);
 
   const { topsCount, bottomsCount, meetsThreshold } = countPools(wardrobe);
   const wardrobeIsSparse = (topsCount + bottomsCount) < (MIN_TOPS + MIN_BOTTOMS) + 2;
@@ -64,13 +65,7 @@ export function suggestOutfitForDate(args: SuggestArgs): LocalSuggestion {
   }
 
   const result = findNextAcceptableOutfit(wardrobe, {
-    date,
-    tempC,
-    occasion,
-    swapCount,
-    recentSignatures,
-    history,
-    wardrobeIsSparse,
+    date, tempC, occasion, swapCount, recentSignatures, history, wardrobeIsSparse,
   });
 
   if (!result.outfit) {
@@ -89,7 +84,8 @@ export function suggestOutfitForDate(args: SuggestArgs): LocalSuggestion {
 
 /** Background AI refinement. Caller should treat failures as non-fatal. */
 export async function refineWithAI(args: SuggestArgs, timeoutMs = 10_000) {
-  const { wardrobe, date, tempC, occasion, swapCount = 0, recentSignatures = [], history = [] } = args;
+  const { wardrobe, date, tempC, swapCount = 0, recentSignatures = [], history = [] } = args;
+  const occasion = resolveEffectiveOccasion(args);
   const { topsCount, bottomsCount, meetsThreshold } = countPools(wardrobe);
   if (!meetsThreshold) return null;
   const wardrobeIsSparse = (topsCount + bottomsCount) < (MIN_TOPS + MIN_BOTTOMS) + 2;
