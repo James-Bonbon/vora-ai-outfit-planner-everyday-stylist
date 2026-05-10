@@ -274,9 +274,7 @@ const OutfitCalendar = () => {
 
       // Always render local outfit immediately while AI is pending in the background.
       const temp = resolveTempForDate(dateStr, forecastByDate, weather?.temp ?? null);
-      const occasion = dailyEvents && dailyEvents.length > 0
-        ? dailyEvents[0].title
-        : entry?.occasion || (isWeekend(date) ? "Casual" : "Smart Casual");
+      const occasion = deriveOccasion(dailyEvents || [], date, entry?.occasion ?? null);
       const wardrobeIsSparse = (topsCount + bottomsCount) < (MIN_TOPS + MIN_BOTTOMS) + 2;
 
       const result = findNextAcceptableOutfit(garmentPool, {
