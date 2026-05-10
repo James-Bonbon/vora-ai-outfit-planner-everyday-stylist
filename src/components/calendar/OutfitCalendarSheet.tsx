@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { format, addDays, startOfToday } from "date-fns";
+import { format, addDays, startOfToday, startOfWeek, isSameDay, getDay } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -8,7 +8,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import GlassCard from "@/components/GlassCard";
 import SafeImage from "@/components/ui/SafeImage";
-import { Sparkles, Calendar as CalendarIcon, Loader2, Shirt, Wand2 } from "lucide-react";
+import { Sparkles, Calendar as CalendarIcon, Loader2, Shirt, Wand2, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { ignoreToastInteractOutside } from "@/lib/radixToastGuard";
 import { getCachedSignedUrls } from "@/utils/signedUrlCache";
@@ -19,18 +19,23 @@ import {
   useDeleteOutfitDate,
   type OutfitCalendarRow,
 } from "@/hooks/useOutfitForDate";
+import { useCalendarEventsRange } from "@/hooks/useCalendarEvents";
 import { autoFillRange } from "@/utils/planner/autoFillRange";
 import { suggestOutfitForDate } from "@/utils/planner/suggestOutfit";
-import DatePlannerCard from "./DatePlannerCard";
+import DatePlannerCard, { type DateKind } from "./DatePlannerCard";
 import type { StylingItem } from "@/utils/stylingEngine";
 import type { OutfitHistoryEntry } from "@/utils/outfitScoring";
-import { getDay } from "date-fns";
 
-const HORIZON_DAYS = 7;
+const WEEK_DAYS = 7;
 
 function isWeekend(d: Date) {
   const w = getDay(d);
   return w === 0 || w === 6;
+}
+
+function classifyDate(d: Date, today: Date): DateKind {
+  if (isSameDay(d, today)) return "today";
+  return d < today ? "past" : "future";
 }
 
 export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
