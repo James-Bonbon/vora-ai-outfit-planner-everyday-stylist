@@ -46,17 +46,17 @@ export default function MonthDateCell({
       className={cn(
         "relative rounded-lg border transition-all flex flex-col items-center p-1 min-w-0",
         selected
-          ? "border-primary bg-primary/5 min-h-[82px]"
-          : "border-transparent hover:border-border min-h-[70px]",
+          ? "border-primary bg-primary/5 min-h-[88px]"
+          : "border-transparent hover:border-border min-h-[76px]",
         !inCurrentMonth && "opacity-35",
         isPast && inCurrentMonth && !selected && "opacity-80",
       )}
     >
       {/* Date number + event dot (top) */}
-      <div className="flex items-center justify-between w-full px-0.5 h-4 shrink-0 leading-none">
+      <div className="flex items-center justify-between w-full px-0.5 h-3.5 shrink-0 leading-none">
         <span
           className={cn(
-            "text-[11px] font-semibold font-outfit",
+            "text-[10px] font-semibold font-outfit",
             isToday ? "text-primary" : "text-foreground",
           )}
         >
@@ -101,9 +101,9 @@ export default function MonthDateCell({
       </div>
 
       {/* Weather + status (bottom) */}
-      <div className="flex items-center justify-center gap-0.5 h-3 shrink-0 leading-none">
+      <div className="flex items-center justify-center gap-0.5 h-2.5 shrink-0 leading-none">
         {tempC != null && (
-          <span className="text-[9px] text-muted-foreground">{Math.round(tempC)}°</span>
+          <span className="text-[8px] text-muted-foreground">{Math.round(tempC)}°</span>
         )}
         <StatusDot status={status} wornStatus={wornStatus} />
       </div>
