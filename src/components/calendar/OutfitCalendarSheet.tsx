@@ -23,6 +23,7 @@ import { useCalendarEventsRange } from "@/hooks/useCalendarEvents";
 import { autoFillRange } from "@/utils/planner/autoFillRange";
 import { suggestOutfitForDate } from "@/utils/planner/suggestOutfit";
 import DatePlannerCard, { type DateKind } from "./DatePlannerCard";
+import CalendarDateCell from "./CalendarDateCell";
 import type { StylingItem } from "@/utils/stylingEngine";
 import type { OutfitHistoryEntry } from "@/utils/outfitScoring";
 
@@ -51,6 +52,21 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
   const [viewStart, setViewStart] = useState<Date>(() => startOfWeek(today, { weekStartsOn: 1 }));
   const isCurrentWeek = isSameDay(viewStart, startOfWeek(today, { weekStartsOn: 1 }));
   const viewEnd = addDays(viewStart, WEEK_DAYS - 1);
+  const todayStr = format(today, "yyyy-MM-dd");
+  const [selectedDateStr, setSelectedDateStr] = useState<string>(() =>
+    isCurrentWeek ? todayStr : format(viewStart, "yyyy-MM-dd"),
+  );
+
+  // Keep selected date inside the visible week.
+  useEffect(() => {
+    const startStr = format(viewStart, "yyyy-MM-dd");
+    const endStr = format(viewEnd, "yyyy-MM-dd");
+    if (selectedDateStr < startStr || selectedDateStr > endStr) {
+      const todayInWeek = todayStr >= startStr && todayStr <= endStr;
+      setSelectedDateStr(todayInWeek ? todayStr : startStr);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewStart]);
 
   const { eventsForDate, occasionForDate } = useCalendarEventsRange(viewStart, WEEK_DAYS);
 
@@ -452,81 +468,90 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
             </Button>
           </div>
 
-          {/* Auto-fill action row (future weeks only) */}
-          {!allPast && (
-            <div className="mt-2 mb-4 rounded-2xl bg-card border border-border p-3">
-              <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                  <Wand2 className="w-4 h-4 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground font-outfit">Auto-fill this week</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Suggestions for future days using your wardrobe, weather and schedule. Past days are never auto-filled.
-                  </p>
-                  <div className="flex items-center gap-2 mt-2 flex-wrap">
-                    <Button
-                      size="sm"
-                      className="rounded-lg text-[12px] h-8 px-3"
-                      onClick={() => handleAutoFill(false)}
-                      disabled={autoFilling || wardrobe.length === 0}
-                    >
-                      {autoFilling ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
-                      Auto-fill week
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="rounded-lg text-[12px] h-8 px-3"
-                      onClick={() => handleAutoFill(true)}
-                      disabled={autoFilling || wardrobe.length === 0}
-                    >
-                      Replace suggestions
-                    </Button>
-                    {emptyCount > 0 && (
-                      <span className="text-[11px] text-muted-foreground">
-                        {emptyCount} day{emptyCount === 1 ? "" : "s"} pending
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
+          {/* Week grid */}
+          {rowsLoading ? (
+            <div className="flex justify-center py-10">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
-          )}
-
-          {/* Day cards */}
-          <div className="space-y-3">
-            {rowsLoading ? (
-              <div className="flex justify-center py-10">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          ) : (
+            <>
+              <div className="grid grid-cols-7 gap-1 mb-3">
+                {days.map((day) => (
+                  <CalendarDateCell
+                    key={day.dateStr}
+                    date={day.date}
+                    dateKind={day.dateKind}
+                    items={day.items}
+                    status={day.row?.status || (day.items.length > 0 ? "suggested" : "")}
+                    wornStatus={(day.row as any)?.worn_status ?? null}
+                    tempC={day.tempC}
+                    hasEvents={day.events.length > 0}
+                    selected={day.dateStr === selectedDateStr}
+                    onClick={() => setSelectedDateStr(day.dateStr)}
+                  />
+                ))}
               </div>
-            ) : (
-              days.map((day) => (
-                <DatePlannerCard
-                  key={day.dateStr}
-                  date={day.date}
-                  dateKind={day.dateKind}
-                  items={day.items}
-                  status={day.row?.status || "suggested"}
-                  source={day.row?.source}
-                  occasion={day.occasion}
-                  tempC={day.tempC}
-                  weatherLabel={day.weatherLabel}
-                  emptyReason={day.emptyReason}
-                  events={day.events}
-                  wornStatus={(day.row as any)?.worn_status ?? null}
-                  isBusy={busyDate === day.dateStr}
-                  onSwap={day.dateKind === "past" ? undefined : () => handleSwap(day.dateStr)}
-                  onSave={day.dateKind === "past" ? undefined : () => handleSave(day.dateStr)}
-                  onToggleLock={day.dateKind === "future" ? () => handleToggleLock(day.dateStr) : undefined}
-                  onOpenEdit={() => setPickerDate(day.dateStr)}
-                  onSuggestForPast={day.dateKind === "past" && day.items.length === 0 ? () => handleSuggestForPast(day.dateStr) : undefined}
-                  onMarkWorn={day.dateKind === "past" && day.items.length > 0 ? () => handleMarkWorn(day.dateStr, "worn") : undefined}
-                  onMarkSkipped={day.dateKind === "past" && day.items.length > 0 ? () => handleMarkWorn(day.dateStr, "skipped") : undefined}
-                />
-              ))
-            )}
-          </div>
+
+              {/* Compact auto-fill row */}
+              {!allPast && (
+                <div className="mb-3 flex items-center gap-2 flex-wrap">
+                  <Button
+                    size="sm"
+                    className="rounded-lg text-[12px] h-8 px-3"
+                    onClick={() => handleAutoFill(false)}
+                    disabled={autoFilling || wardrobe.length === 0}
+                  >
+                    {autoFilling ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Wand2 className="w-3 h-3 mr-1" />}
+                    Auto-fill week
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="rounded-lg text-[12px] h-8 px-2"
+                    onClick={() => handleAutoFill(true)}
+                    disabled={autoFilling || wardrobe.length === 0}
+                  >
+                    Replace
+                  </Button>
+                  {emptyCount > 0 && (
+                    <span className="text-[11px] text-muted-foreground">
+                      {emptyCount} pending
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Selected date detail */}
+              {(() => {
+                const day = days.find((d) => d.dateStr === selectedDateStr);
+                if (!day) return null;
+                return (
+                  <DatePlannerCard
+                    key={day.dateStr}
+                    date={day.date}
+                    dateKind={day.dateKind}
+                    items={day.items}
+                    status={day.row?.status || "suggested"}
+                    source={day.row?.source}
+                    occasion={day.occasion}
+                    tempC={day.tempC}
+                    weatherLabel={day.weatherLabel}
+                    emptyReason={day.emptyReason}
+                    events={day.events}
+                    wornStatus={(day.row as any)?.worn_status ?? null}
+                    isBusy={busyDate === day.dateStr}
+                    onSwap={day.dateKind === "past" ? undefined : () => handleSwap(day.dateStr)}
+                    onSave={day.dateKind === "past" ? undefined : () => handleSave(day.dateStr)}
+                    onToggleLock={day.dateKind === "future" ? () => handleToggleLock(day.dateStr) : undefined}
+                    onOpenEdit={() => setPickerDate(day.dateStr)}
+                    onSuggestForPast={day.dateKind === "past" && day.items.length === 0 ? () => handleSuggestForPast(day.dateStr) : undefined}
+                    onMarkWorn={day.dateKind === "past" && day.items.length > 0 ? () => handleMarkWorn(day.dateStr, "worn") : undefined}
+                    onMarkSkipped={day.dateKind === "past" && day.items.length > 0 ? () => handleMarkWorn(day.dateStr, "skipped") : undefined}
+                  />
+                );
+              })()}
+            </>
+          )}
         </SheetContent>
       </Sheet>
 
