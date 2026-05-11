@@ -52,6 +52,21 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
   const [viewStart, setViewStart] = useState<Date>(() => startOfWeek(today, { weekStartsOn: 1 }));
   const isCurrentWeek = isSameDay(viewStart, startOfWeek(today, { weekStartsOn: 1 }));
   const viewEnd = addDays(viewStart, WEEK_DAYS - 1);
+  const todayStr = format(today, "yyyy-MM-dd");
+  const [selectedDateStr, setSelectedDateStr] = useState<string>(() =>
+    isCurrentWeek ? todayStr : format(viewStart, "yyyy-MM-dd"),
+  );
+
+  // Keep selected date inside the visible week.
+  useEffect(() => {
+    const startStr = format(viewStart, "yyyy-MM-dd");
+    const endStr = format(viewEnd, "yyyy-MM-dd");
+    if (selectedDateStr < startStr || selectedDateStr > endStr) {
+      const todayInWeek = todayStr >= startStr && todayStr <= endStr;
+      setSelectedDateStr(todayInWeek ? todayStr : startStr);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewStart]);
 
   const { eventsForDate, occasionForDate } = useCalendarEventsRange(viewStart, WEEK_DAYS);
 
