@@ -23,6 +23,7 @@ import { useCalendarEventsRange } from "@/hooks/useCalendarEvents";
 import { autoFillRange } from "@/utils/planner/autoFillRange";
 import { suggestOutfitForDate } from "@/utils/planner/suggestOutfit";
 import DatePlannerCard, { type DateKind } from "./DatePlannerCard";
+import CalendarDateCell from "./CalendarDateCell";
 import type { StylingItem } from "@/utils/stylingEngine";
 import type { OutfitHistoryEntry } from "@/utils/outfitScoring";
 
