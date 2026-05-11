@@ -51,27 +51,32 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
   const [pickerDate, setPickerDate] = useState<string | null>(null);
   const [autoFilling, setAutoFilling] = useState(false);
   const [busyDate, setBusyDate] = useState<string | null>(null);
-  // Monday of the visible week (local TZ).
-  const [viewStart, setViewStart] = useState<Date>(() => startOfWeek(today, { weekStartsOn: 1 }));
-  const isCurrentWeek = isSameDay(viewStart, startOfWeek(today, { weekStartsOn: 1 }));
-  const viewEnd = addDays(viewStart, WEEK_DAYS - 1);
+  // First day of the visible month (local TZ).
+  const [viewMonth, setViewMonth] = useState<Date>(() => startOfMonth(today));
+  const isCurrentMonth = isSameMonth(viewMonth, today);
   const todayStr = format(today, "yyyy-MM-dd");
+
+  // Grid spans full weeks containing the month (Mon-start).
+  const gridStart = useMemo(() => startOfWeek(startOfMonth(viewMonth), { weekStartsOn: 1 }), [viewMonth]);
+  const gridEnd = useMemo(() => endOfWeek(endOfMonth(viewMonth), { weekStartsOn: 1 }), [viewMonth]);
+  const gridDayCount = differenceInCalendarDays(gridEnd, gridStart) + 1;
+
   const [selectedDateStr, setSelectedDateStr] = useState<string>(() =>
-    isCurrentWeek ? todayStr : format(viewStart, "yyyy-MM-dd"),
+    isCurrentMonth ? todayStr : format(startOfMonth(viewMonth), "yyyy-MM-dd"),
   );
 
-  // Keep selected date inside the visible week.
+  // Keep selected date inside the visible month grid; prefer today when present.
   useEffect(() => {
-    const startStr = format(viewStart, "yyyy-MM-dd");
-    const endStr = format(viewEnd, "yyyy-MM-dd");
-    if (selectedDateStr < startStr || selectedDateStr > endStr) {
-      const todayInWeek = todayStr >= startStr && todayStr <= endStr;
-      setSelectedDateStr(todayInWeek ? todayStr : startStr);
+    const startStr = format(gridStart, "yyyy-MM-dd");
+    const endStr = format(gridEnd, "yyyy-MM-dd");
+    if (selectedDateStr < startStr || selectedDateStr > endStr || !isSameMonth(new Date(selectedDateStr + "T00:00"), viewMonth)) {
+      const todayInMonth = isSameMonth(today, viewMonth);
+      setSelectedDateStr(todayInMonth ? todayStr : format(startOfMonth(viewMonth), "yyyy-MM-dd"));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewStart]);
+  }, [viewMonth]);
 
-  const { eventsForDate, occasionForDate } = useCalendarEventsRange(viewStart, WEEK_DAYS);
+  const { eventsForDate, occasionForDate } = useCalendarEventsRange(gridStart, gridDayCount);
 
   // Wardrobe + history (lightweight; only when sheet is open)
   const { data: wardrobeData } = useQuery({
