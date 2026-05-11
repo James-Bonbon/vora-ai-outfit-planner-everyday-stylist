@@ -455,12 +455,14 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
     }
   }, [days, upsertSync]);
 
-  // Visible-week stats
-  const futureDays = days.filter((d) => d.dateKind !== "past");
+  // Visible-month stats (only days that fall within viewMonth count for empty/auto-fill counters)
+  const monthDays = days.filter((d) => d.inCurrentMonth);
+  const futureDays = monthDays.filter((d) => d.dateKind !== "past");
   const emptyCount = futureDays.filter((d) => !d.row || d.row.status === "suggested").length;
   const allPast = futureDays.length === 0;
 
-  const weekLabel = `${format(viewStart, "MMM d")} – ${format(viewEnd, "MMM d")}`;
+  const monthLabel = format(viewMonth, "MMMM yyyy");
+  const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   return (
     <>
@@ -477,39 +479,53 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
             </SheetTitle>
           </SheetHeader>
 
-          {/* Week navigation */}
-          <div className="flex items-center justify-between mb-3 px-1">
+          {/* Month navigation */}
+          <div className="flex items-center justify-between mb-2 px-1">
             <Button
               variant="ghost"
-              size="sm"
-              className="rounded-lg h-8 px-2 text-xs"
-              onClick={() => setViewStart((d) => addDays(d, -WEEK_DAYS))}
+              size="icon"
+              className="rounded-lg h-8 w-8"
+              onClick={() => setViewMonth((d) => addMonths(d, -1))}
+              aria-label="Previous month"
             >
-              <ChevronLeft className="w-3.5 h-3.5 mr-0.5" /> Prev
+              <ChevronLeft className="w-4 h-4" />
             </Button>
             <div className="flex items-center gap-2">
-              <p className="text-sm font-semibold text-foreground font-outfit">{weekLabel}</p>
-              {!isCurrentWeek && (
+              <p className="text-sm font-semibold text-foreground font-outfit">{monthLabel}</p>
+              {!isCurrentMonth && (
                 <button
                   className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary"
-                  onClick={() => setViewStart(startOfWeek(today, { weekStartsOn: 1 }))}
+                  onClick={() => {
+                    setViewMonth(startOfMonth(today));
+                    setSelectedDateStr(todayStr);
+                  }}
                 >
-                  This week
+                  Today
                 </button>
               )}
             </div>
             <Button
               variant="ghost"
-              size="sm"
-              className="rounded-lg h-8 px-2 text-xs"
-              onClick={() => setViewStart((d) => addDays(d, WEEK_DAYS))}
+              size="icon"
+              className="rounded-lg h-8 w-8"
+              onClick={() => setViewMonth((d) => addMonths(d, 1))}
+              aria-label="Next month"
             >
-              Next <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+              <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
 
-          {/* Week grid */}
-          {rowsLoading ? (
+          {/* Weekday header */}
+          <div className="grid grid-cols-7 gap-1 mb-1 px-0.5">
+            {WEEKDAY_LABELS.map((w) => (
+              <div key={w} className="text-[9px] uppercase tracking-wider text-muted-foreground text-center font-medium">
+                {w}
+              </div>
+            ))}
+          </div>
+
+          {/* Month grid */}
+          {rowsLoading && rows.length === 0 ? (
             <div className="flex justify-center py-10">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
@@ -517,10 +533,12 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
             <>
               <div className="grid grid-cols-7 gap-1 mb-3">
                 {days.map((day) => (
-                  <CalendarDateCell
+                  <MonthDateCell
                     key={day.dateStr}
-                    date={day.date}
-                    dateKind={day.dateKind}
+                    dayOfMonth={day.date.getDate()}
+                    inCurrentMonth={day.inCurrentMonth}
+                    isToday={day.dateKind === "today"}
+                    isPast={day.dateKind === "past"}
                     items={day.items}
                     status={day.row?.status || (day.items.length > 0 ? "suggested" : "")}
                     wornStatus={(day.row as any)?.worn_status ?? null}
@@ -538,17 +556,26 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
                   <Button
                     size="sm"
                     className="rounded-lg text-[12px] h-8 px-3"
-                    onClick={() => handleAutoFill(false)}
+                    onClick={() => handleAutoFill("month", false)}
                     disabled={autoFilling || wardrobe.length === 0}
                   >
                     {autoFilling ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Wand2 className="w-3 h-3 mr-1" />}
-                    Auto-fill week
+                    Auto-fill month
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-lg text-[12px] h-8 px-3"
+                    onClick={() => handleAutoFill("next7", false)}
+                    disabled={autoFilling || wardrobe.length === 0}
+                  >
+                    Next 7 days
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
                     className="rounded-lg text-[12px] h-8 px-2"
-                    onClick={() => handleAutoFill(true)}
+                    onClick={() => handleAutoFill("month", true)}
                     disabled={autoFilling || wardrobe.length === 0}
                   >
                     Replace
