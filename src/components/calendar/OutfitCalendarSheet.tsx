@@ -1,6 +1,9 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { format, addDays, startOfToday, startOfWeek, isSameDay, getDay } from "date-fns";
+import {
+  format, addDays, startOfToday, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
+  addMonths, isSameDay, isSameMonth, getDay, differenceInCalendarDays,
+} from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -23,7 +26,7 @@ import { useCalendarEventsRange } from "@/hooks/useCalendarEvents";
 import { autoFillRange } from "@/utils/planner/autoFillRange";
 import { suggestOutfitForDate } from "@/utils/planner/suggestOutfit";
 import DatePlannerCard, { type DateKind } from "./DatePlannerCard";
-import CalendarDateCell from "./CalendarDateCell";
+import MonthDateCell from "./MonthDateCell";
 import type { StylingItem } from "@/utils/stylingEngine";
 import type { OutfitHistoryEntry } from "@/utils/outfitScoring";
 
@@ -48,27 +51,32 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
   const [pickerDate, setPickerDate] = useState<string | null>(null);
   const [autoFilling, setAutoFilling] = useState(false);
   const [busyDate, setBusyDate] = useState<string | null>(null);
-  // Monday of the visible week (local TZ).
-  const [viewStart, setViewStart] = useState<Date>(() => startOfWeek(today, { weekStartsOn: 1 }));
-  const isCurrentWeek = isSameDay(viewStart, startOfWeek(today, { weekStartsOn: 1 }));
-  const viewEnd = addDays(viewStart, WEEK_DAYS - 1);
+  // First day of the visible month (local TZ).
+  const [viewMonth, setViewMonth] = useState<Date>(() => startOfMonth(today));
+  const isCurrentMonth = isSameMonth(viewMonth, today);
   const todayStr = format(today, "yyyy-MM-dd");
+
+  // Grid spans full weeks containing the month (Mon-start).
+  const gridStart = useMemo(() => startOfWeek(startOfMonth(viewMonth), { weekStartsOn: 1 }), [viewMonth]);
+  const gridEnd = useMemo(() => endOfWeek(endOfMonth(viewMonth), { weekStartsOn: 1 }), [viewMonth]);
+  const gridDayCount = differenceInCalendarDays(gridEnd, gridStart) + 1;
+
   const [selectedDateStr, setSelectedDateStr] = useState<string>(() =>
-    isCurrentWeek ? todayStr : format(viewStart, "yyyy-MM-dd"),
+    isCurrentMonth ? todayStr : format(startOfMonth(viewMonth), "yyyy-MM-dd"),
   );
 
-  // Keep selected date inside the visible week.
+  // Keep selected date inside the visible month grid; prefer today when present.
   useEffect(() => {
-    const startStr = format(viewStart, "yyyy-MM-dd");
-    const endStr = format(viewEnd, "yyyy-MM-dd");
-    if (selectedDateStr < startStr || selectedDateStr > endStr) {
-      const todayInWeek = todayStr >= startStr && todayStr <= endStr;
-      setSelectedDateStr(todayInWeek ? todayStr : startStr);
+    const startStr = format(gridStart, "yyyy-MM-dd");
+    const endStr = format(gridEnd, "yyyy-MM-dd");
+    if (selectedDateStr < startStr || selectedDateStr > endStr || !isSameMonth(new Date(selectedDateStr + "T00:00"), viewMonth)) {
+      const todayInMonth = isSameMonth(today, viewMonth);
+      setSelectedDateStr(todayInMonth ? todayStr : format(startOfMonth(viewMonth), "yyyy-MM-dd"));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewStart]);
+  }, [viewMonth]);
 
-  const { eventsForDate, occasionForDate } = useCalendarEventsRange(viewStart, WEEK_DAYS);
+  const { eventsForDate, occasionForDate } = useCalendarEventsRange(gridStart, gridDayCount);
 
   // Wardrobe + history (lightweight; only when sheet is open)
   const { data: wardrobeData } = useQuery({
@@ -115,8 +123,8 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
   const wardrobe = wardrobeData?.wardrobe || [];
   const pastHistory = wardrobeData?.history || [];
 
-  // Calendar entries for the visible range (week)
-  const { data: rows = [], isLoading: rowsLoading } = useOutfitCalendarRange(viewStart, WEEK_DAYS);
+  // Calendar entries for the visible month grid
+  const { data: rows = [], isLoading: rowsLoading } = useOutfitCalendarRange(gridStart, gridDayCount);
 
   // Resolve garments referenced by entries (for cards)
   const [garmentMap, setGarmentMap] = useState<Record<string, StylingItem>>({});
@@ -149,13 +157,17 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, wardrobe]);
 
-  // Build day list with resolved items
+  // Build day list with resolved items.
+  // Cells render only stored rows (fast). Ephemeral suggestions are computed
+  // for `today` and the currently selected date so Home/Calendar parity holds
+  // and the detail panel always has something to show.
   const days = useMemo(() => {
     const rowsByDate = new Map(rows.map((r) => [r.date, r]));
-    return Array.from({ length: WEEK_DAYS }, (_, i) => {
-      const date = addDays(viewStart, i);
+    return Array.from({ length: gridDayCount }, (_, i) => {
+      const date = addDays(gridStart, i);
       const dateStr = format(date, "yyyy-MM-dd");
       const dateKind = classifyDate(date, today);
+      const inCurrentMonth = isSameMonth(date, viewMonth);
       const row = rowsByDate.get(dateStr);
       const forecast = forecastByDate[dateStr];
       const tempC = row?.weather_temp ?? forecast?.temp ?? null;
@@ -166,9 +178,11 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
       let items: StylingItem[] = (row?.garment_ids || []).map((id) => garmentMap[id]).filter(Boolean) as StylingItem[];
       let emptyReason: "wardrobe_too_small" | "no_match" | null = null;
 
-      // Future / today: ephemeral local suggestion when no row.
-      // Past: NEVER auto-generate.
-      if (!row && dateKind !== "past" && wardrobe.length > 0) {
+      const needsEphemeral =
+        !row && dateKind !== "past" && wardrobe.length > 0 &&
+        (dateKind === "today" || dateStr === selectedDateStr);
+
+      if (needsEphemeral) {
         const sug = suggestOutfitForDate({
           date, wardrobe, tempC, occasion,
           events,
@@ -177,9 +191,9 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
         if (sug.ok) items = sug.items;
         else emptyReason = sug.reason || "no_match";
       }
-      return { date, dateStr, dateKind, row, items, tempC, weatherLabel, occasion, emptyReason, events };
+      return { date, dateStr, dateKind, inCurrentMonth, row, items, tempC, weatherLabel, occasion, emptyReason, events };
     });
-  }, [rows, garmentMap, wardrobe, viewStart, today, forecastByDate, pastHistory, eventsForDate, occasionForDate]);
+  }, [rows, garmentMap, wardrobe, gridStart, gridDayCount, viewMonth, today, forecastByDate, pastHistory, eventsForDate, occasionForDate, selectedDateStr]);
 
   // Mutations
   const upsert = useUpsertOutfit();
@@ -189,8 +203,11 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
     await upsert.mutateAsync(args);
   }, [upsert]);
 
-  // Auto-fill week
-  const handleAutoFill = useCallback(async (replaceSuggestions = false) => {
+  // Auto-fill: 'month' fills the visible month from today onward; 'next7' fills today + 6.
+  const handleAutoFill = useCallback(async (
+    scope: "month" | "next7" = "month",
+    replaceSuggestions = false,
+  ) => {
     if (!user) return;
     if (wardrobe.length === 0) {
       toast.error("Add items to your closet first.");
@@ -198,23 +215,46 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
     }
     setAutoFilling(true);
     try {
+      // Determine range
+      let rangeStart: Date;
+      let rangeDays: number;
+      if (scope === "next7") {
+        rangeStart = today;
+        rangeDays = 7;
+      } else {
+        const monthStart = startOfMonth(viewMonth);
+        const monthEnd = endOfMonth(viewMonth);
+        // Start no earlier than today; autoFillRange also skips past dates.
+        rangeStart = monthStart > today ? monthStart : today;
+        rangeDays = Math.max(0, differenceInCalendarDays(monthEnd, rangeStart) + 1);
+      }
+      if (rangeDays <= 0) {
+        toast.info("Nothing to auto-fill in this month.");
+        return;
+      }
+
+      // Build context for the range. Reuse `days` where possible; otherwise default.
+      const dayMap = new Map(days.map((d) => [d.dateStr, d]));
       const contextByDate: Record<string, any> = {};
-      for (const d of days) {
-        contextByDate[d.dateStr] = {
-          tempC: d.tempC,
-          occasion: d.occasion,
-          events: d.events.map((e) => ({ id: e.id, occasion: e.occasion })),
+      for (let i = 0; i < rangeDays; i++) {
+        const d = addDays(rangeStart, i);
+        const ds = format(d, "yyyy-MM-dd");
+        const known = dayMap.get(ds);
+        const evs = eventsForDate(ds);
+        contextByDate[ds] = {
+          tempC: known?.tempC ?? forecastByDate[ds]?.temp ?? null,
+          occasion: known?.occasion ?? occasionForDate(ds) ?? (isWeekend(d) ? "Casual" : "Smart Casual"),
+          events: evs.map((e) => ({ id: e.id, occasion: (e as any).occasion })),
         };
       }
+
       const existing = rows.map((r) => ({
         id: r.id, date: r.date, garment_ids: r.garment_ids, status: r.status, source: r.source,
       }));
-      // Auto-fill operates on the visible week, but autoFillRange itself
-      // skips any past date. So pass viewStart + WEEK_DAYS and let it filter.
       const result = await autoFillRange({
         userId: user.id,
-        startDate: viewStart,
-        days: WEEK_DAYS,
+        startDate: rangeStart,
+        days: rangeDays,
         wardrobe,
         contextByDate,
         existing,
@@ -230,7 +270,7 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
       queryClient.invalidateQueries({ queryKey: ["outfit-calendar"] });
       queryClient.invalidateQueries({ queryKey: ["outfit-calendar-data"] });
       if (result.filled.length === 0 && result.skipped.length > 0) {
-        toast.info("Nothing to auto-fill — week is already planned or in the past.");
+        toast.info("Nothing to auto-fill — already planned or in the past.");
       } else {
         toast.success(`Auto-filled ${result.filled.length} day${result.filled.length === 1 ? "" : "s"}.`);
       }
@@ -239,7 +279,7 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
     } finally {
       setAutoFilling(false);
     }
-  }, [user, wardrobe, days, rows, pastHistory, viewStart, queryClient]);
+  }, [user, wardrobe, days, rows, pastHistory, viewMonth, today, queryClient, eventsForDate, occasionForDate, forecastByDate]);
 
   // Per-card actions
   const handleSwap = useCallback(async (dateStr: string) => {
@@ -415,12 +455,14 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
     }
   }, [days, upsertSync]);
 
-  // Visible-week stats
-  const futureDays = days.filter((d) => d.dateKind !== "past");
+  // Visible-month stats (only days that fall within viewMonth count for empty/auto-fill counters)
+  const monthDays = days.filter((d) => d.inCurrentMonth);
+  const futureDays = monthDays.filter((d) => d.dateKind !== "past");
   const emptyCount = futureDays.filter((d) => !d.row || d.row.status === "suggested").length;
   const allPast = futureDays.length === 0;
 
-  const weekLabel = `${format(viewStart, "MMM d")} – ${format(viewEnd, "MMM d")}`;
+  const monthLabel = format(viewMonth, "MMMM yyyy");
+  const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   return (
     <>
@@ -437,39 +479,53 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
             </SheetTitle>
           </SheetHeader>
 
-          {/* Week navigation */}
-          <div className="flex items-center justify-between mb-3 px-1">
+          {/* Month navigation */}
+          <div className="flex items-center justify-between mb-2 px-1">
             <Button
               variant="ghost"
-              size="sm"
-              className="rounded-lg h-8 px-2 text-xs"
-              onClick={() => setViewStart((d) => addDays(d, -WEEK_DAYS))}
+              size="icon"
+              className="rounded-lg h-8 w-8"
+              onClick={() => setViewMonth((d) => addMonths(d, -1))}
+              aria-label="Previous month"
             >
-              <ChevronLeft className="w-3.5 h-3.5 mr-0.5" /> Prev
+              <ChevronLeft className="w-4 h-4" />
             </Button>
             <div className="flex items-center gap-2">
-              <p className="text-sm font-semibold text-foreground font-outfit">{weekLabel}</p>
-              {!isCurrentWeek && (
+              <p className="text-sm font-semibold text-foreground font-outfit">{monthLabel}</p>
+              {!isCurrentMonth && (
                 <button
                   className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary"
-                  onClick={() => setViewStart(startOfWeek(today, { weekStartsOn: 1 }))}
+                  onClick={() => {
+                    setViewMonth(startOfMonth(today));
+                    setSelectedDateStr(todayStr);
+                  }}
                 >
-                  This week
+                  Today
                 </button>
               )}
             </div>
             <Button
               variant="ghost"
-              size="sm"
-              className="rounded-lg h-8 px-2 text-xs"
-              onClick={() => setViewStart((d) => addDays(d, WEEK_DAYS))}
+              size="icon"
+              className="rounded-lg h-8 w-8"
+              onClick={() => setViewMonth((d) => addMonths(d, 1))}
+              aria-label="Next month"
             >
-              Next <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+              <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
 
-          {/* Week grid */}
-          {rowsLoading ? (
+          {/* Weekday header */}
+          <div className="grid grid-cols-7 gap-1 mb-1 px-0.5">
+            {WEEKDAY_LABELS.map((w) => (
+              <div key={w} className="text-[9px] uppercase tracking-wider text-muted-foreground text-center font-medium">
+                {w}
+              </div>
+            ))}
+          </div>
+
+          {/* Month grid */}
+          {rowsLoading && rows.length === 0 ? (
             <div className="flex justify-center py-10">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
@@ -477,10 +533,12 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
             <>
               <div className="grid grid-cols-7 gap-1 mb-3">
                 {days.map((day) => (
-                  <CalendarDateCell
+                  <MonthDateCell
                     key={day.dateStr}
-                    date={day.date}
-                    dateKind={day.dateKind}
+                    dayOfMonth={day.date.getDate()}
+                    inCurrentMonth={day.inCurrentMonth}
+                    isToday={day.dateKind === "today"}
+                    isPast={day.dateKind === "past"}
                     items={day.items}
                     status={day.row?.status || (day.items.length > 0 ? "suggested" : "")}
                     wornStatus={(day.row as any)?.worn_status ?? null}
@@ -498,17 +556,26 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
                   <Button
                     size="sm"
                     className="rounded-lg text-[12px] h-8 px-3"
-                    onClick={() => handleAutoFill(false)}
+                    onClick={() => handleAutoFill("month", false)}
                     disabled={autoFilling || wardrobe.length === 0}
                   >
                     {autoFilling ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Wand2 className="w-3 h-3 mr-1" />}
-                    Auto-fill week
+                    Auto-fill month
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-lg text-[12px] h-8 px-3"
+                    onClick={() => handleAutoFill("next7", false)}
+                    disabled={autoFilling || wardrobe.length === 0}
+                  >
+                    Next 7 days
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
                     className="rounded-lg text-[12px] h-8 px-2"
-                    onClick={() => handleAutoFill(true)}
+                    onClick={() => handleAutoFill("month", true)}
                     disabled={autoFilling || wardrobe.length === 0}
                   >
                     Replace
