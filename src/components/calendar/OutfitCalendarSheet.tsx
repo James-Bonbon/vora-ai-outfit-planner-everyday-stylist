@@ -1,6 +1,9 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { format, addDays, startOfToday, startOfWeek, isSameDay, getDay } from "date-fns";
+import {
+  format, addDays, startOfToday, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
+  addMonths, isSameDay, isSameMonth, getDay, differenceInCalendarDays,
+} from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
