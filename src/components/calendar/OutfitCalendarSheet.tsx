@@ -203,8 +203,11 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
     await upsert.mutateAsync(args);
   }, [upsert]);
 
-  // Auto-fill week
-  const handleAutoFill = useCallback(async (replaceSuggestions = false) => {
+  // Auto-fill: 'month' fills the visible month from today onward; 'next7' fills today + 6.
+  const handleAutoFill = useCallback(async (
+    scope: "month" | "next7" = "month",
+    replaceSuggestions = false,
+  ) => {
     if (!user) return;
     if (wardrobe.length === 0) {
       toast.error("Add items to your closet first.");
@@ -212,23 +215,46 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
     }
     setAutoFilling(true);
     try {
+      // Determine range
+      let rangeStart: Date;
+      let rangeDays: number;
+      if (scope === "next7") {
+        rangeStart = today;
+        rangeDays = 7;
+      } else {
+        const monthStart = startOfMonth(viewMonth);
+        const monthEnd = endOfMonth(viewMonth);
+        // Start no earlier than today; autoFillRange also skips past dates.
+        rangeStart = monthStart > today ? monthStart : today;
+        rangeDays = Math.max(0, differenceInCalendarDays(monthEnd, rangeStart) + 1);
+      }
+      if (rangeDays <= 0) {
+        toast.info("Nothing to auto-fill in this month.");
+        return;
+      }
+
+      // Build context for the range. Reuse `days` where possible; otherwise default.
+      const dayMap = new Map(days.map((d) => [d.dateStr, d]));
       const contextByDate: Record<string, any> = {};
-      for (const d of days) {
-        contextByDate[d.dateStr] = {
-          tempC: d.tempC,
-          occasion: d.occasion,
-          events: d.events.map((e) => ({ id: e.id, occasion: e.occasion })),
+      for (let i = 0; i < rangeDays; i++) {
+        const d = addDays(rangeStart, i);
+        const ds = format(d, "yyyy-MM-dd");
+        const known = dayMap.get(ds);
+        const evs = eventsForDate(ds);
+        contextByDate[ds] = {
+          tempC: known?.tempC ?? forecastByDate[ds]?.temp ?? null,
+          occasion: known?.occasion ?? occasionForDate(ds) ?? (isWeekend(d) ? "Casual" : "Smart Casual"),
+          events: evs.map((e) => ({ id: e.id, occasion: (e as any).occasion })),
         };
       }
+
       const existing = rows.map((r) => ({
         id: r.id, date: r.date, garment_ids: r.garment_ids, status: r.status, source: r.source,
       }));
-      // Auto-fill operates on the visible week, but autoFillRange itself
-      // skips any past date. So pass viewStart + WEEK_DAYS and let it filter.
       const result = await autoFillRange({
         userId: user.id,
-        startDate: viewStart,
-        days: WEEK_DAYS,
+        startDate: rangeStart,
+        days: rangeDays,
         wardrobe,
         contextByDate,
         existing,
@@ -244,7 +270,7 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
       queryClient.invalidateQueries({ queryKey: ["outfit-calendar"] });
       queryClient.invalidateQueries({ queryKey: ["outfit-calendar-data"] });
       if (result.filled.length === 0 && result.skipped.length > 0) {
-        toast.info("Nothing to auto-fill — week is already planned or in the past.");
+        toast.info("Nothing to auto-fill — already planned or in the past.");
       } else {
         toast.success(`Auto-filled ${result.filled.length} day${result.filled.length === 1 ? "" : "s"}.`);
       }
@@ -253,7 +279,7 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
     } finally {
       setAutoFilling(false);
     }
-  }, [user, wardrobe, days, rows, pastHistory, viewStart, queryClient]);
+  }, [user, wardrobe, days, rows, pastHistory, viewMonth, today, queryClient, eventsForDate, occasionForDate, forecastByDate]);
 
   // Per-card actions
   const handleSwap = useCallback(async (dateStr: string) => {
