@@ -123,8 +123,8 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
   const wardrobe = wardrobeData?.wardrobe || [];
   const pastHistory = wardrobeData?.history || [];
 
-  // Calendar entries for the visible range (week)
-  const { data: rows = [], isLoading: rowsLoading } = useOutfitCalendarRange(viewStart, WEEK_DAYS);
+  // Calendar entries for the visible month grid
+  const { data: rows = [], isLoading: rowsLoading } = useOutfitCalendarRange(gridStart, gridDayCount);
 
   // Resolve garments referenced by entries (for cards)
   const [garmentMap, setGarmentMap] = useState<Record<string, StylingItem>>({});
@@ -157,13 +157,17 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, wardrobe]);
 
-  // Build day list with resolved items
+  // Build day list with resolved items.
+  // Cells render only stored rows (fast). Ephemeral suggestions are computed
+  // for `today` and the currently selected date so Home/Calendar parity holds
+  // and the detail panel always has something to show.
   const days = useMemo(() => {
     const rowsByDate = new Map(rows.map((r) => [r.date, r]));
-    return Array.from({ length: WEEK_DAYS }, (_, i) => {
-      const date = addDays(viewStart, i);
+    return Array.from({ length: gridDayCount }, (_, i) => {
+      const date = addDays(gridStart, i);
       const dateStr = format(date, "yyyy-MM-dd");
       const dateKind = classifyDate(date, today);
+      const inCurrentMonth = isSameMonth(date, viewMonth);
       const row = rowsByDate.get(dateStr);
       const forecast = forecastByDate[dateStr];
       const tempC = row?.weather_temp ?? forecast?.temp ?? null;
@@ -174,9 +178,11 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
       let items: StylingItem[] = (row?.garment_ids || []).map((id) => garmentMap[id]).filter(Boolean) as StylingItem[];
       let emptyReason: "wardrobe_too_small" | "no_match" | null = null;
 
-      // Future / today: ephemeral local suggestion when no row.
-      // Past: NEVER auto-generate.
-      if (!row && dateKind !== "past" && wardrobe.length > 0) {
+      const needsEphemeral =
+        !row && dateKind !== "past" && wardrobe.length > 0 &&
+        (dateKind === "today" || dateStr === selectedDateStr);
+
+      if (needsEphemeral) {
         const sug = suggestOutfitForDate({
           date, wardrobe, tempC, occasion,
           events,
@@ -185,9 +191,9 @@ export const OutfitCalendarSheet = ({ isOpen, onClose }: { isOpen: boolean; onCl
         if (sug.ok) items = sug.items;
         else emptyReason = sug.reason || "no_match";
       }
-      return { date, dateStr, dateKind, row, items, tempC, weatherLabel, occasion, emptyReason, events };
+      return { date, dateStr, dateKind, inCurrentMonth, row, items, tempC, weatherLabel, occasion, emptyReason, events };
     });
-  }, [rows, garmentMap, wardrobe, viewStart, today, forecastByDate, pastHistory, eventsForDate, occasionForDate]);
+  }, [rows, garmentMap, wardrobe, gridStart, gridDayCount, viewMonth, today, forecastByDate, pastHistory, eventsForDate, occasionForDate, selectedDateStr]);
 
   // Mutations
   const upsert = useUpsertOutfit();
