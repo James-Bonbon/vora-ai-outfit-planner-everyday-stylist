@@ -2330,13 +2330,19 @@ serve(async (req) => {
       const replyText = !refMode || !refConfident
         ? "I'd need a clearer product first — share a screenshot or paste a clean product link and I'll find alternatives."
         : "I can't search live shops right now. Try again in a moment.";
-      const quickActions = withIds(quickActionsFor({
+      let quickActions = withIds(quickActionsFor({
         intent: referenceIntent,
         refConfident,
         hasMatches: false,
         shoppingUsable: shoppingAvailable,
         hasRecommendations: false,
       }));
+      quickActions = await enrichQuickActions(quickActions, replyText, lastUserText, {
+        flow: "cheaper_alternatives_unavailable",
+        referenceIntent,
+        refConfident,
+        shoppingAvailable,
+      });
       const debugInfo = {
         referenceIntent, shoppingAvailable,
         source: productRef?.source || "unknown",
