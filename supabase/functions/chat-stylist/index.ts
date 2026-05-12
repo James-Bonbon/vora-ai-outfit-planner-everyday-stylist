@@ -1419,10 +1419,8 @@ function quickActionsForChat(opts: {
     return out.slice(0, 4);
   }
 
-  // general_opinion fallback — always return 3
-  out.push({ kind: "send_message", label: "Style something now", message: "What should I wear today?" });
-  out.push({ kind: "send_message", label: "What's missing?", message: "What's missing from my wardrobe?" });
-  out.push({ kind: "open_wardrobe", label: "Open wardrobe" });
+  // general_opinion: leave empty so AI follow-up generator can fill with contextual actions.
+  // (Final safety fallback exists in enrichQuickActions.)
   return out;
 }
 
