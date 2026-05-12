@@ -2833,6 +2833,19 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
       quickActionReason = `ref:${referenceIntent}`;
     }
 
+    // ── AI-generated contextual follow-ups (replaces generic trio, augments rich actions) ──
+    quickActions = await enrichQuickActions(quickActions, replyText, lastUserText, {
+      flow: refMode ? "reference" : "chat",
+      chatIntent: refMode ? null : chatIntent,
+      referenceIntent: refMode ? referenceIntent : null,
+      hasRecommendations: recommendedIds.length > 0,
+      recommendedCount: recommendedIds.length,
+      shoppingResultsCount: shoppingResults.length,
+      shoppingAvailable,
+      hasShoesInWardrobe,
+      activeOutfitCategories: activeOutfit?.categories || [],
+    });
+
     // Strip banned weak-match phrases when nothing was recommended
     if (refMode && recommendedIds.length === 0) {
       replyText = replyText
