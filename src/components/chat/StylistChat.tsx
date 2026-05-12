@@ -210,6 +210,10 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
   const [input, setInput] = useState("");
   const [attachment, setAttachment] = useState<Attachment | null>(null);
   const [savingActionId, setSavingActionId] = useState<string | null>(null);
+  const [pendingUserText, setPendingUserText] = useState<string>("");
+  const [pendingHasAttachment, setPendingHasAttachment] = useState<boolean>(false);
+  const [pendingStage, setPendingStage] = useState<0 | 1 | 2>(0);
+  const [lastFailed, setLastFailed] = useState<{ userMessage: string; attachmentSnapshot: Attachment | null } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
