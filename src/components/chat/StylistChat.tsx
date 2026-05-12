@@ -373,13 +373,20 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
         created_at: new Date().toISOString(),
       };
       queryClient.setQueryData<ChatMessage[]>(["chat-messages"], [...previous, optimistic]);
+      setPendingUserText(userMessage);
+      setPendingHasAttachment(!!attachmentSnapshot);
+      setPendingStage(0);
+      setLastFailed(null);
       return { previous };
     },
     onSuccess: () => {
       // Refetch from server (source of truth) — replaces optimistic + adds assistant reply.
       queryClient.invalidateQueries({ queryKey: ["chat-messages"] });
+      setPendingUserText("");
+      setPendingHasAttachment(false);
+      setPendingStage(0);
     },
-    onError: (err: Error, _vars, context) => {
+    onError: (err: Error, vars, context) => {
       // Roll back optimistic update so the UI doesn't show an unsent message.
       if (context?.previous) {
         queryClient.setQueryData(["chat-messages"], context.previous);
@@ -408,10 +415,44 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
           description: msg || "Please try again in a moment.",
         });
       }
+      // Stash for inline retry chip.
+      setLastFailed({ userMessage: vars.userMessage, attachmentSnapshot: vars.attachmentSnapshot });
+      setPendingUserText("");
+      setPendingHasAttachment(false);
+      setPendingStage(0);
       // Refetch to reconcile with server (the user message was already persisted).
       queryClient.invalidateQueries({ queryKey: ["chat-messages"] });
     },
   });
+
+  // Stage progression for the assistant status bubble.
+  useEffect(() => {
+    if (!sendMutation.isPending) return;
+    setPendingStage(0);
+    const t1 = setTimeout(() => setPendingStage(1), 6000);
+    const t2 = setTimeout(() => setPendingStage(2), 14000);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [sendMutation.isPending]);
+
+  // Pick a safe, non-misleading status label based on the user's last message.
+  // We only use phrasing that matches what the backend actually does.
+  const statusLabel = (() => {
+    if (pendingStage === 2) return "Almost there…";
+    if (pendingStage === 1) return "Still working on it…";
+    if (pendingHasAttachment) return "Looking at your photo…";
+    const t = (pendingUserText || "").toLowerCase();
+    if (/(shoe|sneaker|trainer|loafer|boot|heel|sandal|mule|flat|footwear|pump)/.test(t))
+      return "Thinking through footwear options…";
+    if (/(online|shop|buy|cheaper|alternative|find me|search for)/.test(t))
+      return "Looking for the best direction…";
+    if (/(wardrobe|closet|outfit|style|wear|dress|look)/.test(t))
+      return "Checking your style context…";
+    return "Thinking…";
+  })();
+
 
   // Clear chat
   const clearMutation = useMutation({
