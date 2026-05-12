@@ -2284,7 +2284,13 @@ serve(async (req) => {
           : "Here are a few cheaper alternatives, sorted by price:";
         shopping = products;
       }
-      const quickActions = withIds(quickActionsAfterShopping());
+      let quickActions = withIds(quickActionsAfterShopping());
+      quickActions = await enrichQuickActions(quickActions, replyText, lastUserText, {
+        flow: "reference_shopping_results",
+        referenceIntent,
+        shoppingResultsCount: shopping.length,
+        shoppingAvailable,
+      });
 
       const debugInfo = {
         referenceIntent,
