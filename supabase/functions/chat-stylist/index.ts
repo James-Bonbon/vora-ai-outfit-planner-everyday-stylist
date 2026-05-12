@@ -1672,6 +1672,138 @@ function sanitizeQuickActions(raw: any, validIds: Set<string>): any[] {
   return out;
 }
 
+/* ── AI-generated contextual follow-up quick actions ────────── */
+async function generateFollowUpActions(opts: {
+  replyText: string;
+  userText: string;
+  context: Record<string, unknown>;
+  apiKey: string;
+}): Promise<{ label: string; message: string }[]> {
+  const { replyText, userText, context, apiKey } = opts;
+  if (!apiKey || !replyText) return [];
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 2500);
+  try {
+    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      signal: ctrl.signal,
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [
+          {
+            role: "system",
+            content: `You generate 2-4 short tap-to-send follow-up replies for a personal stylist chat.
+Rules:
+- Each "label" is a normal short button label in Sentence case (first word capitalized, rest natural casing). 2 to 5 words. No trailing punctuation. Examples: "Show loafers first", "Find white sneakers", "Compare both", "Use my wardrobe", "Style with trousers".
+- Each "message" is the full sentence the user would actually send when tapping it. Max 100 characters.
+- Tailor strictly to the assistant's last reply and the user's last message. If the assistant asked a question, the actions must directly answer it.
+- No duplicates. Don't repeat generic prompts like "Style something now", "What's missing?", or "Open wardrobe" unless directly relevant.
+- Don't suggest features the assistant didn't offer. Do not propose online/shop searches if the context says shopping is unavailable.
+- Output 2-4 actions only.`,
+          },
+          {
+            role: "user",
+            content: `Context (JSON):\n${JSON.stringify(context).slice(0, 800)}\n\nUser said: ${userText.slice(0, 400)}\n\nAssistant replied: ${replyText.slice(0, 800)}\n\nReturn 2-4 short follow-up actions.`,
+          },
+        ],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "follow_ups",
+              description: "Return 2-4 short tap-to-send follow-up replies.",
+              parameters: {
+                type: "object",
+                properties: {
+                  actions: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        label: { type: "string", description: "Sentence-case button text, 2-5 words, no trailing punctuation." },
+                        message: { type: "string", description: "Full message the user would send." },
+                      },
+                      required: ["label", "message"],
+                      additionalProperties: false,
+                    },
+                  },
+                },
+                required: ["actions"],
+                additionalProperties: false,
+              },
+            },
+          },
+        ],
+        tool_choice: { type: "function", function: { name: "follow_ups" } },
+      }),
+    });
+    clearTimeout(timer);
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    const args = data.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+    if (!args) return [];
+    const parsed = JSON.parse(args);
+    const arr = Array.isArray(parsed.actions) ? parsed.actions : [];
+    return arr
+      .map((a: any) => ({
+        label: String(a?.label || "").trim().replace(/[.!?…]+$/, "").slice(0, 28),
+        message: String(a?.message || "").trim().slice(0, 200),
+      }))
+      .filter((a: { label: string; message: string }) => a.label.length > 0 && a.message.length > 0)
+      .slice(0, 4);
+  } catch {
+    clearTimeout(timer);
+    return [];
+  }
+}
+
+function mergeFollowUps(rich: any[], ai: { label: string; message: string }[]): any[] {
+  const seen = new Set<string>();
+  const out: any[] = [];
+  const add = (a: any) => {
+    const labelKey = String(a.label || "").toLowerCase().trim();
+    const msgKey = String(a.message || "").toLowerCase().trim();
+    const key = `${labelKey}|${msgKey}|${a.kind}`;
+    if (!labelKey) return;
+    if (seen.has(labelKey) || seen.has(key)) return;
+    seen.add(labelKey);
+    seen.add(key);
+    out.push(a);
+  };
+  for (const a of rich) add(a);
+  for (const a of ai) {
+    if (out.length >= 4) break;
+    add({ kind: "send_message", label: a.label, message: a.message });
+  }
+  return out.slice(0, 4);
+}
+
+async function enrichQuickActions(
+  existing: any[],
+  replyText: string,
+  userText: string,
+  context: Record<string, unknown>,
+): Promise<any[]> {
+  const apiKey = Deno.env.get("LOVABLE_API_KEY") || "";
+  // Always try AI follow-ups so they replace the dropped generic trio.
+  const ai = apiKey ? await generateFollowUpActions({ replyText, userText, context, apiKey }) : [];
+  const stripped = (existing || []).map((a: any) => {
+    const { id: _id, ...rest } = a || {};
+    return rest;
+  });
+  const merged = mergeFollowUps(stripped, ai);
+  if (merged.length === 0) {
+    // Safe minimal fallback only when nothing else applies.
+    return withIds([
+      { kind: "send_message", label: "Style an outfit", message: "Style an outfit for me from my wardrobe." },
+      { kind: "send_message", label: "Check my wardrobe", message: "What's in my wardrobe right now?" },
+    ]);
+  }
+  return withIds(merged);
+}
+
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
