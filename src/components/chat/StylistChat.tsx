@@ -782,18 +782,48 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
           ))}
         </AnimatePresence>
 
-        {/* Typing indicator */}
+        {/* Assistant working status */}
         {sendMutation.isPending && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="flex justify-start"
           >
-            <div className="px-4 py-3 rounded-2xl rounded-bl-md bg-card border border-border">
-              <div className="flex gap-1">
-                <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "0ms" }} />
-                <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "150ms" }} />
-                <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "300ms" }} />
+            <div className="px-4 py-2.5 rounded-2xl rounded-bl-md bg-card border border-border flex items-center gap-2">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">{statusLabel}</span>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Inline error + retry */}
+        {!sendMutation.isPending && lastFailed && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex justify-start"
+          >
+            <div className="max-w-[85%] space-y-2">
+              <div className="px-4 py-2.5 rounded-2xl rounded-bl-md bg-card border border-destructive/30 text-sm text-foreground">
+                Couldn't reach the stylist. Want to try again?
+              </div>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                <button
+                  onClick={() => {
+                    const retry = lastFailed;
+                    setLastFailed(null);
+                    sendMutation.mutate(retry);
+                  }}
+                  className="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-full border border-border bg-background text-foreground hover:border-primary/40 hover:bg-secondary transition-colors"
+                >
+                  Try again
+                </button>
+                <button
+                  onClick={() => setLastFailed(null)}
+                  className="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-full border border-border bg-background text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+                >
+                  Dismiss
+                </button>
               </div>
             </div>
           </motion.div>
