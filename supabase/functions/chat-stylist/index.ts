@@ -3041,6 +3041,9 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
       wishlistInserted,
       // General chat fields
       chatIntent,
+      phase1Intent,
+      toolUsed: onlineSearchAttempted && shoppingResults.length > 0,
+      liveSearchConnected,
       activeOutfit: nextActiveOutfit,
       activeOutfitIds: nextActiveOutfit?.garmentIds || [],
       usedWardrobe: wardrobeSanitized.length > 0,
