@@ -444,10 +444,16 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
     if (pendingStage === 1) return "Still working on it…";
     if (pendingHasAttachment) return "Looking at your photo…";
     const t = (pendingUserText || "").toLowerCase();
+    // Phase 1: never claim live browsing/searching unless a real tool actually runs.
+    // The frontend can't know server-side tool availability, so use safe wording.
+    if (/\b(compare|which (one |is )?(better|best)|or sneakers|or loafers)\b/.test(t))
+      return "Weighing the options…";
+    if (/\b(missing|gap|wardrobe (review|gaps?))\b/.test(t))
+      return "Reviewing your wardrobe…";
+    if (/\b(shop|buy|browse|find me|search for|online|cheaper|alternative|under £|under \$)\b/.test(t))
+      return "Preparing shopping guidance…";
     if (/(shoe|sneaker|trainer|loafer|boot|heel|sandal|mule|flat|footwear|pump)/.test(t))
       return "Thinking through footwear options…";
-    if (/(online|shop|buy|cheaper|alternative|find me|search for)/.test(t))
-      return "Looking for the best direction…";
     if (/(wardrobe|closet|outfit|style|wear|dress|look)/.test(t))
       return "Checking your style context…";
     return "Thinking…";
