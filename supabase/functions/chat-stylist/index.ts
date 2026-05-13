@@ -2349,6 +2349,44 @@ serve(async (req) => {
     const refMode = !!productRef;
     const refConfident = !!productRef && productRef.confidence >= 0.7;
     const shoppingAvailable = !!(Deno.env.get("SERPER_API_KEY") || Deno.env.get("SERPAPI_KEY"));
+    // TODO Phase 2: Connect a real product search provider and return structured products
+    // with title, brand, price, imageUrl, productUrl, retailer, and reason. For Phase 1 the
+    // assistant must NEVER claim it browsed/searched/found products unless `shoppingAvailable`
+    // is true AND a real provider call actually returned data.
+    const phase1Intent: Phase1Intent = classifyPhase1Intent(lastUserText, !!activeOutfit);
+    const liveSearchConnected = shoppingAvailable;
+
+    // Honest short-circuit: user asked for product search but no real search tool is connected.
+    if (phase1Intent === "product_search" && !liveSearchConnected && !refMode) {
+      const replyText =
+        "I can suggest what to look for, but live product search with images, prices, and links isn't connected yet. " +
+        "Tell me a bit more (occasion, colors you like, budget) and I'll point you toward the right categories, materials, and search terms — and what to avoid.";
+      const quickActions = withIds(quickActionsForPhase1("product_search", { shoppingAvailable: false }));
+      const debugInfo = {
+        phase1Intent,
+        chatIntent,
+        toolUsed: false,
+        liveSearchConnected,
+        reason: "product_search_no_live_tool",
+      };
+      await supabase.from("chat_messages").insert({
+        user_id: userId,
+        role: "assistant",
+        content: replyText,
+        quick_actions: quickActions.length > 0 ? quickActions : null,
+        debug_info: debugInfo as any,
+      });
+      return json({
+        reply_text: replyText,
+        recommended_ids: [],
+        styling_instruction: "",
+        quick_actions: quickActions,
+        intent: phase1Intent,
+        tool_used: false,
+        debug_info: debugInfo,
+      });
+    }
+
 
     /* ── save_wishlist_reference: insert into dream_items (gated) */
     let wishlistInserted = false;
