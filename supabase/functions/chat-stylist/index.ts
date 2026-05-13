@@ -2461,7 +2461,10 @@ serve(async (req) => {
       return json({
         reply_text: replyText, recommended_ids: [],
         styling_instruction: "", quick_actions: quickActions,
-        shopping, debug_info: debugInfo,
+        shopping,
+        intent: phase1Intent,
+        tool_used: shopping.length > 0,
+        debug_info: debugInfo,
       });
     }
 
