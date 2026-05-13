@@ -3061,6 +3061,8 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
       styling_instruction: stylingInstruction,
       quick_actions: quickActions,
       shopping: shoppingResults,
+      intent: phase1Intent,
+      tool_used: onlineSearchAttempted && shoppingResults.length > 0,
       debug_info: debugInfo,
     });
   } catch (e) {
