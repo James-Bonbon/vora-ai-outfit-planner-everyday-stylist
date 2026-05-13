@@ -2971,7 +2971,16 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
         hasShoesInWardrobe,
         activeOutfitIds: activeOutfit?.garmentIds || [],
       }));
-      if (!quickActionReason) quickActionReason = `chat:${chatIntent}`;
+      // Phase 1: prefer Phase 1 actions when no rich/contextual actions exist, or when the
+      // high-level intent is comparison or wardrobe_advice. Avoids static repeated bubbles.
+      if (
+        quickActions.length === 0 ||
+        phase1Intent === "product_comparison" ||
+        phase1Intent === "wardrobe_advice"
+      ) {
+        quickActions = withIds(quickActionsForPhase1(phase1Intent, { shoppingAvailable }));
+      }
+      if (!quickActionReason) quickActionReason = `chat:${chatIntent}:phase1:${phase1Intent}`;
     } else {
       quickActionReason = `ref:${referenceIntent}`;
     }
