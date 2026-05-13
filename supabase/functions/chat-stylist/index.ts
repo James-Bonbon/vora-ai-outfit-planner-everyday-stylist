@@ -2507,7 +2507,7 @@ serve(async (req) => {
         product_reference: productRef as any,
         debug_info: debugInfo as any,
       });
-      return json({ reply_text: replyText, recommended_ids: [], styling_instruction: "", quick_actions: quickActions, debug_info: debugInfo });
+      return json({ reply_text: replyText, recommended_ids: [], styling_instruction: "", quick_actions: quickActions, intent: phase1Intent, tool_used: false, debug_info: debugInfo });
     }
 
     /* ── System prompt with full context + intent rules ──────── */
