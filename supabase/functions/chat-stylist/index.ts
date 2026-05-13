@@ -1346,6 +1346,108 @@ function classifyChatIntent(
   return "general_opinion";
 }
 
+/* ── Phase 1: High-level intent layer (honest routing) ──────── */
+type Phase1Intent =
+  | "wardrobe_advice"
+  | "outfit_styling"
+  | "product_search"
+  | "product_comparison"
+  | "save_or_action"
+  | "clarification";
+
+function classifyPhase1Intent(text: string, hasActiveOutfit: boolean): Phase1Intent {
+  const t = (text || "").toLowerCase().trim();
+  if (!t) return "clarification";
+
+  // product_comparison — "which is better", "X or Y", "compare"
+  if (/\b(compare|comparison|which (one |is )?(better|best)|better one|pick one|loafers? or sneakers?|a or b)\b/.test(t)
+      || /\b(which|what)\b.{0,30}\b(better|prefer|recommend more|pick)\b/.test(t)) {
+    return "product_comparison";
+  }
+
+  // save_or_action — saving, trying on, opening wardrobe
+  if (/\b(save (this|the|to|it)|add to lookbook|save the (outfit|look)|save (the )?first|try (it|this) on|open (my )?wardrobe|open (my )?closet|apply this)\b/.test(t)) {
+    return "save_or_action";
+  }
+
+  // product_search — find/shop/buy/browse external products, links, prices, alternatives
+  if (/\b(shop|buy|browse|where can i (get|buy|find)|find me (some|a|an)|find (some|a|an)|search (for|me)|look (for|online)|online|stores?|retailers?|under £|under \$|cheaper|alternatives?|dupes?|links?|prices?|pricing)\b/.test(t)) {
+    // distinguish from styling — "find me an outfit from my wardrobe" is styling, not product search
+    if (/\b(from (my )?(wardrobe|closet)|in my (wardrobe|closet)|use my (wardrobe|closet))\b/.test(t)) {
+      return "outfit_styling";
+    }
+    return "product_search";
+  }
+
+  // wardrobe_advice — gaps, what's missing, what I own, feedback
+  if (/\b(missing|gap|gaps|what (do|am) i (missing|lacking)|review (my )?wardrobe|wardrobe (review|feedback|audit|gaps?)|what (do|should) i own|staples?)\b/.test(t)) {
+    return "wardrobe_advice";
+  }
+
+  // outfit_styling — style, what to wear, build a look
+  if (/\b(style (this|that|me|my|an?|the)|what (should|do|to) (i|should i) wear|outfit (today|for|idea)|create (an? )?(look|outfit)|build (an? )?(outfit|look)|dress me|pick (me )?an outfit|wear today)\b/.test(t)) {
+    return "outfit_styling";
+  }
+  if (hasActiveOutfit && /\b(this look|this outfit|with this|add (the|a|an|my)|swap|replace|make (it|this) (more|dressier|casual))\b/.test(t)) {
+    return "outfit_styling";
+  }
+
+  // Generic "find me [item]" without "wardrobe" qualifier → product_search
+  if (/\b(find|recommend|suggest|show me)\b.{0,30}\b(shoe|shoes|sneaker|trainer|loafer|boot|heel|sandal|footwear|dress|top|jacket|trouser|skirt|coat|bag|piece|item)\b/.test(t)) {
+    return "product_search";
+  }
+
+  return "outfit_styling";
+}
+
+function quickActionsForPhase1(intent: Phase1Intent, opts: { shoppingAvailable: boolean }): QAItem[] {
+  switch (intent) {
+    case "product_search":
+      // Phase 1: live product search may not be connected. Keep actions honest.
+      if (!opts.shoppingAvailable) {
+        return [
+          { kind: "send_message", label: "Suggest search terms", message: "What search terms should I use to find this?" },
+          { kind: "send_message", label: "Use my wardrobe", message: "Style this from my wardrobe instead." },
+          { kind: "send_message", label: "What should I avoid?", message: "What should I avoid when shopping for this?" },
+          { kind: "send_message", label: "Narrow the style", message: "Help me narrow down the style I should look for." },
+        ];
+      }
+      return [
+        { kind: "send_message", label: "Show more options", message: "Show me more options." },
+        { kind: "send_message", label: "Try a different style", message: "Try a different style." },
+        { kind: "send_message", label: "Use my wardrobe", message: "Style this from my wardrobe instead." },
+      ];
+    case "product_comparison":
+      return [
+        { kind: "send_message", label: "Compare comfort", message: "Which one is more comfortable for everyday wear?" },
+        { kind: "send_message", label: "Compare versatility", message: "Which one is more versatile across outfits?" },
+        { kind: "send_message", label: "Pick one", message: "Just pick one for me and tell me why." },
+        { kind: "send_message", label: "Use my wardrobe", message: "Which one works better with my wardrobe?" },
+      ];
+    case "wardrobe_advice":
+      return [
+        { kind: "send_message", label: "Show outfit ideas", message: "Show me outfit ideas from my wardrobe." },
+        { kind: "send_message", label: "Find wardrobe gaps", message: "What are the biggest gaps in my wardrobe?" },
+        { kind: "send_message", label: "Suggest staples", message: "Suggest staples I should own." },
+        { kind: "open_wardrobe", label: "Open wardrobe" },
+      ];
+    case "outfit_styling":
+      return [
+        { kind: "send_message", label: "Make it casual", message: "Make this outfit more casual." },
+        { kind: "send_message", label: "Make it dressy", message: "Make this outfit dressier." },
+        { kind: "send_message", label: "Use different shoes", message: "Try different shoes with this outfit." },
+        { kind: "send_message", label: "Show another outfit", message: "Show me another outfit." },
+      ];
+    case "save_or_action":
+      return [
+        { kind: "open_wardrobe", label: "Open wardrobe" },
+        { kind: "send_message", label: "Show another outfit", message: "Show me another outfit." },
+      ];
+    default:
+      return [];
+  }
+}
+
 type ActiveOutfit = {
   garmentIds: string[];
   garmentNames?: string[];
