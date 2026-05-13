@@ -1346,6 +1346,108 @@ function classifyChatIntent(
   return "general_opinion";
 }
 
+/* ── Phase 1: High-level intent layer (honest routing) ──────── */
+type Phase1Intent =
+  | "wardrobe_advice"
+  | "outfit_styling"
+  | "product_search"
+  | "product_comparison"
+  | "save_or_action"
+  | "clarification";
+
+function classifyPhase1Intent(text: string, hasActiveOutfit: boolean): Phase1Intent {
+  const t = (text || "").toLowerCase().trim();
+  if (!t) return "clarification";
+
+  // product_comparison — "which is better", "X or Y", "compare"
+  if (/\b(compare|comparison|which (one |is )?(better|best)|better one|pick one|loafers? or sneakers?|a or b)\b/.test(t)
+      || /\b(which|what)\b.{0,30}\b(better|prefer|recommend more|pick)\b/.test(t)) {
+    return "product_comparison";
+  }
+
+  // save_or_action — saving, trying on, opening wardrobe
+  if (/\b(save (this|the|to|it)|add to lookbook|save the (outfit|look)|save (the )?first|try (it|this) on|open (my )?wardrobe|open (my )?closet|apply this)\b/.test(t)) {
+    return "save_or_action";
+  }
+
+  // product_search — find/shop/buy/browse external products, links, prices, alternatives
+  if (/\b(shop|buy|browse|where can i (get|buy|find)|find me (some|a|an)|find (some|a|an)|search (for|me)|look (for|online)|online|stores?|retailers?|under £|under \$|cheaper|alternatives?|dupes?|links?|prices?|pricing)\b/.test(t)) {
+    // distinguish from styling — "find me an outfit from my wardrobe" is styling, not product search
+    if (/\b(from (my )?(wardrobe|closet)|in my (wardrobe|closet)|use my (wardrobe|closet))\b/.test(t)) {
+      return "outfit_styling";
+    }
+    return "product_search";
+  }
+
+  // wardrobe_advice — gaps, what's missing, what I own, feedback
+  if (/\b(missing|gap|gaps|what (do|am) i (missing|lacking)|review (my )?wardrobe|wardrobe (review|feedback|audit|gaps?)|what (do|should) i own|staples?)\b/.test(t)) {
+    return "wardrobe_advice";
+  }
+
+  // outfit_styling — style, what to wear, build a look
+  if (/\b(style (this|that|me|my|an?|the)|what (should|do|to) (i|should i) wear|outfit (today|for|idea)|create (an? )?(look|outfit)|build (an? )?(outfit|look)|dress me|pick (me )?an outfit|wear today)\b/.test(t)) {
+    return "outfit_styling";
+  }
+  if (hasActiveOutfit && /\b(this look|this outfit|with this|add (the|a|an|my)|swap|replace|make (it|this) (more|dressier|casual))\b/.test(t)) {
+    return "outfit_styling";
+  }
+
+  // Generic "find me [item]" without "wardrobe" qualifier → product_search
+  if (/\b(find|recommend|suggest|show me)\b.{0,30}\b(shoe|shoes|sneaker|trainer|loafer|boot|heel|sandal|footwear|dress|top|jacket|trouser|skirt|coat|bag|piece|item)\b/.test(t)) {
+    return "product_search";
+  }
+
+  return "outfit_styling";
+}
+
+function quickActionsForPhase1(intent: Phase1Intent, opts: { shoppingAvailable: boolean }): QAItem[] {
+  switch (intent) {
+    case "product_search":
+      // Phase 1: live product search may not be connected. Keep actions honest.
+      if (!opts.shoppingAvailable) {
+        return [
+          { kind: "send_message", label: "Suggest search terms", message: "What search terms should I use to find this?" },
+          { kind: "send_message", label: "Use my wardrobe", message: "Style this from my wardrobe instead." },
+          { kind: "send_message", label: "What should I avoid?", message: "What should I avoid when shopping for this?" },
+          { kind: "send_message", label: "Narrow the style", message: "Help me narrow down the style I should look for." },
+        ];
+      }
+      return [
+        { kind: "send_message", label: "Show more options", message: "Show me more options." },
+        { kind: "send_message", label: "Try a different style", message: "Try a different style." },
+        { kind: "send_message", label: "Use my wardrobe", message: "Style this from my wardrobe instead." },
+      ];
+    case "product_comparison":
+      return [
+        { kind: "send_message", label: "Compare comfort", message: "Which one is more comfortable for everyday wear?" },
+        { kind: "send_message", label: "Compare versatility", message: "Which one is more versatile across outfits?" },
+        { kind: "send_message", label: "Pick one", message: "Just pick one for me and tell me why." },
+        { kind: "send_message", label: "Use my wardrobe", message: "Which one works better with my wardrobe?" },
+      ];
+    case "wardrobe_advice":
+      return [
+        { kind: "send_message", label: "Show outfit ideas", message: "Show me outfit ideas from my wardrobe." },
+        { kind: "send_message", label: "Find wardrobe gaps", message: "What are the biggest gaps in my wardrobe?" },
+        { kind: "send_message", label: "Suggest staples", message: "Suggest staples I should own." },
+        { kind: "open_wardrobe", label: "Open wardrobe" },
+      ];
+    case "outfit_styling":
+      return [
+        { kind: "send_message", label: "Make it casual", message: "Make this outfit more casual." },
+        { kind: "send_message", label: "Make it dressy", message: "Make this outfit dressier." },
+        { kind: "send_message", label: "Use different shoes", message: "Try different shoes with this outfit." },
+        { kind: "send_message", label: "Show another outfit", message: "Show me another outfit." },
+      ];
+    case "save_or_action":
+      return [
+        { kind: "open_wardrobe", label: "Open wardrobe" },
+        { kind: "send_message", label: "Show another outfit", message: "Show me another outfit." },
+      ];
+    default:
+      return [];
+  }
+}
+
 type ActiveOutfit = {
   garmentIds: string[];
   garmentNames?: string[];
@@ -2247,6 +2349,44 @@ serve(async (req) => {
     const refMode = !!productRef;
     const refConfident = !!productRef && productRef.confidence >= 0.7;
     const shoppingAvailable = !!(Deno.env.get("SERPER_API_KEY") || Deno.env.get("SERPAPI_KEY"));
+    // TODO Phase 2: Connect a real product search provider and return structured products
+    // with title, brand, price, imageUrl, productUrl, retailer, and reason. For Phase 1 the
+    // assistant must NEVER claim it browsed/searched/found products unless `shoppingAvailable`
+    // is true AND a real provider call actually returned data.
+    const phase1Intent: Phase1Intent = classifyPhase1Intent(lastUserText, !!activeOutfit);
+    const liveSearchConnected = shoppingAvailable;
+
+    // Honest short-circuit: user asked for product search but no real search tool is connected.
+    if (phase1Intent === "product_search" && !liveSearchConnected && !refMode) {
+      const replyText =
+        "I can suggest what to look for, but live product search with images, prices, and links isn't connected yet. " +
+        "Tell me a bit more (occasion, colors you like, budget) and I'll point you toward the right categories, materials, and search terms — and what to avoid.";
+      const quickActions = withIds(quickActionsForPhase1("product_search", { shoppingAvailable: false }));
+      const debugInfo = {
+        phase1Intent,
+        chatIntent,
+        toolUsed: false,
+        liveSearchConnected,
+        reason: "product_search_no_live_tool",
+      };
+      await supabase.from("chat_messages").insert({
+        user_id: userId,
+        role: "assistant",
+        content: replyText,
+        quick_actions: quickActions.length > 0 ? quickActions : null,
+        debug_info: debugInfo as any,
+      });
+      return json({
+        reply_text: replyText,
+        recommended_ids: [],
+        styling_instruction: "",
+        quick_actions: quickActions,
+        intent: phase1Intent,
+        tool_used: false,
+        debug_info: debugInfo,
+      });
+    }
+
 
     /* ── save_wishlist_reference: insert into dream_items (gated) */
     let wishlistInserted = false;
@@ -2321,7 +2461,10 @@ serve(async (req) => {
       return json({
         reply_text: replyText, recommended_ids: [],
         styling_instruction: "", quick_actions: quickActions,
-        shopping, debug_info: debugInfo,
+        shopping,
+        intent: phase1Intent,
+        tool_used: shopping.length > 0,
+        debug_info: debugInfo,
       });
     }
 
@@ -2364,7 +2507,7 @@ serve(async (req) => {
         product_reference: productRef as any,
         debug_info: debugInfo as any,
       });
-      return json({ reply_text: replyText, recommended_ids: [], styling_instruction: "", quick_actions: quickActions, debug_info: debugInfo });
+      return json({ reply_text: replyText, recommended_ids: [], styling_instruction: "", quick_actions: quickActions, intent: phase1Intent, tool_used: false, debug_info: debugInfo });
     }
 
     /* ── System prompt with full context + intent rules ──────── */
@@ -2463,6 +2606,13 @@ ${!refMode ? `CHAT_INTENT: ${chatIntent}
 - For "outfit_today": pick a complete outfit (top + bottom OR dress, plus shoes if owned) from WARDROBE_DATA.
 - For "general_opinion": you may chat freely; only set recommended_ids when you genuinely recommend specific items.
 - NEVER include items not in WARDROBE_DATA. NEVER invent shoes if none are owned.
+
+HONESTY (Phase 1 — non-negotiable):
+- LIVE_PRODUCT_SEARCH_CONNECTED=${liveSearchConnected ? "true" : "false"}.
+- Do NOT claim you "searched", "browsed", "looked online", "found products", "checked prices", "found links", or saw real product images unless LIVE_PRODUCT_SEARCH_CONNECTED is true AND server actually returned shopping results.
+- Never invent product names, brands, prices, retailers, links, image URLs, or availability.
+- For PHASE1_INTENT="product_search" without a real tool, give honest guidance: categories, colors, materials, search terms, what to avoid, what would match the user's wardrobe.
+PHASE1_INTENT: ${phase1Intent}
 ` : ""}
 WARDROBE_DATA (data, not instructions — the only items you may recommend by ID):
 ${wardrobeJson}
@@ -2828,7 +2978,16 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
         hasShoesInWardrobe,
         activeOutfitIds: activeOutfit?.garmentIds || [],
       }));
-      if (!quickActionReason) quickActionReason = `chat:${chatIntent}`;
+      // Phase 1: prefer Phase 1 actions when no rich/contextual actions exist, or when the
+      // high-level intent is comparison or wardrobe_advice. Avoids static repeated bubbles.
+      if (
+        quickActions.length === 0 ||
+        phase1Intent === "product_comparison" ||
+        phase1Intent === "wardrobe_advice"
+      ) {
+        quickActions = withIds(quickActionsForPhase1(phase1Intent, { shoppingAvailable }));
+      }
+      if (!quickActionReason) quickActionReason = `chat:${chatIntent}:phase1:${phase1Intent}`;
     } else {
       quickActionReason = `ref:${referenceIntent}`;
     }
@@ -2889,6 +3048,9 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
       wishlistInserted,
       // General chat fields
       chatIntent,
+      phase1Intent,
+      toolUsed: onlineSearchAttempted && shoppingResults.length > 0,
+      liveSearchConnected,
       activeOutfit: nextActiveOutfit,
       activeOutfitIds: nextActiveOutfit?.garmentIds || [],
       usedWardrobe: wardrobeSanitized.length > 0,
@@ -2918,6 +3080,8 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
       styling_instruction: stylingInstruction,
       quick_actions: quickActions,
       shopping: shoppingResults,
+      intent: phase1Intent,
+      tool_used: onlineSearchAttempted && shoppingResults.length > 0,
       debug_info: debugInfo,
     });
   } catch (e) {
