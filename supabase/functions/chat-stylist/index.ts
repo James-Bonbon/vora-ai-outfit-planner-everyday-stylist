@@ -1448,6 +1448,95 @@ function quickActionsForPhase1(intent: Phase1Intent, opts: { shoppingAvailable: 
   }
 }
 
+/* ── Phase 2: structured product search helpers ─────────────── */
+type ProductResult = {
+  title: string;
+  brand: string | null;
+  price: string | null;
+  currency: string | null;
+  imageUrl: string | null;
+  productUrl: string;
+  retailer: string | null;
+  reason: string;
+  category: string | null;
+  colors: string[];
+  available: boolean | null;
+};
+
+function detectCurrency(price?: string | null): string | null {
+  if (!price) return null;
+  if (/£/.test(price) || /\bGBP\b/i.test(price)) return "GBP";
+  if (/\$/.test(price) || /\bUSD\b/i.test(price)) return "USD";
+  if (/€/.test(price) || /\bEUR\b/i.test(price)) return "EUR";
+  return null;
+}
+
+function retailerFromUrl(url: string): string | null {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    return host || null;
+  } catch {
+    return null;
+  }
+}
+
+function mapToProductResult(
+  p: ShoppingProduct,
+  ctx: { category?: string | null; reason?: string },
+): ProductResult | null {
+  if (!p?.title || !p?.link) return null;
+  const colors: string[] = [];
+  const c = colorWordFromText(p.title);
+  if (c) colors.push(c);
+  return {
+    title: p.title,
+    brand: p.source || null,
+    price: p.price || null,
+    currency: detectCurrency(p.price),
+    imageUrl: p.imageUrl || null,
+    productUrl: p.link,
+    retailer: p.source || retailerFromUrl(p.link),
+    reason: ctx.reason || p.reason || "Matches your style direction",
+    category: ctx.category || null,
+    colors,
+    available: null,
+  };
+}
+
+function quickActionsProductResults(): QAItem[] {
+  return [
+    { kind: "send_message", label: "Find cheaper options", message: "Can you find cheaper options?" },
+    { kind: "send_message", label: "Show more like these", message: "Show me more options like these." },
+    { kind: "send_message", label: "Compare these", message: "Compare these options for me." },
+    { kind: "send_message", label: "Use my wardrobe", message: "Style this from my wardrobe instead." },
+  ];
+}
+
+function quickActionsProductEmpty(): QAItem[] {
+  return [
+    { kind: "send_message", label: "Broaden search", message: "Broaden the search to more styles." },
+    { kind: "send_message", label: "Try different budget", message: "Try a different budget range." },
+    { kind: "send_message", label: "Use wardrobe only", message: "Style this from my wardrobe instead." },
+    { kind: "send_message", label: "Suggest search terms", message: "What search terms should I use?" },
+  ];
+}
+
+function buildPhase1ProductQuery(
+  text: string,
+  activeOutfit?: ActiveOutfit | null,
+): { query: string; targetCategory: string } {
+  const cat = canonicalGarmentType(text) || "shoes";
+  const userColor = colorWordFromText(text);
+  const outfitColor = (activeOutfit?.garmentNames || [])
+    .map((n) => colorWordFromText(n))
+    .filter(Boolean)[0] as string | undefined;
+  const color = userColor || outfitColor || "";
+  const budgetMatch = text.match(/under\s*[£$€]?\s?(\d{2,4})/i);
+  const budget = budgetMatch ? ` under ${budgetMatch[1]}` : "";
+  const query = `${color} ${cat} womens UK${budget}`.replace(/\s+/g, " ").trim().slice(0, 100);
+  return { query, targetCategory: cat };
+}
+
 type ActiveOutfit = {
   garmentIds: string[];
   garmentNames?: string[];
@@ -2387,6 +2476,80 @@ serve(async (req) => {
       });
     }
 
+    /* ── Phase 2: product_search short-circuit with REAL provider ── */
+    if (
+      phase1Intent === "product_search" &&
+      liveSearchConnected &&
+      !refMode &&
+      chatIntent !== "online_shopping_search"
+    ) {
+      const { query, targetCategory } = buildPhase1ProductQuery(lastUserText, activeOutfit);
+      const linkDebug = { rejected: [] as { title: string; rawShoppingLink: string; reason: string }[] };
+      const { items, provider } = await searchShoppingByQuery(query, 20, linkDebug);
+      const { accepted } = filterShoppingByCategory(items, targetCategory);
+      const safe = accepted.filter((p) => {
+        try { return !BLOCKED_SHOPPING_HOSTS.has(new URL(p.link).hostname.toLowerCase()); }
+        catch { return false; }
+      });
+      const top = safe.slice(0, 6);
+      const reasonBase = [colorWordFromText(lastUserText), targetCategory].filter(Boolean).join(" ").trim() || targetCategory;
+      const products: ProductResult[] = top
+        .map((p) => mapToProductResult(p, { category: targetCategory, reason: `Looks aligned with ${reasonBase}` }))
+        .filter((x): x is ProductResult => !!x);
+
+      const status: "success" | "empty" = products.length > 0 ? "success" : "empty";
+      const replyText = products.length > 0
+        ? "I found a few real options that fit your style direction."
+        : "I searched, but I couldn't find strong matches yet. Try broadening the style, budget, or retailer.";
+
+      let quickActions = withIds(products.length > 0 ? quickActionsProductResults() : quickActionsProductEmpty());
+      quickActions = await enrichQuickActions(quickActions, replyText, lastUserText, {
+        flow: "phase2_product_search",
+        intent: phase1Intent,
+        resultCount: products.length,
+        provider: provider || "none",
+      });
+
+      const productSearch = {
+        source: provider || "unknown",
+        query,
+        resultCount: products.length,
+        status,
+      };
+
+      const debugInfo = {
+        phase1Intent,
+        chatIntent,
+        mode: "product_search",
+        toolUsed: true,
+        liveSearchConnected,
+        productSearch,
+        rejectedShoppingLinks: linkDebug.rejected.slice(0, 8),
+      };
+
+      await supabase.from("chat_messages").insert({
+        user_id: userId,
+        role: "assistant",
+        content: replyText,
+        quick_actions: quickActions.length > 0 ? quickActions : null,
+        shopping: top.length > 0 ? top : null,
+        debug_info: debugInfo as any,
+      });
+
+      return json({
+        reply_text: replyText,
+        recommended_ids: [],
+        styling_instruction: "",
+        quick_actions: quickActions,
+        shopping: top,
+        products,
+        productSearch,
+        mode: "product_search",
+        intent: phase1Intent,
+        tool_used: true,
+        debug_info: debugInfo,
+      });
+    }
 
     /* ── save_wishlist_reference: insert into dream_items (gated) */
     let wishlistInserted = false;
@@ -3074,12 +3237,34 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
       debug_info: debugInfo as any,
     });
 
+    // Phase 2: include structured products + productSearch metadata for online_shopping_search flow.
+    const phase2Products: ProductResult[] = (chatIntent === "online_shopping_search" && shoppingResults.length > 0)
+      ? shoppingResults
+          .map((p) => mapToProductResult(p, {
+            category: shoppingDebug.targetShoppingCategory || null,
+            reason: p.reason || "Matches the look online",
+          }))
+          .filter((x): x is ProductResult => !!x)
+      : [];
+    const phase2Mode = chatIntent === "online_shopping_search" ? "product_search" : undefined;
+    const phase2ProductSearch = chatIntent === "online_shopping_search"
+      ? {
+          source: (shoppingDebug.providerTried || []).join("+") || "unknown",
+          query: shoppingDebug.shoppingQuery || "",
+          resultCount: phase2Products.length,
+          status: phase2Products.length > 0 ? "success" : (shoppingAvailable ? "empty" : "not_configured"),
+        }
+      : undefined;
+
     return json({
       reply_text: replyText,
       recommended_ids: recommendedIds,
       styling_instruction: stylingInstruction,
       quick_actions: quickActions,
       shopping: shoppingResults,
+      products: phase2Products,
+      ...(phase2Mode ? { mode: phase2Mode } : {}),
+      ...(phase2ProductSearch ? { productSearch: phase2ProductSearch } : {}),
       intent: phase1Intent,
       tool_used: onlineSearchAttempted && shoppingResults.length > 0,
       debug_info: debugInfo,
