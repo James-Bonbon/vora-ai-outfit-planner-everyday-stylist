@@ -2476,6 +2476,80 @@ serve(async (req) => {
       });
     }
 
+    /* ── Phase 2: product_search short-circuit with REAL provider ── */
+    if (
+      phase1Intent === "product_search" &&
+      liveSearchConnected &&
+      !refMode &&
+      chatIntent !== "online_shopping_search"
+    ) {
+      const { query, targetCategory } = buildPhase1ProductQuery(lastUserText, activeOutfit);
+      const linkDebug = { rejected: [] as { title: string; rawShoppingLink: string; reason: string }[] };
+      const { items, provider } = await searchShoppingByQuery(query, 20, linkDebug);
+      const { accepted } = filterShoppingByCategory(items, targetCategory);
+      const safe = accepted.filter((p) => {
+        try { return !BLOCKED_SHOPPING_HOSTS.has(new URL(p.link).hostname.toLowerCase()); }
+        catch { return false; }
+      });
+      const top = safe.slice(0, 6);
+      const reasonBase = [colorWordFromText(lastUserText), targetCategory].filter(Boolean).join(" ").trim() || targetCategory;
+      const products: ProductResult[] = top
+        .map((p) => mapToProductResult(p, { category: targetCategory, reason: `Looks aligned with ${reasonBase}` }))
+        .filter((x): x is ProductResult => !!x);
+
+      const status: "success" | "empty" = products.length > 0 ? "success" : "empty";
+      const replyText = products.length > 0
+        ? "I found a few real options that fit your style direction."
+        : "I searched, but I couldn't find strong matches yet. Try broadening the style, budget, or retailer.";
+
+      let quickActions = withIds(products.length > 0 ? quickActionsProductResults() : quickActionsProductEmpty());
+      quickActions = await enrichQuickActions(quickActions, replyText, lastUserText, {
+        flow: "phase2_product_search",
+        intent: phase1Intent,
+        resultCount: products.length,
+        provider: provider || "none",
+      });
+
+      const productSearch = {
+        source: provider || "unknown",
+        query,
+        resultCount: products.length,
+        status,
+      };
+
+      const debugInfo = {
+        phase1Intent,
+        chatIntent,
+        mode: "product_search",
+        toolUsed: true,
+        liveSearchConnected,
+        productSearch,
+        rejectedShoppingLinks: linkDebug.rejected.slice(0, 8),
+      };
+
+      await supabase.from("chat_messages").insert({
+        user_id: userId,
+        role: "assistant",
+        content: replyText,
+        quick_actions: quickActions.length > 0 ? quickActions : null,
+        shopping: top.length > 0 ? top : null,
+        debug_info: debugInfo as any,
+      });
+
+      return json({
+        reply_text: replyText,
+        recommended_ids: [],
+        styling_instruction: "",
+        quick_actions: quickActions,
+        shopping: top,
+        products,
+        productSearch,
+        mode: "product_search",
+        intent: phase1Intent,
+        tool_used: true,
+        debug_info: debugInfo,
+      });
+    }
 
     /* ── save_wishlist_reference: insert into dream_items (gated) */
     let wishlistInserted = false;
