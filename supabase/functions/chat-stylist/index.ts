@@ -1448,6 +1448,95 @@ function quickActionsForPhase1(intent: Phase1Intent, opts: { shoppingAvailable: 
   }
 }
 
+/* ── Phase 2: structured product search helpers ─────────────── */
+type ProductResult = {
+  title: string;
+  brand: string | null;
+  price: string | null;
+  currency: string | null;
+  imageUrl: string | null;
+  productUrl: string;
+  retailer: string | null;
+  reason: string;
+  category: string | null;
+  colors: string[];
+  available: boolean | null;
+};
+
+function detectCurrency(price?: string | null): string | null {
+  if (!price) return null;
+  if (/£/.test(price) || /\bGBP\b/i.test(price)) return "GBP";
+  if (/\$/.test(price) || /\bUSD\b/i.test(price)) return "USD";
+  if (/€/.test(price) || /\bEUR\b/i.test(price)) return "EUR";
+  return null;
+}
+
+function retailerFromUrl(url: string): string | null {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    return host || null;
+  } catch {
+    return null;
+  }
+}
+
+function mapToProductResult(
+  p: ShoppingProduct,
+  ctx: { category?: string | null; reason?: string },
+): ProductResult | null {
+  if (!p?.title || !p?.link) return null;
+  const colors: string[] = [];
+  const c = colorWordFromText(p.title);
+  if (c) colors.push(c);
+  return {
+    title: p.title,
+    brand: p.source || null,
+    price: p.price || null,
+    currency: detectCurrency(p.price),
+    imageUrl: p.imageUrl || null,
+    productUrl: p.link,
+    retailer: p.source || retailerFromUrl(p.link),
+    reason: ctx.reason || p.reason || "Matches your style direction",
+    category: ctx.category || null,
+    colors,
+    available: null,
+  };
+}
+
+function quickActionsProductResults(): QAItem[] {
+  return [
+    { kind: "send_message", label: "Find cheaper options", message: "Can you find cheaper options?" },
+    { kind: "send_message", label: "Show more like these", message: "Show me more options like these." },
+    { kind: "send_message", label: "Compare these", message: "Compare these options for me." },
+    { kind: "send_message", label: "Use my wardrobe", message: "Style this from my wardrobe instead." },
+  ];
+}
+
+function quickActionsProductEmpty(): QAItem[] {
+  return [
+    { kind: "send_message", label: "Broaden search", message: "Broaden the search to more styles." },
+    { kind: "send_message", label: "Try different budget", message: "Try a different budget range." },
+    { kind: "send_message", label: "Use wardrobe only", message: "Style this from my wardrobe instead." },
+    { kind: "send_message", label: "Suggest search terms", message: "What search terms should I use?" },
+  ];
+}
+
+function buildPhase1ProductQuery(
+  text: string,
+  activeOutfit?: ActiveOutfit | null,
+): { query: string; targetCategory: string } {
+  const cat = canonicalGarmentType(text) || "shoes";
+  const userColor = colorWordFromText(text);
+  const outfitColor = (activeOutfit?.garmentNames || [])
+    .map((n) => colorWordFromText(n))
+    .filter(Boolean)[0] as string | undefined;
+  const color = userColor || outfitColor || "";
+  const budgetMatch = text.match(/under\s*[£$€]?\s?(\d{2,4})/i);
+  const budget = budgetMatch ? ` under ${budgetMatch[1]}` : "";
+  const query = `${color} ${cat} womens UK${budget}`.replace(/\s+/g, " ").trim().slice(0, 100);
+  return { query, targetCategory: cat };
+}
+
 type ActiveOutfit = {
   garmentIds: string[];
   garmentNames?: string[];
