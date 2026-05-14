@@ -3237,12 +3237,34 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
       debug_info: debugInfo as any,
     });
 
+    // Phase 2: include structured products + productSearch metadata for online_shopping_search flow.
+    const phase2Products: ProductResult[] = (chatIntent === "online_shopping_search" && shoppingResults.length > 0)
+      ? shoppingResults
+          .map((p) => mapToProductResult(p, {
+            category: shoppingDebug.targetShoppingCategory || null,
+            reason: p.reason || "Matches the look online",
+          }))
+          .filter((x): x is ProductResult => !!x)
+      : [];
+    const phase2Mode = chatIntent === "online_shopping_search" ? "product_search" : undefined;
+    const phase2ProductSearch = chatIntent === "online_shopping_search"
+      ? {
+          source: (shoppingDebug.providerTried || []).join("+") || "unknown",
+          query: shoppingDebug.shoppingQuery || "",
+          resultCount: phase2Products.length,
+          status: phase2Products.length > 0 ? "success" : (shoppingAvailable ? "empty" : "not_configured"),
+        }
+      : undefined;
+
     return json({
       reply_text: replyText,
       recommended_ids: recommendedIds,
       styling_instruction: stylingInstruction,
       quick_actions: quickActions,
       shopping: shoppingResults,
+      products: phase2Products,
+      ...(phase2Mode ? { mode: phase2Mode } : {}),
+      ...(phase2ProductSearch ? { productSearch: phase2ProductSearch } : {}),
       intent: phase1Intent,
       tool_used: onlineSearchAttempted && shoppingResults.length > 0,
       debug_info: debugInfo,
