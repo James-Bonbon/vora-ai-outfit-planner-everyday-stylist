@@ -451,9 +451,9 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
     if (/\b(missing|gap|wardrobe (review|gaps?))\b/.test(t))
       return "Reviewing your wardrobe…";
     if (/\b(shop|buy|browse|find me|search for|online|cheaper|alternative|under £|under \$)\b/.test(t))
-      return "Preparing shopping guidance…";
+      return "Searching products…";
     if (/(shoe|sneaker|trainer|loafer|boot|heel|sandal|mule|flat|footwear|pump)/.test(t))
-      return "Thinking through footwear options…";
+      return "Checking shop options…";
     if (/(wardrobe|closet|outfit|style|wear|dress|look)/.test(t))
       return "Checking your style context…";
     return "Thinking…";
