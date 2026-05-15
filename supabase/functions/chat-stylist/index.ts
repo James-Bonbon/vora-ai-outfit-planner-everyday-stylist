@@ -2533,6 +2533,8 @@ serve(async (req) => {
         content: replyText,
         quick_actions: quickActions.length > 0 ? quickActions : null,
         shopping: top.length > 0 ? top : null,
+        products: products.length > 0 ? (products as any) : null,
+        product_search: productSearch as any,
         debug_info: debugInfo as any,
       });
 
@@ -3226,17 +3228,6 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
       quickActionReason,
     };
 
-    await supabase.from("chat_messages").insert({
-      user_id: userId,
-      role: "assistant",
-      content: replyText,
-      suggested_garment_ids: recommendedIds.length > 0 ? recommendedIds : null,
-      quick_actions: quickActions.length > 0 ? quickActions : null,
-      shopping: shoppingResults.length > 0 ? shoppingResults : null,
-      product_reference: productRef as any,
-      debug_info: debugInfo as any,
-    });
-
     // Phase 2: include structured products + productSearch metadata for online_shopping_search flow.
     const phase2Products: ProductResult[] = (chatIntent === "online_shopping_search" && shoppingResults.length > 0)
       ? shoppingResults
@@ -3255,6 +3246,21 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
           status: phase2Products.length > 0 ? "success" : (shoppingAvailable ? "empty" : "not_configured"),
         }
       : undefined;
+
+    await supabase.from("chat_messages").insert({
+      user_id: userId,
+      role: "assistant",
+      content: replyText,
+      suggested_garment_ids: recommendedIds.length > 0 ? recommendedIds : null,
+      quick_actions: quickActions.length > 0 ? quickActions : null,
+      shopping: shoppingResults.length > 0 ? shoppingResults : null,
+      products: phase2Products.length > 0 ? (phase2Products as any) : null,
+      product_search: phase2ProductSearch ? (phase2ProductSearch as any) : null,
+      product_reference: productRef as any,
+      debug_info: debugInfo as any,
+    });
+
+
 
     return json({
       reply_text: replyText,
