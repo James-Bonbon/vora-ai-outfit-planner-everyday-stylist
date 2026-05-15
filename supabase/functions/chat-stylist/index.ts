@@ -2533,6 +2533,8 @@ serve(async (req) => {
         content: replyText,
         quick_actions: quickActions.length > 0 ? quickActions : null,
         shopping: top.length > 0 ? top : null,
+        products: products.length > 0 ? (products as any) : null,
+        product_search: productSearch as any,
         debug_info: debugInfo as any,
       });
 
