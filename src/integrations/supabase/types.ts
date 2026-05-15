@@ -112,6 +112,8 @@ export type Database = {
           debug_info: Json | null
           id: string
           product_reference: Json | null
+          product_search: Json | null
+          products: Json | null
           quick_actions: Json | null
           role: string
           shopping: Json | null
@@ -125,6 +127,8 @@ export type Database = {
           debug_info?: Json | null
           id?: string
           product_reference?: Json | null
+          product_search?: Json | null
+          products?: Json | null
           quick_actions?: Json | null
           role?: string
           shopping?: Json | null
@@ -138,6 +142,8 @@ export type Database = {
           debug_info?: Json | null
           id?: string
           product_reference?: Json | null
+          product_search?: Json | null
+          products?: Json | null
           quick_actions?: Json | null
           role?: string
           shopping?: Json | null
