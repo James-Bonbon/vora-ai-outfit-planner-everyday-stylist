@@ -3228,6 +3228,25 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
       quickActionReason,
     };
 
+    // Phase 2: include structured products + productSearch metadata for online_shopping_search flow.
+    const phase2Products: ProductResult[] = (chatIntent === "online_shopping_search" && shoppingResults.length > 0)
+      ? shoppingResults
+          .map((p) => mapToProductResult(p, {
+            category: shoppingDebug.targetShoppingCategory || null,
+            reason: p.reason || "Matches the look online",
+          }))
+          .filter((x): x is ProductResult => !!x)
+      : [];
+    const phase2Mode = chatIntent === "online_shopping_search" ? "product_search" : undefined;
+    const phase2ProductSearch = chatIntent === "online_shopping_search"
+      ? {
+          source: (shoppingDebug.providerTried || []).join("+") || "unknown",
+          query: shoppingDebug.shoppingQuery || "",
+          resultCount: phase2Products.length,
+          status: phase2Products.length > 0 ? "success" : (shoppingAvailable ? "empty" : "not_configured"),
+        }
+      : undefined;
+
     await supabase.from("chat_messages").insert({
       user_id: userId,
       role: "assistant",
@@ -3235,6 +3254,8 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
       suggested_garment_ids: recommendedIds.length > 0 ? recommendedIds : null,
       quick_actions: quickActions.length > 0 ? quickActions : null,
       shopping: shoppingResults.length > 0 ? shoppingResults : null,
+      products: phase2Products.length > 0 ? (phase2Products as any) : null,
+      product_search: phase2ProductSearch ? (phase2ProductSearch as any) : null,
       product_reference: productRef as any,
       debug_info: debugInfo as any,
     });
