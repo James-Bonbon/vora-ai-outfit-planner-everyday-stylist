@@ -42,6 +42,27 @@ interface ShoppingProduct {
   reason?: string;
 }
 
+export interface ProductResult {
+  title: string;
+  brand?: string | null;
+  price?: string | null;
+  currency?: string | null;
+  imageUrl?: string | null;
+  productUrl: string;
+  retailer?: string | null;
+  reason?: string | null;
+  category?: string | null;
+  colors?: string[];
+  available?: boolean | null;
+}
+
+export interface ProductSearchMeta {
+  source?: string;
+  query?: string;
+  resultCount?: number;
+  status?: "success" | "empty" | "error" | "not_configured" | string;
+}
+
 interface ProductReference {
   source?: string;
   confidence?: number;
@@ -79,6 +100,7 @@ interface DebugInfo {
   recommendedIds?: string[];
   shoppingResultsCount?: number;
   quickActionReason?: string;
+  mode?: string;
   [key: string]: unknown;
 }
 
@@ -90,6 +112,8 @@ interface ChatMessage {
   quick_actions?: ChatQuickAction[] | null;
   attachment_url?: string | null;
   shopping?: ShoppingProduct[] | null;
+  products?: ProductResult[] | null;
+  product_search?: ProductSearchMeta | null;
   product_reference?: ProductReference | null;
   debug_info?: DebugInfo | null;
   created_at: string;
