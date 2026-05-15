@@ -226,6 +226,125 @@ const DebugChip: React.FC<{ debug: DebugInfo; productRef?: ProductReference }> =
   );
 };
 
+const isValidHttpUrl = (u?: string | null): u is string => {
+  if (!u) return false;
+  try {
+    const p = new URL(u);
+    return p.protocol === "http:" || p.protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
+const formatPrice = (price?: string | null, currency?: string | null): string | null => {
+  if (!price) return null;
+  const trimmed = String(price).trim();
+  if (!trimmed) return null;
+  if (/[^\d.,\s]/.test(trimmed)) return trimmed;
+  if (!currency) return trimmed;
+  const symbolMap: Record<string, string> = { USD: "$", GBP: "£", EUR: "€" };
+  const sym = symbolMap[currency.toUpperCase()];
+  return sym ? `${sym}${trimmed}` : `${trimmed} ${currency}`;
+};
+
+interface ProductResultCardsProps {
+  products: ProductResult[];
+  source?: string | null;
+  onSendMessage: (text: string) => void;
+}
+
+const ProductResultCards: React.FC<ProductResultCardsProps> = ({ products, source, onSendMessage }) => {
+  const visible = products.slice(0, 6).filter((p) => isValidHttpUrl(p.productUrl));
+  if (visible.length === 0) return null;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-col gap-2">
+        {visible.map((p, i) => {
+          const priceText = formatPrice(p.price, p.currency);
+          const meta = [p.brand, p.retailer].filter(Boolean).join(" · ");
+          return (
+            <div
+              key={`${p.productUrl}-${i}`}
+              className="rounded-xl border border-border bg-card overflow-hidden flex"
+            >
+              <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 bg-secondary">
+                {p.imageUrl ? (
+                  <SafeImage
+                    src={p.imageUrl}
+                    alt={p.title}
+                    aspectRatio="aspect-square"
+                    fit="cover"
+                    wrapperClassName="w-full h-full"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                    <ImageIcon className="w-5 h-5" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0 p-2.5 flex flex-col gap-1">
+                <p className="text-xs font-medium text-foreground line-clamp-2 leading-snug">
+                  {p.title}
+                </p>
+                {(meta || priceText) && (
+                  <div className="flex items-center justify-between gap-2">
+                    {meta && (
+                      <p className="text-[10px] text-muted-foreground truncate uppercase tracking-wider">
+                        {meta}
+                      </p>
+                    )}
+                    {priceText && (
+                      <p className="text-xs font-semibold text-foreground shrink-0">{priceText}</p>
+                    )}
+                  </div>
+                )}
+                {p.reason && (
+                  <p className="text-[10px] text-muted-foreground line-clamp-1">{p.reason}</p>
+                )}
+                <div className="flex flex-wrap gap-1 pt-1">
+                  <a
+                    href={p.productUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full border border-border bg-background text-foreground hover:border-primary/40 hover:bg-secondary transition-colors"
+                  >
+                    View
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => onSendMessage(`Style this product: ${p.title}`)}
+                    className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full border border-border bg-background text-foreground hover:border-primary/40 hover:bg-secondary transition-colors"
+                  >
+                    Style this
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onSendMessage(`Find similar options to: ${p.title}`)}
+                    className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full border border-border bg-background text-foreground hover:border-primary/40 hover:bg-secondary transition-colors"
+                  >
+                    Find similar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onSendMessage(`Compare this option with the others: ${p.title}`)}
+                    className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full border border-border bg-background text-foreground hover:border-primary/40 hover:bg-secondary transition-colors"
+                  >
+                    Compare
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {source && (
+        <p className="text-[10px] text-muted-foreground px-1">Results from {source}</p>
+      )}
+    </div>
+  );
+};
+
 export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
