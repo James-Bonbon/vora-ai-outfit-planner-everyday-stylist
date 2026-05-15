@@ -817,33 +817,50 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
                   </div>
                 )}
 
-                {/* Shopping results (cheaper alternatives) */}
-                {msg.role === "assistant" && Array.isArray(msg.shopping) && msg.shopping.length > 0 && (
-                  <div className="grid grid-cols-2 gap-2">
-                    {msg.shopping.map((p, i) => (
-                      <a
-                        key={i}
-                        href={p.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="rounded-xl border border-border overflow-hidden bg-card hover:border-primary/40 transition-colors"
-                      >
-                        {p.imageUrl && (
-                          <div className="aspect-square w-full bg-secondary flex items-center justify-center overflow-hidden">
-                            <img src={p.imageUrl} alt={p.title} className="w-full h-full object-cover" loading="lazy" />
+                {/* Phase 3: structured product result cards */}
+                {msg.role === "assistant" &&
+                  Array.isArray(msg.products) &&
+                  msg.products.length > 0 &&
+                  (msg.debug_info?.mode === "product_search" ||
+                    msg.debug_info?.chatIntent === "online_shopping_search" ||
+                    msg.product_search?.status === "success") && (
+                    <ProductResultCards
+                      products={msg.products}
+                      source={msg.product_search?.source || null}
+                      onSendMessage={sendQuickMessage}
+                    />
+                  )}
+
+                {/* Legacy shopping results (fallback when no structured products) */}
+                {msg.role === "assistant" &&
+                  (!Array.isArray(msg.products) || msg.products.length === 0) &&
+                  Array.isArray(msg.shopping) &&
+                  msg.shopping.length > 0 && (
+                    <div className="grid grid-cols-2 gap-2">
+                      {msg.shopping.map((p, i) => (
+                        <a
+                          key={i}
+                          href={p.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="rounded-xl border border-border overflow-hidden bg-card hover:border-primary/40 transition-colors"
+                        >
+                          {p.imageUrl && (
+                            <div className="aspect-square w-full bg-secondary flex items-center justify-center overflow-hidden">
+                              <img src={p.imageUrl} alt={p.title} className="w-full h-full object-cover" loading="lazy" />
+                            </div>
+                          )}
+                          <div className="p-2 space-y-0.5">
+                            <p className="text-[11px] font-medium text-foreground line-clamp-2 leading-tight">{p.title}</p>
+                            <div className="flex items-center justify-between gap-1">
+                              {p.price && <p className="text-xs font-semibold text-foreground">{p.price}</p>}
+                              {p.source && <p className="text-[10px] text-muted-foreground truncate">{p.source}</p>}
+                            </div>
                           </div>
-                        )}
-                        <div className="p-2 space-y-0.5">
-                          <p className="text-[11px] font-medium text-foreground line-clamp-2 leading-tight">{p.title}</p>
-                          <div className="flex items-center justify-between gap-1">
-                            {p.price && <p className="text-xs font-semibold text-foreground">{p.price}</p>}
-                            {p.source && <p className="text-[10px] text-muted-foreground truncate">{p.source}</p>}
-                          </div>
-                        </div>
-                      </a>
-                    ))}
-                  </div>
-                )}
+                        </a>
+                      ))}
+                    </div>
+                  )}
 
                 {/* Garment cards */}
                 {msg.role === "assistant" &&
