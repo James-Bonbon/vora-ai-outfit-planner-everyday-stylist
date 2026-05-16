@@ -2349,6 +2349,15 @@ serve(async (req) => {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
+      supabase
+        .from("chat_messages")
+        .select("products, product_search, created_at")
+        .eq("user_id", userId)
+        .eq("role", "assistant")
+        .not("products", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
     const wardrobeRaw = wardrobeRes.data;
     const profile = profileRes.data;
