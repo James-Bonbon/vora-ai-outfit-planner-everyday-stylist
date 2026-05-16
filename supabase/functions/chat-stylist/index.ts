@@ -1505,9 +1505,9 @@ function mapToProductResult(
 
 function quickActionsProductResults(): QAItem[] {
   return [
-    { kind: "send_message", label: "Find cheaper options", message: "Can you find cheaper options?" },
-    { kind: "send_message", label: "Show more like these", message: "Show me more options like these." },
-    { kind: "send_message", label: "Compare these", message: "Compare these options for me." },
+    { kind: "send_message", label: "Compare top two", message: "Compare the first two for me." },
+    { kind: "send_message", label: "Style the first one", message: "Style product 1 for me." },
+    { kind: "send_message", label: "Find cheaper options", message: "Find cheaper options like these." },
     { kind: "send_message", label: "Use my wardrobe", message: "Style this from my wardrobe instead." },
   ];
 }
@@ -1518,6 +1518,148 @@ function quickActionsProductEmpty(): QAItem[] {
     { kind: "send_message", label: "Try different budget", message: "Try a different budget range." },
     { kind: "send_message", label: "Use wardrobe only", message: "Style this from my wardrobe instead." },
     { kind: "send_message", label: "Suggest search terms", message: "What search terms should I use?" },
+  ];
+}
+
+/* ── Phase 4: product follow-up helpers ─────────────────────── */
+type ProductFollowupKind =
+  | "none"
+  | "style_product"
+  | "find_similar"
+  | "compare_products"
+  | "save_product";
+
+type ProductFollowup = {
+  kind: ProductFollowupKind;
+  selectorText: string;
+  modifiers: {
+    cheaper?: boolean;
+    dressier?: boolean;
+    casual?: boolean;
+    premium?: boolean;
+    sameBrand?: boolean;
+    budget?: number | null;
+    color?: string | null;
+  };
+};
+
+function classifyProductFollowup(text: string): ProductFollowup {
+  const t = (text || "").toLowerCase();
+  const empty: ProductFollowup = { kind: "none", selectorText: "", modifiers: {} };
+  if (!t) return empty;
+
+  const budgetMatch = t.match(/under\s*[£$€]?\s?(\d{2,4})/i);
+  const modifiers = {
+    cheaper: /\b(cheaper|less expensive|more affordable|budget|dupes?)\b/.test(t),
+    dressier: /\b(dressier|more polished|smarter|formal|fancier)\b/.test(t),
+    casual: /\b(more casual|less formal|relaxed)\b/.test(t),
+    premium: /\b(more premium|higher end|luxury|nicer)\b/.test(t),
+    sameBrand: /\b(same brand|by the same brand)\b/.test(t),
+    budget: budgetMatch ? Number(budgetMatch[1]) : null,
+    color: colorWordFromText(text) || null,
+  };
+
+  let kind: ProductFollowupKind = "none";
+  if (/\b(save|wishlist|wish list|bookmark|add to (my )?(wishlist|saved))\b/.test(t)) kind = "save_product";
+  else if (/\b(compare|which (one |is )?(better|best)|vs\b|versus)\b/.test(t)) kind = "compare_products";
+  else if (/\b(find similar|more like|similar (options|ones|to)|alternatives?|dupes?|something less|something more|same idea|in (black|white|brown|beige|navy|cream))\b/.test(t)) kind = "find_similar";
+  else if (/\b(style (this|that|product|the|number)|wear (it|this|product)|outfit (with|around) (this|product|the))\b/.test(t)) kind = "style_product";
+  if (kind === "none" && (modifiers.cheaper || modifiers.premium || modifiers.dressier || modifiers.casual || modifiers.budget != null)) {
+    kind = "find_similar";
+  }
+
+  return { kind, selectorText: t, modifiers };
+}
+
+const ORDINAL_WORDS: Record<string, number> = {
+  first: 0, "1st": 0, second: 1, "2nd": 1, third: 2, "3rd": 2,
+  fourth: 3, "4th": 3, fifth: 4, "5th": 4, sixth: 5, "6th": 5,
+};
+
+function resolveSelectedProducts(text: string, products: ProductResult[]): { indices: number[]; selectors: string[] } {
+  if (!products || products.length === 0) return { indices: [], selectors: [] };
+  const t = (text || "").toLowerCase();
+  const indices = new Set<number>();
+  const selectors: string[] = [];
+
+  if (/\b(both|top two|first two|two of them)\b/.test(t) && products.length >= 2) {
+    indices.add(0); indices.add(1); selectors.push("first_two");
+  }
+  if (/\b(all of them|all three|every one|these all)\b/.test(t)) {
+    for (let i = 0; i < products.length; i++) indices.add(i);
+    selectors.push("all");
+  }
+
+  const numMatches = t.matchAll(/\b(?:product|number|option|#)\s*#?(\d{1,2})\b/g);
+  for (const m of numMatches) {
+    const n = Number(m[1]);
+    if (n >= 1 && n <= products.length) { indices.add(n - 1); selectors.push(`product_${n}`); }
+  }
+
+  for (const [word, idx] of Object.entries(ORDINAL_WORDS)) {
+    const re = new RegExp(`\\b${word}(?:\\s+(?:one|option|product))?\\b`, "i");
+    if (re.test(t) && idx < products.length) { indices.add(idx); selectors.push(`ordinal_${word}`); }
+  }
+
+  if (indices.size === 0) {
+    for (let i = 0; i < products.length; i++) {
+      const p = products[i];
+      const cat = (p.category || "").toLowerCase();
+      const title = (p.title || "").toLowerCase();
+      const tokens = [cat, ...title.split(/\s+/)].filter((x) => x && x.length >= 4);
+      for (const tok of tokens) {
+        const re = new RegExp(`\\bthe ${tok}s?\\b|\\b${tok}s?\\b`, "i");
+        if (re.test(t)) { indices.add(i); selectors.push(`keyword_${tok}`); break; }
+      }
+    }
+  }
+
+  return { indices: Array.from(indices).sort((a, b) => a - b), selectors };
+}
+
+function buildSimilarQuery(p: ProductResult, mods: ProductFollowup["modifiers"]): string {
+  const parts: string[] = [];
+  const color = mods.color || (p.colors && p.colors[0]) || "";
+  if (color) parts.push(color);
+  if (mods.dressier) parts.push("polished");
+  if (mods.casual) parts.push("casual");
+  if (mods.premium) parts.push("premium");
+  const cat = p.category || canonicalGarmentType(p.title) || "";
+  if (cat) parts.push(cat);
+  if (mods.sameBrand && p.brand) parts.push(p.brand);
+  parts.push("womens UK");
+  if (mods.budget) parts.push(`under ${mods.budget}`);
+  else if (mods.cheaper && p.price) {
+    const num = Number(String(p.price).replace(/[^\d.]/g, ""));
+    if (num > 0) parts.push(`under ${Math.max(20, Math.floor(num * 0.7))}`);
+  }
+  return parts.filter(Boolean).join(" ").replace(/\s+/g, " ").slice(0, 100);
+}
+
+function quickActionsAfterComparison(): QAItem[] {
+  return [
+    { kind: "send_message", label: "Style the winner", message: "Style the one you picked for me." },
+    { kind: "send_message", label: "Find similar", message: "Find similar options to the one you picked." },
+    { kind: "send_message", label: "Save this one", message: "Save the one you picked to my wishlist." },
+    { kind: "send_message", label: "Search alternatives", message: "Search alternatives at a lower price." },
+  ];
+}
+
+function quickActionsAfterStyleProduct(): QAItem[] {
+  return [
+    { kind: "send_message", label: "Make it casual", message: "Make this outfit more casual." },
+    { kind: "send_message", label: "Make it dressier", message: "Make this outfit dressier." },
+    { kind: "send_message", label: "Find matching bag", message: "Find a bag that goes with this." },
+    { kind: "send_message", label: "Search similar item", message: "Find similar options to the product." },
+  ];
+}
+
+function quickActionsAfterSimilar(): QAItem[] {
+  return [
+    { kind: "send_message", label: "Cheaper still", message: "Cheaper still please." },
+    { kind: "send_message", label: "Different color", message: "Show me a different color." },
+    { kind: "send_message", label: "Style the first one", message: "Style product 1 for me." },
+    { kind: "send_message", label: "Use my wardrobe", message: "Style this from my wardrobe instead." },
   ];
 }
 
