@@ -2596,6 +2596,162 @@ serve(async (req) => {
     const phase1Intent: Phase1Intent = classifyPhase1Intent(lastUserText, !!activeOutfit);
     const liveSearchConnected = shoppingAvailable;
 
+    /* ── Phase 4: product follow-up resolution ──────────────── */
+    let recentProducts: ProductResult[] = [];
+    let recentProductsSource: string | null = null;
+    const lastProductsRow: any = (lastProductsRes as any)?.data;
+    if (lastProductsRow?.products && Array.isArray(lastProductsRow.products) && lastProductsRow.created_at) {
+      const ageMs = Date.now() - new Date(lastProductsRow.created_at).getTime();
+      if (ageMs < 24 * 60 * 60 * 1000) {
+        recentProducts = lastProductsRow.products as ProductResult[];
+        recentProductsSource = (lastProductsRow.product_search as any)?.source || null;
+      }
+    }
+
+    const followup = classifyProductFollowup(lastUserText);
+    const selection = resolveSelectedProducts(lastUserText, recentProducts);
+    const followupActive = !refMode && followup.kind !== "none" && recentProducts.length > 0;
+
+    // User referenced a product but no recent set exists.
+    if (
+      !refMode &&
+      recentProducts.length === 0 &&
+      /\b(first one|second one|third one|the loafers|the sneakers|these|both|product\s*\d|number\s*\d|#\s*\d)\b/i.test(lastUserText) &&
+      followup.kind !== "none"
+    ) {
+      const replyText = "I don't have a recent product to reference. Want me to search first?";
+      const quickActions = withIds([
+        { kind: "send_message", label: "Find loafers", message: "Find me loafers." },
+        { kind: "send_message", label: "Find sneakers", message: "Find me white sneakers." },
+        { kind: "send_message", label: "Use my wardrobe", message: "Style something from my wardrobe." },
+      ]);
+      const debugInfo = { phase1Intent, followupKind: followup.kind, toolUsed: false, reason: "no_recent_products" };
+      await supabase.from("chat_messages").insert({
+        user_id: userId, role: "assistant", content: replyText,
+        quick_actions: quickActions, debug_info: debugInfo as any,
+      });
+      return json({ reply_text: replyText, recommended_ids: [], styling_instruction: "", quick_actions: quickActions, intent: phase1Intent, tool_used: false, debug_info: debugInfo });
+    }
+
+    // Out-of-range ordinal reference.
+    if (
+      followupActive &&
+      selection.indices.length === 0 &&
+      recentProducts.length === 1 &&
+      /\b(second|2nd|third|3rd|fourth|4th|product\s*[2-9]|#\s*[2-9])\b/i.test(lastUserText)
+    ) {
+      const replyText = "I only have one product in the current results.";
+      const quickActions = withIds([
+        { kind: "send_message", label: "Style product 1", message: "Style product 1 for me." },
+        { kind: "send_message", label: "Find similar", message: "Find similar options to product 1." },
+        { kind: "send_message", label: "Show more options", message: "Show me more options." },
+      ]);
+      const debugInfo = { phase1Intent, followupKind: followup.kind, toolUsed: false, reason: "out_of_range" };
+      await supabase.from("chat_messages").insert({
+        user_id: userId, role: "assistant", content: replyText,
+        quick_actions: quickActions, debug_info: debugInfo as any,
+      });
+      return json({ reply_text: replyText, recommended_ids: [], styling_instruction: "", quick_actions: quickActions, intent: phase1Intent, tool_used: false, debug_info: debugInfo });
+    }
+
+    // ── save_product short-circuit (real save to dream_items) ──
+    if (followupActive && followup.kind === "save_product" && selection.indices.length > 0) {
+      const picks = selection.indices.map((i) => recentProducts[i]).filter(Boolean);
+      let savedCount = 0;
+      const errors: string[] = [];
+      for (const p of picks) {
+        try {
+          const priceNum = p.price ? Number(String(p.price).replace(/[^\d.]/g, "")) || null : null;
+          const { error: insErr } = await supabase.from("dream_items").insert({
+            user_id: userId,
+            name: p.title,
+            brand: p.brand || null,
+            image_url: p.imageUrl || p.productUrl,
+            price: priceNum,
+          });
+          if (insErr) errors.push(insErr.message);
+          else savedCount += 1;
+        } catch (e) {
+          errors.push((e as Error).message);
+        }
+      }
+      const replyText = savedCount > 0
+        ? (savedCount === 1
+            ? `Saved "${picks[0].title.slice(0, 60)}" to your wishlist.`
+            : `Saved ${savedCount} items to your wishlist.`)
+        : "I couldn't save that item. Please try again.";
+      const quickActions = withIds([
+        { kind: "open_wardrobe", label: "Open wishlist" },
+        { kind: "send_message", label: "Style the saved one", message: `Style product ${selection.indices[0] + 1} for me.` },
+        { kind: "send_message", label: "Find similar", message: `Find similar options to product ${selection.indices[0] + 1}.` },
+      ]);
+      const debugInfo = {
+        phase1Intent, followupKind: "save_product", toolUsed: savedCount > 0,
+        savedCount, errors, selectors: selection.selectors,
+      };
+      await supabase.from("chat_messages").insert({
+        user_id: userId, role: "assistant", content: replyText,
+        quick_actions: quickActions, debug_info: debugInfo as any,
+      });
+      return json({ reply_text: replyText, recommended_ids: [], styling_instruction: "", quick_actions: quickActions, intent: phase1Intent, tool_used: savedCount > 0, debug_info: debugInfo });
+    }
+
+    // ── find_similar short-circuit (real product search) ──
+    if (followupActive && followup.kind === "find_similar" && selection.indices.length > 0 && liveSearchConnected) {
+      const seed = recentProducts[selection.indices[0]];
+      const query = buildSimilarQuery(seed, followup.modifiers);
+      const targetCategory = seed.category || canonicalGarmentType(seed.title) || "shoes";
+      const linkDebug = { rejected: [] as { title: string; rawShoppingLink: string; reason: string }[] };
+      const { items, provider } = await searchShoppingByQuery(query, 20, linkDebug);
+      const { accepted } = filterShoppingByCategory(items, targetCategory);
+      const safe = accepted.filter((p) => {
+        try { return !BLOCKED_SHOPPING_HOSTS.has(new URL(p.link).hostname.toLowerCase()); }
+        catch { return false; }
+      });
+      const top = safe.slice(0, 6);
+      const reasonBase = [followup.modifiers.color || (seed.colors && seed.colors[0]), targetCategory].filter(Boolean).join(" ").trim() || targetCategory;
+      const products: ProductResult[] = top
+        .map((p) => mapToProductResult(p, { category: targetCategory, reason: `Similar to ${seed.title.slice(0, 40)} — ${reasonBase}` }))
+        .filter((x): x is ProductResult => !!x);
+
+      const status: "success" | "empty" = products.length > 0 ? "success" : "empty";
+      const replyText = products.length > 0
+        ? `Here are similar options to "${seed.title.slice(0, 60)}".`
+        : "I couldn't fetch similar products right now. Try a different angle (color, budget, style).";
+
+      let quickActions = withIds(products.length > 0 ? quickActionsAfterSimilar() : quickActionsProductEmpty());
+      quickActions = await enrichQuickActions(quickActions, replyText, lastUserText, {
+        flow: "phase4_find_similar", intent: phase1Intent, seed: seed.title, resultCount: products.length,
+      });
+      const productSearch = { source: provider || "unknown", query, resultCount: products.length, status };
+      const debugInfo = {
+        phase1Intent, followupKind: "find_similar", toolUsed: true,
+        productSearch, selectors: selection.selectors, modifiers: followup.modifiers,
+      };
+
+      await supabase.from("chat_messages").insert({
+        user_id: userId, role: "assistant", content: replyText,
+        quick_actions: quickActions, shopping: top.length > 0 ? top : null,
+        products: products.length > 0 ? (products as any) : null,
+        product_search: productSearch as any, debug_info: debugInfo as any,
+      });
+      return json({
+        reply_text: replyText, recommended_ids: [], styling_instruction: "",
+        quick_actions: quickActions, shopping: top, products, productSearch,
+        mode: "product_search", intent: phase1Intent, tool_used: true, debug_info: debugInfo,
+      });
+    }
+    if (followupActive && followup.kind === "find_similar" && selection.indices.length > 0 && !liveSearchConnected) {
+      const replyText = "Live product search isn't connected yet, so I can't fetch similar items. I can describe what to look for instead.";
+      const quickActions = withIds(quickActionsForPhase1("product_search", { shoppingAvailable: false }));
+      const debugInfo = { phase1Intent, followupKind: "find_similar", toolUsed: false, reason: "no_live_search" };
+      await supabase.from("chat_messages").insert({
+        user_id: userId, role: "assistant", content: replyText,
+        quick_actions: quickActions, debug_info: debugInfo as any,
+      });
+      return json({ reply_text: replyText, recommended_ids: [], styling_instruction: "", quick_actions: quickActions, intent: phase1Intent, tool_used: false, debug_info: debugInfo });
+    }
+
     // Honest short-circuit: user asked for product search but no real search tool is connected.
     if (phase1Intent === "product_search" && !liveSearchConnected && !refMode) {
       const replyText =
