@@ -263,12 +263,14 @@ const ProductResultCards: React.FC<ProductResultCardsProps> = ({ products, sourc
         {visible.map((p, i) => {
           const priceText = formatPrice(p.price, p.currency);
           const meta = [p.brand, p.retailer].filter(Boolean).join(" · ");
+          const idx = i + 1;
+          const ref = `product ${idx}`;
           return (
             <div
               key={`${p.productUrl}-${i}`}
               className="rounded-xl border border-border bg-card overflow-hidden flex"
             >
-              <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 bg-secondary">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 bg-secondary relative">
                 {p.imageUrl ? (
                   <SafeImage
                     src={p.imageUrl}
@@ -282,6 +284,9 @@ const ProductResultCards: React.FC<ProductResultCardsProps> = ({ products, sourc
                     <ImageIcon className="w-5 h-5" />
                   </div>
                 )}
+                <span className="absolute top-1 left-1 text-[9px] px-1.5 py-0.5 rounded-full bg-background/85 text-foreground font-medium">
+                  #{idx}
+                </span>
               </div>
               <div className="flex-1 min-w-0 p-2.5 flex flex-col gap-1">
                 <p className="text-xs font-medium text-foreground line-clamp-2 leading-snug">
@@ -313,24 +318,31 @@ const ProductResultCards: React.FC<ProductResultCardsProps> = ({ products, sourc
                   </a>
                   <button
                     type="button"
-                    onClick={() => onSendMessage(`Style this product: ${p.title}`)}
+                    onClick={() => onSendMessage(`Style ${ref}: ${p.title}`)}
                     className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full border border-border bg-background text-foreground hover:border-primary/40 hover:bg-secondary transition-colors"
                   >
                     Style this
                   </button>
                   <button
                     type="button"
-                    onClick={() => onSendMessage(`Find similar options to: ${p.title}`)}
+                    onClick={() => onSendMessage(`Find similar options to ${ref}: ${p.title}`)}
                     className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full border border-border bg-background text-foreground hover:border-primary/40 hover:bg-secondary transition-colors"
                   >
                     Find similar
                   </button>
                   <button
                     type="button"
-                    onClick={() => onSendMessage(`Compare this option with the others: ${p.title}`)}
+                    onClick={() => onSendMessage(`Compare ${ref} with the others: ${p.title}`)}
                     className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full border border-border bg-background text-foreground hover:border-primary/40 hover:bg-secondary transition-colors"
                   >
                     Compare
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onSendMessage(`Save ${ref} to my wishlist: ${p.title}`)}
+                    className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full border border-border bg-background text-foreground hover:border-primary/40 hover:bg-secondary transition-colors"
+                  >
+                    Save
                   </button>
                 </div>
               </div>
