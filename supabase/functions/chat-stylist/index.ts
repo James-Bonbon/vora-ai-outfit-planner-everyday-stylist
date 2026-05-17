@@ -2918,6 +2918,12 @@ serve(async (req) => {
         product_search: productSearch as any,
         debug_info: debugInfo as any,
       });
+      logChatEvent({
+        flow: "product_search", intent: phase1Intent, toolUsed: true,
+        productSearchStatus: status, productSearchSource: productSearch.source,
+        productSearchQuery: query, productsReturned: products.length,
+        quickActionLabels: quickActions.map((a) => a.label),
+      });
 
       return json({
         reply_text: replyText,
