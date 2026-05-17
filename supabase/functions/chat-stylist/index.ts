@@ -1568,6 +1568,8 @@ function scrubFakeBrowsingClaims(text: string, toolUsed: boolean): string {
   for (const [re, sub] of replacements) out = out.replace(re, sub);
   return out;
 }
+
+function quickActionsProductResults(): QAItem[] {
   return [
     { kind: "send_message", label: "Compare top two", message: "Compare the first two for me." },
     { kind: "send_message", label: "Style the first one", message: "Style product 1 for me." },
