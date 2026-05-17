@@ -11,14 +11,12 @@ export interface MinimalProductLike {
   imageUrl?: string | null;
   price?: string | null;
   currency?: string | null;
-  [key: string]: unknown;
 }
 
 export interface MinimalQuickAction {
   id?: string;
   label?: string | null;
   kind?: string | null;
-  [key: string]: unknown;
 }
 
 export const isValidHttpUrl = (u?: string | null): u is string => {
