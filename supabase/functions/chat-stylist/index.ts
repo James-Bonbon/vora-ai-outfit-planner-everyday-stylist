@@ -2802,6 +2802,12 @@ serve(async (req) => {
         products: products.length > 0 ? (products as any) : null,
         product_search: productSearch as any, debug_info: debugInfo as any,
       });
+      logChatEvent({
+        flow: "find_similar", intent: phase1Intent, toolUsed: true,
+        productSearchStatus: status, productSearchSource: productSearch.source,
+        productSearchQuery: query, productsReturned: products.length,
+        quickActionLabels: quickActions.map((a) => a.label),
+      });
       return json({
         reply_text: replyText, recommended_ids: [], styling_instruction: "",
         quick_actions: quickActions, shopping: top, products, productSearch,
