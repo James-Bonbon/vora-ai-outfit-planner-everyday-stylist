@@ -246,7 +246,7 @@ interface ProductResultCardsProps {
 }
 
 const ProductResultCards: React.FC<ProductResultCardsProps> = ({ products, source, onSendMessage }) => {
-  const visible = products.slice(0, 6).filter((p) => isValidHttpUrl(p.productUrl));
+  const visible = validateProducts(products, 6);
   if (visible.length === 0) return null;
 
   return (
