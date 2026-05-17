@@ -1503,7 +1503,71 @@ function mapToProductResult(
   };
 }
 
-function quickActionsProductResults(): QAItem[] {
+/**
+ * Phase 5 — validate + dedupe products before they are persisted or returned.
+ * Rules:
+ *  - title required and trimmed
+ *  - productUrl must be http(s)
+ *  - imageUrl nulled out if not http(s)
+ *  - dedupe by normalized URL (strip www + tracking params), then by normalized title
+ *  - cap to `max` (default 6)
+ */
+function validateAndDedupeProducts(list: (ProductResult | null)[], max = 6): ProductResult[] {
+  const seenUrl = new Set<string>();
+  const seenTitle = new Set<string>();
+  const out: ProductResult[] = [];
+  for (const raw of list) {
+    if (!raw) continue;
+    const title = typeof raw.title === "string" ? raw.title.trim() : "";
+    if (!title) continue;
+    let url: URL;
+    try { url = new URL(raw.productUrl); } catch { continue; }
+    if (url.protocol !== "http:" && url.protocol !== "https:") continue;
+    ["utm_source","utm_medium","utm_campaign","utm_term","utm_content","gclid","fbclid","ref","ref_src","mc_cid","mc_eid"]
+      .forEach((k) => url.searchParams.delete(k));
+    url.hash = "";
+    const urlKey = `${url.hostname.replace(/^www\./, "")}${url.pathname}`.toLowerCase();
+    const titleKey = title.toLowerCase().replace(/\s+/g, " ");
+    if (seenUrl.has(urlKey) || seenTitle.has(titleKey)) continue;
+    seenUrl.add(urlKey);
+    seenTitle.add(titleKey);
+    let imageUrl: string | null = null;
+    if (raw.imageUrl) {
+      try {
+        const i = new URL(raw.imageUrl);
+        if (i.protocol === "http:" || i.protocol === "https:") imageUrl = raw.imageUrl;
+      } catch { /* keep null */ }
+    }
+    out.push({ ...raw, title, imageUrl });
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+/** Phase 5 — structured, privacy-safe log line for chat events. */
+function logChatEvent(event: Record<string, unknown>): void {
+  try {
+    console.log(`[chat-stylist] ${JSON.stringify({ ts: new Date().toISOString(), ...event })}`);
+  } catch {
+    // Never let logging crash the request.
+  }
+}
+
+/** Phase 5 — strip first-person browsing claims when no real tool was used. */
+function scrubFakeBrowsingClaims(text: string, toolUsed: boolean): string {
+  if (toolUsed || !text) return text;
+  // Replace dishonest verbs/phrases with honest ones. Conservative — only the
+  // most explicit "I did a live action" claims.
+  const replacements: Array<[RegExp, string]> = [
+    [/\bI (?:just )?(?:searched|browsed|looked online|checked online|checked prices|pulled up)\b/gi, "Based on what I know"],
+    [/\bI found (?:these|them) online\b/gi, "Here's what I'd look for"],
+    [/\bI found (?:a few|some) (?:real )?options\b/gi, "Here are some directions to look in"],
+    [/\bI (?:already )?checked (?:stock|availability|prices)\b/gi, "I can't check live stock or prices"],
+  ];
+  let out = text;
+  for (const [re, sub] of replacements) out = out.replace(re, sub);
+  return out;
+}
   return [
     { kind: "send_message", label: "Compare top two", message: "Compare the first two for me." },
     { kind: "send_message", label: "Style the first one", message: "Style product 1 for me." },
