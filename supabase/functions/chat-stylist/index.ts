@@ -1503,6 +1503,72 @@ function mapToProductResult(
   };
 }
 
+/**
+ * Phase 5 — validate + dedupe products before they are persisted or returned.
+ * Rules:
+ *  - title required and trimmed
+ *  - productUrl must be http(s)
+ *  - imageUrl nulled out if not http(s)
+ *  - dedupe by normalized URL (strip www + tracking params), then by normalized title
+ *  - cap to `max` (default 6)
+ */
+function validateAndDedupeProducts(list: (ProductResult | null)[], max = 6): ProductResult[] {
+  const seenUrl = new Set<string>();
+  const seenTitle = new Set<string>();
+  const out: ProductResult[] = [];
+  for (const raw of list) {
+    if (!raw) continue;
+    const title = typeof raw.title === "string" ? raw.title.trim() : "";
+    if (!title) continue;
+    let url: URL;
+    try { url = new URL(raw.productUrl); } catch { continue; }
+    if (url.protocol !== "http:" && url.protocol !== "https:") continue;
+    ["utm_source","utm_medium","utm_campaign","utm_term","utm_content","gclid","fbclid","ref","ref_src","mc_cid","mc_eid"]
+      .forEach((k) => url.searchParams.delete(k));
+    url.hash = "";
+    const urlKey = `${url.hostname.replace(/^www\./, "")}${url.pathname}`.toLowerCase();
+    const titleKey = title.toLowerCase().replace(/\s+/g, " ");
+    if (seenUrl.has(urlKey) || seenTitle.has(titleKey)) continue;
+    seenUrl.add(urlKey);
+    seenTitle.add(titleKey);
+    let imageUrl: string | null = null;
+    if (raw.imageUrl) {
+      try {
+        const i = new URL(raw.imageUrl);
+        if (i.protocol === "http:" || i.protocol === "https:") imageUrl = raw.imageUrl;
+      } catch { /* keep null */ }
+    }
+    out.push({ ...raw, title, imageUrl });
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+/** Phase 5 — structured, privacy-safe log line for chat events. */
+function logChatEvent(event: Record<string, unknown>): void {
+  try {
+    console.log(`[chat-stylist] ${JSON.stringify({ ts: new Date().toISOString(), ...event })}`);
+  } catch {
+    // Never let logging crash the request.
+  }
+}
+
+/** Phase 5 — strip first-person browsing claims when no real tool was used. */
+function scrubFakeBrowsingClaims(text: string, toolUsed: boolean): string {
+  if (toolUsed || !text) return text;
+  // Replace dishonest verbs/phrases with honest ones. Conservative — only the
+  // most explicit "I did a live action" claims.
+  const replacements: Array<[RegExp, string]> = [
+    [/\bI (?:just )?(?:searched|browsed|looked online|checked online|checked prices|pulled up)\b/gi, "Based on what I know"],
+    [/\bI found (?:these|them) online\b/gi, "Here's what I'd look for"],
+    [/\bI found (?:a few|some) (?:real )?options\b/gi, "Here are some directions to look in"],
+    [/\bI (?:already )?checked (?:stock|availability|prices)\b/gi, "I can't check live stock or prices"],
+  ];
+  let out = text;
+  for (const [re, sub] of replacements) out = out.replace(re, sub);
+  return out;
+}
+
 function quickActionsProductResults(): QAItem[] {
   return [
     { kind: "send_message", label: "Compare top two", message: "Compare the first two for me." },
@@ -2710,9 +2776,10 @@ serve(async (req) => {
       });
       const top = safe.slice(0, 6);
       const reasonBase = [followup.modifiers.color || (seed.colors && seed.colors[0]), targetCategory].filter(Boolean).join(" ").trim() || targetCategory;
-      const products: ProductResult[] = top
-        .map((p) => mapToProductResult(p, { category: targetCategory, reason: `Similar to ${seed.title.slice(0, 40)} — ${reasonBase}` }))
-        .filter((x): x is ProductResult => !!x);
+      const products: ProductResult[] = validateAndDedupeProducts(
+        top.map((p) => mapToProductResult(p, { category: targetCategory, reason: `Similar to ${seed.title.slice(0, 40)} — ${reasonBase}` })),
+        6,
+      );
 
       const status: "success" | "empty" = products.length > 0 ? "success" : "empty";
       const replyText = products.length > 0
@@ -2734,6 +2801,12 @@ serve(async (req) => {
         quick_actions: quickActions, shopping: top.length > 0 ? top : null,
         products: products.length > 0 ? (products as any) : null,
         product_search: productSearch as any, debug_info: debugInfo as any,
+      });
+      logChatEvent({
+        flow: "find_similar", intent: phase1Intent, toolUsed: true,
+        productSearchStatus: status, productSearchSource: productSearch.source,
+        productSearchQuery: query, productsReturned: products.length,
+        quickActionLabels: quickActions.map((a) => a.label),
       });
       return json({
         reply_text: replyText, recommended_ids: [], styling_instruction: "",
@@ -2800,9 +2873,10 @@ serve(async (req) => {
       });
       const top = safe.slice(0, 6);
       const reasonBase = [colorWordFromText(lastUserText), targetCategory].filter(Boolean).join(" ").trim() || targetCategory;
-      const products: ProductResult[] = top
-        .map((p) => mapToProductResult(p, { category: targetCategory, reason: `Looks aligned with ${reasonBase}` }))
-        .filter((x): x is ProductResult => !!x);
+      const products: ProductResult[] = validateAndDedupeProducts(
+        top.map((p) => mapToProductResult(p, { category: targetCategory, reason: `Looks aligned with ${reasonBase}` })),
+        6,
+      );
 
       const status: "success" | "empty" = products.length > 0 ? "success" : "empty";
       const replyText = products.length > 0
@@ -2843,6 +2917,12 @@ serve(async (req) => {
         products: products.length > 0 ? (products as any) : null,
         product_search: productSearch as any,
         debug_info: debugInfo as any,
+      });
+      logChatEvent({
+        flow: "product_search", intent: phase1Intent, toolUsed: true,
+        productSearchStatus: status, productSearchSource: productSearch.source,
+        productSearchQuery: query, productsReturned: products.length,
+        quickActionLabels: quickActions.map((a) => a.label),
       });
 
       return json({
@@ -3082,7 +3162,9 @@ ${!refMode ? `CHAT_INTENT: ${chatIntent}
 HONESTY (Phase 1 — non-negotiable):
 - LIVE_PRODUCT_SEARCH_CONNECTED=${liveSearchConnected ? "true" : "false"}.
 - Do NOT claim you "searched", "browsed", "looked online", "found products", "checked prices", "found links", or saw real product images unless LIVE_PRODUCT_SEARCH_CONNECTED is true AND server actually returned shopping results.
-- Never invent product names, brands, prices, retailers, links, image URLs, or availability.
+- Banned first-person verbs when no real tool ran: "I searched", "I browsed", "I looked online", "I checked online", "I checked prices", "I checked stock", "I pulled up", "I found these online", "I found a few real options".
+- Never invent product names, brands, prices, retailers, links, image URLs, discounts, stock status, or saved/wishlist status.
+- If the user asks you to browse but live search isn't connected, say so plainly and offer wardrobe-based help or specific search terms instead.
 - For PHASE1_INTENT="product_search" without a real tool, give honest guidance: categories, colors, materials, search terms, what to avoid, what would match the user's wardrobe.
 PHASE1_INTENT: ${phase1Intent}
 ${recentProducts.length > 0 ? `\nRECENT_PRODUCTS (the product set most recently shown to the user — refer to them by 1-based index; do NOT invent details outside this list):\n${JSON.stringify(recentProducts.slice(0, 6).map((p, i) => ({ index: i + 1, title: p.title, brand: p.brand, price: p.price, category: p.category, retailer: p.retailer, colors: p.colors, productUrl: p.productUrl }))).slice(0, 2000)}\n` : ""}${followupActive && selection.indices.length > 0 ? `SELECTED_PRODUCTS (the products the user is asking about right now, 1-based indices: ${selection.indices.map((i) => i + 1).join(", ")}):\n${JSON.stringify(selection.indices.map((i) => ({ index: i + 1, ...recentProducts[i] }))).slice(0, 2000)}\nFOLLOWUP_KIND: ${followup.kind}\n- For "compare_products": compare using only structured fields above (versatility, wardrobe match, price/value, color, material, occasion). Recommend ONE winner with a clear reason. Do NOT invent specs.\n- For "style_product": build 1–3 short outfit ideas around the selected product. Use the phrasing "Assuming you buy this, I'd style it with..." — do NOT pretend the product is in the wardrobe. You may reference wardrobe items by ID.\n- Never claim a product is available, in stock, on sale, or recently restocked.\n` : ""}
@@ -3554,6 +3636,24 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
           status: phase2Products.length > 0 ? "success" : (shoppingAvailable ? "empty" : "not_configured"),
         }
       : undefined;
+
+    // Phase 5 guardrail: if no real tool ran, strip first-person browsing claims.
+    const finalToolUsed = onlineSearchAttempted && shoppingResults.length > 0;
+    replyText = scrubFakeBrowsingClaims(replyText, finalToolUsed);
+    logChatEvent({
+      flow: "llm_response",
+      intent: phase1Intent,
+      chatIntent,
+      toolUsed: finalToolUsed,
+      onlineSearchAttempted,
+      shoppingResultsCount: shoppingResults.length,
+      productsReturned: phase2Products.length,
+      productSearchStatus: phase2ProductSearch?.status ?? null,
+      quickActionCount: quickActions.length,
+      quickActionLabels: quickActions.map((a) => a.label),
+      hasReference: !!productRef,
+      referenceIntent: refMode ? referenceIntent : null,
+    });
 
     await supabase.from("chat_messages").insert({
       user_id: userId,
