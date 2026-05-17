@@ -226,15 +226,7 @@ const DebugChip: React.FC<{ debug: DebugInfo; productRef?: ProductReference }> =
   );
 };
 
-const isValidHttpUrl = (u?: string | null): u is string => {
-  if (!u) return false;
-  try {
-    const p = new URL(u);
-    return p.protocol === "http:" || p.protocol === "https:";
-  } catch {
-    return false;
-  }
-};
+import { isValidHttpUrl, validateProducts, dedupeQuickActions } from "./productValidation";
 
 const formatPrice = (price?: string | null, currency?: string | null): string | null => {
   if (!price) return null;
