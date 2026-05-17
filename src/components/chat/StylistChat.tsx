@@ -910,8 +910,10 @@ export const StylistChat: React.FC<StylistChatProps> = ({ initialMessage }) => {
                   Array.isArray(msg.quick_actions) &&
                   msg.quick_actions.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 pt-1">
-                      {msg.quick_actions
-                        .filter((a) => a && ALLOWED_KINDS.has(a.kind))
+                      {dedupeQuickActions(
+                        msg.quick_actions.filter((a) => a && ALLOWED_KINDS.has(a.kind)),
+                        4,
+                      )
                         .map((action) => {
                           // Hide actions that need garments but have none valid
                           if (
