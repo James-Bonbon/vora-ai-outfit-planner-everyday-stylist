@@ -2776,9 +2776,10 @@ serve(async (req) => {
       });
       const top = safe.slice(0, 6);
       const reasonBase = [followup.modifiers.color || (seed.colors && seed.colors[0]), targetCategory].filter(Boolean).join(" ").trim() || targetCategory;
-      const products: ProductResult[] = top
-        .map((p) => mapToProductResult(p, { category: targetCategory, reason: `Similar to ${seed.title.slice(0, 40)} — ${reasonBase}` }))
-        .filter((x): x is ProductResult => !!x);
+      const products: ProductResult[] = validateAndDedupeProducts(
+        top.map((p) => mapToProductResult(p, { category: targetCategory, reason: `Similar to ${seed.title.slice(0, 40)} — ${reasonBase}` })),
+        6,
+      );
 
       const status: "success" | "empty" = products.length > 0 ? "success" : "empty";
       const replyText = products.length > 0
