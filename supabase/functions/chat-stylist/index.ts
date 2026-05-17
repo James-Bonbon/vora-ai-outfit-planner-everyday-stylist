@@ -3641,6 +3641,7 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
       referenceIntent: refMode ? referenceIntent : null,
     });
 
+    await supabase.from("chat_messages").insert({
       user_id: userId,
       role: "assistant",
       content: replyText,
