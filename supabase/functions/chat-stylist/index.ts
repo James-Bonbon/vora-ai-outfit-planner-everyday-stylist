@@ -3623,7 +3623,24 @@ Otherwise: 2–4 tappable next steps. Allowed kinds: send_message, see_on_me, sa
         }
       : undefined;
 
-    await supabase.from("chat_messages").insert({
+    // Phase 5 guardrail: if no real tool ran, strip first-person browsing claims.
+    const finalToolUsed = onlineSearchAttempted && shoppingResults.length > 0;
+    replyText = scrubFakeBrowsingClaims(replyText, finalToolUsed);
+    logChatEvent({
+      flow: "llm_response",
+      intent: phase1Intent,
+      chatIntent,
+      toolUsed: finalToolUsed,
+      onlineSearchAttempted,
+      shoppingResultsCount: shoppingResults.length,
+      productsReturned: phase2Products.length,
+      productSearchStatus: phase2ProductSearch?.status ?? null,
+      quickActionCount: quickActions.length,
+      quickActionLabels: quickActions.map((a) => a.label),
+      hasReference: !!productRef,
+      referenceIntent: refMode ? referenceIntent : null,
+    });
+
       user_id: userId,
       role: "assistant",
       content: replyText,
